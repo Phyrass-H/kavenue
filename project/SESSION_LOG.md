@@ -5,6 +5,59 @@
 
 ---
 
+## 2026-08-23 — Session 65 — THE REPO RENAME, AND THE BIGGER THING IT UNCOVERED
+
+**Queue item 1 of 3, shipped.** `Phyrass-H/Pickup-marketplace` → **`Phyrass-H/kavenue`**. Chosen over
+`kavenue-marketplace` because it matches the Vercel project; the landing repo stays `kavenue-landing`. The
+driver was trademark, not tidiness: "Pickup" is registered to Pickup Services SAS / GeoPost (Groupe La Poste)
+in **class 39 — transport**, and the repo is public.
+
+**Gate first.** `handoff-check.ts` 11/11, `tsc` clean, `vitest` **462**, and all six DB probes green
+(693 · 170 · 8 · 20 · 61 · 23, zero mismatches). Nothing had drifted since S64 closed, so the queue stood.
+
+**The rename itself, and what was verified after it:**
+- ruleset `main — CI must pass` **survived** — it binds by repo **ID**; GitHub rewrote `source` itself.
+  Still `active`, `bypass_actors: []`, still requiring `types · tests · build`. `…/branches/main/protection`
+  → 404, confirming the ruleset is the **only** gate on main.
+- old URL redirects; `git fetch` over the new remote works; `main` in sync.
+- webhooks `[]` · deploy keys `[]` · Actions secrets 0 · environments unprotected · topics `[]` · issues `[]`
+  · forks 0 · releases none · PR #1 clean.
+- the repo's public **`homepage` was still the old trademarked URL** and `description` was empty. Both set
+  (`https://kavenue.fr` · "B2B VTC booking marketplace — centrale de réservation VTC").
+
+**A 46-agent audit found no code exposure at all.** Nothing in the app, `.github/ci.yml`, `package.json`
+(no `repository`/`homepage`/`bugs` fields) or `README.md` (9 bytes) ever named the repo. **Every** reference
+was prose in `project/*.md` plus one gitignored probe line. That is why the rename was safe — and it is worth
+remembering the next time a rename looks scary.
+
+⚑ **`handoff-check.ts` was itself a landmine.** Its 11th assertion was `/Pickup-marketplace/.test(remote)` —
+i.e. it asserted the rename had **not** happened. The moment we renamed, the mandatory session gate began
+printing `STALE` and telling every future session to stop and chase the drift. **Inverted, not deleted**:
+it now asserts the remote is on the new slug (count stays 11, matching the handoff's "Eleven assertions").
+It still earns its place — GitHub's redirect means a clone left on the old slug keeps working *silently*,
+so a wrong remote would never fail loudly on its own.
+
+⚑ **THE REAL FIND, AND IT IS STILL OPEN.** `https://pickup-marketplace.vercel.app` is **live, HTTP 200,
+serving the production build** (`<title>Kavenue</title>`). Renaming the Vercel project in S49 did **not**
+release its `.vercel.app` host — Vercel mints it from the project name at creation, *adds* new aliases on
+rename, and leaves the old one bound. **There is no rename operation for it; only bound or detached.** So
+the trademarked name is publicly reachable — a larger exposure than the repo slug ever was. It is also a
+**broken shopfront, not a fallback**: `lib/hosts.ts:11,46` treats `*.vercel.app` as a shared host so Driver
+and Dispatch collide on one origin (the `DECISIONS.md:128` bug), and its origin is not in the Supabase
+redirect allowlist, so magic-link sign-in silently fails there.
+
+**The founder was asked and pushed back on scope** — the ask was to rename the repo, not to change Vercel.
+Fair. Logged as `BACKLOG.md` **§ AD** with the exact dashboard steps, theirs to decide. Not re-raised.
+
+**Docs corrected** (live instructions only — historical entries left as the record they are, per the
+CHANGELOG's own convention): `NEXT_SESSION.md` (queue line, § 1 rewritten as shipped, three live `gh api`
+paths, three "still owed" claims), `NEXT_MOVES_CHECKLIST.md:58`, `DECISIONS.md:722`, `BACKLOG.md` § AD.
+
+**Next:** the queue is now **§ R** (the volume ceiling) then **§ V** (a Driver may opt in to lower-class
+trips — already biting: Karim Nasri's Classe V is stored `luxury` and is stranded off Business-van work).
+
+---
+
 ## 2026-08-16 — Session 60 — THE RATE CARD, RE-CALIBRATED AND RE-LOCKED (docs only so far)
 
 **Step 0 of the pricing-engine build order.** No code yet: `docs/06` §4 held numbers that a day of

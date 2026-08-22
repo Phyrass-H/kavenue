@@ -32,7 +32,7 @@ asked**; that stands, and now there is no reason to.
 
 ⚑ **The rule is INVISIBLE FROM THE CODE.** `.github/workflows/ci.yml` is in the repo, but the ruleset that
 makes it *required* is a GitHub setting outside it. Read it with
-`gh api repos/Phyrass-H/Pickup-marketplace/rulesets`.
+`gh api repos/Phyrass-H/kavenue/rulesets`.
 
 **⚑ THE LIVE RESUME POINT IS THE BLOCK HEADED "★★ START HERE" (2026-08-22, S64 — closed).**
 Search for it. Everything above it is history kept for its decision trail; several older "START HERE" and
@@ -359,8 +359,9 @@ CURRENT STATE (live, deployed from `main`):
     console errors · French legal copy checked for élision (Kavenue is consonant-initial, so "de Kavenue" is correct).
   - **⚑ Founder actions:** **✅ The domain migration is DONE — S49, [[d60]].** **✅ The repo directory is DONE — S53,
     2026-08-06:** the folder is now `02_Cactus/Kavenue/Kavenue_project_dev` (both levels renamed), and the matching
-    `~/.claude/projects/` directory moved with it, so the session history and memory survived. **Still open:** rename the
-    **GitHub repo** `Phyrass-H/Pickup-marketplace` (outward-facing, your account, and it breaks the git remote — yours).
+    `~/.claude/projects/` directory moved with it, so the session history and memory survived. **✅ The GitHub repo is DONE — S65,
+    2026-08-23:** renamed to `Phyrass-H/kavenue`; the local remote was repointed and the `main — CI must pass`
+    ruleset survived (it binds by repo ID). The repo's public `homepage`/`description` were set at the same time.
     Also flagged, not
     touched: `.claude/settings.local.json` line 42 mentions the old brand inside a permission rule and line 32 has a stale
     `pickup_schema.sql` path (a dead entry — that path was already wrong pre-rename) — it's your permissions config, so
@@ -561,7 +562,7 @@ specific trip by drivers name, or passenger or internal reference, or car… per
   filters in memory, which is what lets the chip counts / Driver list / class list be honest about the *whole* archive.
   Correct at 28 trips, the first thing to break at 5 000. Also skipped: a density toggle (nobody asked).
 
-**★★ START HERE — THE CURVE IS LIVE. THE QUEUE IS: REPO RENAME · § R · § V (S64 closed, 2026-08-22).**
+**★★ START HERE — THE CURVE IS LIVE. THE QUEUE IS: § R · § V (repo rename ✅ SHIPPED S65, 2026-08-23).**
 
 > **S64 shipped the §6 curve and it is deployed.** Everything below the horizontal rule is S64's own
 > write-up, kept because [[d78]]–[[d84]] constrain what you build. **Read those seven decisions before you
@@ -621,22 +622,45 @@ and you opening, and finding out what matters more than starting the next featur
 check them, or have a subagent do it. And when something bites you that this probe did not catch, **add an
 assertion for it** so the next session gets it for free.
 
-## 1 · RENAME THE GITHUB REPO — small, and it is a trademark question, not cosmetics
+## 1 · ✅ RENAME THE GITHUB REPO — SHIPPED (S65, 2026-08-23). Kept for the trail + one thing it uncovered.
 
-`Phyrass-H/Pickup-marketplace` is still the remote. **"Pickup" is a registered trademark of Pickup Services
-SAS / GeoPost (Groupe La Poste) in class 39 — transport, the exact sector** ([[rebrand-from-pickup]]), which
-is the whole reason the product became Kavenue. A public repo under the old name is the kind of thing a
-trademark search surfaces.
+The remote is now **`Phyrass-H/kavenue`** (`gh repo rename kavenue` + `git remote set-url`). Chosen over
+`kavenue-marketplace` because it matches the Vercel project; the landing repo stays `kavenue-landing`.
+Why it mattered: **"Pickup" is a registered trademark of Pickup Services SAS / GeoPost (Groupe La Poste) in
+class 39 — transport, the exact sector** ([[rebrand-from-pickup]]).
 
-**The founder does not mind which name** — they said so. `kavenue` matches the Vercel project;
-`kavenue-marketplace` pairs with the landing repo's `kavenue-landing`. Pick one and say which you picked.
+Verified after the rename, all green:
+- the ruleset `main — CI must pass` **survived** — it binds by repo **ID**, and GitHub rewrote its `source`
+  itself. Still `enforcement: active`, still `bypass_actors: []`, still requiring `types · tests · build`.
+  (`gh api repos/Phyrass-H/kavenue/branches/main/protection` → 404: the ruleset is the **only** gate on main.)
+- the old URL redirects (`gh api repos/Phyrass-H/Pickup-marketplace` resolves to `Phyrass-H/kavenue`), so a
+  stale clone keeps working — which is exactly why `handoff-check.ts` now asserts the remote is on the NEW
+  slug rather than trusting that a wrong one would fail loudly. It would not.
+- webhooks `[]` · deploy keys `[]` · Actions secrets 0 · topics `[]` · issues `[]` · forks 0 · releases none.
+  Nothing in the app code, `.github/ci.yml`, `package.json` or `README.md` ever named the repo. Every
+  reference was prose in `project/*.md`.
+- the repo's public `homepage` had been left pointing at the OLD trademarked URL and `description` was empty;
+  both were set (`https://kavenue.fr` · "B2B VTC booking marketplace — centrale de réservation VTC").
 
-    gh repo rename kavenue --repo Phyrass-H/Pickup-marketplace
-    git remote set-url origin https://github.com/Phyrass-H/kavenue.git
+### ⚑ WHAT THE RENAME UNCOVERED, STILL OPEN, FOUNDER'S CALL
 
-⚑ **THEN IMMEDIATELY CHECK VERCEL.** It is connected to this repo and links by repo **ID**, not by name, so
-a rename normally survives — but production deploys run through that link. Push something trivial and
-confirm a build fires before you call it done. The open PR history and old URLs redirect fine.
+**`https://pickup-marketplace.vercel.app` is LIVE and serving production right now** — HTTP 200,
+`<title>Kavenue</title>`. Renaming the *Vercel project* in S49 did **not** release its `.vercel.app` domain:
+Vercel mints that host from the project name at creation, **adds** new aliases on rename, and leaves the old
+one bound and auto-aliasing production. There is no rename operation for it — the only states are bound or
+detached. So the trademarked name is publicly reachable and crawlable, which is a *bigger* exposure than the
+repo slug ever was.
+
+⚑ **It is not a working fallback, so nothing real depends on it.** Two existing bugs make it a broken
+shopfront: `lib/hosts.ts:11,46` treats `*.vercel.app` as a shared host and returns `null` for the role
+subdomain, so Driver and Dispatch collide on one origin (the session-overwrite bug at
+`project/DECISIONS.md:128`); and its origin is not in the Supabase redirect allowlist, so magic-link sign-in
+silently fails there.
+
+**Fix (founder's dashboard, mutating — do not do it for them):** Vercel → project `kavenue` → Settings →
+Domains → remove `pickup-marketplace.vercel.app`. `driver.kavenue.fr` and `dispatch.kavenue.fr` are
+unaffected. ⚑ **The founder was asked in S65 and pushed back on scope** — the repo rename was the ask, not a
+Vercel change. Logged as `project/BACKLOG.md` **§ AD**, theirs to decide. **Do not re-litigate it unprompted.**
 
 ## 2 · § R — THE VOLUME CEILING
 
@@ -1519,7 +1543,8 @@ PWA manifest, README and the Dispatch topbar wordmark; the two brand-named doc f
 lenses (a mechanical reversibility check on all 209 changed lines found 0 collateral edits) + 18 routes in-browser.
 **Deliberately NOT renamed at the time** (each would have broken something real): every `pickupbedriven.com` hostname
 (**superseded — the DNS move shipped in S49, [[d60]]; the code is on `kavenue.fr` now**), the
-`Phyrass-H/Pickup-marketplace` repo slug, the `PickUp_project_dev` directory (**superseded — renamed 2026-08-06 to
+`Phyrass-H/Pickup-marketplace` repo slug (**superseded — renamed 2026-08-23 to `Phyrass-H/kavenue`, S65**), the
+`PickUp_project_dev` directory (**superseded — renamed 2026-08-06 to
 `Kavenue_project_dev`**), `PickUp Go`, La Poste's
 "Pickup" trademark, the `pickup_*` transport term/DB columns, the `pickup-dx-collapsed` localStorage key, and the
 `*@pickup.local` dev-login/seed identities (they map to REAL Supabase auth rows — renaming the string alone breaks
@@ -1583,8 +1608,8 @@ looked correct in code and only fell to live probing); the **"Both"** mission ty
    **✅ The domain migration SHIPPED in Session 49 ([[d60]])** — `kavenue.fr` is live (the `.com` waits until it's
    affordable), old domain removed, Google Workspace email running. Runbook: `project/DOMAIN_MIGRATION.md`.
    **Still outstanding, founder-owned:** (1) ✅ the **repo directory** was renamed 2026-08-06 — now
-   `02_Cactus/Kavenue/Kavenue_project_dev`; the **GitHub repo** is still `Phyrass-H/Pickup-marketplace`, the founder's to
-   rename (it breaks the git remote);
+   `02_Cactus/Kavenue/Kavenue_project_dev`; ✅ the **GitHub repo** was renamed 2026-08-23 to
+   `Phyrass-H/kavenue` (S65);
    (2) **Google Places** swap for address search — this was gated on the DNS move so the key could be restricted once,
    and **that gate is now lifted**. Related: the Mapbox public token turned out to have **no URL restrictions at all**
    (probed in S49), so if we stay on Mapbox it wants a new restricted token anyway. See [[d43]] [[d50]] [[d51]] [[d60]]
@@ -1652,12 +1677,12 @@ Code may push). Append to `project/SESSION_LOG.md` when a chunk is done; keep `p
 a plain-language line per shipped item.
 - **⚠️ Vercel auto-deploy can silently drop a commit** (happened 2026-06-25 — a push got NO deployment, so the
   live site kept the old code even though the build was fine). After `git push origin main`, VERIFY a deployment
-  landed: `gh api repos/Phyrass-H/Pickup-marketplace/deployments --jq '.[0].sha'` should equal the pushed SHA. If
+  landed: `gh api repos/Phyrass-H/kavenue/deployments --jq '.[0].sha'` should equal the pushed SHA. If
   it's dropped, push an **empty commit** (`git commit --allow-empty`) to re-trigger, or use the Vercel dashboard →
   Redeploy. (The deployments `?sha=` filter needs the FULL 40-char SHA.)
 - **⚠️ Vercel can also fail a build TRANSIENTLY** (happened 2026-07-07 — a **docs-only** commit `51784d8` got a
   `failure` while its app code was byte-identical to the commit that had just deployed `success`). Don't panic: check
-  the per-deployment status (`gh api repos/Phyrass-H/Pickup-marketplace/deployments/<id>/statuses --jq '.[0]'`), then
+  the per-deployment status (`gh api repos/Phyrass-H/kavenue/deployments/<id>/statuses --jq '.[0]'`), then
   **reproduce `next build` locally** — if it passes clean, it was an infra flake, not your code, and production is still
   serving the last successful deploy (never down). Re-trigger with an empty commit. **Stop the `next dev` preview
   before `rm -rf .next && next build`** (building while dev runs corrupts `.next`).

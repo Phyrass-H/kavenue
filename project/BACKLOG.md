@@ -1431,3 +1431,32 @@ a moving one means rebuilding it.
 
 **Pairs with:** `project/GUIDANCE_AUDIT.md` — the existing in-app guidance inventory and its gaps. That
 audit is about guidance *inside* the screens; this is the thing that should come before them.
+
+## AD. `pickup-marketplace.vercel.app` is still live and serving production ⚙️❓ (found 2026-08-23, S65)
+
+**Founder's call — raised in S65 and deliberately left open.** They pushed back on scope: the ask was to
+rename the GitHub repo, not to change Vercel. Recorded here so it is not lost. **Do not re-raise unprompted.**
+
+**What it is.** `https://pickup-marketplace.vercel.app/login` → HTTP 200, `<title>Kavenue</title>`. It is a
+live production alias. Renaming the *Vercel project* in S49 (`pickup-marketplace` → `kavenue`) did **not**
+release its `.vercel.app` domain: Vercel mints that host from the project name at creation, **adds** the new
+aliases on rename, and leaves the old one bound and auto-aliasing production. **There is no rename operation
+for a `.vercel.app` domain — the only two states are bound and detached.**
+
+**Why it outranks the repo slug it was found next to.** The repo name was a git URL. This is a running,
+crawlable, publicly reachable site serving the real production build under a name that is a **registered
+trademark of Pickup Services SAS / GeoPost (Groupe La Poste) in class 39 — transport, the exact sector**
+([[rebrand-from-pickup]]). That is the thing a trademark search actually surfaces.
+
+**Nothing real depends on it** — it is a broken shopfront, not a fallback:
+- `lib/hosts.ts:11,46` treats `*.vercel.app` as a shared host and returns `null` for the role subdomain, so
+  Driver and Dispatch collide on one origin — the session-overwrite bug already recorded at `DECISIONS.md:128`.
+- its origin is not in the Supabase redirect allowlist (`.env.example` lists only the four `kavenue.fr`
+  origins + localhost), so magic-link sign-in **silently fails** there. Anyone landing on it cannot sign in.
+
+**The fix, when the founder wants it** (their dashboard, mutating — do not do it for them):
+Vercel → project `kavenue` → Settings → Domains → remove `pickup-marketplace.vercel.app`.
+`driver.kavenue.fr` and `dispatch.kavenue.fr` are separate aliases and are unaffected.
+
+⚑ **Check the landing project too** — `kavenue-landing` was created later, so it likely never had an old-name
+host, but nobody has looked.

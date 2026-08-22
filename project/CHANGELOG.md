@@ -5,6 +5,25 @@
 
 ---
 
+## 23 August 2026 — the old name is off the code repository
+
+- **The code repository is now called `kavenue`.** It was still `Pickup-marketplace` — a public page under a
+  name that belongs to someone else in your exact industry (La Poste's parcel arm, registered for transport).
+  That's the kind of thing a trademark check finds. Old links still work; GitHub forwards them.
+- **Nothing broke, and we checked rather than assumed.** The rule that stops bad code reaching the live site
+  survived the rename untouched. Nothing inside the app ever mentioned the repository by name — every single
+  mention was in our own notes.
+- **Your repository page was also advertising the old address.** Its "website" link still pointed at the old
+  name and it had no description. Both fixed — it now points at `kavenue.fr` and says what Kavenue is.
+- **One thing is still out there, and it's yours to decide.** The old web address
+  `pickup-marketplace.vercel.app` is *still live and still serving the real app*. Renaming things on Vercel
+  back in July didn't release it, and there's no way to rename it — it can only be switched off. It's the
+  more visible half of the same problem the repository rename was solving. Nobody can actually sign in on
+  that address (it's been broken there for a while), so switching it off costs you nothing. It's saved in the
+  backlog with the exact steps, for whenever you want it.
+
+---
+
 ## 22 August 2026 — the price now moves the way it was designed to
 
 > **All of this is live.** Five database changes applied, 462 automated tests, and six checks run against

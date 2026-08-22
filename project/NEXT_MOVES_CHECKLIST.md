@@ -55,7 +55,9 @@ These honour "features & polish first." Pick freely.
 - [ ] **Google Places** swap for address search (the real POI fix — restrict the key once, after DNS).
 - [ ] **Domain migration** `pickupbedriven.com` → a Kavenue domain.
 - [x] **Code/copy rebrand** PickUp → Kavenue — **done S44** ([[d51]]). Repo **folder** renamed 2026-08-06 → now
-      `02_Cactus/Kavenue/Kavenue_project_dev`. Still yours: the **GitHub repo** (`Phyrass-H/Pickup-marketplace`).
+      `02_Cactus/Kavenue/Kavenue_project_dev`. **GitHub repo** renamed 2026-08-23 → `Phyrass-H/kavenue` (S65).
+      ⚑ Still yours, and it is the bigger trademark exposure: **`pickup-marketplace.vercel.app` is still a live
+      production alias** — Vercel never released it when the project was renamed. See `NEXT_SESSION.md` § 1.
 - [ ] URL-restrict the **Mapbox token** (do it during the domain move).
 
 ---

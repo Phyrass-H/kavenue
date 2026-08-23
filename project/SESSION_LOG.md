@@ -53,8 +53,68 @@ Fair. Logged as `BACKLOG.md` **§ AD** with the exact dashboard steps, theirs to
 CHANGELOG's own convention): `NEXT_SESSION.md` (queue line, § 1 rewritten as shipped, three live `gh api`
 paths, three "still owed" claims), `NEXT_MOVES_CHECKLIST.md:58`, `DECISIONS.md:722`, `BACKLOG.md` § AD.
 
-**Next:** the queue is now **§ R** (the volume ceiling) then **§ V** (a Driver may opt in to lower-class
-trips — already biting: Karim Nasri's Classe V is stored `luxury` and is stranded off Business-van work).
+### Then: § V was brainstormed in full and PARKED — nothing built
+
+The founder chose § V over § R (it is costing a Driver work today), then stopped before any code:
+*"we need to brainstorm about it first."* Five things settled, recorded as **[[d85]]** and rewritten into
+`BACKLOG.md` § V. The headlines:
+
+- **One class down, maximum** — First → Business, Business → Eco, First **never** to Eco. Not just a
+  simplification: it permanently protects the Driver with the cheapest car, which is most of the fairness
+  fix.
+- **Body type needs no work.** The founder gave the trade rule (*a van does a sedan trip, a sedan cannot do a
+  van trip*) and the code already implements exactly that, in both layers. Verified, not assumed.
+- ⚑ **The founder inverted their own 2026-08-15 rationale, and the new one is better.** The spec recorded
+  *"good in case of low seasons"*; they argued the opposite — in a low season there is less of *everything*,
+  so a First Driver taking Business work moves volume downhill rather than creating it. **The paradox: the
+  opt-in is most useful exactly when it is most unfair.** Season-date windows were considered and rejected
+  (they would need geography, and dates are a blunt proxy anyway).
+- **The trigger is per-trip on time-to-pickup**, which produces an escalation ladder:
+  `own class → widen one class up (FREE) → ask the Business to raise the Ceiling (§ AB, PAID) → expires`.
+  **Always pull the free lever first** — § AB fires at T−5h, so § V must fire before it.
+- **The number is still open.** The founder floated T−2h; the one-clock simplification was kept but the
+  number argued down (3h after the top-out, past Lock-in and the check-in window, inside the ±90min
+  slot-conflict band, and its SPEED WIN premise dead since [[d82]] removed auto-enabling). **Claude
+  recommended T−6h; not accepted yet.**
+
+⚑ **Two of Claude's own claims were wrong mid-session and were corrected in the same turn.** It said nothing
+records a mission entering the Pool and that a `pooled_at` column was needed. Both false: `pooled_at` exists
+(`2026-07-13_o7_cancellation.sql:27`, stamped only on RE-pool, and **NULL on all 280 live rows** because the
+seeders bypass the app — the `accepted_fare` signature again), and the "stale draft price" scenario does not
+exist because posting a draft **resets `created_at`** (`dispatch/new/actions.ts:381-384`). The first claim
+came from grepping `docs/kavenue_schema.sql` alone — **the base schema file does not contain columns added
+by later migrations.** Probe the live DB.
+
+**Verified curve facts** (computed against three live missions through the real `lib/pdp.ts`): the fare hits
+the Ceiling at exactly **T−5h** (`TOP_LEAD_MS`, `lib/pdp.ts:43`; a trip posted inside 5h tops out at the
+midpoint instead). Shape: **T−24h = 76 % · T−12h = 85 % · T−6h = 95 % · T−5h = 100 %** of Ceiling. All the
+persuasion happens before T−12h.
+
+**Draft pricing, answered (founder's question):** posting a draft re-prices **fully** — rate card re-quoted
+at today's date, floor re-derived, commission re-snapshotted, `created_at` reset, and a Ceiling now below
+today's floor is refused outright. The only carry-over is the Business's own Ceiling, deliberately. **Not a
+bug.** Live drafts: 0, so the path has never run on real data.
+
+### Two side-audits, both logged, neither built
+
+- **§ AE — nothing checks that a car can CARRY what was booked.** The founder asked. Body type *is* enforced
+  (a Sedan can never take a luggage run — closed in SQL, not just UI), but **capacity does not exist**: no bag
+  capacity per body anywhere, and the accept guard tests tier/body/luggage-opt-in with **no `pax_count`, no
+  `luggage_count`, no seats**. Two real surprise routes, plus a one-line bug — the *"8 bags is a lot even for
+  a Van"* warning is switched **off** for luggage-only runs (`mission-form.tsx:282` opens with
+  `!luggageOnly &&`), the one trip type entirely about bags. Live: 6 missions over 8 bags, max 14; 17
+  missions over 4 Guests, all of which happen to specify a body — so the hole is real but unexercised, and
+  what protects it is a human ticking Van, not code.
+- **§ AG — record every state transition.** Founder principle: *"We need records of everything."* Saved to
+  memory. `status_event` exists but its CHECK permits only the four execution statuses, so it cannot record
+  pooling, acceptance, cancellation or expiry. ⚑ And the `created_at` reset above fixes pricing by
+  **destroying** the record of when a draft was made — the clean version stamps `pooled_at` on first post and
+  leaves `created_at` alone.
+- **§ AF — the aggregate "a class comes to help" version** is V2/V3. Not hard; **unmeasurable** at 9 Drivers.
+  § V is the n = 1 version of the same signal, and it generates the records that would make § AF possible.
+
+**Next:** **§ R** (the volume ceiling) is the only unblocked queue item. § V resumes when the founder picks
+the threshold number.
 
 ---
 

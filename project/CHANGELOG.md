@@ -15,6 +15,30 @@
   mention was in our own notes.
 - **Your repository page was also advertising the old address.** Its "website" link still pointed at the old
   name and it had no description. Both fixed — it now points at `kavenue.fr` and says what Kavenue is.
+- **We designed the "a bigger car can take a smaller job" feature, and deliberately didn't build it yet.**
+  You settled the important calls: a Driver can drop **one class only** (a First car can take Business work,
+  never Eco — which protects the Drivers with the cheapest cars), and body type already works exactly the way
+  the trade does, so there's nothing to change there. What's still open is a single number: how close to the
+  pickup a trip should open up to bigger cars. You suggested 2 hours; the recommendation is 6, because the
+  price stops rising 5 hours out and it's better to try more Drivers *before* asking you to raise your
+  maximum. Your call when you come back to it.
+- **You changed your own mind about when this helps, and the new version is better.** The original note said
+  it was for quiet seasons. You argued the opposite: in a quiet season there isn't less First work, there's
+  less of everything — so a First Driver taking Business work doesn't create work, it takes it from someone
+  with a cheaper car. That reasoning is now what the design follows.
+- **We checked whether anything stops a Driver accepting a trip their car can't physically carry.** Answer:
+  the *type* of car is checked properly — a saloon can never be sent a luggage run. But **how much fits is
+  not checked anywhere.** Nothing in Kavenue knows how many bags a van holds. There's also a small bug: the
+  warning that says "8 bags is a lot even for a Van" is switched off for luggage-only trips — the one kind of
+  trip that's entirely about bags. All written down; nothing changed yet.
+- **Answering your question about drafts: yes, the price is fully recalculated when you post one.** A trip
+  drafted on Monday and posted on Friday is priced at Friday's rates, and the climb starts on Friday, not
+  Monday. The only thing that carries over is your own maximum, on purpose — that's your commercial decision,
+  not ours. If it were below Friday's floor, posting is refused outright.
+- **You asked for records of everything, and you were right to.** Nothing currently records the moment a trip
+  goes into the Pool. Worse, posting a draft *overwrites* the moment it was created. Analysis can be added any
+  time; history that was never written can't be recovered. That's now a task of its own.
+
 - **One thing is still out there, and it's yours to decide.** The old web address
   `pickup-marketplace.vercel.app` is *still live and still serving the real app*. Renaming things on Vercel
   back in July didn't release it, and there's no way to rename it — it can only be switched off. It's the

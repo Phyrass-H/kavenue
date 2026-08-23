@@ -562,7 +562,9 @@ specific trip by drivers name, or passenger or internal reference, or car… per
   filters in memory, which is what lets the chip counts / Driver list / class list be honest about the *whole* archive.
   Correct at 28 trips, the first thing to break at 5 000. Also skipped: a density toggle (nobody asked).
 
-**★★ START HERE — THE CURVE IS LIVE. THE QUEUE IS: § R · § V (repo rename ✅ SHIPPED S65, 2026-08-23).**
+**★★ START HERE — THE QUEUE IS **§ R** ONLY. (Repo rename ✅ SHIPPED S65. § V ⏸ BRAINSTORMED AND PARKED,
+S65 — the founder said "it's too early"; the design is settled in `BACKLOG.md` § V + [[d85]], and it resumes
+only when they pick the threshold number. **Do not start § V unprompted.**)**
 
 > **S64 shipped the §6 curve and it is deployed.** Everything below the horizontal rule is S64's own
 > write-up, kept because [[d78]]–[[d84]] constrain what you build. **Read those seven decisions before you
@@ -599,7 +601,7 @@ also the session changing the thing. Proofreading cannot catch that. Only re-rea
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-Eleven assertions over the perishable claims in this file — the live SQL definitions (probed through the DB,
+Fourteen assertions over the perishable claims in this file — the live SQL definitions (probed through the DB,
 **never** by reading migration filenames, which share dates and do **not** sort into apply order), the § V
 vehicle row, the `accepted_fare` population, the Pool's real size, the demo trips, and whether the repo has
 been renamed yet. It is read-only and takes seconds. **Anything it prints `STALE` means this file lies about
@@ -714,42 +716,47 @@ pickup **OR** dropoff (`pool/page.tsx:115-117`), so a null pickup with a geocode
 lets any Driver read any pooled mission (`docs/kavenue_schema.sql:310-313`), so it scales with total
 marketplace supply, not with one Business's archive.
 
-## 3 · § V — A DRIVER MAY OPT IN TO LOWER-CLASS TRIPS. ⚑ ALREADY BITING, NOT PENDING
+## 3 · § V — ⏸ BRAINSTORMED IN FULL AND PARKED BY THE FOUNDER (S65, 2026-08-23)
 
-⚑ **S64's first draft said this was "one row update away". It has already happened.** The live DB has one
-`Classe V` (plate IJ-905-KL, Driver Karim Nasri) and it is **already stored `category='luxury'`,
-`body_type='van'`, active**. The Pool matches tier exactly (`app/(app)/pool/page.tsx:108`), so that Driver is
-**stranded off Business-van work right now** — and Business-van is where most van volume will be. § V is the
-fix, and it is overdue rather than anticipatory. (`441b50f` and `SESSION_LOG.md:100-103` describe the row as
-still `business`; both were written 2026-08-16, before it was moved.)
+⚑ **"Ok record it please, it's too early to work on that."** Nothing was built. **Do not start this
+unprompted** — one number is still the founder's to pick, and everything else is already decided.
 
-⚑ **AND THE OWED RE-SEED WOULD SILENTLY UNDO IT.** `.local/seed/seed-fleet.mjs:49` still seeds Karim with
-`cat: "business"` and `:268` writes `category: d.cat` verbatim — so a fresh fleet puts the row back to
-`business`, un-stranding him by accident and hiding the bug § V exists to fix. **Add this to the seed-fix
-list too.**
+**The full design lives in `project/BACKLOG.md` § V and `DECISIONS.md` [[d85]]. Read both before touching
+it.** What was settled: one class down maximum (First → Business, Business → Eco, **never** First → Eco);
+body type already correct in both layers, no work; the curb is a non-issue; the volume risk is accepted
+conditional on a per-Driver kill switch that **does not exist yet**; season windows rejected; the trigger is
+per-trip on time-to-pickup.
 
-✅ **The pricing half is already done, by construction.** `currentFare()` reads **only mission columns** and
-never sees the Driver or their vehicle, so a First Driver on a Business job already sees the *Business*
-price. The §6 curve preserved that. § V's pricing requirement reduces to one negative rule: **the curve must
-resolve floor and ceiling from the MISSION's class, never the reader's.** It does. Do not break it.
+**The one open item — the threshold.** Founder floated T−2h, Claude recommended **T−6h**, not accepted.
+The governing rule is the escalation ladder: `own class → widen one class up (FREE) → ask the Business to
+raise the Ceiling (§ AB, PAID) → expires (§ P)`. **§ AB fires at T−5h, so § V must fire before it.**
 
-⚑ **Relaxing `=` to `tier ≤ mine` must change THREE places IN ONE COMMIT**, or the Pool lists trips
-`accept_mission` then refuses:
-1. the Pool query — `app/(app)/pool/page.tsx:108`
-2. **the SQL guard — `docs/migrations/2026-08-22_accepted_fare.sql:100`** (`and v.category = v_mission.category`,
-   guard block `:97-108`). ⚑ **NOT `2026-08-11_accept_mission_eligibility.sql` — S64 superseded it**: the
-   2026-08-22 migration drops `accept_mission(uuid)` at `:67` and recreates it with `p_fare`, carrying its own
-   copy of the § B guard. Editing the 08-11 file changes **nothing** in the database.
-3. the Pool card.
+**Still true, and still costing a Driver work:** the live `Classe V` (IJ-905-KL, Karim Nasri) is stored
+`category='luxury'` and the Pool matches tier exactly (`app/(app)/pool/page.tsx:107-108`), so that Driver is
+stranded off Business-van work today. ⚑ `.local/seed/seed-fleet.mjs:49` would silently revert it on a
+re-seed and hide the bug.
 
-The 08-11 migration's own header still holds the reasoning, at **`:60-65`**: the SQL guard is a deliberate
-**superset** of the app filter so drift can only *hide* a trip, never refuse one the Pool offered — relaxing
-the app side alone **inverts** that guarantee. Same wording at `app/(app)/pool/page.tsx:93-96`. Ordering is
-ready: `lib/vehicle-catalog.ts:18`, `SERVICE_TIERS = ["eco","business","luxury"]`.
+⚑ **TWO CLAIMS THIS FILE USED TO MAKE THAT WERE WRONG — corrected in S65, do not reintroduce them:**
+1. *"There is no record of when a mission was pooled, so § V needs a `pooled_at` column."* **`pooled_at`
+   already exists** (`docs/migrations/2026-07-13_o7_cancellation.sql:27`) — stamped **only** on RE-pool, and
+   **NULL on all 280 live rows** because the seeders bypass the app. ⚑ The claim came from grepping
+   `docs/kavenue_schema.sql` alone: **that file does not contain columns added by later migrations.** Probe
+   the live DB.
+2. *"A draft saved Monday and posted Friday carries a stale price."* It does not — posting a draft **resets
+   `created_at` to now** (`app/(dispatch)/dispatch/new/actions.ts:381-384`) and re-quotes the rate card,
+   floor and commission. The only carry-over is the Business's own Ceiling, deliberately.
 
-⚑ **Missing, and it is a D25 preview item:** the Pool card names the *mission's* class but never the
-Driver's own, so a First Driver seeing a Business badge has nothing telling them this is a deliberate
-downgrade they opted into. Needs a contrast cue. Preview before building.
+**§ V's only migration is the Driver opt-in flag + the matching `accept_mission` guard, in ONE commit with
+the Pool query and the Pool card.** The drift rule and the superset invariant are in `BACKLOG.md` § V.
+
+**Verified curve facts (S65):** the fare reaches the Ceiling at exactly **T−5h** (`TOP_LEAD_MS`,
+`lib/pdp.ts:43`); a trip posted inside 5h tops out at the midpoint. **T−24h = 76 % · T−12h = 85 % ·
+T−6h = 95 %** of Ceiling — all the persuasion happens before T−12h.
+
+**Also logged in S65, none of it built:** § AE (nothing checks a car can CARRY what was booked — body type
+is enforced, capacity is not modelled at all) · § AF (the aggregate "a class comes to help" version — V2/V3,
+unmeasurable at 9 Drivers) · § AG (record every state transition; `status_event`'s CHECK permits only the
+four execution statuses).
 
 ## HOW TO PUSH (S64 got this wrong; don't repeat it)
 
@@ -766,7 +773,9 @@ up there as evidence have since been deleted — GitHub removes a merged branch.
 ## STATE OF THE DATABASE
 
 - **Three `S64CURVE` demo trips exist**, priced through the real RPC. ⚑ **They were seeded 2026-08-22 with
-  FIXED pickup times, so they age.** As of writing: one at T−313h, one at T−25h, and **one already in the
+  FIXED pickup times, so they age — which means the probe's demo-trip assertion WILL eventually go STALE on
+  its own, every session, forever. That one is expected noise, not drift: re-seed or delete the trips to
+  silence it.** As of writing: one at T−313h, one at T−25h, and **one already in the
   past — which the Pool hides** (`.gt("pickup_at", now)`, `app/(app)/pool/page.tsx:107`), so only two show.
   Re-seed them to see three, or just remove them:
   `node --experimental-strip-types .local/seed/s64-curve.ts --undo` (then re-run without `--undo`).

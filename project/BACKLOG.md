@@ -1101,42 +1101,167 @@ knows). **Not adequate once money moves on its own.** Two conditions to watch:
 
 ---
 
-## V. A Driver may opt in to lower-class trips 🔨 (founder, 2026-08-15 — DECIDED IN PRINCIPLE, timing set)
+## V. A Driver may opt in to lower-class trips 🔨 (founder, 2026-08-15 · **BRAINSTORMED AND PARKED 2026-08-23, S65**)
+
+⚑ **PARKED BY THE FOUNDER, 2026-08-23: "it's too early to work on that."** Nothing was built. Everything
+below is the design settled in the S65 brainstorm — read it before touching this, the answers cost a
+session's thinking and several of them overturn the original spec.
 
 **The rule.** A Driver whose car classifies above the mission's tier may choose to see and accept
-lower-class work. **Opt-in, never automatic** — a First Driver who only wants First work keeps a
-First-only Pool. Founder's reasoning: *"Uber does that, it gives the opportunity to accept trips on
-lower class if they wish, it's good in case of low seasons."*
+lower-class work. **Opt-in, never automatic.** Founder's reasoning: *"Uber does that, it gives the
+opportunity to accept trips on lower class if they wish."*
 
-**Why it surfaced.** The V-Class is being re-classified `business` → `luxury` (below), and the Pool
-matches the tier **exactly** (`query.eq("category", vehicle.category)`, `app/(app)/pool/page.tsx:108`).
-Without this opt-in, every V-Class Driver would stop seeing Business-van work — and Business-van is
-where most van volume will be. The re-classification is right; this is what makes it survivable.
+**Why it surfaced.** The Pool matches tier **exactly** (`app/(app)/pool/page.tsx:107-108`). The live
+`Classe V` (plate IJ-905-KL, Karim Nasri) is stored `category='luxury'`, so **that Driver is stranded off
+Business-van work right now** — and Business-van is where most van volume will be. § V is overdue, not
+anticipatory.
 
-**Locked at the moment of the decision:**
-- **The fare is the mission's, not the car's.** A First car taking a Business job is paid the
-  Business rate. The Driver is choosing to fill an empty slot, not to be upgraded.
-- **The Business is never charged more** and never has to know a bigger car turned up. It is strictly
-  better than what they booked, so there is nothing to disclose and nothing to refund.
-- **One-way only.** A Business car may never take First work — that is a downgrade the Guest paid to
-  avoid.
+### ✅ SETTLED IN THE S65 BRAINSTORM — do not re-open these
 
-**⚑ WHEN — ride it along with build step 3 (the §6 curve).** It changes the Pool read path, which
-step 3 already reopens for the curve *and* for the § R volume-ceiling fix. Doing it then touches that
-money-critical query once instead of three times. Not before: a Driver needs to see the *lower class's*
-price on the card, which is the rate card (step 1) plus the curve (step 3).
+1. **ONE CLASS DOWN ONLY** (founder, explicit: *"Only one lower class max!"*). First → Business and
+   Business → Eco. **First may NEVER reach Eco.** This is not just a simplification — it is most of the
+   fairness fix, because it protects the Driver with the cheapest car and the thinnest margin from ever
+   competing with a First car. A single boolean still works; the rule is "exactly one step below", not
+   "anything below". ⚑ In SQL, do **not** use `v.category >= v_mission.category` — the `vehicle_category`
+   enum is declared `('eco','business','van','luxury')` (`docs/kavenue_schema.sql:19`) so native enum order
+   sorts the retired `'van'` between business and luxury. Use an explicit tier array; the app's order is
+   `SERVICE_TIERS = ["eco","business","luxury"]` (`lib/vehicle-catalog.ts:18`).
 
-**Scope when it comes:** a `driver.accepts_lower_tiers bool default false` column (additive migration,
-mirrors `accepts_luggage_runs` from S32) · the Pool query relaxed from `=` to "tier ≤ mine" behind that
-flag · a toggle in Driver Account → *Where you work* · the Pool card must **name the class** so nobody
-accepts a Business fare thinking it is First. D25 preview loop applies to the toggle and the card.
+2. **BODY TYPE NEEDS NO WORK — it already behaves exactly as the trade does.** Founder: *"a van can do a
+   sedan trip if the business books any body type; a sedan cannot do a van trip, for lack of space. If body
+   type matters to the Business or the Guest, we already have UI for it — they choose Any or specify."*
+   Verified in both layers: `required_body_type is null or = v.body_type`, at `app/(app)/pool/page.tsx:125`
+   and the live SQL guard `docs/migrations/2026-08-22_accepted_fare.sql:101`. **Confirmed, not assumed.**
 
-### The V-Class re-classification (part of the pricing engine, step 1)
-`Classe V` moves `tier: "business"` → `"luxury"`, body stays `van`
-(`lib/vehicle-catalog.ts:65`). **Vito stays Business** — confirmed by the founder, and it is already
-correct in the catalog, so no edit. Matches how the market draws the line (Transfeero: Vito =
-Standard Van, V-Class = First Class Van). Needs the new **First — van** rate-card row; the
-combination already exists via the Lexus LM (`lib/vehicle-catalog.ts:122`) and is unpriced today.
+3. **THE CURB IS A NON-ISSUE** — founder confirmed on the ground. A bigger car turning up is strictly
+   better than booked; the Business chose "Any" if body did not matter to them. Nothing to disclose,
+   nothing to refund.
+
+4. **THE FARE IS THE MISSION'S, AND THIS IS ALREADY TRUE BY CONSTRUCTION.** `currentFare()` reads only
+   mission columns and never sees the Driver or their vehicle. The §6 curve preserved that. § V's pricing
+   requirement reduces to one negative rule: **the curve must resolve floor and ceiling from the MISSION's
+   class, never the reader's.** Do not break it. No money-path work at all.
+
+5. **THE VOLUME RISK IS ACCEPTED, KNOWINGLY.** Founder: *"they will lose volume probably and it's a risk I
+   am willing to take for now and see feedback from drivers."* Conditional on it being easy to switch off
+   for a given Driver — see the gap below.
+
+6. **SEASON WINDOWS WERE CONSIDERED AND REJECTED.** The founder first proposed allowing this only between
+   two dates (high season), then spotted the flaw themselves: seasons differ by region, so it would need
+   geography too. ⚑ **And their reasoning INVERTED the original spec's.** The 2026-08-15 note recorded
+   *"it's good in case of low seasons"*; in S65 the founder argued the opposite and better: *"if during the
+   low season we don't have enough work and the First takes the job of the Eco, then it's unfair."* In a low
+   season there is not less First work, there is less of **everything** — so a First Driver taking Business
+   work does not create volume, it moves it downhill.
+   **The paradox to keep in mind: the opt-in is most useful exactly when it is most unfair, and most
+   harmless exactly when it is least needed.**
+
+7. **THE REPLACEMENT: OPEN IT PER-TRIP, ON TIME-TO-PICKUP.** Calendar dates are a blunt proxy for the thing
+   that actually matters — whether *this trip* is going to fill. A trip still sitting in the Pool near its
+   pickup **is** the signal that supply is short for that class, at that moment, in that place. It
+   self-adjusts with no dates and no regions:
+   - **busy:** trips fill fast, never reach the class above, Business Drivers keep their volume
+   - **quiet:** a trip that would have **expired** gets taken instead of dying — the Business Driver loses
+     nothing, because nobody was taking it
+
+### ⚑ THE ESCALATION LADDER — this is why the number matters
+
+    posted  →  own class only, price climbs
+      ↓
+    still unfilled  →  WIDEN one class up      ← § V.  FREE. Business pays what they agreed.
+      ↓
+    still unfilled  →  ask the Business to raise the Ceiling   ← § AB. Costs the Business money.
+      ↓
+    nobody takes it  →  expires                ← § P, shipped
+
+**Always pull the free lever before the paid one.** § AB's trigger is **T−5h**, so § V must fire *before*
+T−5h or the ladder runs backwards.
+
+### THE OPEN QUESTION — the threshold number
+
+**Verified curve facts (S65, computed against three live missions through the real `lib/pdp.ts`):**
+- The fare reaches the Ceiling at **exactly T−5h** for any trip posted with more than 5h of runway.
+  Hardcoded: `TOP_LEAD_MS = 5 * HOUR_MS` at `lib/pdp.ts:43`. A trip posted *inside* 5h tops out at the
+  midpoint instead (posted T−3h → Ceiling at T−1h30).
+- Shape on a real row: **T−24h = 76 % of Ceiling · T−12h = 85 % · T−6h = 95 % · T−5h = 100 %.**
+  **All the persuasion happens before T−12h; the last five hours give nothing.**
+
+**Founder floated T−2h** (*"it sounds simpler, and even if it's posted 2 hours before the trip it is still
+urgent, but with a good price — SPEED WIN"*). The **one-clock simplification is right and was kept**. The
+number was argued down, for three reasons:
+1. **T−2h is three hours AFTER the top-out**, so it runs the ladder backwards (see above).
+2. **T−2h is past every deadline the app already sets.** Lock-in auto-confirms inside 3h, so the Driver is
+   instantly bound (`docs/kavenue_schema.sql:240-245`). Check-in opens at **T−3h**
+   (`CHECK_IN_OPENS_MS`, `lib/dispatch-status.ts:22`), so Dispatch already flags the trip as not-checked-in.
+   The **±90-minute slot-conflict** rule (`docs/kavenue_schema.sql:228-238`) is a 3-hour exclusion band, so
+   most working Drivers are inside somebody's band. **You would be widening into the narrowest audience the
+   day contains.** Plus travel: the 50 km default radius is 45–75 min on the Riviera.
+3. ⚑ **The SPEED WIN premise no longer holds.** [[d82]] removed automatic SPEED WIN — it is now only ever
+   what the Business ticked, default **off** at every lead time (`mission-form.tsx:208`). A Business
+   transfer posted at T−2h opens at **32,89 € net** with SPEED WIN off vs **69,61 €** with it on. "Urgent
+   but with a good price" is conditional on the Dispatcher clicking a ≤5h nudge they can click straight
+   past (`mission-form.tsx:511-517`).
+
+**⚑ CLAUDE'S RECOMMENDATION, NOT YET ACCEPTED: T−6h.** One hour before the price tops out, so the free
+lever fires before § AB's paid ask. The fare is already at 95 % of Ceiling, so it is near-maximally
+attractive. Six hours is genuine planning and travel time rather than a scramble. Keeps the founder's
+one-clock simplification exactly — one number, `pickup_at` only, no second clock.
+
+### ⚑ NO MIGRATION IS NEEDED FOR THE TIMING — an earlier S65 claim was wrong
+
+Claude first said there was no record of when a mission entered the Pool, and that a `pooled_at` column
+would be needed. **Both wrong, corrected in-session:**
+- **`pooled_at` already exists** (added `docs/migrations/2026-07-13_o7_cancellation.sql:27`). Its own
+  comment: *"PDP climb origin for a RE-POOLED mission."* It is stamped **only** by the re-pool RPCs, never
+  on first posting, and by [[d81]] it is deliberately **not** a pricing input (`lib/pdp.ts:36-37`).
+  ⚑ **Live: NULL on all 280 missions** — same signature as `accepted_fare`, because the seeders bypass the
+  app. Do not read a NULL here as "never re-pooled" until a real re-pool has happened.
+- **The "stale draft" problem does not exist.** Posting a draft **resets `created_at` to now**
+  (`app/(dispatch)/dispatch/new/actions.ts:381-384`), with a comment saying why: *"without this a draft
+  saved hours/days ago would be posted already near/at the ceiling."*
+- So **`pooled_at ?? created_at` already means "when did this trip last enter the Pool"** — exactly what
+  `lib/spend.ts:143` already reads. A pickup-relative rule needs only `pickup_at` anyway.
+
+**The only migration § V needs is the Driver's opt-in flag** (`driver.accepts_lower_tiers boolean not null
+default false`, mirroring `accepts_luggage_runs`), plus the matching change to `accept_mission`. Both in one
+file — see the drift rule below.
+
+### ⚑ THE DRIFT RULE — three places, ONE commit
+
+Relaxing the tier match must change all three together, or the Pool lists trips `accept_mission` then
+refuses:
+1. the Pool query — `app/(app)/pool/page.tsx:107-108`
+2. **the SQL guard — `docs/migrations/2026-08-22_accepted_fare.sql:100`** (guard block `:97-108`).
+   ⚑ **NOT the 2026-08-11 file** — the 08-22 migration drops `accept_mission(uuid)` at `:67` and recreates
+   it with `p_fare`, carrying its own copy of the guard. Editing the 08-11 file changes **nothing** live.
+3. the Pool card.
+
+**The invariant:** the SQL guard is a deliberate **superset** of the app filter, so drift can only ever
+*hide* a trip, never refuse one the Pool offered. Relaxing the app side alone **inverts** that guarantee.
+Reasoning at `docs/migrations/2026-08-11_accept_mission_eligibility.sql:60-65` and
+`app/(app)/pool/page.tsx:93-96`.
+
+### STILL TO DESIGN WHEN THIS COMES BACK
+
+- **The Pool card must name the class** so nobody accepts a Business fare thinking it is First, plus a
+  contrast cue marking it as a deliberate downgrade they opted into. **D25 preview loop applies** — mock it
+  and get sign-off before building.
+- **The toggle** in Driver Account → *Where you work*, mirroring `accepts_luggage_runs`. Also D25.
+- ⚑ **THE KILL SWITCH GAP.** The founder made the volume risk conditional on *"it would be easy to turn off
+  if we have issues with a Driver"*. **Today that means editing a row by hand** — there is no back-office
+  (§ F2, a future pillar). A per-Driver switch anyone can click is **its own build**, and the founder
+  should know that before relying on it as the safety net.
+- ⚑ **The seeder would silently undo the premise.** `.local/seed/seed-fleet.mjs:49` still seeds Karim with
+  `cat: "business"` and `:268` writes `category: d.cat` verbatim, so a fresh fleet un-strands him by
+  accident and hides the very bug § V exists to fix. Add to the seed-fix list.
+
+### The V-Class re-classification (already done in the catalog)
+`Classe V` is `tier: "luxury"`, body `van` (`lib/vehicle-catalog.ts:65`). **Vito stays Business** — founder
+confirmed, already correct, no edit. Matches how the market draws the line (Transfeero: Vito = Standard
+Van, V-Class = First Class Van).
+
+**Related:** § AB (the paid rung of the same ladder) · § P (expired trips, shipped) · § AE (capacity —
+found while scoping this) · § AF (the aggregate version, V2/V3) · [[d85]].
 
 ---
 
@@ -1460,3 +1585,122 @@ Vercel → project `kavenue` → Settings → Domains → remove `pickup-marketp
 
 ⚑ **Check the landing project too** — `kavenue-landing` was created later, so it likely never had an old-name
 host, but nobody has looked.
+
+## AE. Nothing checks that a car can CARRY what was booked ⚙️🔨 (founder, 2026-08-23 — found while scoping § V)
+
+**The founder's question, verbatim:** *"check if we have created a limitation for Van who checked the
+luggage van? I want to make sure that each body respects what they can carry and won't be surprised on set."*
+
+**The answer, split in two.** *Who the car is* is enforced. *How much it holds* is not modelled anywhere.
+
+✅ **Body type IS enforced, in both layers** — `required_body_type is null or = v.body_type`, at
+`app/(app)/pool/page.tsx:125` and in the live SQL guard `docs/migrations/2026-08-22_accepted_fare.sql:101`.
+A Sedan Driver can **never** take a luggage run (`:104-105`), and the luggage checkbox only renders for a
+Van (`components/driver-vehicle-fields.tsx:100-127`, re-checked server-side). **Don't re-litigate this half.**
+
+❌ **Capacity does not exist.** No bag capacity for any body type or model in `lib/vehicle-catalog.ts`. The
+accept guard tests tier, body, and luggage-opt-in — **no `pax_count`, no `luggage_count`, no seats.**
+`vehicle.seats` is dead data: every Driver types it free-text, 7 of 9 are NULL, and it is read by exactly
+one display string (`app/(app)/settings/page.tsx:163`). `accepts_luggage_runs` is a **willingness** switch,
+not a capacity limit — its own copy says *"turn it on if you're happy to carry luggage"*. Ticking it commits
+a Van Driver to any bags-only run, **in any quantity**.
+
+⚑ **The line to keep straight:** everything protecting the Driver today is a *hint on the Business's screen*
+or a *number on the Driver's pre-accept screen*. Neither is a limitation. The only real limitation is body
+type, and it goes silent the moment the Dispatcher leaves Body on "Any".
+
+### The two ways a Driver gets surprised on set
+
+1. **"Any" body + a big party.** `seatCap()` returns the **Van** cap (7) when no body is chosen
+   (`lib/passengers.ts:32-34` — the comment says so deliberately). The Dispatcher adds up to 7 Guests, gets a
+   grey note that blocks nothing (`components/passenger-list.tsx:53,76-84`), body is written NULL, and both
+   layers read NULL as *anything qualifies*. A 4-seat Sedan Driver can accept it.
+   **Live 2026-08-23: 17 missions have pax_count > 4, and all 17 already specify a body.** The hole is real
+   but unexercised — what protects you is a human ticking Van, not code.
+2. **The load changes after the Driver commits.** `pax_count` and `luggage_count` are on the info-edit
+   whitelist (`app/(dispatch)/dispatch/[id]/edit/actions.ts:107-113`) and info edits are open on `pooled`,
+   `accepted` **and** `confirmed` (`:36`) — no consent, by design (D39 classed bags as "info"). The Driver's
+   run view shows **neither count** (`components/mission-run-view.tsx` — zero hits for either). So 2 bags →
+   12 bags is invisible to a Driver who already said yes.
+
+### ⚑ The one-line bug
+
+The warning written for exactly this case — *"8 bags is a lot even for a Van"* — is switched **off** for
+luggage-only runs. `app/(dispatch)/dispatch/new/mission-form.tsx:282` opens with `!luggageOnly &&`. **The one
+trip type that is entirely about bags is the only one with no bag guidance.**
+**Live: 6 missions carry more than 8 bags; the largest is 14.**
+
+### Fix list, cheapest first
+
+1. **`createMission`: if `pax_count > 4` and no body was chosen, force `required_body_type = 'van'`.** One
+   line, and every layer below already enforces body. Closes surprise #1 outright.
+2. **Drop the `!luggageOnly &&`** and give luggage runs their own bag threshold.
+3. **Put both counts on the Driver's run view**, and treat an *increase* in pax/bags after acceptance as an
+   **amendment needing consent**, not a silent info edit. (Touches D39 — that reclassification is a decision,
+   not just a code change.)
+4. **Put headcount and bags on the Pool card** — the "state on the row, not in a summary" rule; today they
+   are one tap deeper, on the detail page (`app/(app)/missions/[id]/page.tsx:344,353`), which is the only
+   defence in the whole system and is a bare number with no comparison to the Driver's own car.
+5. **`pax_count` is a row count, not a headcount.** The form never asks "how many people?" — it counts Guest
+   rows, and the copy says names are optional. A party of five booked under one lead name posts as
+   **1 passenger**. Worth fixing on its own, because it makes every number above unreliable.
+
+⚑ **Not a § V blocker.** § V changes which *class* of work a Driver sees; this is about what fits in the car,
+and it is already true today with no § V. But § V widens the pool of cars that can reach a given trip, so
+this gets slightly more likely, not less.
+
+## AF. Let a class "come and help" when it can SEE that another class is short ⚙️🅥 (founder, 2026-08-23 — V2/V3)
+
+**Founder's own words:** *"maybe the solution is about offer and demand — a class can come and 'help' when
+the system understands that during this period a class has a hard time filling the demands? Or maybe this is
+something we should work on after V2 or V3?"*
+
+**It is the right idea, and it is V2/V3 — but not because it is hard.** Because it is **unmeasurable today.**
+"This class is struggling to fill demand in this period" is a statistical claim, and the live marketplace is
+**9 Drivers and 280 missions**. Any detector built on that fires on noise.
+
+⚑ **§ V is the n = 1 version of exactly this idea.** A trip sitting unfilled near its pickup *is* the signal
+that supply is short — for that class, at that moment, in that place — measured on the only unit there is
+enough of. Same insight, one trip instead of an aggregate. So this is not a competing design; it is the same
+design once there is enough data to average over.
+
+**The sequence, and the two halves feed each other:**
+1. **Now** — the per-trip rule (§ V). One number, no statistics.
+2. **Now** — start recording Pool events (§ AG). They cost nothing and cannot be recovered later.
+3. **V2/V3** — this. Measurable *because* of step 2.
+
+**What it would need when it comes:** fill rate by class × region × period; a definition of "struggling"
+that is not just "one trip did not fill"; and a decision on whether helping is automatic or still opt-in per
+Driver. ⚑ The § V fairness paradox does not go away at aggregate scale — it sharpens. A detector firing in a
+genuinely quiet season is a detector redistributing scarce work downhill, which is the case the founder
+already rejected. **The trigger must be "this class is short relative to ITS OWN demand", never "this class
+is quiet".**
+
+---
+
+## AG. Record every state transition — `status_event` cannot currently do it ⚙️🔨 (founder, 2026-08-23)
+
+**Founder, when told nothing records a mission entering the Pool:** *"We need records of everything and
+that's for us in admin side and for analyses and disputes and learn behaviour and getting better."*
+Standing principle — saved to memory as [[record-every-event]].
+
+**The gap.** `status_event` exists (`docs/kavenue_schema.sql:139`) but a CHECK constraint permits only
+`en_route`, `arrived`, `on_board`, `completed`. It **cannot** record a trip being pooled, accepted,
+cancelled, expired, or re-pooled. So the audit trail covers the driving steps and nothing else.
+
+**Why sooner rather than later:** analysis can be added whenever you like, but **you cannot backfill events
+you never wrote.** Every week without the log is a week of behaviour that can never be studied. That is true
+even though nothing reads it yet — do not argue this one away as YAGNI, it has already been heard and
+rejected.
+
+⚑ **A concrete instance of the damage, found in S65.** Posting a draft **resets `created_at` to now**
+(`app/(dispatch)/dispatch/new/actions.ts:381-384`). That is correct for pricing — it stops a week-old draft
+opening at its Ceiling — but it fixes the price by **destroying the record** of when the draft was created.
+**The clean version writes `pooled_at` on first posting too and leaves `created_at` alone.** Small change,
+and it is exactly the shape the founder asked for. ⚑ Check `lib/pdp.ts` first: [[d81]] deliberately makes
+`pooled_at` *not* a pricing input, so making it authoritative for pool-entry must not quietly feed the curve.
+
+**Scope sketch:** widen the `status_event` CHECK to the full `mission_status` enum (plus a `pooled` /
+`re_pooled` distinction), write a row from every RPC that changes status, and stamp `pooled_at` on first
+post. Additive; the founder applies the migration.
+

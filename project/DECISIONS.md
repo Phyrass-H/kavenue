@@ -1849,3 +1849,62 @@ V1 is complete. BACKLOG **§ AC**.
 
 ⚑ **This is a deliberate deviation from `docs/06` §6, recorded in §6 itself**, so no future session "fixes"
 the screen back to the spec and undoes it.
+
+### D85 — § V opens ONE class down, per trip on time-to-pickup, never on the season (2026-08-23, S65)
+Founder call across a full brainstorm; **nothing was built — § V was parked as "too early"**. Five things
+were settled and should not be re-opened:
+
+**1. One class down, maximum.** *"Only one lower class max!"* First → Business, Business → Eco, and First
+**never** reaches Eco. This is not only a simplification: it is most of the fairness fix, because it
+permanently protects the Driver with the cheapest car and the thinnest margin from competing against a First
+car. ⚑ In SQL this cannot be `category >= category` — the `vehicle_category` enum is declared
+`('eco','business','van','luxury')` (`docs/kavenue_schema.sql:19`), so enum order sorts the retired `'van'`
+between business and luxury. Use an explicit tier array matching `SERVICE_TIERS` (`lib/vehicle-catalog.ts:18`).
+
+**2. Body type is already correct — no work.** Founder, from the trade: *"a van can do a sedan trip if the
+Business books any body type; a sedan cannot do a van trip, for lack of space. If body type matters, they
+already choose Any or specify."* Verified in both layers (`app/(app)/pool/page.tsx:125` and the live guard
+`docs/migrations/2026-08-22_accepted_fare.sql:101`). The curb is a non-issue for the same reason.
+
+**3. The volume risk to Business Drivers is accepted knowingly** — *"a risk I am willing to take for now and
+see feedback from drivers"* — **conditional** on being able to switch it off per Driver. ⚑ That switch does
+not exist and is its own build (§ F2, no back-office). Today it means editing a row by hand.
+
+**4. ⚑ THE ORIGINAL RATIONALE WAS INVERTED, BY THE FOUNDER, AND THE NEW ONE IS BETTER.** The 2026-08-15 note
+recorded *"it's good in case of low seasons."* In S65 the founder argued the opposite: in a low season there
+is not less First work, there is less of **everything**, so a First Driver taking Business work does not
+create volume — it moves it downhill, from the cheapest car to the most expensive. **The paradox: the opt-in
+is most useful exactly when it is most unfair, and most harmless exactly when it is least needed.**
+Season-date windows were considered and **rejected** — the founder spotted that seasons differ by region, so
+dates would need geography too, and calendar dates are a blunt proxy for the thing that matters.
+
+**5. The trigger is per-trip, on time-to-pickup.** A trip still pooled near its pickup **is** the signal that
+supply is short for that class, at that moment, in that place. Self-adjusting: busy periods fill fast and
+never widen; quiet periods rescue trips that would otherwise expire, costing the Business Drivers nothing
+because nobody was taking them. The aggregate "detect a struggling class" version is **V2/V3** (§ AF) — not
+because it is hard but because it is unmeasurable at 9 Drivers.
+
+**The escalation ladder this creates, and the rule that governs the number:**
+`posted → own class only → WIDEN one class up (free) → ask the Business to raise the Ceiling (§ AB, paid) →
+expires (§ P)`. **Always pull the free lever before the paid one.** § AB fires at **T−5h**, so § V must fire
+before it.
+
+**STILL OPEN: the number.** The founder floated **T−2h**; the one-clock simplification was kept but the
+number was argued down on three grounds — it is 3h *after* the curve tops out (running the ladder
+backwards); it is past Lock-in (3h auto-confirm), past the check-in window (`CHECK_IN_OPENS_MS` = T−3h) and
+inside the ±90-minute slot-conflict band, so it widens into the narrowest audience of the day; and its SPEED
+WIN premise no longer holds since [[d82]] removed auto-enabling (a T−2h Business transfer opens at 32,89 €
+net with SPEED WIN off vs 69,61 € on, and the ≤5h nudge can be clicked straight past).
+**Claude recommended T−6h; not yet accepted.** Verified curve: the fare reaches the Ceiling at exactly
+**T−5h** (`TOP_LEAD_MS`, `lib/pdp.ts:43`), and runs **T−24h = 76 % · T−12h = 85 % · T−6h = 95 %** of Ceiling
+— all the persuasion happens before T−12h.
+
+**No migration is needed for the timing.** Two in-session claims were wrong and were corrected: `pooled_at`
+**already exists** (`docs/migrations/2026-07-13_o7_cancellation.sql:27`, stamped only on RE-pool, NULL on all
+280 live rows because the seeders bypass the app), and the "stale draft price" problem **does not exist**
+because posting a draft resets `created_at` to now (`app/(dispatch)/dispatch/new/actions.ts:381-384`). So
+`pooled_at ?? created_at` already means "when this trip last entered the Pool". § V's only migration is the
+Driver opt-in flag plus the matching `accept_mission` guard, **in one commit** with the Pool query and card.
+
+Full design and the open items: `project/BACKLOG.md` § V. [[d81]] [[d82]] · § AB · § AF · § AG
+

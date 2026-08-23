@@ -50,6 +50,28 @@ no-integration build; the feedback email waits for notifications.
 - Pool RLS lets a Driver read *any* pooled mission; the zone/category narrowing is done in
   the query, not by RLS. Keep that filter in one place to avoid drift.
 
+## A class that "comes to help" when another is short — and why it waits for volume (2026-08-23, S65) 🅥
+
+Founder, closing the § V brainstorm: *"maybe the solution is about offer and demand — a class can come and
+'help' when the system understands that during this period a class has a hard time filling the demands?"*
+
+Parked to **§ AF** in `BACKLOG.md`. Kept here for the thinking, which is the reusable part:
+
+**It is unmeasurable, not hard.** With 9 Drivers and 280 missions, a "this class is struggling" detector is
+averaging over nothing. The instinct to reach for market-level intelligence is right; the marketplace just
+is not big enough to have a market signal yet.
+
+**The general shape, worth remembering beyond this feature:** when an aggregate signal is not yet
+measurable, look for the **n = 1 version of the same signal**. Here, a single trip sitting unfilled near its
+pickup carries the same information as "this class is short" — for one trip, at one moment, in one place.
+Ship the n = 1 rule, and it generates exactly the records that make the aggregate version possible later.
+
+**And the trap to carry forward:** at aggregate scale the § V fairness paradox sharpens rather than
+dissolving. A detector that fires in a genuinely quiet season is redistributing scarce work downhill — the
+case the founder already rejected. The trigger must be *"this class is short relative to its own demand"*,
+never *"this class is quiet"*.
+
+
 ## Parked (not yet scoped)
 - **Address search → Google Places (New)** — the real fix for POI precision (Mapbox ranks a random shop over the Nice
   airport terminal; Google weights prominence). Deferred until the founder registers the final Kavenue domain, so the

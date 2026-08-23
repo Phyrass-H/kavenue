@@ -666,7 +666,7 @@ hard-wire Stripe into mission logic.
    overwriting the opening price). `pdp_start` now holds the rate-card **floor** in Course space and the
    fee-basis band is unchanged and more accurate for it ([[d79]]); `pdp_step` / `pdp_interval` are dead
    columns. Money tests rewritten (455), both migration probes updated, `write-test` 170/170, plus a new
-   `curve-live` probe against the real DB. **Still owed:** the two riders (§ R volume ceiling, BACKLOG
+   `curve-live` probe against the real DB. **Still owed:** the two riders (§ R growth limit, BACKLOG
    § V), the Business-facing copy sentence, and §9's stored accepted fare.
 4. **The §7 hold** — after the pricing engine, since both touch the accept path.
 5. **§8 learned routes** — once there is volume.

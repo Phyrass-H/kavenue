@@ -35,6 +35,13 @@
   drafted on Monday and posted on Friday is priced at Friday's rates, and the climb starts on Friday, not
   Monday. The only thing that carries over is your own maximum, on purpose — that's your commercial decision,
   not ours. If it were below Friday's floor, posting is refused outright.
+- **We found that the History page will break sooner than anyone thought.** Every doc said it would start
+  struggling at around 5,000 trips. Nobody had actually tested it. It turns out it **stops working at 398
+  past trips for a single hotel** — and it doesn't slow down, it fails. Your busiest hotel is at 271, so
+  there's about 127 trips of room. That job just moved up the list.
+- **Renamed a confusing term.** The docs called that problem "the volume ceiling", which clashed with
+  **Ceiling** — your word for the maximum a hotel will pay. It's now called **the growth limit**, which is
+  what it actually is.
 - **You asked for records of everything, and you were right to.** Nothing currently records the moment a trip
   goes into the Pool. Worse, posting a draft *overwrites* the moment it was created. Analysis can be added any
   time; history that was never written can't be recovered. That's now a task of its own.

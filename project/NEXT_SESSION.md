@@ -558,9 +558,10 @@ specific trip by drivers name, or passenger or internal reference, or car… per
 - **⚑ The date-range control is now genuinely shared** — extracted from `earnings-period.tsx` to
   **`components/date-cal.tsx`**; the Driver's Earnings was re-verified after the extraction. **§ S adopts THAT file.
   Do not build a third.**
-- **⚑ Left open on purpose (in § R):** the **volume ceiling** — the page loads the whole archive in one query and
+- **⚑ Left open on purpose (in § R):** the **growth limit** — the page loads the whole archive in one query and
   filters in memory, which is what lets the chip counts / Driver list / class list be honest about the *whole* archive.
-  Correct at 28 trips, the first thing to break at 5 000. Also skipped: a density toggle (nobody asked).
+  Correct at 28 trips. ⚑ **MEASURED S65: the hard break is at 398 archived trips for one Business, not the
+  5 000 previously guessed — and the busiest Business is already at 271.** Also skipped: a density toggle.
 
 **★★ START HERE — THE QUEUE IS **§ R** ONLY. (Repo rename ✅ SHIPPED S65. § V ⏸ BRAINSTORMED AND PARKED,
 S65 — the founder said "it's too early"; the design is settled in `BACKLOG.md` § V + [[d85]], and it resumes
@@ -664,7 +665,13 @@ Domains → remove `pickup-marketplace.vercel.app`. `driver.kavenue.fr` and `dis
 unaffected. ⚑ **The founder was asked in S65 and pushed back on scope** — the repo rename was the ask, not a
 Vercel change. Logged as `project/BACKLOG.md` **§ AD**, theirs to decide. **Do not re-litigate it unprompted.**
 
-## 2 · § R — THE VOLUME CEILING
+## 2 · § R — THE GROWTH LIMIT  ⚑ MEASURED S65: 127 TRIPS OF HEADROOM, NOT YEARS
+
+⚑ **MEASURED 2026-08-23 (S65), and it is FAR lower than the 5 000 that was guessed:** the cancellation
+fan-out (`.in("mission_id", <every archived id>)`, `dispatch/history/page.tsx:118-126`, duplicated at
+`history/export/route.ts:94`) **fails at 398 archived trips for one Business** — binary-searched against the
+live DB, ~14.8 KB of URL. It does not degrade, it **errors**. Live today the busiest Business has **271
+archived trips: 127 of headroom.** This is near-term, not distant.
 
 Five screens load a table and filter it in JavaScript. Mapped in S64 **and then re-verified against the live
 DB, which corrected four of the claims** — the numbers below are the checked ones, not the first draft.
@@ -1062,7 +1069,7 @@ fee can legally be. **This ships with the money tests updated and BOTH probes re
 plus `diff-sql-vs-lib` and `write-test` first, always.
 
 **It carries two riders — do them together, they touch the same read path:**
-1. **The § R volume ceiling** — the Pool and the archive load everything and filter in memory.
+1. **The § R growth limit** — the Pool and the archive load everything and filter in memory.
 2. **BACKLOG § V** — a Driver may opt in to lower-class trips; they must see the *lower class's* price,
    which needs steps 1 and 5 both in place.
 

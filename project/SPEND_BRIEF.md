@@ -195,7 +195,7 @@ breakdown is showing), `g` (chart granularity override), `open` (mission id).
 - Spend **always has a period** — default `month`, no "Any date". A spend total with no period is meaningless,
   and § T's Suspense key needs a period to re-suspend on.
 - Spend **bounds its query by the period instants** (the Earnings shape, `.gte('pickup_at', from).lt('pickup_at',
-  to)`) rather than loading the whole archive. Its chip counts are within the period, so § R's volume ceiling
+  to)`) rather than loading the whole archive. Its chip counts are within the period, so § R's growth limit
   does **not** inherit here. A single `loadFirstDay` row powers the "All time" preset.
 
 New files: `lib/spend-filter.ts` (`parseSpendQuery` calls `parseHistoryQuery` first and only adds the five new

@@ -113,8 +113,22 @@ bug.** Live drafts: 0, so the path has never run on real data.
 - **§ AF — the aggregate "a class comes to help" version** is V2/V3. Not hard; **unmeasurable** at 9 Drivers.
   § V is the n = 1 version of the same signal, and it generates the records that would make § AF possible.
 
-**Next:** **§ R** (the volume ceiling) is the only unblocked queue item. § V resumes when the founder picks
-the threshold number.
+### ⚑ Late finding: § R is NEAR-TERM, not distant — and it was renamed
+
+Explaining § R to the founder, they asked what "volume ceiling" meant. Fair: **it collided with `Ceiling`,
+a glossary term** (the maximum a Business will pay). Renamed throughout to **"the growth limit"** — 5 files.
+
+Then, measuring instead of repeating the inherited estimate: **the archive fan-out breaks at 398 archived
+trips for ONE Business, not the 5 000 every doc had claimed.** Binary-searched against the live DB
+(~14.8 KB of URL); it does not degrade, it **errors**. **The busiest Business is at 271 — 127 of headroom.**
+Corrected in `NEXT_SESSION.md`, `BACKLOG.md` and here.
+
+⚑ **The lesson is the same one this session kept relearning:** the 5 000 was a plausible round number nobody
+had run. One probe replaced it with a measurement two orders of magnitude tighter. **Measure the limit
+before you schedule the work around it.**
+
+**Next:** **§ R** — and it is more urgent than the queue implied.  § V resumes when the founder picks the
+threshold number.
 
 ---
 
@@ -2550,7 +2564,7 @@ open with Done, results narrow to 1), search→Clear round trip, CSV output (del
 narrow-viewport wrap + side-scroll, and **the Driver's Earnings picker re-checked at 430 px after the extraction** (no
 regression). `tsc --noEmit` clean · `next build` green (25 routes) · no console errors.
 
-**Left open, deliberately** (both recorded in § R): the **volume ceiling** — the page loads the whole archive in one
+**Left open, deliberately** (both recorded in § R): the **growth limit** — the page loads the whole archive in one
 query and filters in memory, which is exactly what lets the chip counts, the Driver dropdown and the class list be
 honest about the *whole* archive; correct at 28 trips, first thing to break at 5 000, at which point the filters move
 into SQL and the counts need their own aggregate query. And the **density toggle** — the row is already dense and
@@ -3621,7 +3635,7 @@ actually about fill time.
 
 ### Not done, on purpose
 
-- **The two riders** (§ R volume ceiling, BACKLOG § V lower-class pricing) and **step 6, the §7 hold**.
+- **The two riders** (§ R growth limit, BACKLOG § V lower-class pricing) and **step 6, the §7 hold**.
 - **The Business-facing copy pass.** §6 prescribes a publishable sentence — *"the price rises in steps
   until 5 hours before pickup, when it reaches the maximum you set"* — and the form still says only
   "climbs up to your Ceiling". True, but less than it could say. UI copy needs a preview first (D25).
@@ -3832,7 +3846,7 @@ needs a real ordinal whenever a day carries more than one migration.**
 - **The repo rename** — queued for S65 as item 1. It is a trademark question, not cosmetics.
 
 ### The founder's queue for S65, set explicitly
-**1.** rename the GitHub repo · **2.** § R volume ceiling · **3.** § V lower-class opt-in.
+**1.** rename the GitHub repo · **2.** § R growth limit · **3.** § V lower-class opt-in.
 
 ### ⚑ Post-close: the handoff was verified, and it was wrong in five ways
 

@@ -896,7 +896,7 @@ Full reasoning: [[d68]]. Files: `lib/history-filter.ts` (new — the one place a
 - ✅ **Accuracy:** a past trip a Driver never closed (§ Q) shows its agreed fare greyed as **"Not settled"** and is
   **excluded from every total** — row, month band and summary. It has its own CSV column.
 - ⏳ **Deferred, deliberately:** the compact/comfortable **density toggle** (the row is already dense — nobody asked)
-  and **pagination/virtualisation** (fine at 28 trips, the first thing to break at 5 000 — see the note below).
+  and **pagination/virtualisation** (fine at 28 trips; ⚑ **the hard break is 398, measured S65** — see below).
 
 <details><summary>The original candidate list (kept for reference)</summary>
 
@@ -912,11 +912,18 @@ Full reasoning: [[d68]]. Files: `lib/history-filter.ts` (new — the one place a
 - **Columns/density** — the dense grid is fixed today; consider a compact/comfortable toggle.
 - **Deep links** — `/dispatch/history?open=<id>` to match the Schedule's existing `?open=`/`?day=` (S33).
 - **Pagination / virtualisation** — not needed at 34 missions; the whole archive is loaded in one query today, and
-  that is the first thing to break at real volume. Note it before a hotel has 5 000 trips.
+  that is the first thing to break at real volume. ⚑ **Measured S65: it breaks at 398, and a hotel is at 271.**
 
 </details>
 
-**⚑ STILL OPEN — the volume ceiling.** The page loads the Business's whole archive in one query and filters in memory.
+**⚑ STILL OPEN — the growth limit.** The page loads the Business's whole archive in one query and filters in memory.
+
+⚑ **MEASURED 2026-08-23 (S65), and it is FAR lower than the 5 000 that was guessed:** the cancellation
+fan-out (`.in("mission_id", <every archived id>)`, `dispatch/history/page.tsx:118-126`, duplicated at
+`history/export/route.ts:94`) **fails at 398 archived trips for one Business** — binary-searched against the
+live DB, ~14.8 KB of URL. It does not degrade, it **errors**. Live today the busiest Business has **271
+archived trips: 127 of headroom.** This is near-term, not distant.
+
 That is correct at 28 trips and deliberate (it is what lets the chip counts, the Driver dropdown and the class list all
 be honest about the *whole* archive). It is also the first thing that breaks at real volume. When a hotel has thousands
 of trips, the filters move into the SQL (`ilike`/`websearch_to_tsquery` on a generated search column) and the page

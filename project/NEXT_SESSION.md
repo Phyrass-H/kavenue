@@ -563,7 +563,8 @@ specific trip by drivers name, or passenger or internal reference, or car… per
   Correct at 28 trips. ⚑ **MEASURED S65: the hard break is at 398 archived trips for one Business, not the
   5 000 previously guessed — and the busiest Business is already at 271.** Also skipped: a density toggle.
 
-**★★ START HERE — THE QUEUE IS **§ R** ONLY. (Repo rename ✅ SHIPPED S65. § V ⏸ BRAINSTORMED AND PARKED,
+**★★ START HERE — NOTHING IS BLOCKING. § R rule 1 ✅ SHIPPED S65 (the 398 wall is gone); what is left is
+rules 2 & 3, which are performance, not breakage. (Repo rename ✅ SHIPPED S65. § V ⏸ BRAINSTORMED AND PARKED,
 S65 — the founder said "it's too early"; the design is settled in `BACKLOG.md` § V + [[d85]], and it resumes
 only when they pick the threshold number. **Do not start § V unprompted.**)**
 
@@ -665,7 +666,49 @@ Domains → remove `pickup-marketplace.vercel.app`. `driver.kavenue.fr` and `dis
 unaffected. ⚑ **The founder was asked in S65 and pushed back on scope** — the repo rename was the ask, not a
 Vercel change. Logged as `project/BACKLOG.md` **§ AD**, theirs to decide. **Do not re-litigate it unprompted.**
 
-## 2 · § R — THE GROWTH LIMIT  ⚑ MEASURED S65: 127 TRIPS OF HEADROOM, NOT YEARS
+## 2 · § R — THE GROWTH LIMIT  ⚑ RULE 1 SHIPPED S65. RULES 2 & 3 REMAIN.
+
+### ✅ RULE 1 IS DONE — the hard wall is gone (S65, 2026-08-23, deployed `00e19a3`)
+
+**Eight** unbounded `.in("mission_id", <every mission id>)` reads became constant-size requests. ⚑ Five of
+the eight were on `dispatch/page.tsx`, which was **more exposed than History** — its id list is every
+non-draft mission **past AND future** and it fired five times per render. Four side tables already carried
+a denormalised indexed `business_id`, so seven sites are `.eq("business_id", …)`; `mission_guest_contact`
+has no such column, so that one uses `mission!inner(business_id)` (`!inner` is load-bearing).
+New `lib/side-tables.ts` collapses four byte-identical walk loaders into one.
+
+⚑ **STANDING INVARIANT — do not break it.** Business-scoping also returns rows for missions **not on
+screen** (future, drafts) — extra KEYS in those Maps. Safe only because every consumer does `map.get(m.id)`
+and never iterates, never reads `.size`. **If you ever iterate one of these maps, narrow it to the missions
+on screen first.** Full note at the top of `lib/side-tables.ts`.
+
+Verified three ways (the table was empty, so "it ran" proved nothing): 11 new tests (462 → **473**),
+**mutation-tested** (breaking the code fails 3 and 2 tests), and **real-row equivalence** on the three
+populated side tables across all three Businesses. Then browser-verified end to end: Schedule renders,
+History shows all 271 trips with chip counts intact, the CSV returns 273 lines = header + all 271.
+
+**Waiting on the founder, OPTIONAL and low priority:**
+`docs/migrations/2026-08-23_info_change_business_idx.sql` — `mission_info_change` is the only one of the four
+whose `business_id` never got an index, and rule 1 makes it a per-render filter. Irrelevant at 2 rows.
+
+### WHAT REMAINS — rules 2 and 3
+
+**Rule 2** — move filtering and sorting into SQL. **Rule 3** — paginate the archive list.
+⚑ Both are constrained, and the constraints are the whole difficulty:
+- **the chip counts are computed over the WHOLE archive on purpose** (§ R note below), so paginating the
+  list means a second aggregate query
+- ⚑ **sorting by fare CANNOT move to SQL** — the fare is computed on read, never stored, and
+  `lib/history-filter.ts:452-461` records that keying on the bare Course fare is a defect this codebase
+  **already shipped once and fixed**. Treat a generated/denormalised all-in column as the candidate, not
+  `accepted_fare`.
+- ⚑ **do NOT paginate the CSV export** — its promise is "exactly what is on screen" over the whole set.
+
+**The Driver side has the same fan-out with more room:** `rides/page.tsx:225-226`,
+`rides/history/page.tsx:139,248`, `earnings/page.tsx:102`. Measured S65: the busiest Driver has 44 trips —
+**354 of headroom** vs the Business side's 127. The driver+vehicle joins are bounded by **fleet** size
+(9 Drivers), not archive size — same pattern, bites at ~398 Drivers.
+
+### The original mapping, kept for the file:line trail
 
 ⚑ **MEASURED 2026-08-23 (S65), and it is FAR lower than the 5 000 that was guessed:** the cancellation
 fan-out (`.in("mission_id", <every archived id>)`, `dispatch/history/page.tsx:118-126`, duplicated at

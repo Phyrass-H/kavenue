@@ -918,6 +918,67 @@ Full reasoning: [[d68]]. Files: `lib/history-filter.ts` (new — the one place a
 
 **⚑ STILL OPEN — the growth limit.** The page loads the Business's whole archive in one query and filters in memory.
 
+### ✅ RULE 1 SHIPPED — S65, 2026-08-23. The 398-id wall is gone.
+
+**What changed.** Eight unbounded `.in("mission_id", <every mission id of this Business>)` reads became
+constant-size requests. Four side tables already carry a denormalised, indexed `business_id` (added
+"for RLS" in 2026-07/08), so seven sites are simply `.eq("business_id", …)`. `mission_guest_contact` is the
+one table without it, so that single site filters through the relationship:
+`.select("mission_id, contacts, mission!inner(business_id)").eq("mission.business_id", …)`.
+⚑ `!inner` is load-bearing — a plain embed is a LEFT join and would null the embed instead of dropping the row.
+
+| file | sites |
+|---|---|
+| `app/(dispatch)/dispatch/page.tsx` | 5 — guest contacts (the embed), amendments, releases, walks, info-changes |
+| `app/(dispatch)/dispatch/history/page.tsx` | 1 — driver walks |
+| `app/(dispatch)/dispatch/history/export/route.ts` | 1 |
+| `app/(dispatch)/dispatch/spend/export/route.ts` | 1 |
+
+**New `lib/side-tables.ts`** collapses four byte-identical copies of the walk loader into one
+(`loadDriverWalks`), plus `groupDriverWalks` and `latestPerMission` as pure, testable seams.
+
+⚑ **THE ONE SEMANTIC CHANGE, AND THE INVARIANT IT RESTS ON.** Scoping by Business also returns rows for
+missions **not on screen** (future trips, drafts) — extra KEYS in the returned Map. That is safe **only**
+because every consumer reads these maps one mission at a time (`map.get(m.id)`) and never iterates them,
+never reads `.size`, never spreads them. Audited across `dispatch/page.tsx`, `history/page.tsx`,
+`components/trip-row.tsx` and both CSV routes: no iteration anywhere.
+**IF YOU EVER ITERATE ONE OF THESE MAPS OR READ ITS `.size`, NARROW IT TO THE MISSIONS ON SCREEN FIRST.**
+
+**How it was verified — the table was empty, so "it ran" proved nothing:**
+- **11 new tests** (`tests/side-tables.test.ts`), suite **462 → 473**. Set-algebra equivalence of the two
+  filters, superset-invariance of both grouping helpers, a no-leak assertion, and a **negative control**
+  that fails if the denormalised `business_id` ever disagrees with its mission's.
+- ⚑ **Mutation-tested.** Deliberately de-duplicating the walks fails 3 tests; inverting `latestPerMission`
+  fails 2. A test that cannot fail proves nothing.
+- ⚑ **Real-row equivalence on live data.** `mission_cancellation` and `mission_release` are empty, but
+  `mission_guest_contact` (4), `mission_amendment` (3) and `mission_info_change` (2) are not. Old vs new
+  compared row-for-row across all three Businesses: **every comparison MATCHED**, including the embed.
+- **RLS**: satisfied by construction — `p_mission_business_read` is `business_id = current_business_id()`
+  (`docs/kavenue_schema.sql:314`), so the embed can only ever join to this Business's own trips.
+
+**No migration required.** One **optional, low-priority** index is written and waiting:
+`docs/migrations/2026-08-23_info_change_business_idx.sql` — `mission_info_change` is the only one of the
+four whose `business_id` never got an index, and it is now filtered on every schedule render. Irrelevant at
+2 rows; it matters at the volume § R exists to survive.
+
+**Rollback:** revert the commit. The change is additive plus eight one-line filter swaps.
+
+### ⚑ STILL OPEN AFTER RULE 1
+
+- **Rules 2 and 3** — move filtering/sorting into SQL, and paginate the archive list. ⚑ Both are constrained:
+  the chip counts are computed over the **whole** archive on purpose, and **sorting by fare cannot move to
+  SQL** because the fare is computed on read (`lib/history-filter.ts:452-461` records that keying on the
+  bare Course fare is a defect this codebase already shipped once and fixed). Do **not** paginate the CSV
+  export — its promise is "exactly what is on screen" over the whole result set.
+- **The Driver side has the same shape, with more room.** `rides/page.tsx:225-226`,
+  `rides/history/page.tsx:139,248` and `earnings/page.tsx:102` all fan out over a Driver's own history.
+  **Measured 2026-08-23: the busiest Driver has 44 trips — 354 of headroom** vs the Business side's 127.
+  Same 398 wall, much further away.
+- **The driver+vehicle joins are bounded by FLEET size, not archive size** (9 Drivers live) —
+  `dispatch/page.tsx:168-169`, `history/page.tsx:148-149`, `spend/page.tsx:150-151`, both export routes.
+  Lower priority than they look, but they are the same pattern and will bite at ~398 Drivers.
+
+
 ⚑ **MEASURED 2026-08-23 (S65), and it is FAR lower than the 5 000 that was guessed:** the cancellation
 fan-out (`.in("mission_id", <every archived id>)`, `dispatch/history/page.tsx:118-126`, duplicated at
 `history/export/route.ts:94`) **fails at 398 archived trips for one Business** — binary-searched against the

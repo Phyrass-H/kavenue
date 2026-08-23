@@ -16,6 +16,7 @@ import {
   type InfoChangeBrief,
 } from "@/components/trip-row";
 import { parseGuestContacts, type GuestContact } from "@/lib/passengers";
+import { loadDriverWalks, latestPerMission } from "@/lib/side-tables";
 import { parseChangeItems } from "@/lib/info-changes";
 import { parseWaypoints } from "@/lib/waypoints";
 import { releaseDeclineReasonLabel } from "@/lib/releases";
@@ -183,13 +184,20 @@ export default async function DispatchSchedule({
 
   // Guest phone numbers (side table, RLS-scoped to this Business). Drivers can't
   // read these; the Share switch in each row controls reveal to the assigned Driver.
+  //
+  // ⚑ § R rule 1 — filtered THROUGH the relationship, not by a list of ids. This is
+  // the one side table with no business_id of its own (mission_id is its only key),
+  // so the scope is expressed as a join. `!inner` is load-bearing: a plain embed is
+  // a LEFT join, and the predicate would null the embed instead of dropping the row.
+  // Never read `r.mission` — database.types.ts declares `Relationships: []` on
+  // purpose, so it types as an error; it exists to JOIN, not to be read.
   const guestContacts = new Map<string, GuestContact[]>();
   const missionIds = (missions ?? []).map((m) => m.id);
   if (missionIds.length > 0) {
     const { data: gc } = await supabase
       .from("mission_guest_contact")
-      .select("mission_id, contacts")
-      .in("mission_id", missionIds);
+      .select("mission_id, contacts, mission!inner(business_id)")
+      .eq("mission.business_id", ctx.business.id);
     for (const r of gc ?? []) {
       guestContacts.set(r.mission_id, parseGuestContacts(r.contacts));
     }
@@ -203,13 +211,10 @@ export default async function DispatchSchedule({
     const { data: ams } = await supabase
       .from("mission_amendment")
       .select("*")
-      .in("mission_id", missionIds)
+      .eq("business_id", ctx.business.id) // § R rule 1 — was .in(<every mission id>)
       .neq("status", "superseded")
       .order("created_at", { ascending: false });
-    const seen = new Set<string>();
-    for (const a of ams ?? []) {
-      if (seen.has(a.mission_id)) continue; // keep only the latest per mission
-      seen.add(a.mission_id);
+    for (const a of latestPerMission(ams ?? [])) {
       const am = (missions ?? []).find((x) => x.id === a.mission_id);
       if (am) amendments.set(a.mission_id, buildBrief(a, am));
     }
@@ -223,14 +228,11 @@ export default async function DispatchSchedule({
     const { data: rels } = await supabase
       .from("mission_release")
       .select("*")
-      .in("mission_id", missionIds)
+      .eq("business_id", ctx.business.id) // § R rule 1 — was .in(<every mission id>)
       .neq("status", "superseded")
       .is("dismissed_at", null)
       .order("created_at", { ascending: false });
-    const seen = new Set<string>();
-    for (const r of rels ?? []) {
-      if (seen.has(r.mission_id)) continue; // keep only the latest per mission
-      seen.add(r.mission_id);
+    for (const r of latestPerMission(rels ?? [])) {
       releases.set(r.mission_id, buildReleaseBrief(r));
     }
   }
@@ -246,24 +248,10 @@ export default async function DispatchSchedule({
   // amendment and release blocks above use. A driver cancellation re-pools the
   // trip rather than ending it, so the same mission can be walked again by the
   // next Driver, and "latest wins" would hide every walk but one.
-  const driverWalks = new Map<string, DriverWalk[]>();
-  if (missionIds.length > 0) {
-    const { data: walks } = await supabase
-      .from("mission_cancellation")
-      .select("mission_id, created_at, reason, hours_before_pickup")
-      .in("mission_id", missionIds)
-      .eq("kind", "driver_cancel")
-      .order("created_at", { ascending: false });
-    for (const w of walks ?? []) {
-      const list = driverWalks.get(w.mission_id) ?? [];
-      list.push({
-        at: w.created_at,
-        hoursBefore: w.hours_before_pickup == null ? null : Number(w.hours_before_pickup),
-        reason: w.reason,
-      });
-      driverWalks.set(w.mission_id, list);
-    }
-  }
+  //
+  // ⚑ § R rule 1 — Business-scoped, was .in(<every mission id>). Shared with the
+  // archive and both CSVs so the four reads cannot drift apart.
+  const driverWalks = await loadDriverWalks(supabase, ctx.business.id);
 
   // Detail-edit change-log (D40): the latest "what changed" trail per mission, for
   // the trip detail. Business-private side table (RLS-scoped); degrades to empty if
@@ -273,12 +261,9 @@ export default async function DispatchSchedule({
     const { data: ics } = await supabase
       .from("mission_info_change")
       .select("mission_id, items, created_at")
-      .in("mission_id", missionIds)
+      .eq("business_id", ctx.business.id) // § R rule 1 — was .in(<every mission id>)
       .order("created_at", { ascending: false });
-    const seen = new Set<string>();
-    for (const r of ics ?? []) {
-      if (seen.has(r.mission_id)) continue; // keep only the latest edit per mission
-      seen.add(r.mission_id);
+    for (const r of latestPerMission(ics ?? [])) {
       const items = parseChangeItems(r.items);
       if (items.length > 0) infoChanges.set(r.mission_id, { at: r.created_at, items });
     }

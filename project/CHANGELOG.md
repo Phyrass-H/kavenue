@@ -39,6 +39,15 @@
   struggling at around 5,000 trips. Nobody had actually tested it. It turns out it **stops working at 398
   past trips for a single hotel** — and it doesn't slow down, it fails. Your busiest hotel is at 271, so
   there's about 127 trips of room. That job just moved up the list.
+- **Fixed it — the History and Schedule pages will no longer break as you grow.** The app used to ask the
+  database about every one of a hotel's trips by listing them all in one request, which failed outright at
+  398. It now asks by hotel instead, so the request stays the same small size whether they have 10 trips or
+  100,000. The wall is gone, not moved.
+- **It turned out to be in more places than we thought** — five of them on the Schedule page alone, which was
+  actually closer to breaking than History, because it counts upcoming trips too.
+- **Proved it returns exactly the same data, rather than assuming.** Added 11 tests (473 now), deliberately
+  broke the code to check the tests would catch it, and compared the old and new versions row-by-row against
+  your real data. Everything matched.
 - **Renamed a confusing term.** The docs called that problem "the volume ceiling", which clashed with
   **Ceiling** — your word for the maximum a hotel will pay. It's now called **the growth limit**, which is
   what it actually is.

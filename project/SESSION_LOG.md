@@ -127,8 +127,47 @@ Corrected in `NEXT_SESSION.md`, `BACKLOG.md` and here.
 had run. One probe replaced it with a measurement two orders of magnitude tighter. **Measure the limit
 before you schedule the work around it.**
 
-**Next:** **§ R** — and it is more urgent than the queue implied.  § V resumes when the founder picks the
-threshold number.
+### ✅ § R RULE 1 SHIPPED — the 398-id wall is gone
+
+Founder: *"ok let's start with rule 1."* Eight unbounded `.in("mission_id", <every mission id>)` reads became
+constant-size requests. ⚑ **The scope was 4× what I told the founder** — the map found five of them on
+`dispatch/page.tsx` alone, and that page is **more exposed than History**: its id list is every non-draft
+mission **past AND future** (no date bound at `:154-159`), and it fires the vulnerable query **five times per
+render**.
+
+Four side tables already carry a denormalised, indexed `business_id`, so seven sites are a plain
+`.eq("business_id", …)`. `mission_guest_contact` has no such column, so that one site filters through the
+relationship — `mission!inner(business_id)`, where `!inner` is load-bearing (a plain embed is a LEFT join and
+would null the embed instead of dropping the row). New `lib/side-tables.ts` collapses **four byte-identical
+copies** of the walk loader into one and provides the pure seams the tests needed.
+
+⚑ **The one semantic change:** Business-scoping also returns rows for missions not on screen — extra KEYS in
+the maps. Safe **only** because every consumer does `map.get(m.id)` and never iterates. Audited across five
+files; recorded as a standing invariant in `lib/side-tables.ts` and BACKLOG § R.
+
+**Verification mattered more than the change here, because `mission_cancellation` is EMPTY — "the query ran"
+would have proved only that it parses, not that it returns the same rows.** Three independent legs:
+1. **11 new tests** (462 → **473**): set-algebra equivalence, superset-invariance of both grouping helpers,
+   a no-leak assertion, and a **negative control** that fails if the denormalised `business_id` disagrees.
+2. ⚑ **Mutation-tested.** De-duplicating the walks fails 3 tests; inverting `latestPerMission` fails 2.
+   A test that cannot fail proves nothing, so this was checked rather than assumed.
+3. ⚑ **Real-row equivalence.** Cancellation and release are empty, but `mission_guest_contact` (4),
+   `mission_amendment` (3) and `mission_info_change` (2) are not. Old vs new compared row-for-row across all
+   three Businesses: **every comparison MATCHED**, the embed included.
+
+RLS holds by construction — `p_mission_business_read` is `business_id = current_business_id()`
+(`kavenue_schema.sql:314`), so the embed can only reach this Business's own trips.
+
+**No migration needed.** One optional index is written and waiting for the founder:
+`docs/migrations/2026-08-23_info_change_business_idx.sql` — `mission_info_change` is the only one of the four
+whose `business_id` never got an index, and rule 1 makes it a per-render filter. Irrelevant at 2 rows.
+
+⚑ **Browser verification was NOT done** — port 3000 is held by another session's dev server. The real-row
+comparison above is stronger evidence than a screenshot would have been, but the pages were not rendered.
+
+**Next:** rules 2 and 3 (SQL filtering, pagination — both constrained: whole-archive chip counts, and fare
+sorting cannot move to SQL). The **Driver side** has the same fan-out with **354 of headroom** vs the
+Business side's 127. § V resumes when the founder picks the threshold number.
 
 ---
 

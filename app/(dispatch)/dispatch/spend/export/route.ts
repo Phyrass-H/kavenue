@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { loadDriverWalks } from "@/lib/side-tables";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppContext } from "@/lib/app-context";
@@ -78,28 +79,8 @@ const HEADERS = [
 // only record. Same read, same filter, same wording as the Schedule and the
 // archive; RLS scopes it to this Business. All rows, never de-duplicated: a
 // re-pooled trip can be walked again.
-async function loadDriverWalks(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  missionIds: string[],
-): Promise<Map<string, { at: string; hoursBefore: number | null }[]>> {
-  const out = new Map<string, { at: string; hoursBefore: number | null }[]>();
-  if (missionIds.length === 0) return out;
-  const { data } = await supabase
-    .from("mission_cancellation")
-    .select("mission_id, created_at, hours_before_pickup")
-    .in("mission_id", missionIds)
-    .eq("kind", "driver_cancel")
-    .order("created_at", { ascending: false });
-  for (const w of data ?? []) {
-    const list = out.get(w.mission_id) ?? [];
-    list.push({
-      at: w.created_at,
-      hoursBefore: w.hours_before_pickup == null ? null : Number(w.hours_before_pickup),
-    });
-    out.set(w.mission_id, list);
-  }
-  return out;
-}
+// ⚑ § R rule 1 — the local copy of this loader was deleted; it lives in
+// lib/side-tables.ts now, Business-scoped, shared with the Schedule and archive.
 
 // "1 · 2 h before pickup" — the fact and its lead time, in words, like every
 // other categorical column in this file. Empty when no Driver ever walked.
@@ -191,10 +172,7 @@ export async function GET(req: NextRequest) {
   };
   const listed = query.lens ? shown.filter(lensOf[query.lens]) : shown;
 
-  const driverWalks = await loadDriverWalks(
-    supabase,
-    listed.map((r) => r.mission.id),
-  );
+  const driverWalks = await loadDriverWalks(supabase, ctx.business.id);
 
   const lines = [HEADERS.join(SEP)];
   let total = 0;

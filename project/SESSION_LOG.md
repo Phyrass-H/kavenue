@@ -162,8 +162,14 @@ RLS holds by construction — `p_mission_business_read` is `business_id = curren
 `docs/migrations/2026-08-23_info_change_business_idx.sql` — `mission_info_change` is the only one of the four
 whose `business_id` never got an index, and rule 1 makes it a per-render filter. Irrelevant at 2 rows.
 
-⚑ **Browser verification was NOT done** — port 3000 is held by another session's dev server. The real-row
-comparison above is stronger evidence than a screenshot would have been, but the pages were not rendered.
+✅ **Browser-verified after all.** The port-3000 conflict turned out to be a **stale reservation** — nothing
+was actually listening (`lsof` clean), so this session's own server started fine. Signed in via `/dev-login`
+as the demo Business and exercised every changed path: **Schedule** renders (5 of the 8 changed queries),
+**History** shows all **271 trips** with the chip counts intact (Completed 183 · Unfilled 43 · Cancelled 23),
+the **History CSV** returns **273 lines = header + all 271** (its whole-result-set promise preserved, not
+paginated), and Spend + its CSV are clean. No console errors; server log shows only pre-sign-in auth noise.
+⚑ Note for next time: `read_page` returned "(empty page)" with a 0×0 viewport throughout — screenshots,
+clicks and `javascript_tool` all worked, so drive this app by screenshot rather than by the a11y tree.
 
 **Next:** rules 2 and 3 (SQL filtering, pagination — both constrained: whole-archive chip counts, and fare
 sorting cannot move to SQL). The **Driver side** has the same fan-out with **354 of headroom** vs the

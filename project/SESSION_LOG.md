@@ -4186,3 +4186,70 @@ right, and it survived a transaction that rolled back. Proof that writing it out
 Test data removed; mission table back to 280, `mission_event` back to 1848.
 
 `npx tsc --noEmit` clean · **516 tests passing** (17 new) · `npm run build` clean.
+
+## Session 66 — CLOSED (2026-08-24). Three fixes, all verified against the live DB
+
+**`main` = `b16bedd`.** Both migrations applied by the founder mid-session and probed immediately.
+
+| | shipped | verified |
+|---|---|---|
+| **[[d86]]** | The reclaim — dead code gated on `accepted`, now `confirmed AND never checked in` from T−2h | 20/20 live, driving the real RPC |
+| **[[d87]]** | The event log's app half — nine types that wrote nothing | Real app, real Driver: check-in, contact reveal (3 renders → 1 row), a raced accept |
+| **[[d88]]** | The price floor — a missing quote is now a refusal, not a skipped check | Posted a real trip through the real form |
+
+### ⚑ THE FINDING THAT OUTLIVES THIS SESSION
+
+**All three bugs were the same bug: a guard treating *absence of data* as *absence of a problem*.**
+
+    reclaim   status = 'accepted'      // a status that never occurs → never fires
+    event log captured_by = 'app'      // declared, registered, written by nothing
+    floor     !asDraft && quote && …   // no quote → no check, silently
+
+Nothing errored. Nothing warned. Each survived months because **a check that never fires is
+indistinguishable from a feature nobody uses.** Written into [[d88]] as a rule: *where a check needs a value,
+missing that value must be a refusal, never a skip.* Grep `&& x &&` in any guard you touch.
+
+### What the founder decided (the durable half of this session)
+
+Full reasoning in [[d86]]–[[d88]]; the one-line versions are in NEXT_SESSION's 🔒 table. The three that will
+shape the most work:
+
+1. **No browsing events.** *"a driver that looks around the pool it's just browsing and brings no values to
+   us unless we need to understand like in a shopping website."* Claude argued once for `pool_impression` —
+   it is the only way to tell "expired unseen" from "expired and refused" across 49 expired trips — and
+   conceded: the valuable half is a **query over stored data** (which Drivers matched a trip's category, zone
+   and radius at the time), not a ~300k-rows/day log. `mission_viewed` went with it once the founder asked
+   the clarifying question that settled it: *is that page a Pool trip or one of their own?* It is the Pool.
+2. **Two products, not one dashboard.** Support console (people and trips) and Analytics (counts over time).
+   ⚑ And **don't call it an event log screen** — the founder will never think *"let me open the event log"*,
+   they think *"why did that trip fail"*. The log is fuel; the product is **Activity**.
+3. **Google for the address box, Mapbox for routing.** ⚑ The old "Michelin vs Google" framing **missed the
+   incumbent** — Kavenue already runs Mapbox for both, and its routing is traffic-aware at the scheduled
+   departure. Researched Michelin: its traffic option is a **country-level toggle**, not a departure
+   timestamp, and a direct comparison describes ViaMichelin durations as excluding traffic. Change one thing,
+   not two.
+
+### Claude got two things wrong and corrected them from the code
+
+Both about [[d88]], both stated to the founder before checking:
+- *"The common cause is a typed address."* **No** — posting already requires a located pickup, drop-off and
+  stops. On a post, no quote means **routing itself failed**.
+- *"14 of 280 trips prove it's happening."* **No** — seed and legacy rows. **No evidence it has ever fired in
+  production.** Latent, not leaking.
+
+⚑ The lesson is the session's own: *check before you characterise severity.* A wrong severity sends the next
+session at the wrong thing with the wrong urgency.
+
+### Housekeeping
+
+- **`handoff-check.ts` now runs 23 assertions** (was 17) — the reclaim CHECK constraint, `accepted` staying
+  extinct, the nine wired event types, the two deliberately-unwired ones, `guaranteed` never over-claimed,
+  and the floor guard's shape. First fully clean gate of the session: *"The handoff still matches reality."*
+- **New probes:** `reclaim-live.mts` (20), `event-registry-live.mts` (16), `event-wiring-live.mts`,
+  `event-accept-rejected.mts`, `lead-time.mts`, `find-mission.mts`, `s64curve-refresh.mts`.
+- **`NEXT_SESSION.md` cut from 1884 lines to ~860.** The old state block had decayed — it still said the
+  T−60 take-back was "STILL parked" hours after it shipped. History belongs in SESSION_LOG and DECISIONS;
+  the handoff should only carry what is true today.
+- Test data removed throughout: **280 missions · 1848 events**, both back to baseline.
+
+`npx tsc --noEmit` clean · **523 tests passing** (36 new across three files) · `npm run build` clean.

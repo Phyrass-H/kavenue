@@ -25,6 +25,8 @@ trick:
 (2026-08-21), each a CI run followed by a push to `main`. Pushing to `main` FIRST is what fails, because
 brand-new SHAs have no check yet: *"Required status check `types · tests · build` is expected."*
 
+⚑ **S66 pushed three times this way (`s66-reclaim`, `s66-eventlog`, `s66-floor`) — it works.**
+
 ⚑ **S64 misread that rejection as "a PR is the only route" and opened PR #1** — the first this repo ever had —
 which made the founder click a Merge button for no reason. It worked, and a PR is a legitimate second route,
 but it is ceremony this project does not need. `CLAUDE.md` still says **do not open a PR unless explicitly
@@ -34,26 +36,22 @@ asked**; that stands, and now there is no reason to.
 makes it *required* is a GitHub setting outside it. Read it with
 `gh api repos/Phyrass-H/kavenue/rulesets`.
 
-**⚑ THE LIVE RESUME POINT IS THE BLOCK HEADED "★★ START HERE" (2026-08-22, S64 — closed).**
-Search for it. Everything above it is history kept for its decision trail; several older "START HERE" and
-"NEXT" headings are superseded and say so. **Steps 0–5 of the pricing engine are shipped and live — the §6
-curve landed 2026-08-22, with both its migrations applied and every probe green.** What is left is listed in
-that block, smallest first. Open by confirming it in one line, not by re-offering a menu.
-
 START BY READING — **just these four**; they get you fully up to date without bloating context:
 - `CLAUDE.md` (root) — hard rules + glossary (auto-loaded anyway).
 - **This file** (`project/NEXT_SESSION.md`) — the current state + what's next (the resume point).
 - `project/CHANGELOG.md` — plain-language history, the **recent entries** (the big picture, fast). Older entries live in
   `project/CHANGELOG_ARCHIVE.md` — read it only if you need the deep history.
-- `project/SESSION_LOG.md` — skim the **newest entry (Session 63)** for recent technical detail; Sessions 61–62
-  behind it are the commission and the money sweep. Older sessions (1–33) are in
-  `project/SESSION_LOG_ARCHIVE.md` — don't open it unless you need deep history.
+- `project/SESSION_LOG.md` — skim the **newest entry (Session 66)** for recent technical detail; S65 behind it
+  is the growth limit + the event log. Older sessions (1–33) are in `project/SESSION_LOG_ARCHIVE.md` — don't
+  open it unless you need deep history.
+- `project/DECISIONS.md` — **read D86, D87 and D88** (the newest three). They are this session's decisions and
+  the reasoning behind the next job; the "🔒 DECIDED IN S66" table below is only their summary.
 
 READ ON DEMAND — open these **only when the task actually touches that area** (this is the big context saver,
 and it loses nothing — the docs are all still here, just read when relevant):
 - `project/DESIGN_BRIEF.md` — for any UI/design work (brand, navy `#25344C`, screen inventory, constraints).
-- `docs/06_Pricing_Commission_Payments.md` — **READ IN FULL BEFORE THE NEXT JOB.** §6 is the curve you are
-  building; §13 is the build order. Do not price anything from memory.
+- `docs/06_Pricing_Commission_Payments.md` — the curve (§6) and the build order (§13). **Shipped and live**;
+  read it before touching money, not before every job. Never price anything from memory.
 - `project/SPEND_BRIEF.md` § 9 (§ S, Spend pass 2 — queued, not next) · `project/NEEDS_CLOSING_BRIEF.md` —
   § Q, both slices, and the two money traps that must not be re-introduced.
 - `project/BACKLOG.md` — **§ Y** (the cancellation penalty, incl. who receives it) · **§ Q6** (the unclosed-trip
@@ -99,1204 +97,188 @@ and it loses nothing — the docs are all still here, just read when relevant):
    automatically, so wait silently. Don't restate plans or re-explain finished work. Push big reads into a **subagent**
    that returns just the answer. Long-form detail belongs in `project/SESSION_LOG.md`, not the chat.
 
+
 ## DB MIGRATIONS — Claude can't run them; the founder does
 The schema is already applied (hard-rule #4). For an **additive** column/enum: write the SQL to
 `docs/migrations/<date>_<name>.sql`, give the founder the one-liner, and they run it in the **Supabase SQL
 editor** (Claude's app keys go through PostgREST = rows only, NOT DDL). Then build + verify + deploy. The DB
 also keeps the running app's data, so the dev server reads the **real** Supabase DB.
 
-CURRENT STATE (live, deployed from `main`):
-- **⚑ THE APEX IS NO LONGER THIS APP (2026-08-05).** `kavenue.fr` + `www.kavenue.fr` were moved to a **separate
-  Vercel project + separate repo** for the marketing site (`Phyrass-H/kavenue-landing`, local folder
-  `../kavenue-landing`). Founder's call after weighing a route group inside this repo: they wanted a hard wall.
-  **This app now only ever receives `driver.kavenue.fr` and `dispatch.kavenue.fr` in production**, so the old
-  `LandingSplash` branch in `app/page.tsx` was unreachable and both it and `components/landing-splash.tsx` are
-  deleted. `lib/hosts.ts` is untouched — `isProdDomain`/`roleSubOf` still enforce role-per-subdomain in the two
-  route-group layouts. Runbook + brand rules for the marketing site: **`project/LANDING_HANDOFF.md`**.
-  ⚑ **Brand-token drift is the standing cost of the split:** the tokens are copied verbatim into the landing
-  repo's `app/globals.css`. Change a colour here, change it there.
-  ⚑ **Landing decisions live in `../kavenue-landing/CLAUDE.md` §0 — NOT in this repo's DECISIONS.md.** As of
-  2026-08-06: **D-L1** English only for now (French is a later pass; no i18n routing yet) · **D-L2** *no geography
-  anywhere on the site* (no "French Riviera", no city names — it talks to everyone) · **D-L3** no Driver count, in
-  any wording. More will have been added since. **If you need to know what the public site says, read that file.**
-  The full context pack for that repo is `../kavenue-landing/brief/` (8 files, self-contained — don't duplicate it here).
-- **Custom domain + role subdomains — `kavenue.fr` since 2026-07-29 ([[d60]]):**
-  `www.kavenue.fr` → 308 → apex (both now on the LANDING project) · `driver.kavenue.fr` = Driver app ·
-  `dispatch.kavenue.fr` = Business/Dispatch (both still on this project).
-  Each subdomain has its own host-only session cookie. Mapping in `lib/hosts.ts` (no-op on localhost +
-  `*.vercel.app`). Registrar **OVHcloud**, DNS zone at OVH (app records + mail records in one zone), Vercel project
-  renamed **`kavenue`**. `pickupbedriven.com` is removed from Vercel (404) but still registered.
-  ⚑ **DNS at OVH was NOT touched** by the split — only the project↔hostname binding inside Vercel changed.
-- **Email — Google Workspace on `kavenue.fr`:** one paid mailbox `phyrass@kavenue.fr`; **`support@` · `feedback@` ·
-  `contact@` are free aliases into it** (`support@`/`feedback@` are hardcoded in the app — Driver help card +
-  Dispatch settings). SPF + DKIM + DMARC all verified `pass` on a real message. **DMARC is at `p=none`** (monitor
-  only) — tighten to quarantine → reject once the reports show only your own senders.
-- **Core loop** works end-to-end both sides vs the real Supabase DB (Pool→Accept→run trip; post mission→
-  Schedule/Calendar→live status; accounts/records; Mapbox autocomplete + traffic-aware ETA; base+radius Pool).
-- **Dispatch redesign** shipped: navy palette app-wide (S14/D24), Geist + Lucide, collapsible sidebar shell,
-  Schedule (flight col + T-180 wash), full Calendar, design tokens. **S18:** the dense views
-  (Schedule/Calendar/History) now **fill the screen** (a `.dx-main--wide` 1520px modifier the shell applies by
-  pathname; the new-mission page is deliberately left at 1120px). The **calendar search** also matches the
-  **assigned driver's name** now.
-- **New-mission form (`/dispatch/new`) is the most-worked screen** — two-pane (left section cards + a
-  **read-only** sticky Summary rail). Passes:
-  - **S15/D26** — Pricing grouped into its own card; the Summary rail is read-only.
-  - **S16/D27** — Service class = tier tiles; specific-car dropdown restyled, hidden for Eco.
-  - **S17/D28** — named Guests (first+surname, multiple, capped by vehicle: Sedan 4 / Van 7).
-  - **S18 (bug round)** — **"Review" no longer accidentally posts** the mission (it was a React node-reuse bug:
-    the Review button got reconciled into the Post button mid-click). Defence in depth: `createMission` now
-    **requires an explicit `intent`** (a stray submit writes nothing); a **double-submit guard** disables all
-    submit buttons + shows "Posting…/Saving…" while the action runs (rapid clicks were creating duplicate
-    missions — one trip posted 7×); an **irreversible "This is final" warning** at the post step; the address
-    fields are a **keyboard combobox** (↑/↓/Enter/Esc).
-  - **S19/D30** — a new **"Driver & service" card** (between Trip details and Pricing): requested **languages**
-    (display-only, not a hard filter), a **dress code** with a **tier-keyed anti-suit default** (eco→Driver's
-    choice · business→Smart casual · First→Business formal — never suit & tie unless picked on purpose), **request
-    flags** (meet & greet · greeter · luggage · child seat · quiet · pets), a **meet & greet name board** (typed
-    name **or** an attached PDF/JPG/PNG, **auto-filled from the first Guest**), and a **private message to the
-    Driver** (revealed post-accept). Migration `2026-06-25_mission_driver_section.sql` (applied). Driver sees
-    language/dress/flags pre-accept; board + message post-accept.
-  - **S20** — three Trip-details improvements. (1) The old free-text "Reference / notes" is now a **dedicated
-    `reference` column** + a compact **20-char Reference** field — a Business-only schedule tag, **hidden from the
-    Driver** (migration `2026-06-27_mission_reference`; legacy `comment` column now vestigial). (2) **Luggage + Flight
-    number share one line** (equal halves, wraps on mobile). (3) **Passenger phones + a Share gate:** each Guest has an
-    optional **phone** + a selectable, highlighted **main contact** (star); a per-phone **Share with Driver** toggle
-    (off by default) in the form AND the schedule trip detail. **Airtight privacy** — numbers live in a
-    **`mission_guest_contact`** side table Drivers can't read (RLS deny-by-default); `mission.passenger_names` keeps
-    only `{first,last,main}`; a SHARED number is revealed to the assigned Driver post-accept via the service role
-    (migration `2026-06-27_mission_guest_contact`).
-- **Drafts:** a **discard confirmation** (inline "Discard this draft? This can't be undone.") + a **count badge**
-  on the sidebar Drafts item, kept fresh after save/post/discard via `revalidatePath("/dispatch","layout")`.
-- **Auth (testing):** key-gated dev-login on the live subdomains:
-  - Business → `https://dispatch.kavenue.fr/dev-login?key=v1a-DbkJHN9Dw3aqWKDGSfZ9`
-  - Driver  → `https://driver.kavenue.fr/dev-login?key=v1a-DbkJHN9Dw3aqWKDGSfZ9`
-  Local (`npm run dev`): dev-login is open, no key. `GET /api/seed` (dev-only) creates a Business +
-  Dispatcher + missions. Real magic-link wired but OFF (turning it on is a deferred integration).
-- **Env:** `.env.local` (git-ignored) needs the 3 Supabase keys + `NEXT_PUBLIC_MAPBOX_TOKEN`; same in Vercel.
-- **Shipped 2026-06-28/29 (Sessions 25–29) — all live (decisions [[d31]]–[[d34]]):**
-  - **S25 — Schedule/History responsive (no schema):** the dense grid is now **fully flexible** — every column
-    `minmax(floor, fr)`, so narrowing shrinks the whole row together (no more vanishing addresses / colliding
-    `Route`/`Flight` headers); below the floors it holds `min-width:572px` and **side-scrolls** (`@media ≤880`).
-  - **S26 — Per-stop trip progress** (migration `2026-06-28_mission_stops_reached`, `stops_reached int`): the Driver
-    finally **sees the stops mid-trip** and taps **"Reached — <stop>"** (action `reachStop`) between "on board" and
-    "Complete ride" (which is **guarded** until all stops done); the dense **route rail checks off live** (reached =
-    green, next = accent) + an **"On board · k/N"** pill. Status enum untouched.
-  - **S27 — New-mission validation (no schema):** the "Review" warning is now **dynamic** (names only what's missing,
-    plain words) — fixed a latent `Number("")===0` bug that let an **un-located pickup** slip through; and a **POSTED
-    mission now requires a located drop-off** (`error="nodrop"`) while **drafts stay lenient**.
-  - **S28 — Business settings rebuilt** (migration `2026-06-28_business_profile_fields`): a **left-nav account area**
-    (Booking/Airbnb-modelled) replacing the 4-field page — **Company** (business type / SIRET / VAT / legal name /
-    registered address + Kbis), **Contact** (+ account email read-only, reception), **Branding**, **Booking defaults**;
-    **Billing + Notifications** are honest **"coming soon" stubs** (agent-positioned billing copy, billing email saveable
-    now). CUT: team/multi-seat, roles, financial dashboard, multi-property. Client `SettingsTabs` + per-section forms.
-  - **S29 — Business-neutral saved address + pre-fill toggle + swap** (migration `2026-06-28_business_address_and_prefill`,
-    renames `default_pickup_*` → `business_address_*` + adds `prefill_pickup bool`): the saved place is **"Your address"**
-    (a Business can be the pickup OR the drop-off — or, for a concierge, neither). A **toggle** "pre-fill my address as
-    the pickup" (default on) auto-fills it into a **new** mission's pickup (drafts keep their own; always editable), with a
-    **pickup ⇄ drop-off swap** button. Groundwork for the saved-addresses book. Removed "Default Guest instructions".
-- **Shipped 2026-07-03/04 (Sessions 30–32) — all live (decisions [[d35]]–[[d38]]):**
-  - **S30 — Business identity → account chip in the topbar** (no schema): the Business logo + name moved OUT of the
-    cramped sidebar bottom-left into a **top-right account chip** in `.dx-topbar` (a dropdown → Sign out). The topbar
-    wordmark (now "Kavenue Dispatch") stays top-left as before; Settings stays in the sidebar footer. Founder picked this (Option C) after
-    seeing the "workspace header" option (B) live and preferring the topbar chip. `components/dispatch-shell.tsx`.
-  - **S31 — Mission-form input-driven nudges** (no schema) + a **full guidance audit** (`project/GUIDANCE_AUDIT.md`):
-    2 calm amber `.notice.warn` nudges on `/dispatch/new` that appear ONLY when the input triggers them — **luggage >
-    vehicle capacity** ("consider a Van") and **night pickup** (≥22:00 or <06:00, "harder to fill; raise ceiling /
-    SPEED WIN"). Never block posting. Thresholds are tunable consts. The long-distance "cover the empty return" nudge
-    was **dropped** (contradicts the no-empty-return model — see [[d37]]).
-  - **S32 — Luggage-vehicle Phase 1 ("van for luggage")** (migration `2026-07-04_luggage_run_phase1`: `mission.luggage_only`
-    + `driver.accepts_luggage_runs`, both bool default false): a **Trip type: Passengers | Luggage only** toggle on the
-    new-mission form → luggage mode **forces Van + Business, hides passengers, keeps bags**; Van Drivers **opt in** at
-    enrollment/settings (off by default); the **Pool routes luggage runs only to opted-in Van Drivers** and labels them
-    **"Luggage run · no passengers · N bags"** (Pool card + Driver detail + Business schedule). Phase 2 (V2) = real
-    cargo/truck classes by volume + the grouped car+van booking. [[d38]]
-- **Shipped 2026-07-05 (Sessions 33–34) — all live ([[d39]]):**
-  - **S33 — Calendar redesign** (no schema): the Dispatch calendar rebuilt into a **month "load-map"** (readable
-    status-railed chips instead of near-white pastel tints, past-day dimming, a **status legend**, honest month-total
-    KPIs) + a **week vertical time-grid** (hour axis, day headers, uniform cards at pickup time, overlap lane-splitting,
-    a client-only navy "now" line) + a **trip-focused day panel** (click any chip/card → panel opens with THAT trip
-    expanded). **Deep links** `/dispatch?open=<id>` (row expands + scrolls, opens the past-day fold) and
-    `/dispatch?day=<key>` (`components/scroll-to-trip.tsx`). View+week persist in the URL (reload/Back-Forward safe).
-    Founder rejected a horizontal hotel-tape-chart + duration-scaled cards ("a trip is a pickup moment"). Files:
-    `components/dispatch-calendar.tsx` (rewrite), `app/(dispatch)/dispatch/calendar/{page,loading}.tsx`. 13-agent
-    adversarial review → 7 findings fixed (incl. a real hydration mismatch on the now-line → gated client-only).
-  - **S33 follow-ups (no schema):** the **night-pickup nudge moved from the Schedule card to the Pricing card** on
-    `/dispatch/new` (it's pricing advice). **Dev-only Pool `?all=1`** (gated by the `NODE_ENV/VERCEL` hosted-check, like
-    dev-login) bypasses the tier/zone/body/luggage filters so ONE demo Driver can test the whole Pool (a Class-E sedan
-    now sees van/luxury/luggage runs). `app/(app)/pool/page.tsx`.
-  - **S34 — Edit a posted trip's INFO without changing price** (migration `2026-07-05_mission_info_edited_at`): new
-    route **`/dispatch/[id]/edit`** — a Business edits the info a Driver sees (guests+phones, flight, luggage, reference,
-    Driver & service) with **price/route/time locked**. `updateMissionInfo` **whitelists only info columns** (never
-    `base_fare/ceiling/pdp_*/created_at/category/pickup*/dropoff*/waypoints/distance/duration/zone/status`), atomic
-    status guard (`.in pooled/accepted/confirmed`), mirrors createMission for parsing + board-file + guest-contact
-    upsert. Reuses the exact new-mission info sub-components (`PassengerList`/`ReferenceField`/`DriverServiceFields`).
-    Entry = **"Edit details" at the TOP of the expanded trip detail**; an **"Edited · <time>"** stamp shows in the
-    detail ONLY (never the collapsed row), stamped by `info_edited_at`. Security+parity review → 0 findings. [[d39]]
-- **Shipped 2026-07-10 (Sessions 36–38) — all live ([[d41]]–[[d44]]):**
-  - **S36 — Expanded trip-row redesign + a "what changed" trail** (migration `2026-07-10_mission_info_change`): the flat
-    15-row `.kv` detail rebuilt into grouped, scannable sections — a **scan-strip** (Pickup · Vehicle · Flight · **Fare
-    right**), a **route card** (full addresses + a dot-to-dot connector that STOPS at the drop-off dot + trip
-    distance/duration in the header), a **slim one-line Driver bar** ("No Driver yet" when unassigned), and **Service ·
-    Guests side by side** with **chips** for languages/dress/requests. New `.dx-*` classes; the flat `.kv`/`.route` stay
-    for other pages. **"See what changed"**: the amendment **"Change accepted"** state now shows the fare/route diff (no
-    schema, existing `AmendmentBrief`); and **detail edits** log a diff to the new **Business-only `mission_info_change`**
-    side table (deny-by-default RLS — the diff can hold the private reference/guest names) via `lib/info-changes.ts`,
-    rendered as a `.dx-trail` line. Files: `components/trip-row.tsx` (rewrite), `app/globals.css`, `dispatch/page.tsx`,
-    `dispatch/[id]/edit/actions.ts`, `lib/database.types.ts`. D25 previews v1→v5 signed off. [[d41]]
-  - **S37 — Mission-form polish** (no schema): (1) **review-before-posting card** lightly polished to the S36 vocabulary
-    (route rail + chips); (2) **Guest names auto-capitalise** the first letter; (3) **numeric fields** (luggage / base
-    fare / ceiling) reject letters/`e`/`+`/`-` via a controlled sanitize (`type=text`+`inputMode`; phone stays flexible);
-    (4) the **edit trail leads with the bold edit time**; (5) a live **vehicle-reminder chip** in the Pricing card head
-    (class·body). Files: `mission-form.tsx`, `passenger-list.tsx`, `trip-row.tsx`, `edit-form.tsx`, `globals.css`. [[d42]]
-  - **S38 — Address search: Riviera-first Mapbox cleanup** (no schema, `components/address-autocomplete.tsx` only):
-    countries narrowed `fr,mc,it,ch,de,es,…` → **`fr,mc,it,ch`** + a client **Riviera-first re-rank** (`isRiviera()` floats
-    Côte d'Azur hits to the top without hiding far destinations). "aéroport t2" now returns the Nice result at #1. **Mapbox
-    POI ranking is still weak for prominent places** → **Google Places is the planned fix, DEFERRED until the founder
-    registers the final domain** (so the API key is restricted once) — see BRAND/DOMAIN below + [[d43]].
-- **Shipped 2026-07-13 (Session 39) — O7 cancellation spine, LIVE ([[d45]]; migration `2026-07-13_o7_cancellation` applied):**
-  - **Driver cancel** (always 100% → re-pools as SPEED WIN; escape valves shown first — copilote "Soon", call the Business),
-    **Business cancel** (FREE while pooled / >5h, then 50% at −5h, +10%/h → 100%; a live-% modal), **No-show** (on-site
-    `arrived` + wait window 60 m airport / 20 m city → Business charged full, Driver paid like a completed trip; **amber**
-    button + a "be sure" nudge), **T-60 reclaim** (assigned Driver never confirmed + unreachable → re-pool, penalty-free).
-    Atomic SECURITY DEFINER RPCs (`driver_cancel_mission` / `business_cancel_mission` / `reclaim_mission` / `mark_no_show`)
-    mirroring `accept_mission` + a `mission_cancellation` audit table. `lib/pdp.ts` climbs from `pooled_at ?? created_at`;
-    `lib/cancellation.ts` shares the % ramp + airport heuristic. Files: `app/(app)/rides/cancel-noshow.tsx`,
-    `components/dispatch-cancel.tsx`, `app/(dispatch)/dispatch/actions.ts`, `rides/actions.ts`, `trip-row.tsx`,
-    `dispatch-status.ts`, `pdp.ts`, `database.types.ts`. Fee **amounts settle MANUAL** in beta; the rules are fixed.
-  - **Verified** end-to-end vs the live DB via real authenticated sessions (5 money paths + 5 adversarial guards) + a
-    3-lens adversarial review → **3 fixes applied** (supersede a pending amendment on re-pool; lock down status_event
-    spoofing; keep the business-cancel reason private from the Driver). Deployed `e9052d7` → Vercel Production `success`.
-  - **⚑ Flagged (BACKLOG § H2 — before real Business users / payments; NOT O7 regressions):** `p_mission_business_update`
-    has no WITH CHECK (a Business could bypass the fee via a raw PostgREST UPDATE — **HIGH for prod**, ~nil in beta);
-    `currentFare` doesn't freeze at `accepted_at` so the fee BASIS inflates to the ceiling (a **pricing-engine decision**);
-    `p_fare_snapshot` is client-forgeable (recompute in SQL with the pricing engine); a mid-run Business cancel vanishes
-    from the Driver's My Rides (pairs with notifications).
-  - **✅ Agreed release SHIPPED (S40, below).** Remaining O7 piece: the **copilote hand-over** (Phase 2 — needs the community layer).
-- **Shipped 2026-07-19 (Session 40) — O7 agreed release + the 24h re-pool window, LIVE ([[d46]]; migrations
-  `2026-07-19_agreed_release` + `2026-07-19_repool_speedwin_window` applied):**
-  - **Agreed release (Business-initiated).** The Business taps **"Agreed release · free"** (distinct from the fee Cancel) →
-    the Driver **must accept** → the trip releases **free (no fee, no reliability mark)** and re-pools; decline → stays as
-    agreed. New `mission_release` **append-only evidence** table (declines retained; `dismissed_at` hides-without-deleting;
-    stores who/when/note/decision/fare/hours-before-pickup → dispute proof + per-Business abuse counts). ALL writes via
-    SECURITY DEFINER RPCs `propose_release` / `respond_to_release` / `close_release` (no client write policy → tamper-proof).
-    Driver `components/release-card.tsx` + `respondToRelease`; Business `components/dispatch-release.tsx` + `proposeRelease` /
-    `closeRelease`; schedule states + gates in `trip-row.tsx`. Guardrails: declining is framed free/safe/no-mark; the Business
-    decline state is calm. Review-weaponisation → gate a future Business→Driver review system to completed-trip + double-blind (logged).
-  - **24h re-pool SPEED-WIN window (supersedes D45 "always 70%").** ALL re-pool paths (driver cancel · reclaim · release):
-    **<24h → SPEED WIN** (70% / 5-min climb) · **≥24h → normal Pool** (50% / 10-min climb, SPEED WIN off) — the fresh-posting
-    curves. `create or replace` of the 4 O7 RPCs.
-  - **3-lens adversarial review → 6 fixes** (supersede pending release on cancel/reclaim/business-cancel; gate release cards to
-    a still-releasable trip; `respond_to_release` lock order mission→release). **Verified live 28/28** vs the real DB via real
-    Business+Driver sessions (pricing branches · free re-pool · decline · supersede · deny-by-default writes). Deployed `d939df7` → Vercel `success`.
-- **VERIFICATION NOTE (this stretch):** another chat held the `next dev` server on **:3000**, so the preview/Chrome MCPs
-  couldn't reach it. Workaround that worked well: a **static harness** (a tiny Node server on :4612 serving an HTML page
-  that `<link>`s the **real** `app/globals.css` + the actual component markup) for CSS/layout checks, plus an **isolated
-  `next build` in a detached git worktree** (`node_modules` symlinked, `.env.local` copied) to validate compile/RSC
-  without corrupting the running server's `.next`. Reuse these when :3000 is taken.
-- **Shipped 2026-07-22 (Session 41) — the no-show CLOCK ORIGIN fix, LIVE ([[d47]]; migrations `2026-07-19_no_show_clock_origin`
-  + `2026-07-19_no_show_airport_label` + `2026-07-19_guest_ready_at_guard` applied):** the free-wait countdown was anchored to
-  the **Driver's `arrived` tap** in both the client and `mark_no_show` — the wrong party. It now runs from **when the GUEST was
-  due** = `coalesce(guest_ready_at, pickup_at)`; reporting unlocks at `greatest(guest_due + wait, arrived_at + 5 min)`. This
-  **closed a live exploit** (`advanceStatus` has no time guard → a Driver could tap through ~33h early, wait out the 20-min
-  window, and file a no-show, charging the Business full fare before the trip). `mission.guest_ready_at` (new, nullable) is the
-  flight-tracking hook — NULL today, so airport falls back to the booked time. `arrived` stays a *precondition to report*, not the
-  origin. Verified 9/9 live. **Guard saga:** two attempts to lock `guest_ready_at` were no-ops (a column REVOKE against a
-  table-level grant; a SECURITY DEFINER trigger sees the owner in `current_user`) — fixed 3rd try (Session 42) by dropping
-  `security definer`.
-- **Shipped 2026-07-23 (Session 42) — WAITING FEES + a hard end-to-end stress test, LIVE ([[d48]]; migrations
-  `2026-07-22_waiting_fee` + `2026-07-22_airport_accent_fix` + `2026-07-22_guest_ready_at_guard_fix` applied; deployed `0aed706`):**
-  - **D48 waiting model.** Founder chose "pay the Driver to wait" over reschedulable time. **Courtesy wait** (renamed from "free
-    wait") 20 city / 60 airport, then **€1/min started** Business→Driver, ceiling **€40 city / €60 airport**. The ceiling stops
-    the MONEY not the trip (a `least()` clamp — no cron needed). **Two exits, both confirmed:** the Driver reports, or the
-    Business declares via net-new **`business_declare_no_show`**. `business_cancel_mission` **also settles accrued waiting** (else
-    Cancel was strictly cheaper than "stop waiting" — the loophole the pre-build review caught). A booked trip's **`pickup_at` is
-    frozen after draft** (blanket trigger) → dissolves the postpone-then-cancel fee dodge. Net-new Business UI: the Dispatch row
-    now **shows the running meter** (before it showed nothing while a Driver waited). Files: `lib/cancellation.ts`,
-    `rides/cancel-noshow.tsx`, `components/dispatch-waiting.tsx`, `dispatch/actions.ts`, `trip-row.tsx`; one shared SQL
-    `mission_waiting()` / `mission_is_airport()` so the three settlement paths can't drift.
-  - **⚑ The bug of the session — found by PROBING, not reading.** The airport predicate `a[eé]roport` used a bracket expression
-    with a multibyte char; **Postgres `~*` doesn't reliably match it**, so `"Aéroport Nice Côte d'Azur"` (the exact Mapbox string
-    for the main airport) classified CITY → every accented airport pickup without a flight number got 20 min instead of 60. Latent
-    since 2026-07-13. Fixed by matching the ASCII substring `roport`. **NOTE: this was Postgres, NOT Mapbox — moving to Google
-    Places would NOT have fixed it.**
-  - **Verification:** 13/13 live (clock + waiting) + a 3-door settlement proof (Business charged == Driver paid, no cheaper door)
-    + a **12-battery / 49-case end-to-end stress test** on a tagged 14-driver/3-business fleet (accept atomicity · both cancel
-    paths · no-show clock · waiting math · money conservation · **concurrency race x5, exactly one winner** · release · amendment ·
-    reclaim · RLS/privacy · guards) → **49/49 GREEN, 0 real bugs**, DB restored to baseline 34 missions. Fleet lib +
-    test scripts live in the **session scratchpad only** (never the repo).
-- **Shipped 2026-07-24 (Session 43) — DRIVER POOL REDESIGN + bottom tab bar, LIVE ([[d49]]; NO migration —
-  `mission_type` `'transfer'|'hourly'` + a nullable `dropoff_address` already exist in the schema; deployed `56211e7`):**
-  the Driver app finally gets a layout redesign (**Pool first**). Decided via the D25 preview loop (v1→v9 mockups), built to match.
-  - **Bottom tab bar** (`components/driver-tabbar.tsx`) replaces the old top text-nav (`components/app-header.tsx` DELETED):
-    Pool (stack / Lucide `Layers`) · My Rides · **Earnings (net-new 4th tab)** · Settings. **Sign out** moved into Settings
-    (`components/driver-signout.tsx`). Content in `<main class="dapp-main">`.
-  - **Pool card rewrite** (`components/mission-card.tsx`) to the approved v9 mockup — uniform, refined weights (**nothing
-    700**): fare+when head, a gentle divider, **mission-only badges** (Transfer / At disposal / SPEED WIN / Luggage run — the
-    vehicle class is **demoted** to a discreet footer note, it's the Driver's own car), a **Dispatch-style route rail** (navy
-    dot → line → grey mid-dot **"+N"** → hollow ring), **full 2-line addresses**, and a **one-line footer** (distance·duration
-    + discreet vehicle | service icons **capped 3 + N by priority**: child seat>pets>luggage>meet&greet>greeter>dress>
-    language>quiet>flight). New `formatPoolWhen()` (Today/Tomorrow/weekday + date). New CSS `.dtabbar/.pcard/.proute/.pbadge`
-    (the shared `.card/.route/.badge` untouched — still used by the un-redesigned Driver screens).
-  - **Earnings** = honest "coming soon" placeholder (its own screen = a later D25 pass). Verified in-browser vs the real DB;
-    **3-lens adversarial review (13 agents) → 6 fixes** (DST "Tomorrow", iOS safe-area `viewportFit:'cover'`, `.ac-list`
-    z-index above the tab bar, icon a11y, muted-grey **WCAG-AA contrast**, real `<h1>`s). `tsc` clean.
-  - **⚑ Parked:** the discreet **vehicle** footer note — keep (truncates to "Business · Se…" on a narrow card) or drop
-    (redundant). **NOT redesigned yet:** My Rides / mission detail / Settings / the Earnings screen / Pool empty+loading.
-- **Shipped 2026-07-25 (Session 44) — the PickUp → Kavenue RENAME, LIVE ([[d51]]; NO migration, NO behaviour change):**
-  a pure brand rename across **51 files**: user-facing copy (Dispatch topbar wordmark, login/welcome/dev-login titles, the
-  FR+EN legal pages, Settings, cancel/no-show and release/amendment copy), `app/layout.tsx` metadata + `appleWebApp.title`,
-  `public/manifest.webmanifest`, `package.json`/`package-lock.json` (`kavenue-driver`), `README.md`, `.claude/launch.json`,
-  every `docs/` + `project/` doc, and SQL **comments only** in `docs/migrations/*.sql`. Two files git-renamed (tracked as
-  renames, history preserved): `docs/PickUp_Phase0_Data_Spine.md` → **`docs/Kavenue_Phase0_Data_Spine.md`** and
-  `docs/pickup_schema.sql` → **`docs/kavenue_schema.sql`**, with all 12 references updated.
-  - **Method:** 7 parallel edit agents partitioned by file (no two touching the same file) under an explicit never-rename
-    ruleset, then **4 adversarial verify lenses** (missed-brand · over-rename · reference-integrity · copy-coherence).
-    The over-rename lens ran a **mechanical reversibility check** — reverse every added line and diff it against the removed
-    line — **0 mismatches across all 209 changed lines**, proving no collateral edits. 23 findings → all real ones fixed
-    (the big one: `project/NEXT_SESSION.md` had been skipped entirely and still claimed the rename hadn't happened).
-  - **Verified:** `tsc --noEmit` clean · `next build` green (24 routes) · **18 routes fetched in-browser against the real
-    Supabase DB → 0 occurrences of "PickUp"** in rendered HTML, including the PWA manifest and both legal pages · no
-    console errors · French legal copy checked for élision (Kavenue is consonant-initial, so "de Kavenue" is correct).
-  - **⚑ Founder actions:** **✅ The domain migration is DONE — S49, [[d60]].** **✅ The repo directory is DONE — S53,
-    2026-08-06:** the folder is now `02_Cactus/Kavenue/Kavenue_project_dev` (both levels renamed), and the matching
-    `~/.claude/projects/` directory moved with it, so the session history and memory survived. **✅ The GitHub repo is DONE — S65,
-    2026-08-23:** renamed to `Phyrass-H/kavenue`; the local remote was repointed and the `main — CI must pass`
-    ruleset survived (it binds by repo ID). The repo's public `homepage`/`description` were set at the same time.
-    Also flagged, not
-    touched: `.claude/settings.local.json` line 42 mentions the old brand inside a permission rule and line 32 has a stale
-    `pickup_schema.sql` path (a dead entry — that path was already wrong pre-rename) — it's your permissions config, so
-    edit it yourself if you want it tidy.
-- **Shipped 2026-07-25 (Session 45) — the two remaining Driver cards redesigned, LIVE ([[d52]]; deployed `1a1e5b6`; NO
-  migration):** `/missions/[id]` pre-accept reads as "the Pool card, opened" (uncollapsed route rail + a Service card +
-  a `.dlock` reveal + a plain `Accept mission`); the My Rides card leads with STATE not price (`.dpill` + `.dprog` bar +
-  `.dcall` tap-to-call + `.dnote` prep box, fare in the foot). One filled button per screen; no-show + cancel are
-  `.dquiet`; Complete ride is green. Both reuse `.pcard*`/`.proute*`. **These Driver pages scroll by design.**
-- **Shipped 2026-07-25 (Session 46) — My Rides restructure + Pool empty/loading + pre-accept polish + Option A, LIVE
-  ([[d53]]–[[d55]]; migration `2026-07-25_accept_always_confirms` applied; deployed `7dd4c34` · `950612f` · `ea33515`):**
-  - **D53 — My Rides is a tap-through LIST, and each trip opens its own page.** `/rides` = a clean list of `<Link>`
-    cards (state · when · progress · route · fare), **current + upcoming only** (completed → History); a "change/release
-    is waiting" flag when one is answerable. **`/missions/[id]` now branches by ownership:** OWNED → the full run view
-    (new `components/mission-run-view.tsx`) + `← My Rides` + every action (status advance · waiting meter · no-show ·
-    cancel · amendment/release cards); OWNED + terminal → read-only + `← History`; POOLED → the unchanged pre-accept +
-    Accept + `← Back to Pool`. Contact/phone reveal moved into the per-mission page, still gated to `isMine`. Amendment/
-    release builders extracted to `lib/mission-cards.ts`. Copy: shorter generic "pro move" nudge; report button drops
-    "you're paid". 3-lens adversarial review → 3 fixes (amendment/release gating · swallowed arrived-read error · icon).
-  - **D54 — Pool loading + empty states.** New `pool/loading.tsx` (skeleton cards, `dx-pulse`, staggered); both empty
-    states rebuilt into a calm `.pempty` block (no-trips **names the filter**; no-service-area = a setup CTA to Settings).
-  - **D55 — pre-accept polish + Option A.** Removed the redundant zone from the pre-accept footer; shortened the unlock
-    line to "Private details unlock once you accept."; and **accept now ALWAYS confirms immediately** (dropped the
-    Lock-in <3h gate that left 3h+ trips stuck `accepted` with no controls — nothing fired the T-180 auto-confirm). The
-    migration replaces `accept_mission` + backfills existing `accepted` → `confirmed`. **The `accepted` status is now
-    vestigial** (no path produces it). Verified live: accept → `confirmed`, controls immediately.
+⚑ **The founder pastes them and reports back the same session.** Both S66 migrations were applied within
+minutes of being written. Don't defer verification to "next time" — probe it while they're still at the desk.
 
-LEGAL — **not a build blocker.** The founder (Céline) owns the legal track personally; a lawyer writes the real
-Terms/Privacy/positioning later. Do **not** gate work on legal or add "needs a lawyer" flags. Keep the glossary
-+ agent/intermediary framing in code/copy (a product rule, not a legal gate). Sharing the Guest phone is fine for
-the MVP — and is now an explicit **per-phone Business choice** (S20 Share gate), kept private from Drivers until shared.
+---
 
-**★ SESSION-46 — SHIPPED (2026-07-25).** Everything on the Driver track this session is done + deployed (see the S46
-CURRENT STATE block above). What each proposed item became:
-1. **✅ S45 verification gap — CLOSED.** The `arrived` waiting-meter + capped state + no-show confirm verified live.
-2. **✅ Pool empty + loading states — SHIPPED ([[d54]]).**
-3. **Earnings tab — DEFERRED, and deferred AGAIN in S47** (the founder chose My Rides, then Driver Settings ahead of it).
-4. **✅ Discreet-vehicle note — DECIDED: KEEP** (founder). Left on the Pool card as-is; only the redundant **zone** was
-   removed from the *pre-accept* footer ([[d55]]).
-5. **✅ Also shipped, unplanned:** the My Rides restructure ([[d53]]) + Option A "accept always confirms" ([[d55]]).
+## WHERE WE ARE (2026-08-24, end of S66)
 
-- **Shipped 2026-07-26 (Session 47) — MY RIDES: Upcoming | Past tabs + day separators + the Past archive, LIVE
-  ([[d56]]; NO migration; deployed `0fcb831` → Vercel `success`):** the founder re-ordered S47 — My Rides before
-  Earnings ("the history is an ugly link in the header").
-  - **Tabs** (`components/rides-tabs.tsx`): a segmented **Upcoming | Past** control (founder picked style A over
-    underline) with counts, replacing the `History →` corner link. Deliberately still **two routes** (`/rides` +
-    `/rides/history`) — each keeps its own server query and every deep link still lands.
-  - **Upcoming:** **day separators** (Today / Tomorrow / Friday 31 July + a ride count) from consecutive `parisDayKey`
-    runs; new DST-safe `formatDayGroup()`. The card now shows **only the time** (the day is written above it).
-  - **Past:** rebuilt off the old `.card`/`.route` markup onto a lighter **`.pastcard`** (date, small pill,
-    single-line route, Business + fare), month groups, and server-side **All | Completed | Cancelled** filter chips
-    (a filter row, NOT a third tab). **No money totals** (Earnings owns money). A **cancelled trip shows "—", not €0**
-    — its payout depends on who cancelled and when ([[d45]]) and settles manually in beta.
-  - **⚑ The privacy rule:** a **Guest's data leaves the Driver's app once the trip closes** — name, phones, name board
-    and the Business's private message, enforced **server-side** (`mission_guest_contact` is never queried for a
-    terminal mission). Kept: date/route/fare/status + **Business & Dispatcher** (dispute route). **Dispatch untouched.**
-  - Designed **empty states per tab**; `formatMonth` fixed `fr-FR` → `en-GB` (month headings read "July 2026" now, both
-    Driver and Dispatch history). Verified live on a tagged 8-mission set, DB restored to its 34-mission baseline.
-- **Shipped 2026-07-28 (Session 47, part B) — the archive tells the WHOLE truth, LIVE ([[d57]]; NO migration; deployed
-  `3025c4a` → Vercel `success`):** a **driver cancel** and an **agreed release** re-pool the trip and clear `driver_id`,
-  so they had **vanished from the Driver's app entirely** — a Driver could pay a 100% penalty and take a reliability
-  mark with no record anywhere. Past is now a union of missions + those two events (read from
-  `mission_cancellation.actor_driver_id` / `mission_release.driver_id`, which their own RLS already allows), sorted
-  together; the events' missions come via the service role gated to those ids, and their cards are **not tappable**
-  (the mission may belong to another Driver now). Money reads in the Driver's direction: **Compensation · Penalty (red)
-  · Free · —**. **The Business's cancellation reason is now shown to the Driver** — a deliberate reversal of the S39
-  review, the founder's call — with the Dispatch field relabelled **"Reason (optional) — your Driver will see this"**
-  so the promise changes before the text does; the Driver's own reason reads back as *"You said: …"*. The **Cancelled
-  pill lost its × icon** (it read as a dismiss control). **Six possible endings** now exist in the model: no-show ·
-  Business cancel · Driver cancel · agreed release · T-60 take-back (dead, see below) · **copilote hand-over (NOT
-  BUILT — needs the community layer, shows "Soon")**.
+`main` = **`b16bedd`**. Everything below is live and deployed. Both S66 migrations are applied and verified.
 
-**★ SESSION-48 — ✅ SHIPPED (2026-07-28, [[d58]]; migration `2026-07-28_driver_account_and_documents` applied).**
-The Driver **Account** replaced the old Settings scroll: a hub (identity · a readiness strip that *names* what's
-missing · rows) with a sub-page each for Profile / Where you work / Your vehicle / Your company / Documents /
-Navigation / Payouts / Help, each saving only what it shows. **Documents got a real lifecycle** — expiry dates (the
-`expires_at` column had existed since day one and was never written), missing/pending/rejected/expiring/expired states,
-a rejection reason, front+back sides — plus **camera-first capture with framing** (shared `<ImageFramer>`: round for a
-face, rectangular + turn/straighten for a document; PDFs skip it). **Company papers added** (Kbis · RC Pro · the URSSAF
-*attestation de vigilance*, which is Kavenue's own legal obligation as donneur d'ordre, renewed every 6 months) plus
-`siret`/`vat_number`/`company_name`. Bank details deliberately NOT collected — Stripe's job. **`preferred_gps` was fake
-(saved, never read); it's now real** — a **Navigate** button on a live trip targeting pickup → next stop → drop-off via
-https universal links. Tab renamed **Settings → Account**. Languages are chips.
-- **Founder call: ONE car per Driver for now.** The real multi-car case in VTC is a *fleet* (one company, several
-  Drivers, several cars), which the data spine doesn't model — so multi-vehicle would serve nobody in beta while
-  dragging `mission.vehicle_id` + a car picker into the money-critical `accept_mission` RPC. Groundwork shipped anyway
-  (`document.vehicle_id`, `vehicle.is_active`): car #2 is now a small, contained job. See [[d58]] for what it costs.
-- **⚑ Open, deliberately:** readiness is **shown, never enforced** (`blocksWork()` exists and is unused — wiring it into
-  the Pool query is the switch to flip when real Drivers onboard, NOT before: no beta Driver has filed a document);
-  **nothing reviews a document** (the admin verification workspace is a deferred integration, so every state is honest
-  but a paper stays "with us for review" forever); and the expiry copy **promises reminders** ("a month before, and
-  again the week it lapses") that need the notifications phase to become true.
-
-**★ ALSO SHIPPED 2026-07-28 — EARNINGS ([[d59]]; no migration).** The 4th tab is real: total · what it's made of ·
-trip-by-trip, with a **Day/Week/Month/Year** filter (‹ › steps, and the label opens the phone's date picker to jump
-anywhere; state in the URL `?p=&d=`). **No charts** (founder). Comparison is the **previous period** — the founder asked
-for same-period-last-year, but the oldest mission is 2026-06-16, so that line renders **only once it's non-zero** and
-turns itself on. Non-trip money is included (waiting · no-show · cancelled-on-you · own cancellations in red).
-- **⚑ Money bug fixed on the way, then fixed properly:** `currentFare()` climbs to `now`, so a COMPLETED trip kept
-  getting more expensive — one accepted at €70 displayed €100. New `settledFare()` freezes the curve at `accepted_at`.
-  The founder then ruled that it applies to **fees as well** ("the final fare … is the price that the Driver accepted"),
-  so `p_fare_snapshot` on all four cancel/no-show RPCs and the amendment from-fare use it too. **BACKLOG § H2's
-  fee-basis flag is RESOLVED.** Verified live both ways (driver cancel €70 not €100; business cancel 58,17 € off a €70
-  basis). **The trap to remember:** `settledFare` needs `accepted_at`, and the actions select a narrow `FARE_COLS` list
-  — it was omitted, so the fix silently did nothing until a live probe caught it. The parameter is **required** now, so
-  that failure is a compile error.
-- **⚑ Founder's next pricing question, logged in § H2, nothing decided:** with the basis correct, **100% may be too weak
-  a penalty on cheap trips** ("a €50 trip … a driver would be tempted to cancel"). Options sketched: a floor, a
-  multiplier near pickup, or visible reliability marks.
-- **⚑ Founder ruling to carry into the pricing model:** *the fare shown in the Pool is the Driver's fare* — "like the
-  other apps, the price shown in the Pool and paid to the Driver should be commission-taken". So no gross/net language
-  anywhere in the app. Provisional until the pricing work lands.
-
-**★ SESSION-49 — ✅ SHIPPED (2026-07-29, [[d60]]): the DOMAIN MOVE + EMAIL.** The founder took none of the menu below —
-they'd bought **`kavenue.fr`** and wanted the product to finally live at its own name, plus real mailboxes. Done and
-verified the same day: four hosts on `kavenue.fr` (apex primary, `www` → 308 → apex, `driver.`, `dispatch.`), the old
-domain removed from Vercel, the Vercel project renamed **`kavenue`**, and Google Workspace email with `support@` /
-`feedback@` / `contact@` as free aliases — SPF + DKIM + DMARC all verified `pass` on a real message. Runbook, gates and
-the OVH traps: `project/DOMAIN_MIGRATION.md`. **No app behaviour changed; nothing was consumed from the menu below.**
-
-**★ SESSION-50 — CHECK-IN shipped (2026-07-30, [[d61]]; migration `2026-07-30_mission_check_in.sql` applied; deployed
-`c6f13a0` + `aa18778`).** The founder ruled out A–C for now — *"I need to have a complete functional system between the
-Dispatch and the Driver and all UI done"* — so the work is the Driver↔Dispatch loop. Shipped: a Driver **checks in** 3h
-before pickup; the Business's row reads `Confirmed` → **`Not checked in`** (amber, whole row) → red inside 1h →
-**`Checked in`**; a count badge on the My Rides tab; `en_route` checks in implicitly. This revived the S39 pill + red row
-wash that [[d55]] had made unreachable.
-- **⚑ The T-60 take-back is STILL parked, and now for a documented reason.** Its S47 trigger ("the Driver hasn't
-  started") fires on a Driver who simply plans to leave at 17:40 for an 18:00 pickup — turning a **90%** business-cancel
-  fee into **0%**, an hour before every trip. It needs a response test, which needs push. See [[d61]].
-- **⚑ Test-harness trap:** `?as=driver` → `demo.driver@pickup.local` → the **Marc Dubois** driver row, NOT the row whose
-  `email` column says `s46.driver@pickup.local`. Match on `driver.auth_user_id`, never on `driver.email`.
-
-**REMAINING ON THE DRIVER↔DISPATCH LOOP** (audited from the code 2026-07-30, + the founder's own testing 2026-07-31).
-*(Historical, S51 — both A and B below shipped. **SUPERSEDED — the live START HERE is the 2026-08-22 block (search "THE CURVE IS LIVE")**; this heading is kept only so the A/B references still resolve.)*
-
-**A. ✅ EXPIRED TRIPS — SHIPPED (S51, 2026-07-31, [[d62]]; migration `2026-07-31_expired_missions` applied; deployed
-`d7e06d4` → Vercel `success`).** A trip now expires **exactly at `pickup_at`** (founder: no grace), leaves the Pool, and
-shows the Business a red **"Expired · Was not filled in time"** row that stays on the schedule until the day ends. The
-money bug is closed in three places — a time check **inside `accept_mission`** (under the existing row lock), a
-`pickup_at` floor on the Pool query (**including under `?all=1`**), and `/missions/[id]` no longer offering Accept.
-`expire_stale_missions()` sweeps `pooled → expired` + writes the `status_event` in one statement, called on the Pool and
-Dispatch schedule reads — **deliberately no cron** (Vercel Hobby caps it at once a DAY; the scheduler decision belongs
-with D61's T-180 reminder in the notifications phase). `missionTone` derives the same state for `pooled` + past-due so
-the calendar and history can't lag behind the sweep. Verified live incl. a genuine UI accept race; DB restored to its
-34-mission baseline. **Still open from § P: an expired trip counts nowhere** — fill rate needs the § F2 back-office.
-**⚑ Note the side effect: the Pool is now legitimately EMPTY** (all 23 were dead), so testing needs freshly posted trips.
-- **Part B, same day ([[d63]], deployed `73d7102`): Dispatch History done properly.** Filter chips **All / Completed /
-  Unfilled / Cancelled** with counts (server-side `?filter=`, reusing the Driver's `.rfilter`/`.rchip`), a one-line
-  summary, a per-month failure count, and two distinct empty states. **Wording changed:** "Expired" → **"Unfilled"**
-  (the ending) and the Schedule's live warning "Unfilled" → **"No Driver yet"** (still fixable) — they had read almost
-  identically since S39 and nobody noticed, because the outcome had never rendered.
-  **→ Superseded/extended by [[d68]] (S52): History is now searchable, range-filterable, sortable and exportable.**
-
-**B. ✅ Driver EARNINGS picker — SHIPPED (S51, 2026-07-31, [[d64]]; NO migration; deployed `684ae82` → Vercel
-`success`).** One root cause behind both symptoms: the label drove a **hidden** `<input type="date">`
-(`pointer-events: none`) via `showPicker()` — dead on phone, undismissable on desktop, and unable to express a range
-at all. Replaced with the app's own calendar (opens on tap, closes on outside-tap/Escape, same on both), plus a 5th
-period **Range** (two taps, `?p=range&from=&to=`, arrows removed) and presets last 7 / last 30 / this month / all
-time. The selection band now makes the "granularity decides what a tapped day means" rule visible for the first time.
-- **⚑ REUSE THIS for § R and § S.** `lib/use-dismiss.ts` (pointerdown, not mousedown) + the calendar in
-  `components/earnings-period.tsx` are the controls Dispatch History and Dispatch Earnings should adopt — the founder
-  asked for a date range in all three. **Do not build a second one.**
-- **⚑ TESTED AND CLEAR — do NOT re-flag this.** Claude suspected the three other popovers that dismiss on `mousedown`
-  only (`date-time-picker.tsx:38` · `address-autocomplete.tsx:204` · `dispatch-shell.tsx:77`) had the same mobile
-  weakness, on the theory that iOS Safari skips synthetic mouse events when you tap a non-interactive area. **The
-  founder tested all three on a real iPhone 2026-07-31: every one closes correctly**, and so does the new Earnings
-  calendar. The theory was wrong — iOS synthesises the event fine here. They are NOT broken, and the Earnings bug was
-  never about `mousedown` (it was `showPicker()` on a hidden input). Consolidating the three inline hooks onto
-  `useDismiss` is optional tidying, worth doing only if one of those files is open for another reason.
-
-**C. Dispatch-side EARNINGS / spend — "a real one, complete and pro" (founder, 2026-07-31).** Full spec now in
-**BACKLOG § S**. ⚑ It deliberately **diverges** from the Driver's Earnings: the founder wants **charts, comparison
-tools and desktop-class controls** here, where the Driver's screen has none by their own earlier call ([[d59]]) — a
-hotel back-office is a different user doing analysis, not a Driver checking a phone. Research best-in-class first;
-D25 preview loop applies. `settledFare()` already solves the maths, and it should adopt the **fixed** period control
-from B rather than the broken one.
-
-**§ R — ✅ SHIPPED (S52, 2026-07-31, [[d68]]; NO migration; deployed `0acdb68` → Vercel `success`).**
-**Dispatch History is a tool you search, not a list you scroll.** Founder: *"it is a professional tool… easy to find a
-specific trip by drivers name, or passenger or internal reference, or car… perfect and complete."*
-- **One search box** over Guest · Driver · reference · address · flight · car. Every term must hit somewhere;
-  **accent-folded** ("aeroport" finds "Aéroport" — the highlight maps folded offsets back to the original per
-  character, which is why it paints correctly); and when the hit lands somewhere with **no column** the row prints
-  `Car · Mercedes · Classe E · AB-123-CD`, so searching a plate never returns rows with no visible reason.
-- **Date range · Driver · class · sort · Export CSV.** The export re-runs the **same** `applyHistoryQuery` on the
-  server, so "exactly what's on screen" survives the next filter anyone adds. `;` + French decimals + BOM for Excel FR;
-  formula-injection escaped. Every filter is in the URL → a filtered archive is a shareable link, and `?open=<id>`
-  matches the Schedule.
-- **Two gaps closed:** rows showed only a **time** inside month bands (3 vs 19 July were indistinguishable), and there
-  was **no fare column at all**.
-- **⚑ The accuracy call:** a past trip a Driver never closed (§ Q) shows its agreed fare **greyed as "Not settled" and
-  excluded from every total** (row, month band, summary; its own CSV column). Counting it inflated a hotel's spend with
-  trips that may never have happened.
-- **⚑ The date-range control is now genuinely shared** — extracted from `earnings-period.tsx` to
-  **`components/date-cal.tsx`**; the Driver's Earnings was re-verified after the extraction. **§ S adopts THAT file.
-  Do not build a third.**
-- **⚑ Left open on purpose (in § R):** the **growth limit** — the page loads the whole archive in one query and
-  filters in memory, which is what lets the chip counts / Driver list / class list be honest about the *whole* archive.
-  Correct at 28 trips. ⚑ **MEASURED S65: the hard break is at 398 archived trips for one Business, not the
-  5 000 previously guessed — and the busiest Business is already at 271.** Also skipped: a density toggle.
-
-**★★ START HERE — S65 CLOSED 2026-08-24. READ THIS BLOCK, THEN THE GATE BELOW.**
-
-## WHERE WE ARE, IN ONE SCREEN
-
-**Everything below is live and deployed unless marked otherwise. `main` = the truth.**
-
-### ✅ Shipped in S65
+### ✅ Shipped in S66
 | | |
 |---|---|
-| **Repo renamed** | `Phyrass-H/kavenue`. Trademark, not tidiness. Ruleset survived, homepage/description fixed |
-| **§ R rule 1** | The 398-trip wall is **gone**. 8 unbounded reads made constant-size. Verified 3 ways + in-browser |
-| **The Event Log** | **LIVE** — the founder applied the migration. 1 737 rows. A DB trigger no code path can bypass |
-| **"volume ceiling" → "growth limit"** | It collided with `Ceiling`, a glossary term |
+| **D86 · the reclaim** | Gated on `accepted` — a status that has **never existed** since D55. Dead since it shipped. Now `confirmed AND never checked in`, from **T−2h**. Verified 20/20 live |
+| **D87 · the event log's app half** | Nine types were declared, registered as `captured_by='app'`, and written by **nothing**. Now wired. Verified by driving the real app |
+| **D88 · the price floor** | `!asDraft && quote &&` made a *missing* price indistinguishable from one that *passed*. Now a refusal. Verified by posting a real trip |
 
-### 🎯 NEXT SESSION — RUN IT IN THIS ORDER. The founder asked to be GUIDED.
+### ⚑ THE PATTERN BEHIND ALL THREE — read this before you build anything
+**A guard that treats *absence of data* as *absence of a problem*.** The reclaim gate, eleven unwritten event
+types, and the floor check. In every case **nothing errored, nothing warned, and the silence read as success**
+— and each survived months because a check that never fires looks exactly like a feature nobody uses.
+
+**Where a check needs a value, missing that value must be a REFUSAL, never a skip.** Grep for `&& x &&` in any
+guard you touch. This is now three for three.
+
+### 🎯 NEXT SESSION — THE FOUNDER AGREED THIS ORDER. Confirm in one line, don't re-offer a menu.
+
+#### 1 · THE GOOGLE ADDRESS BOX ← start here
+**Decided, no debate left.** Move **autocomplete/geocoding only** to Google Places. **Routing stays on
+Mapbox** — it already returns traffic-predicted durations at the scheduled pickup time, which is the thing
+the founder said matters most, and it is already paid for.
+- The address box is the first thing a hotel touches and the weak spot today (finding "Hôtel Martinez",
+  "Terminal 2" by name). Mapbox POI search is the thing being replaced, nothing else.
+- ⚑ **Do NOT move routing.** `lib/directions.ts` uses `driving-traffic` + `depart_at`. Losing that to gain a
+  slightly better kilometre count is a downgrade — the duration feeds the ETA and the ±90min slot band.
+- Existing stored addresses stay as they are. This is not a migration.
+- Needs `NEXT_PUBLIC_GOOGLE_MAPS_KEY` in `.env.local` + Vercel; the founder creates it.
+
+#### 2 · ADMIN ACCESS, THEN THE SUPPORT CONSOLE
+⚑ **There is no admin surface at all today**, and `routeFor()` (`lib/app-context.ts:94`) falls through every
+branch for `role='admin'` and lands on `/welcome`, which bounces back — **the infinite redirect loop**. Fix
+that first; the console cannot exist without it.
+
+Then the console. **The founder's framing, which is the right one: don't build an "event log screen".** They
+will never think *"let me open the event log"* — they think *"why did that trip fail"* or *"is Marc
+reliable"*. Call it **Activity**. The log is fuel, not the product.
+- Search a name / hotel / trip → profile → their trips → **one trip's whole story in order, with times**.
+- ⚑ **Build this feature first, it is the highest-value one:** a button answering *"why can't this Driver see
+  or take this trip?"* — re-run the real rules and say which one blocked them (tier, zone, radius, slot
+  clash, not verified). Same on the hotel side: *"why has nobody taken this?"* → how many Drivers matched.
+  Today answering that means Claude querying the DB by hand.
+- **Findings as plain sentences at the top**, each clicking through to the entries that prove it.
+- ⚑ **Named checks, NOT anomaly detection.** At 9 Drivers and ~10 trips/day there is no baseline, so
+  "anything unusual" fires constantly and gets ignored. Write specific known-bad shapes, each a sentence a
+  human can read and delete: *"this trip has been taken and dropped 3 times"*, *"Marc was refused 6 times
+  this week, always a slot clash"*, *"nobody has ever used the release request"*.
+- Two rules: **silent by default** (a check that isn't confident says nothing) and **no roll-up counts** —
+  the named thing on the row, which is the founder's stated preference twice over.
+
+#### 3 · THE TWO TRACKERS — start them EARLY, they need weeks of data
+Both are things the founder explicitly asked for and neither exists:
+- **A "last seen" stamp** — one write per person per day. Answers *"how many Drivers actually opened the
+  app"* (DAU/MAU, the first number an investor asks for). ⚑ Records **that** they came, never **what they
+  looked at** — that distinction is what makes it acceptable after the founder cut browsing events.
+- **Three events on the booking form** — started / posted / abandoned. One per booking attempt, not per
+  scroll. This is a **funnel**, and it is the only way to answer *"how easy is it to create a trip"*.
+
+#### 4 · THE BOOKING VOUCHER
+Real Drivers get stopped by police. ⚑ **The founder does not remember the "7 mandatory fields" and asked to
+START FRESH — do not lead with the arrêté.** Their framing: *"a tiny button that displays all the info about
+the Driver, the Driver's company, who the mission is from, the passengers, the car and the mission, to show
+the police in a control."* **Ask them for their list first**, then reconcile with
+`docs/01_Legal_VAT_Compliance.md:28`. The table `booking_voucher` exists and no code touches it.
+
+#### 5 · THE EMBARRASSING DETAILS
+- The Driver's **photo and languages are collected and shown to nobody**, while two shipped strings promise
+  otherwise. Small fix, bad look.
+- `manifest.webmanifest` ships `"icons": []` — no app icon.
+- No welcome banner · no FAQ · no free edits while pooled (D39 says there should be).
+- `field_of_activity` and `business_type` are two columns that never talk.
+
+#### 6 · THE ANALYTICS PAGE — last, deliberately
+It needs data to say anything. **Free from what you already store:** counts of Drivers/Businesses/trips,
+growth month over month (May 71 · June 101 · July 85 · Aug 23), signups per week, trips by area/class/hotel,
+**GMV**, **take rate**, **retention by cohort**, **liquidity** (what share of posted trips get taken, and how
+fast — arguably the most important number a marketplace has). **Needs the trackers above:** MAU/DAU, time to
+post a trip, and where people abandon.
 
 ---
 
-#### STEP 1 · BRAINSTORM THE LOCK-IN WINDOW — do NOT code first
-⚑ **The founder's question, verbatim: *"Is 1 hour too late? Would the business panic because 1 hour is
-really tight?"*** They asked to brainstorm it next session. **Answer this before touching code** — it may
-change what gets built.
+### 🔒 DECIDED IN S66 — do NOT re-open these
+| decision | the founder's reasoning |
+|---|---|
+| **Reclaim at T−2h** | Driver keeps 1h grace after check-in opens; replacement gets 2h |
+| **No `pool_impression`, no `mission_viewed`** | *"a driver that looks around the pool it's just browsing and brings no values to us"*. At 9 Drivers you phone them. Revisit at scale (§ AF) |
+| **Names are enough — no new ID scheme** | 9 Drivers, 3 Businesses, **no duplicate full names**. SIRET already exists as the legal id (Drivers are companies too) and gets filled during verification. Revisit past ~50 Drivers |
+| **Google for the address box, Mapbox for routing** | Evidence-backed — see below |
+| **Michelin: almost certainly out** | Its traffic option is a **country-level toggle**, not a departure timestamp, and a direct comparison describes ViaMichelin durations as excluding traffic. Free key was a **time-limited trial**. One question if they still want to price it: *"can I pass a future departure date/time and get a duration reflecting predicted traffic for that moment?"* Expect no. ⚑ The trial key was pasted into chat — **treat as burned, rotate it** |
+| **Support console BEFORE analytics** | Useful day one; analytics needs weeks of data |
+| **Native app AFTER V1** | PWA is correct for beta. Real project — store accounts, review cycles, proper push |
+| **Don't gate on thin data** | Founder: *"I don't care"* about geography being 3/9 Drivers located. ⚑ But any dashboard must **say "3 of 9 located"**, never quietly count only what it can find |
+| **Flight tracking → the integration phase** | Founder said yes to V1, but it is a genuinely NEW paid API. Group it with payments + notifications |
 
-**The numbers, all verified 2026-08-24:**
-
-| moment | what happens | source |
-|---|---|---|
-| **T−3h** | Check-in opens. The Lock-in deadline the product advertises | `lib/dispatch-status.ts:22` |
-| **T−3h** | Accept auto-confirms inside this window (no Lock-in step) | `kavenue_schema.sql:241` |
-| **T−60min** | ⚑ The **earliest** the Business may reclaim | `2026-08-22e_repool_touches_nothing.sql:145` |
-| ±90 min | Slot-conflict band — a 3-hour exclusion around any other job | `kavenue_schema.sql:234-235` |
-| 50 km | Default Driver radius ⇒ **45–75 min travel** on the Riviera | `pool/page.tsx:111` |
-
-**⚑ The founder is very likely right, and here is the argument to put to them.** There is a **2-hour dead
-zone**: the Driver should have confirmed at T−3h, but the Business cannot act until T−60min. And when it
-finally re-pools at T−60min, the new Driver has **under an hour** to see it and arrive — less than the
-travel time the radius itself implies — while the ±90min band has excluded most working Drivers. The trip
-re-enters a Pool that largely cannot take it.
-
-**The counter-argument, so it is a real brainstorm and not a rubber stamp:** reclaiming early punishes a
-Driver who fully intends to turn up but is mid-job and not looking at their phone. Too eager and you strip
-work from reliable Drivers over a missed tap.
-
-**So the question to actually put:** *how long after the Lock-in deadline (T−3h) should the Business be able
-to take the trip back?* T−2h30 gives the Driver 30 minutes of grace and leaves a replacement 2h30. T−2h is
-gentler on the Driver and still beats T−60min comfortably. ⚑ This is the founder's trade, not Claude's —
-they work the trade and know how late a Driver realistically answers.
-
-#### STEP 2 · THEN FIX IT (mockup first — D25)
-- Re-gate on `confirmed AND checked_in_at IS NULL` — the `accepted` state has not existed since Option A/D55
-  (**live: 0 of 280 missions have ever been in it**), while `reclaim_mission`
-  (`2026-08-22e_repool_touches_nothing.sql:145`) and the button (`components/trip-row.tsx:255`) both demand
-  it. `checked_in_at` is live and populated on 184 rows.
-- Apply whatever window step 1 decides, in the SQL **and** the button, **in one commit** — same drift rule
-  as § V: the SQL guard must be a superset of what the UI offers.
-- ⚑ **Mock the button first.** It has never rendered for anyone; the founder should see it before it exists.
-- Needs a migration (the founder pastes it).
-
-#### STEP 3 · WIRE THE EVENT LOG'S SECOND HALF — ⚑ FOUNDER ASKED FOR THIS EXPLICITLY
-*"Regarding the Event log tracking let's start with that on the next session please wired everything needed."*
-
-**11 event types record automatically. 12 are defined in `mission_event_type` and WRITE NOTHING** —
-`log_mission_event()` is called from **nowhere** in the app (verified 2026-08-24). Wire them:
-
-| event | where it must be called | why the DB cannot see it |
-|---|---|---|
-| `checked_in` | `app/(app)/rides/actions.ts:262` | check-in changes no status |
-| `close_answered` | `app/(app)/rides/actions.ts:241-250` | `not_driven` changes no status |
-| `contact_revealed` | wherever the Guest phone / board is tapped | no row changes |
-| `mission_viewed` · `pool_impression` | Driver detail page · Pool render | no row changes — **the "learn behaviour" half** |
-| `accept_rejected` | after a failed `accept_mission` | ⚑ the `raise` **destroys** any row written inside the transaction — it MUST be written after, out of band |
-| `amendment_proposed`/`answered`, `release_proposed`/`answered`, `info_changed` | the existing side-table writers | side tables stay the domain record; these mirror them |
-
-⚑ **`pool_impression` needs a decision before building** — one row per Driver per Pool render is a firehose.
-Debounce, sample, or aggregate. Put the options to the founder.
-⚑ **Tag every one `source` correctly** (`app` / `client_rpc`, never `db_trigger`) so a reader can always tell
-a guaranteed row from a best-effort one. That distinction is what keeps the log honest.
-⚑ Plan it and show the founder BEFORE writing code.
-
-#### STEP 4 · SETTLE MICHELIN vs GOOGLE WITH EVIDENCE
-See the mapping block below. 20 minutes, and it ends an opinion argument.
-
----
-
-### 🗺 MAPPING — decided in principle, one test outstanding
-The founder has a **free Michelin / Mapping Factory key until Aug 2026** (routing, autocomplete, geocode,
-mapstyle — West Europe) and would prefer Michelin-only because Kavenue is a French project.
-**Claude argued against Michelin-only and the founder asked for no flattery:** the two providers are good at
-different jobs. Michelin (the ViaMichelin engine) is excellent at **road distance — which sets the price**.
-The weak spot in Kavenue is the **address box**, and finding hotels/terminals/POIs is Google Places's
-strength (already named "the real POI fix" in this backlog). Recommendation: **Michelin for distance, Google
-for the address box** — also the cheaper split.
-⚑ **NEXT SESSION: settle it with evidence, not opinion.** Run both against a list of real Riviera hotels and
-airport terminals and compare. If Michelin finds them well, Claude is wrong → Michelin-only, cheaper and
-French. ⚑ The founder pasted the key into chat; **treat it as exposed and rotate it.** Keys belong in
-`.env.local`.
-⚑ Related, found in the V1 audit: **when routing fails today the price-floor guard silently skips**
-(`dispatch/new/actions.ts:230`, `!asDraft && quote &&`). Fix alongside whichever provider wins.
-
-### 📄 THE WAYBILL / BOOKING VOUCHER — restart from scratch
-⚑ **The founder does not remember the "7 mandatory fields" and asked to START FRESH. Do not lead with the
-arrêté.** Their own framing, which is the right one to build from: *"what all apps have — a tiny button that
-displays all the info about the Driver, the Driver's company, who the mission is from, the passengers, the
-car and the mission, to show the police in a control."* They also noted the trip card already carries most
-of it. **Ask them for their simple list first**, then reconcile with `docs/01_Legal_VAT_Compliance.md:28`
-(*justificatif de réservation*, 7 fields, arrêté 6 Aug 2025) — the table `booking_voucher` already exists and
-no code touches it.
-
-### 👤 FOUNDER-OWNED, NOT CLAUDE'S
-- **`pickup-marketplace.vercel.app` is still live** and serving production under La Poste's trademarked name.
-  Founder: *"we will fix it at the next session."* Steps in BACKLOG § AD.
-- **Optional index** `docs/migrations/2026-08-23_info_change_business_idx.sql` — one line, irrelevant at
-  current volume, paste whenever.
-
-### 🅥 EXPLICITLY DEFERRED — do not raise
-- **§ V (lower-class opt-in) → V3+.** Founder: *"forget about it... in case we don't have enough drivers, but
-  if we do then maybe we'll never have to use it."* A supply contingency, not a feature. **The stranded
-  Classe V is NOT a bug to fix.**
-- **§ AF** (aggregate demand sensing) — V2/V3, unmeasurable at 9 Drivers.
+### 🅥 PARKED — do not raise unprompted
+- **§ AH · the check-in loophole** (founder raised it, wants it later). A Driver who wants out for free can
+  simply not check in and let the Business reclaim — costs them one `reliability_marks` point, versus up to
+  100% of the fare for cancelling properly. **Four options written up, none chosen.** The founder leans on
+  reputation doing the work once reviews ship; the honest counter is that a missed check-in is not proof of
+  intent. ⚑ Option 4 (free once, charged on repetition) is the only one separating "busy once" from
+  "habitual", and § AG now makes it countable.
+- **§ V** (lower-class opt-in) → V3+. **The stranded Classe V is NOT a bug to fix.**
+- **§ AF** aggregate demand sensing — unmeasurable at 9 Drivers.
+- **`pickup-marketplace.vercel.app` is still live** under La Poste's trademark. Founder's call, § AD.
 - Notifications / payments / auth / analytics integrations — the founder's standing phase rule.
 
-### 📋 V1 COMPLETENESS (audited 2026-08-24)
-**38 KEEP features in Doc 02: 27 built · 8 partial · 3 missing. Nothing on the critical path is unbuilt.**
-Real gaps beyond the Lock-in fix: no free edits while pooled (D39 says there should be) · no FAQ · no consent
-capture or account-deletion path (GDPR) · booking voucher · no welcome banner + `manifest.webmanifest` ships
-`"icons": []`. ✅ **Flight tracking: the founder said YES to V1** (needs a paid API — FlightAware /
-AeroDataBox — plus localisation; scope it with the mapping decision).
-Thin enough to embarrass: the Driver's photo and languages are captured and shown to **nobody** while two
-shipped strings claim otherwise · an **admin sign-in is an infinite redirect loop**
-(`lib/app-context.ts:94`) · `field_of_activity` and `business_type` are two columns that never talk.
-Full detail: `BACKLOG.md` § AE and the S65 entry in `SESSION_LOG.md`.
+### 🧹 BEFORE REAL LAUNCH — the founder's own plan
+*"you and me we are going to delete every single Driver and company and trips ever tested in the database"*.
+Clean to do: the schema stays, only rows go. ⚑ **The sweep must include `mission_event` and `status_event`** —
+test runs fill the log too. Every S66 probe cleans up after itself; copy that pattern.
 
-### ⚑ THE LESSON OF S65 — it cost real time three times
-**The docs were confidently wrong, and only RUNNING something settled it.** The growth limit was documented
-as 5 000 and measured at **398**. `pooled_at` was said not to exist; it does. A "stale draft price" bug was
-described in detail; it does not exist. `status_event`'s CHECK was read from `docs/kavenue_schema.sql` as
-four values — it is **eight**.
-⚑ **`docs/kavenue_schema.sql` DOES NOT CONTAIN COLUMNS OR CONSTRAINTS ADDED BY LATER MIGRATIONS. Probe the
-live DB.** And when a number matters, measure it before scheduling work around it.
-⚑ **The founder asked twice for a brainstorm BEFORE coding.** Honour it: agree the shape, then build.
+### 📋 V1 COMPLETENESS
+**38 KEEP features in Doc 02: 27 built · 8 partial · 3 missing.** Nothing on the critical path is unbuilt.
+GDPR consent capture + account deletion are still absent — **founder-owned, do not gate on it**.
 
 ---
 
 ## ⚑ 0 · VERIFY BEFORE YOU BUILD — THIS IS A GATE, NOT A SUGGESTION
 
-**Read this first. It is here because the session that wrote the rest of this file got it wrong.**
-
-S64 finished the §6 curve, wrote the handoff below, and then — as the last act before closing — had three
-readers check every claim in it against the real code and the real database. **It was wrong twelve ways, five
-of them load-bearing.** Not typos. Wrong enough to send you down a dead end:
-
-- It told you `mission.accepted_fare` had made History's fare sortable in SQL. **It has not.** The list sorts
-  on the Business's **all-in** figure (`businessCost(fare + waiting_fee)`), and the comment at
-  `lib/history-filter.ts:452-457` records that keying on the bare Course is a defect this codebase **already
-  shipped once and fixed.** Following that advice walks you straight back into it.
-- It pointed § V's SQL change at `2026-08-11_accept_mission_eligibility.sql`. **S64 superseded that file
-  itself, hours earlier** — the live guard is `2026-08-22_accepted_fare.sql:100`. Editing the file it named
-  changes **nothing in the database**, and you would have lost an afternoon working out why.
-- It said the wipe + re-seed would populate `accepted_fare`. **No seeder writes it.** A re-seed reproduces a
-  100 %-NULL archive.
-- It said § V was "one row update away". **It has already happened** — that Driver is stranded right now.
-- It said the Pool discards ~89 % of what it fetches. That was a **whole-table** number. The Pool fetches
-  **2 rows** and discards none.
-
-⚑ **Two of those five were caused by S64's OWN migrations, written the same day.** That is the real lesson:
-a handoff is a *claim about the repo*, and claims decay — fastest of all when the session writing them is
-also the session changing the thing. Proofreading cannot catch that. Only re-reading the code can.
-
-### So: run this before you write a line of code.
+A handoff is a *claim about the repo*, and claims decay — fastest when the session writing them is also the
+session changing things. S64's handoff was wrong twelve ways. **S66 found the old state block still saying the
+T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-Fourteen assertions over the perishable claims in this file — the live SQL definitions (probed through the DB,
-**never** by reading migration filenames, which share dates and do **not** sort into apply order), the § V
-vehicle row, the `accepted_fare` population, the Pool's real size, the demo trips, and whether the repo has
-been renamed yet. It is read-only and takes seconds. **Anything it prints `STALE` means this file lies about
-that point — fix the file before you build on it.**
+**23 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+about that point — **fix the file before you build on it.** Then:
 
-Then the usual, and all of it must be green before you start:
-
-    npx tsc --noEmit && npx vitest run          # expect 462 passing
+    npx tsc --noEmit && npx vitest run          # expect 523 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 693 · ALL AGREE
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
     node --experimental-strip-types .local/probe/accepted-fare.ts       #  20 · ALL AGREE
+    node --experimental-strip-types .local/probe/reclaim-live.mts       #  20 · D86 end to end
+    node --experimental-strip-types .local/probe/event-registry-live.mts #  16 · D87 registry
     node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 61 · 0 failed
     node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
 
-**If a probe fails, that is the job** — not whatever is queued below. Something drifted between S64 closing
-and you opening, and finding out what matters more than starting the next feature.
+**If a probe fails, that is the job** — not whatever is queued above.
 
-⚑ **When you finish, do the same to your own handoff.** Do not just re-read it — open the files it cites and
-check them, or have a subagent do it. And when something bites you that this probe did not catch, **add an
-assertion for it** so the next session gets it for free.
-
-## 1 · ✅ RENAME THE GITHUB REPO — SHIPPED (S65, 2026-08-23). Kept for the trail + one thing it uncovered.
-
-The remote is now **`Phyrass-H/kavenue`** (`gh repo rename kavenue` + `git remote set-url`). Chosen over
-`kavenue-marketplace` because it matches the Vercel project; the landing repo stays `kavenue-landing`.
-Why it mattered: **"Pickup" is a registered trademark of Pickup Services SAS / GeoPost (Groupe La Poste) in
-class 39 — transport, the exact sector** ([[rebrand-from-pickup]]).
-
-Verified after the rename, all green:
-- the ruleset `main — CI must pass` **survived** — it binds by repo **ID**, and GitHub rewrote its `source`
-  itself. Still `enforcement: active`, still `bypass_actors: []`, still requiring `types · tests · build`.
-  (`gh api repos/Phyrass-H/kavenue/branches/main/protection` → 404: the ruleset is the **only** gate on main.)
-- the old URL redirects (`gh api repos/Phyrass-H/Pickup-marketplace` resolves to `Phyrass-H/kavenue`), so a
-  stale clone keeps working — which is exactly why `handoff-check.ts` now asserts the remote is on the NEW
-  slug rather than trusting that a wrong one would fail loudly. It would not.
-- webhooks `[]` · deploy keys `[]` · Actions secrets 0 · topics `[]` · issues `[]` · forks 0 · releases none.
-  Nothing in the app code, `.github/ci.yml`, `package.json` or `README.md` ever named the repo. Every
-  reference was prose in `project/*.md`.
-- the repo's public `homepage` had been left pointing at the OLD trademarked URL and `description` was empty;
-  both were set (`https://kavenue.fr` · "B2B VTC booking marketplace — centrale de réservation VTC").
-
-### ⚑ WHAT THE RENAME UNCOVERED, STILL OPEN, FOUNDER'S CALL
-
-**`https://pickup-marketplace.vercel.app` is LIVE and serving production right now** — HTTP 200,
-`<title>Kavenue</title>`. Renaming the *Vercel project* in S49 did **not** release its `.vercel.app` domain:
-Vercel mints that host from the project name at creation, **adds** new aliases on rename, and leaves the old
-one bound and auto-aliasing production. There is no rename operation for it — the only states are bound or
-detached. So the trademarked name is publicly reachable and crawlable, which is a *bigger* exposure than the
-repo slug ever was.
-
-⚑ **It is not a working fallback, so nothing real depends on it.** Two existing bugs make it a broken
-shopfront: `lib/hosts.ts:11,46` treats `*.vercel.app` as a shared host and returns `null` for the role
-subdomain, so Driver and Dispatch collide on one origin (the session-overwrite bug at
-`project/DECISIONS.md:128`); and its origin is not in the Supabase redirect allowlist, so magic-link sign-in
-silently fails there.
-
-**Fix (founder's dashboard, mutating — do not do it for them):** Vercel → project `kavenue` → Settings →
-Domains → remove `pickup-marketplace.vercel.app`. `driver.kavenue.fr` and `dispatch.kavenue.fr` are
-unaffected. ⚑ **The founder was asked in S65 and pushed back on scope** — the repo rename was the ask, not a
-Vercel change. Logged as `project/BACKLOG.md` **§ AD**, theirs to decide. **Do not re-litigate it unprompted.**
-
-## 2 · § R — THE GROWTH LIMIT  ⚑ RULE 1 SHIPPED S65. RULES 2 & 3 REMAIN.
-
-### ✅ RULE 1 IS DONE — the hard wall is gone (S65, 2026-08-23, deployed `00e19a3`)
-
-**Eight** unbounded `.in("mission_id", <every mission id>)` reads became constant-size requests. ⚑ Five of
-the eight were on `dispatch/page.tsx`, which was **more exposed than History** — its id list is every
-non-draft mission **past AND future** and it fired five times per render. Four side tables already carried
-a denormalised indexed `business_id`, so seven sites are `.eq("business_id", …)`; `mission_guest_contact`
-has no such column, so that one uses `mission!inner(business_id)` (`!inner` is load-bearing).
-New `lib/side-tables.ts` collapses four byte-identical walk loaders into one.
-
-⚑ **STANDING INVARIANT — do not break it.** Business-scoping also returns rows for missions **not on
-screen** (future, drafts) — extra KEYS in those Maps. Safe only because every consumer does `map.get(m.id)`
-and never iterates, never reads `.size`. **If you ever iterate one of these maps, narrow it to the missions
-on screen first.** Full note at the top of `lib/side-tables.ts`.
-
-Verified three ways (the table was empty, so "it ran" proved nothing): 11 new tests (462 → **473**),
-**mutation-tested** (breaking the code fails 3 and 2 tests), and **real-row equivalence** on the three
-populated side tables across all three Businesses. Then browser-verified end to end: Schedule renders,
-History shows all 271 trips with chip counts intact, the CSV returns 273 lines = header + all 271.
-
-**Waiting on the founder, OPTIONAL and low priority:**
-`docs/migrations/2026-08-23_info_change_business_idx.sql` — `mission_info_change` is the only one of the four
-whose `business_id` never got an index, and rule 1 makes it a per-render filter. Irrelevant at 2 rows.
-
-### WHAT REMAINS — rules 2 and 3
-
-**Rule 2** — move filtering and sorting into SQL. **Rule 3** — paginate the archive list.
-⚑ Both are constrained, and the constraints are the whole difficulty:
-- **the chip counts are computed over the WHOLE archive on purpose** (§ R note below), so paginating the
-  list means a second aggregate query
-- ⚑ **sorting by fare CANNOT move to SQL** — the fare is computed on read, never stored, and
-  `lib/history-filter.ts:452-461` records that keying on the bare Course fare is a defect this codebase
-  **already shipped once and fixed**. Treat a generated/denormalised all-in column as the candidate, not
-  `accepted_fare`.
-- ⚑ **do NOT paginate the CSV export** — its promise is "exactly what is on screen" over the whole set.
-
-**The Driver side has the same fan-out with more room:** `rides/page.tsx:225-226`,
-`rides/history/page.tsx:139,248`, `earnings/page.tsx:102`. Measured S65: the busiest Driver has 44 trips —
-**354 of headroom** vs the Business side's 127. The driver+vehicle joins are bounded by **fleet** size
-(9 Drivers), not archive size — same pattern, bites at ~398 Drivers.
-
-### The original mapping, kept for the file:line trail
-
-⚑ **MEASURED 2026-08-23 (S65), and it is FAR lower than the 5 000 that was guessed:** the cancellation
-fan-out (`.in("mission_id", <every archived id>)`, `dispatch/history/page.tsx:118-126`, duplicated at
-`history/export/route.ts:94`) **fails at 398 archived trips for one Business** — binary-searched against the
-live DB, ~14.8 KB of URL. It does not degrade, it **errors**. Live today the busiest Business has **271
-archived trips: 127 of headroom.** This is near-term, not distant.
-
-Five screens load a table and filter it in JavaScript. Mapped in S64 **and then re-verified against the live
-DB, which corrected four of the claims** — the numbers below are the checked ones, not the first draft.
-
-| where | what it does |
-|---|---|
-| `app/(app)/pool/page.tsx:106-108` | bounds in SQL by `status='pooled'`, `pickup_at > now()` **and** the Driver's tier — then filters **four of the five** matching rules in JS at `:114-133` (radius · luggage · body · car) |
-| `app/(dispatch)/dispatch/history/page.tsx:101-107` | the Business's whole archive, **74 columns**, no limit. There IS an upper date bound (`.lt("pickup_at", nowIso)`, `:106`); what is missing is a **lower** one |
-| `…/history/page.tsx:118-126` | ⚑ **the genuinely unbounded fan-out** — `mission_cancellation … .in("mission_id", <every archived id>)`. This hits PostgREST's **URL length limit** long before anything else breaks. Duplicated at `…/history/export/route.ts:94` |
-| `…/history/page.tsx:146-150` | the Driver + vehicle join. **Bounded by fleet size** (9 drivers live), not by archive size — lower priority than it looks, but it builds the name/plate search index |
-| `app/(dispatch)/dispatch/spend/page.tsx:126-133` | the same unbounded archive query |
-| `app/(app)/rides/history/page.tsx:96-101` | the Driver's own archive, same idiom |
-
-⚑ **`project/SPEND_BRIEF.md`:197-198 IS WRONG.** It claims Spend "bounds its query by the period instants…
-rather than loading the whole archive" and concludes § R does not apply to it. It does. Fix the brief.
-
-⚑ **Do NOT paginate the CSV export** (`…/history/export/route.ts:137-142`). It runs the same query on
-purpose — its promise is "exactly what is on screen", over the *whole* result set.
-
-⚑ **The chip counts are computed over the whole archive on purpose** (BACKLOG:919-923). Moving the list to
-SQL means a second aggregate query for them.
-
-### ⚑ TWO THINGS S64's FIRST DRAFT OF THIS SECTION GOT WRONG. Read before you plan.
-
-**1 · `accepted_fare` does NOT make the fare sortable in SQL.** S64 claimed it did. It does not.
-`lib/history-filter.ts:458-461` sorts on
-`businessCost(mission, fare + waiting_fee)` — the Business's **all-in** figure — and the comment directly
-above it (`:452-457`) records that keying on the bare Course was **a shipped defect**: *"waiting was in the
-number and not in the key, and a pre-commission trip was compared against a post-commission one 15 % larger."*
-An `order('accepted_fare')` reintroduces exactly that bug. A SQL sort would have to reproduce `historyFare`'s
-branches (`:380-388` — expired → NULL, cancelled → `cancellation_fee`, else the settled fare) **plus**
-`waiting_fee` **plus** `businessCost`/`carriesCommission` over the four snapshot columns
-(`lib/commission.ts:238-253`). **Sorting by fare is still the blocker. Treat a generated/denormalised
-all-in column as the candidate fix, not `accepted_fare`.**
-
-**2 · The wipe + re-seed will NOT populate `accepted_fare`.** No seeder writes it — `s61-priced.ts:239`
-accepts with `.update({ driver_id, accepted_at, confirmed_at })` and `seed-fleet.mjs` inserts rows directly;
-both bypass `accept_mission`, which is the **only** writer
-(`docs/migrations/2026-08-22_accepted_fare.sql:133`). **Live right now: 0 of 280 missions have one.** A
-re-seed as written reproduces a 100 %-NULL archive. **Add `accepted_fare` to the seed-fix list.**
-
-⚑ **The "Pool throws away 89 %" claim was also wrong** and is corrected here so nobody re-derives it. The
-241-of-280 `pickup_lat IS NULL` figure is a **whole-table** number dominated by the archive; the migration
-that measured it (`2026-08-11_accept_mission_eligibility.sql:34-35`) says only that a faithful SQL *port of
-the radius rule* would refuse ~89 % — a statement about porting, not about what the page transfers. The Pool
-query is bounded to future pooled trips: **live, 2 rows, 0 of them with a null pickup.** And the rule is
-pickup **OR** dropoff (`pool/page.tsx:115-117`), so a null pickup with a geocoded dropoff survives anyway.
-**A bounding-box prefilter is not the cheap win here.** The Pool's real volume problem is structural — RLS
-lets any Driver read any pooled mission (`docs/kavenue_schema.sql:310-313`), so it scales with total
-marketplace supply, not with one Business's archive.
-
-## 3 · § V — 🅥 DEFERRED TO V3+ (founder, 2026-08-24). NOT A QUEUE ITEM.
-
-⚑ **"Forget about it please, it's going to be for at least V3 — in case we don't have enough drivers, but
-if we do then maybe we'll never have to use it."** It is a **supply contingency**, not a feature. Do not
-build it and do not raise it. The stranded Classe V is **not a bug to fix**. Design preserved in
-`BACKLOG.md` § V + [[d85]] only in case supply ever runs short.
-
-⚑ **"Ok record it please, it's too early to work on that."** Nothing was built. **Do not start this
-unprompted** — one number is still the founder's to pick, and everything else is already decided.
-
-**The full design lives in `project/BACKLOG.md` § V and `DECISIONS.md` [[d85]]. Read both before touching
-it.** What was settled: one class down maximum (First → Business, Business → Eco, **never** First → Eco);
-body type already correct in both layers, no work; the curb is a non-issue; the volume risk is accepted
-conditional on a per-Driver kill switch that **does not exist yet**; season windows rejected; the trigger is
-per-trip on time-to-pickup.
-
-**The one open item — the threshold.** Founder floated T−2h, Claude recommended **T−6h**, not accepted.
-The governing rule is the escalation ladder: `own class → widen one class up (FREE) → ask the Business to
-raise the Ceiling (§ AB, PAID) → expires (§ P)`. **§ AB fires at T−5h, so § V must fire before it.**
-
-**Still true, and still costing a Driver work:** the live `Classe V` (IJ-905-KL, Karim Nasri) is stored
-`category='luxury'` and the Pool matches tier exactly (`app/(app)/pool/page.tsx:107-108`), so that Driver is
-stranded off Business-van work today. ⚑ `.local/seed/seed-fleet.mjs:49` would silently revert it on a
-re-seed and hide the bug.
-
-⚑ **TWO CLAIMS THIS FILE USED TO MAKE THAT WERE WRONG — corrected in S65, do not reintroduce them:**
-1. *"There is no record of when a mission was pooled, so § V needs a `pooled_at` column."* **`pooled_at`
-   already exists** (`docs/migrations/2026-07-13_o7_cancellation.sql:27`) — stamped **only** on RE-pool, and
-   **NULL on all 280 live rows** because the seeders bypass the app. ⚑ The claim came from grepping
-   `docs/kavenue_schema.sql` alone: **that file does not contain columns added by later migrations.** Probe
-   the live DB.
-2. *"A draft saved Monday and posted Friday carries a stale price."* It does not — posting a draft **resets
-   `created_at` to now** (`app/(dispatch)/dispatch/new/actions.ts:381-384`) and re-quotes the rate card,
-   floor and commission. The only carry-over is the Business's own Ceiling, deliberately.
-
-**§ V's only migration is the Driver opt-in flag + the matching `accept_mission` guard, in ONE commit with
-the Pool query and the Pool card.** The drift rule and the superset invariant are in `BACKLOG.md` § V.
-
-**Verified curve facts (S65):** the fare reaches the Ceiling at exactly **T−5h** (`TOP_LEAD_MS`,
-`lib/pdp.ts:43`); a trip posted inside 5h tops out at the midpoint. **T−24h = 76 % · T−12h = 85 % ·
-T−6h = 95 %** of Ceiling — all the persuasion happens before T−12h.
-
-**Also logged in S65, none of it built:** § AE (nothing checks a car can CARRY what was booked — body type
-is enforced, capacity is not modelled at all) · § AF (the aggregate "a class comes to help" version — V2/V3,
-unmeasurable at 9 Drivers) · § AG (record every state transition; `status_event`'s CHECK permits only the
-four execution statuses).
-
-## HOW TO PUSH (S64 got this wrong; don't repeat it)
-
-`main` accepts only commits CI has already passed, and required checks are per commit SHA:
-
-    git push origin main:s65-my-work        # CI runs, ~1 min
-    gh run list --branch s65-my-work        # wait for `success`
-    git push origin main                    # SAME SHAs → accepted, deploys
-
-**No PR needed.** Detail and the ruleset command are at the top of this file. (The `s63-*` branches cited
-up there as evidence have since been deleted — GitHub removes a merged branch. The route is still right:
-`s64-close` sits at the same SHA as `main`.)
-
-## STATE OF THE DATABASE
-
-- **Three `S64CURVE` demo trips exist**, priced through the real RPC. ⚑ **They were seeded 2026-08-22 with
-  FIXED pickup times, so they age — which means the probe's demo-trip assertion WILL eventually go STALE on
-  its own, every session, forever. That one is expected noise, not drift: re-seed or delete the trips to
-  silence it.** As of writing: one at T−313h, one at T−25h, and **one already in the
-  past — which the Pool hides** (`.gt("pickup_at", now)`, `app/(app)/pool/page.tsx:107`), so only two show.
-  Re-seed them to see three, or just remove them:
-  `node --experimental-strip-types .local/seed/s64-curve.ts --undo` (then re-run without `--undo`).
-- **The wipe + re-seed is still owed** and still sequenced after the curve. ⚑ Fix `.local/seed/seed-fleet.mjs`
-  FIRST — it hand-sets ceilings, invents an opening price (`ceiling × 0.45`, flagged in place) and writes no
-  commission snapshot. `s61-priced.ts` and `s64-curve.ts` are both worked examples of seeding through the
-  real `mission_price()` RPC with `courseFromBusinessTotal`.
-- `.earn-probe.mjs` at the repo root is a **tracked, stale** scratch file carrying its own copy of the OLD
-  linear fare. Harmless, but it will mislead someone. Delete it when convenient.
+⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
 
 ---
 
-**(Superseded: "★★ START HERE — THE CURVE IS SHIPPED. THREE SMALL THINGS ARE QUEUED" — the same S64, earlier.)**
+## ⚑ TRAPS LEARNED IN S66 — every one cost real time
 
+- **`.select()` IS SILENTLY CAPPED AT 1000 ROWS BY PostgREST.** The first read of `mission_event` showed five
+  event types with **zero** rows — which reads exactly like "the trigger stopped firing" — when `en_route`
+  alone had 172. **Any count over a table with >1000 rows must be `{ count: "exact", head: true }`.** A
+  silent cap does not look like an error, it looks like an answer.
+- **`npm run build` fails while `npm run dev` is running.** Both write `.next`, so the build reads a
+  half-written manifest and dies with `PageNotFoundError: Cannot find module for page: /_not-found`. Stop the
+  dev server and `rm -rf .next`. CI is unaffected (clean checkout).
+- **Browser screenshots go blank after a JS scroll.** `window.scrollTo` leaves the capture surface unpainted.
+  To see a row far down a list, **hide the others** (`style.display='none'`) so it lands at the top — do not
+  scroll.
+- **React owns the form's hidden inputs.** Setting `.value` on `pickup_lat` etc. is discarded on the next
+  render. To test the booking form, **drive the real UI**: type into the combobox, click a suggestion.
+- **"Post to the Pool" opens a confirm dialog** ("This is final"). A click that seems to do nothing has
+  probably opened it — screenshot before concluding the button is broken.
+- **`gh run list` can sit `queued` for 15+ minutes** on GitHub's side. Not a code problem. Background the
+  wait (`run_in_background`) instead of blocking, and never post "still waiting" turns.
+- **Decision numbers collide.** D83 was already taken by S64; S66 wrote D86–D88. **Check
+  `grep -n "^### D" project/DECISIONS.md | tail -3` before numbering.**
+- **The S64CURVE demo trips age out** and trip the gate every session. Refresh, don't delete:
+  `node --experimental-strip-types .local/probe/s64curve-refresh.mts`.
 
-**SUPERSEDED (kept for [[d78]]–[[d81]] and the § AA / § AB write-ups) — "THE CURVE IS SHIPPED", S64 earlier the same day.**
-
-> ⚑ **S64 RAN LONG AND DID FOUR MORE THINGS AFTER THE CURVE.** Read [[d78]]–[[d83]] before touching
-> anything priced. The short version: the curve shipped, then the founder read the re-pool behaviour back
-> and found the design was carrying history it should not; then an adversarial review of the diff found four
-> real defects. **Five migrations, all applied. Six probes, all green. Suite 462.**
->
-> **What S64 did.** Step 5, the whole of it. `lib/pdp.ts` is now the §6 curve: every trip opens at its
-> **rate-card floor**, moves by an equal amount **every time the time left to the pickup halves**, is
-> anchored to the **pickup** rather than to when it was posted, lands exactly on the Ceiling at **T−5h**,
-> and its steps are **log-spaced then jittered from a seed made of the mission id** — unguessable from
-> outside, perfectly replayable in a dispute. Then the founder read the re-pool behaviour off it the same
-> day and found the hole: a trip a Driver walked away from re-opened BELOW what that Driver had agreed to
-> pay. Fixed, which finally forced §9's stored fare into existence.
->
-> **Two migrations, both APPLIED and verified:** `2026-08-22_pdp_curve.sql` (the three re-pool RPCs stop
-> overwriting the opening price) and `2026-08-22_accepted_fare.sql` (`mission.accepted_fare`,
-> `accept_mission` gains `p_fare`, the re-pool raises the floor to it, `respond_to_amendment` keeps it in
-> step). Commits `8a5db4c` and `602c458`. Suite **460**. Probes: `accepted-fare` 18 · `write-test` 170 ·
-> `curve-live` 8 · `migrations-2026-08-10` 58/0 · `migrations-2026-08-11` 23/0 — **all green**.
->
-> **Seven things S64 decided that constrain what you build ([[d78]]–[[d83]], plus [[d73]] still standing):**
-> 1. **`mission.pdp_start` is the price the auction OPENS at, and it is now the rate-card floor in Course
->    space.** The SQL fee-basis band reads it. Do not repurpose it, and do not let anything overwrite it
->    except the re-pool's `greatest(pdp_start, accepted_fare)`.
-> 2. **SPEED WIN's 70 % opening is DERIVED on read, never stored.** That is what lets a re-pool turn it on
->    and off without losing the floor. Never write `ceiling * 0.7` into a column.
-> 3. **Rule 2 beats rule 3 where §6 overlaps** — the Ceiling is reached at T−5h, full stop, for anything
->    posted more than five hours out.
-> 4. **`accepted_fare` NULL is not zero.** It means priced before 2026-08-22, and those rows recompute the
->    curve. Nothing was backfilled and nothing should be.
-> 5. **A RE-POOL TOUCHES NOTHING PRICE-RELATED** ([[d82]]). Not the climb, not the opening price, not
->    `speed_win`. The price is a function of how long is LEFT, never of what a Driver did. If you find
->    yourself writing "on re-pool, set the price to…", stop and read [[d81]].
-> 6. **`pooled_at` IS NOT A PRICING INPUT.** `lib/pdp.ts` deliberately does not read it. It is still stamped
->    and still read by `lib/spend.ts` for the fill-time metric. **Do not wire it back into the curve.**
-> 7. **AN AMENDMENT MAY ONLY RAISE THE CEILING, NEVER LOWER IT**, and no longer collapses the curve
->    ([[d81]]). The Ceiling is the Business's own maximum; `accepted_fare` is what freezes the agreed total.
->
-> ⚑ **`pdp_step` and `pdp_interval` are DEAD.** Written null everywhere, read by nothing, left in the
-> schema for the archive. If you find code reading them, it is stale.
-
-## WHAT IS QUEUED, SMALLEST FIRST
-
-1. **The Business-facing copy sentence — PREVIEWED 2026-08-22, awaiting the founder's pick.** §6
-   prescribes one: *"the price rises in steps until 5 hours before pickup, when it reaches the maximum you
-   set."* The form still says only "starting price · climbs up to your Ceiling" — true, but it never says
-   *when* the rise stops, which is the half a hotel needs.
-   ⚑ **A REAL DRIFT WAS FOUND WHILE MOCKING IT UP.** §6 says the Business should see **"Your maximum cost:
-   €273.67", with the range beneath it** — the MAXIMUM leads. The form leads with the STARTING price
-   instead. That matters: a hotel quotes its Guest off the maximum, so making 36,25 € the hero when they may
-   pay 110,00 € invites them to underquote. Four variants were shown; **D restores §6's shape** (maximum
-   first, "opens at X and rises in steps until 5 h before pickup" beneath) and **A** is the one-line
-   minimum-change alternative. Preview first (D25) — the mockups are in the S64 transcript.
-2. **The two riders the curve was supposed to carry, and didn't.** `§ R` — the Pool and the archive load
-   everything and filter in memory. `BACKLOG § V` — a Driver may opt in to lower-class trips and must see
-   the *lower class's* price, which needed steps 1 and 5 both in place, and now has them. **The founder
-   asked to be reminded of these later too.**
-3. **Step 6 — the §7 30-second hold.** Last, because it shares the accept gate. It now has what it was
-   missing: `accepted_fare` gives it a price to freeze against, and the curve is a pure function of
-   (mission, instant) so a held price is trivially reproducible.
-4. **BACKLOG § AA — SPEED WIN as a badge the PRICE can earn** ([[d83]], decided, not built). Small: a
-   predicate beside `isAtCeiling`, no migration. **Needs a switch** — in beta's thin Pool it would be on
-   every trip. UI, so preview first.
-5. **BACKLOG § AB — asking a Business to raise the Ceiling on a trip that will not fill.** Blocked on
-   notifications (deferred). The one place a popup is honestly earned.
-
-**THEN the wipe + re-seed**, which the founder sequenced after the curve and confirmed again on 2026-08-22.
-⚑ **`.local/seed/seed-fleet.mjs` must be fixed FIRST or a fresh fleet is born stale** — it still hand-sets
-ceilings, invents an opening price from the ceiling (`× 0.45`, flagged in place) and writes no commission
-snapshot. `.local/seed/s61-priced.ts` and the new `.local/seed/s64-curve.ts` are both worked examples of
-seeding through the real `mission_price()` RPC with `courseFromBusinessTotal`.
-
-**Still the founder's call, none blocking:** BACKLOG **§ Y** (who receives a Driver's cancellation penalty —
-no screen names one until it is answered) · **§ Q6** (the unclosed-trip pile) · **§ U.4** · **§ W** · **§ Z**.
-
----
-
-**(Superseded: "★★ START HERE — STEP 5, THE §6 CURVE" — S63, 2026-08-20.)**
-
-> **What S63 did, so you don't redo it.** It cleared the four loose ends S62 queued and nothing else. An
-> unlocated stop is refused by both forms (drafts excepted); the night rate, the settled waiting rate and its
-> minutes, and a Driver walking away from a trip are all finally visible; and the two Earnings counting gaps
-> are closed. Then an adversarial review of that diff found **three real defects in it**, all fixed the same
-> day — see SESSION_LOG Session 63, "Follow-up the same session". **No migration was needed or written.**
-> `d6f0932` the loose ends · `7bcbf49` the three defects the review found in them · `6b35d21` the backlog
-> write-ups · plus the docs/handoff commit that follows it.
->
-> **Three things S63 decided that constrain what you build ([[d74]]–[[d77]]):**
-> 1. **No screen names who receives a Driver's cancellation penalty, or how much** — the founder opened the
->    question (the hotel lost nothing it paid for, so 100% of the fare is not compensation) and it is parked in
->    BACKLOG **§ Y**. **Do not put a euro figure on the "Driver cancelled" block.**
-> 2. **Name the rule, don't print the number, when the number lives in a table** — the night tag says "Night
->    rate", not "×1,20". Same reason the settled waiting rate is read from the row's own stamped column and
->    never re-derived from the service class.
-> 3. **A Business-facing per-minute rate is checkable and fails the check** — `×1,15` turns 0,50 into 0,575.
->    The Business gets the rate Course-side inside the invoice table only, and minutes-without-a-rate
->    everywhere else.
-
-> **What S62 did, so you don't redo it.** A six-way audit of every money surface and write path (26 findings
-> raised, 15 survived an adversarial re-check) plus the fixes: every Business-facing figure is now on the
-> all-in basis — the cancel modal, Drafts, the Calendar drawer, the Edit header, the Summary rail Ceiling,
-> three Spend figures, both CSV exports, the archive sort key, and the "incl. … waiting" captions. **The
-> amendment flow got the commission pass it never had** (it stored a typed all-in as the Course, and showed
-> the Driver a gross figure). The expanded row's breakdown now decomposes *what was actually billed* rather
-> than always the fare. On the Driver's side, the close-trip card stopped promising the gross fare, My Rides
-> stopped dropping settled waiting, and the VAT sentence stopped asserting a tax status the app was never
-> told. **The waiting rate is now per class** — Eco 0,50 · Business 0,75 · First 1,00 €/min, researched
-> against the market and the regulated taxi tariff, migration applied and verified live.
-> Read `SESSION_LOG.md` Session 62 parts A–F for the detail; `docs/06` §10 holds the waiting-rate sources.
->
-> **Then 2026-08-20 (parts F–H):** the waiting rate is **per class and live** (Eco 0,50 · Business 0,75 ·
-> First 1,00 €/min, migration applied, verified on a real trip). A completeness audit followed — the
-> arithmetic closes on both sides, the labels did not, so the Driver's "Fare" line stopped silently
-> containing the waiting, both CSVs gained the service fee and its VAT, and "Cost per trip" stopped claiming
-> to be fare + waiting. Then the two the founder called out: **Kavenue now prices an amendment** (it prices
-> the CHANGE against the rate card and leaves the agreed fare standing — never re-quoting the whole trip),
-> and **a flight number no longer turns a departure into an airport pickup** (47 live trips moved from a
-> 60-minute courtesy wait at a hotel door back to 20).
-
----
-
-## ✅ THE PRE-CURVE LOOSE ENDS — ALL SHIPPED (S63, 2026-08-20). Kept for the decision trail only.
-
-> **Do not rebuild any of this.** The list below is what S62 queued; every item is done and verified against
-> the live DB. Read `SESSION_LOG.md` Session 63 for the detail. The three things worth carrying forward:
->
-> 1. **Who receives a Driver's cancellation penalty is now an OPEN question** — the founder opened it
->    (*"the hotel will in the end not pay anything… so what do we do with the driver's money?"*) and they
->    are right: the trip never ran, so 100% of the fare is not compensation for a loss. **The Business's
->    "Driver cancelled" block therefore ships with NO amount and NO recipient** — only that a Driver held
->    the trip, when they walked, and why. Three costed destinations are in BACKLOG **§ Y**, cross-referenced
->    from `docs/06` §1 and §12. **Do not put a euro figure on that block until it is answered.**
-> 2. **`docs/06`:71 vs `rides/history` is settled** — the penalty is an indemnity, it carries no commission,
->    and the "owed to Kavenue" comment was the outlier. Corrected; the code under it was always right.
-> 3. **`.local/probe/diff-sql-vs-lib.ts` was stale and was fixed** — it asserted a flat 1,00 waiting rate and
->    reported 480 "mismatches" in 673 checks on a codebase that fully agrees. It now reads **673 · ALL
->    AGREE**. If you see mass mismatches there again, suspect the probe before the code.
->
-> Also shipped in passing: `Today · Today` in the Earnings day heading (latent since the feature landed —
-> `formatDayGroup` already returns "Today"), and three unreachable `cancelled_by === "driver"` branches
-> removed. New helpers with tests: `formatWaitingSpell` / `formatPerMinute` (`lib/format.ts`),
-> `unlocatedStops` (`lib/waypoints.ts`), `driverCancelPickupAt` (`lib/earnings.ts`), `formatLeadTime`
-> (`lib/format.ts`). Suite is **448**.
->
-> ⚑ **An adversarial review of that same diff found three real defects, all fixed the same session** — a
-> signed `hours_before_pickup` printed as "-18 min before pickup" in the CSVs and clamped to "0 min before
-> pickup" on screen (**it is signed by design; BACKLOG:272 already said so**), an amend refusal that stranded
-> any trip whose stop was stored unlocated before today, and the Schedule's pickup time shrinking 16px → 13px.
-> See SESSION_LOG Session 63, "Follow-up the same session".
-
-<details>
-<summary>The original S62 list, as written (all four now done)</summary>
-
-They are small. They are also the tail of a money sweep, so they are worth clearing while the context is
-warm rather than rediscovering them in three sessions' time. **Roughly in this order:**
-
-1. **AN UNLOCATED STOP IS FREE.** A stop typed but not picked from the address suggestions has no
-   coordinates, so `app/(dispatch)/dispatch/new/actions.ts:143-146` (and the same filter in the amend
-   action) drops it from the routed distance — it adds **nothing** to the price. It is still stored in
-   `mission.waypoints`, drawn on the Driver's route rail, counted in their progress, and needs a "Reached"
-   tap. The Driver drives an unpaid detour. **Reproduced live on the amend screen**: the change summary read
-   *"Add a stop at Place du Casino"* while the route stayed 15 km and the fare did not move.
-   The pickup and drop-off already refuse an unlocated address (`mission-form.tsx:429,431`); stops impose
-   nothing. Cheapest fix is that same rule — and it belongs on BOTH the new-mission form and the amend form.
-
-2. **THREE CHARGES THAT ARE REAL BUT INVISIBLE.**
-   - **The night ×1,20.** `night_applied` is written on every mission and read by **no screen at all**. A
-     Dispatcher comparing two identical airport runs cannot see why the 23:40 one cost 20% more, and the
-     Driver never learns it either. `docs/06` §4 stored it precisely so "a past price stays explicable".
-     A tag on the trip row and a column in both CSVs is most of the fix.
-   - **The waiting rate and minutes on a SETTLED trip.** `mission.waiting_rate` is stamped per row and
-     rendered nowhere. A Driver who banks 13,20 € for waiting has nothing on screen to check it against;
-     the rate is only ever shown while the meter is live. Both sides should see "N min at X €/min".
-   - **A Driver's own cancellation penalty is invisible to the Business.** It is an indemnity Driver →
-     Business (`docs/06` §1), it is recorded in `mission_cancellation`, and **no Dispatch screen reads that
-     table** — not the row, not Spend, not History, not either CSV. A hotel whose Driver walked at T−2h sees
-     no trace of what it is owed. ⚠️ Note the audit also found two comments disagreeing about who receives
-     it (`docs/06:71` says the Business; `app/(app)/rides/history/page.tsx:185` says Kavenue) — settle that
-     first, it is a one-line doc question with a real answer.
-
-3. **TWO DRIVER-SIDE COUNTING GAPS** (found in the same audit, not yet fixed):
-   - Waiting settled on a trip the **Business** then cancelled is absorbed into "Cancelled on you" in
-     Earnings (`lib/earnings.ts:319-320` only adds waiting inside the `completed` branch), so the "Waiting
-     time · N min" line under-reports both the euros and the minutes the Driver actually sat there.
-   - A **driver-cancelled** mission has `driver_id` cleared, so it has no row in the Earnings trip list
-     while its penalty is still in the headline total — the day rows sum to more than the total, with
-     nothing on screen explaining the gap.
-
-4. **Then the curve.**
-
-</details>
-
-**Still the founder's call, neither blocking:** the cancellation penalty (BACKLOG **§ Y** — too weak on a
-cheap trip; three shapes sketched, and the basis question pairs with it), and whether the waiting caps stay
-counted in minutes (they are, and the market agrees) or get pinned in euros. **New this session:** BACKLOG
-**§ Z** — should waiting be charged at an intermediate stop (the "Reached" taps already record the arrival
-instant; the hard part is the clock origin, not the rate) — and a **§ W** addendum recording the founder's
-own version of demand pricing: measure it from our own booking volume per zone against that zone's trailing
-average, and surface it as **advice to the Business**, never as Kavenue moving the fare.
-
-**New in S63, also the founder's call, also non-blocking:** **§ Y** gained the question that matters most —
-**who actually receives the penalty** (the hotel paid nothing and bills its Guest nothing, so 100% of the fare
-is not compensation for a loss); three destinations are costed there and no screen names one until it is
-answered. **§ Q6** — an unclosed trip stays lifted into today's band on purpose, but there is no way for a
-Business to clear one, so the band grows without bound; three fixes, smallest first. **§ U.4** — can live
-Driver location hard-close a trip? Yes in mechanism, but not as stated: it collides with § U's own rule that
-*location may suggest, never decide*, since a close settles the fare and any waiting fee.
-
-**(Superseded: "PRICING STEPS 0–4 ARE SHIPPED. NEXT IS STEP 5" — S61, 2026-08-17.)**
-
-**Read `docs/06_Pricing_Commission_Payments.md` first — all of it.** Source of truth for anything
-touching price or commission. §4 was re-calibrated in S60; **§1 gained three new locked subsections
-in S61** (which end of the invoice the Ceiling sits at · the Driver's number is the Driver's payment ·
-where VAT is broken out). §13 is the build order. Do not price anything from memory.
-
-**SHIPPED AND LIVE (steps 0–4). Verified against the real Supabase DB.**
-
-| | | commit |
-|---|---|---|
-| 0 | `docs/06` §4 rewritten — two distance bands, First rebuilt, First—van added | `69dcf55` |
-| 1 | `rate_card` + seed + `mission_price()` / `rate_card_for()` | `f137fff` |
-| 2 | The V-Class is First, the Vito is Business (`lib/vehicle-catalog.ts`) | `441b50f` |
-| 3 | `/dispatch/new` pre-fills the Ceiling, refuses a post below the floor | `8173782` · `19c04ea` |
-| 4 | **Commission** — all-in for the Business, net for the Driver | `f85715f` |
-
-**THE ONE SENTENCE THAT EXPLAINS EVERY MONEY NUMBER IN THE APP ([[d73]]):**
-
-> `mission.ceiling` stores the **Course**. Nobody is shown it. The Business sees `course × 1,15`
-> (all in, fee inside — that is what the Ceiling field means); the Driver sees `course × 0,88` (what
-> they bank). The conversion happens once on write, in `createMission`, and on read via
-> `lib/commission.ts`.
-
-**⚑ DO NOT "SIMPLIFY" `mission.ceiling` INTO THE ALL-IN NUMBER.** Every fee, every band and every
-cancellation basis is computed against it in Course space, including the SQL fee-basis clamp. Changing
-what the column means silently inflates every fee by 15%.
-
-**Live and applied:** `2026-08-17_commission.sql` (one-row `commission_rate` + four nullable snapshot
-columns on `mission` + `commission_split()` / `transport_vat()` / `commission_for()`) and
-`2026-08-17_transport_vat_snapshot.sql` (a `before update of driver_id` trigger freezing the accepting
-Driver's VAT status; verified 10/10). **NULL rates mean priced before commission** — the whole
-pre-2026-08-17 archive renders as one plain amount, correctly, and must keep doing so.
-
-**Six demo trips exist so the work is visible** — reference `S61DEMO`, made by
-`.local/seed/s61-priced.ts` (`--undo` removes them). **The mission baseline is 277, not 271, while
-they exist**, and `.local/probe/transport-vat-2026-08-17.ts` still asserts 271 — run `--undo` first or
-re-base it.
-
----
-
-## NEXT: STEP 5 — THE §6 CURVE. Money-critical. Read §6 in full first.
-
-Replace `pdp_start` / `pdp_step` / `pdp_interval` with the designed curve. What changes:
-
-| | today (D21) | §6 |
-|---|---|---|
-| Opens at | 50% of the ceiling (70% SPEED WIN) | **the floor** |
-| Steps | fixed size, fixed interval | equal movement each time the **remaining time halves** |
-| Anchored to | when it was posted | **the pickup** |
-| Reaches the ceiling | whenever the steps add up (~2 h) | exactly at **T−5h** |
-| Predictability | a ladder anyone can compute | **jittered, seeded from the mission id** — unguessable, but replayable in a dispute |
-
-**⚠️ WHY THIS ONE IS DIFFERENT FROM EVERY OTHER STEP.** `pdp_start` is not only a display number: the
-SQL clamps every cancellation and no-show fee basis into
-`[least(pdp_start ?? ceiling × 0.5, ceiling), ceiling]`
-(`docs/migrations/2026-08-11_fee_basis_band.sql:120`). Move where the curve opens and you move what a
-fee can legally be. **This ships with the money tests updated and BOTH probes re-run** —
-`.local/probe/migrations-2026-08-10.ts` (68 checks) and `.local/probe/migrations-2026-08-11.ts` (23),
-plus `diff-sql-vs-lib` and `write-test` first, always.
-
-**It carries two riders — do them together, they touch the same read path:**
-1. **The § R growth limit** — the Pool and the archive load everything and filter in memory.
-2. **BACKLOG § V** — a Driver may opt in to lower-class trips; they must see the *lower class's* price,
-   which needs steps 1 and 5 both in place.
-
-**Then step 6: the §7 30-second hold**, last, because it shares the accept gate.
-
----
-
-## THEN, AND THE FOUNDER HAS ALREADY SEQUENCED IT
-
-**Wipe the whole test database and re-seed once, AFTER the curve** (founder, 2026-08-17). The reasoning:
-step 5 is the last thing that changes what a newly posted trip looks like, so anything created before it
-is stale on arrival; and § S (Spend pass 2) still needs the 237-mission fleet for its charts. Doing it
-once means doing the careful part once.
-- It is **more than the `mission` table** — status events, cancellations, releases, amendments, guest
-  contacts and info-change rows all hang off those trips.
-- **Update `.local/seed/seed-fleet.mjs` FIRST**, or a fresh fleet is born stale: it still hand-sets
-  ceilings and writes no commission snapshot. `.local/seed/s61-priced.ts` is the worked example of
-  seeding through the real `mission_price()` RPC and `courseFromBusinessTotal`.
-
----
-
-## SAVED, NOT FORGOTTEN — all in `project/BACKLOG.md`
-
-- **§ V** — Driver opts in to lower-class trips. Ships with step 5.
-- **§ W** — demand-based pricing. Parked with the reasoning (the auction already is demand pricing).
-- **§ X** — rename the `luxury` enum to `first`, retire the vestigial `van`. Its own isolated session
-  **after** the pricing engine — it touches the exact files steps 4–5 rewrote.
-- **§ Y (new, S61)** — **the cancellation penalty is too weak on a cheap trip.** The founder's own
-  case, raised more than once: *"a €50 trip … a driver would be tempted to cancel."* 100% stays for
-  now. A floor (they floated €150 *as an illustration*), a multiplier near pickup, or visible
-  reliability marks. **Pairs with the basis question:** after S61 the penalty is the one figure a
-  Driver sees gross, so "100% of what you'd have been paid" is the same conversation.
-  ⚑ **Extended S63 — and this is now the load-bearing part of § Y:** *who receives it.* The founder's
-  question — *"the hotel will in the end not pay anything and won't charge their clients, so what do we do
-  with the driver's money?"* — is the hole in `docs/06` §1. The trip never ran; 100% of the fare is sized to
-  deter the Driver, not to make the hotel whole, and those two jobs point at different recipients. Three
-  destinations costed. **Until it is answered, no screen names a recipient or an amount** ([[d74]]).
-- **§ Q6 (new, S63)** — the unclosed-trip pile. The lift into today's band **stays** (founder: the
-  discomfort is what makes a desk chase the Driver), but a Dispatcher has **no way to clear a row** — amend,
-  release and cancel are all switched off and the only instruction is "call them". A nag with no door becomes
-  wallpaper. Three fixes, smallest first; the first settles money ([[d75]]).
-- **§ U.4 (new, S63)** — hard-closing a trip on observed arrival. Right mechanism, wrong shape as proposed:
-  use arrive-**then-leave**, make location drive a one-tap prompt rather than the close, and auto-close only
-  where `on_board` was already tapped and no waiting or no-show money is open. § Q's own failure case (the
-  Driver returns to the airport next morning and the app pays out yesterday's trip) is the argument.
-
----
 
 ## TRAPS LEARNED IN S63 — every one of these cost real time
 

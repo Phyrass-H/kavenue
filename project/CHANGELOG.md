@@ -39,6 +39,12 @@
   struggling at around 5,000 trips. Nobody had actually tested it. It turns out it **stops working at 398
   past trips for a single hotel** — and it doesn't slow down, it fails. Your busiest hotel is at 271, so
   there's about 127 trips of room. That job just moved up the list.
+- **The Event Log is now switched on.** You ran it, and it works: **1,737 records** already, and every trip
+  change from here writes itself permanently. It even recovered your 23 cancelled trips, which had no record
+  at all before today.
+- **Half of it is still to come, and you should know which half.** Eleven kinds of event record automatically
+  right now — booked, posted, taken, dropped, driven, cancelled, expired. Twelve more are named but recording
+  nothing yet: who *looked* at a trip and didn't take it, who tapped a phone number. That's next session.
 - **The Event Log you asked for is built and tested — it needs one paste from you to go live.** From then on,
   every time a trip changes state, the database itself writes a permanent record: who did it, when, and what
   changed. It's written as a database rule rather than as app code, and that distinction is the whole point —

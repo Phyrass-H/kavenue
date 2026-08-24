@@ -577,23 +577,75 @@ specific trip by drivers name, or passenger or internal reference, or car… per
 | **The Event Log** | **LIVE** — the founder applied the migration. 1 737 rows. A DB trigger no code path can bypass |
 | **"volume ceiling" → "growth limit"** | It collided with `Ceiling`, a glossary term |
 
-### 🎯 THE NEXT JOB — the Lock-in fix (founder said yes, wants a mockup first)
-**The only place the product LIES about a rule it advertises to both sides.** A Driver who accepts and then
-vanishes keeps the trip until pickup; the Business's "take it back" button has **never once rendered**.
-- `accept_mission` always writes `confirmed` (`2026-08-22_accepted_fare.sql:126`) — the `accepted` state has
-  not existed since Option A/D55. **Live: 0 of 280 missions have ever been in `accepted`.**
-- But `reclaim_mission` (`2026-08-22e_repool_touches_nothing.sql:145`) and the button
-  (`components/trip-row.tsx:255`) both require exactly that state.
-- **Fix:** re-gate both on `confirmed AND checked_in_at IS NULL`. `checked_in_at` is live and populated on
-  184 rows. ⚑ **D25 preview first** — this makes a button appear that has never been seen.
-- ⚑ **The founder had a question about this that never got asked. Ask them before building.**
+### 🎯 NEXT SESSION — RUN IT IN THIS ORDER. The founder asked to be GUIDED.
 
-### ⏳ THE EVENT LOG'S SECOND HALF — app-side events
-11 event types record automatically today. **12 more are defined in `mission_event_type` but NOTHING WRITES
-THEM** — `log_mission_event()` is called from **nowhere** in the app (verified 2026-08-24). Those are the
-"learn behaviour" half: `pool_impression`, `mission_viewed`, `contact_revealed`, `accept_rejected`,
-`checked_in`, `info_changed`, amendment/release proposed+answered, `close_answered`.
-⚑ Do not tell the founder these are tracked. They are not. Wiring them is a real job — **plan it first.**
+---
+
+#### STEP 1 · BRAINSTORM THE LOCK-IN WINDOW — do NOT code first
+⚑ **The founder's question, verbatim: *"Is 1 hour too late? Would the business panic because 1 hour is
+really tight?"*** They asked to brainstorm it next session. **Answer this before touching code** — it may
+change what gets built.
+
+**The numbers, all verified 2026-08-24:**
+
+| moment | what happens | source |
+|---|---|---|
+| **T−3h** | Check-in opens. The Lock-in deadline the product advertises | `lib/dispatch-status.ts:22` |
+| **T−3h** | Accept auto-confirms inside this window (no Lock-in step) | `kavenue_schema.sql:241` |
+| **T−60min** | ⚑ The **earliest** the Business may reclaim | `2026-08-22e_repool_touches_nothing.sql:145` |
+| ±90 min | Slot-conflict band — a 3-hour exclusion around any other job | `kavenue_schema.sql:234-235` |
+| 50 km | Default Driver radius ⇒ **45–75 min travel** on the Riviera | `pool/page.tsx:111` |
+
+**⚑ The founder is very likely right, and here is the argument to put to them.** There is a **2-hour dead
+zone**: the Driver should have confirmed at T−3h, but the Business cannot act until T−60min. And when it
+finally re-pools at T−60min, the new Driver has **under an hour** to see it and arrive — less than the
+travel time the radius itself implies — while the ±90min band has excluded most working Drivers. The trip
+re-enters a Pool that largely cannot take it.
+
+**The counter-argument, so it is a real brainstorm and not a rubber stamp:** reclaiming early punishes a
+Driver who fully intends to turn up but is mid-job and not looking at their phone. Too eager and you strip
+work from reliable Drivers over a missed tap.
+
+**So the question to actually put:** *how long after the Lock-in deadline (T−3h) should the Business be able
+to take the trip back?* T−2h30 gives the Driver 30 minutes of grace and leaves a replacement 2h30. T−2h is
+gentler on the Driver and still beats T−60min comfortably. ⚑ This is the founder's trade, not Claude's —
+they work the trade and know how late a Driver realistically answers.
+
+#### STEP 2 · THEN FIX IT (mockup first — D25)
+- Re-gate on `confirmed AND checked_in_at IS NULL` — the `accepted` state has not existed since Option A/D55
+  (**live: 0 of 280 missions have ever been in it**), while `reclaim_mission`
+  (`2026-08-22e_repool_touches_nothing.sql:145`) and the button (`components/trip-row.tsx:255`) both demand
+  it. `checked_in_at` is live and populated on 184 rows.
+- Apply whatever window step 1 decides, in the SQL **and** the button, **in one commit** — same drift rule
+  as § V: the SQL guard must be a superset of what the UI offers.
+- ⚑ **Mock the button first.** It has never rendered for anyone; the founder should see it before it exists.
+- Needs a migration (the founder pastes it).
+
+#### STEP 3 · WIRE THE EVENT LOG'S SECOND HALF — ⚑ FOUNDER ASKED FOR THIS EXPLICITLY
+*"Regarding the Event log tracking let's start with that on the next session please wired everything needed."*
+
+**11 event types record automatically. 12 are defined in `mission_event_type` and WRITE NOTHING** —
+`log_mission_event()` is called from **nowhere** in the app (verified 2026-08-24). Wire them:
+
+| event | where it must be called | why the DB cannot see it |
+|---|---|---|
+| `checked_in` | `app/(app)/rides/actions.ts:262` | check-in changes no status |
+| `close_answered` | `app/(app)/rides/actions.ts:241-250` | `not_driven` changes no status |
+| `contact_revealed` | wherever the Guest phone / board is tapped | no row changes |
+| `mission_viewed` · `pool_impression` | Driver detail page · Pool render | no row changes — **the "learn behaviour" half** |
+| `accept_rejected` | after a failed `accept_mission` | ⚑ the `raise` **destroys** any row written inside the transaction — it MUST be written after, out of band |
+| `amendment_proposed`/`answered`, `release_proposed`/`answered`, `info_changed` | the existing side-table writers | side tables stay the domain record; these mirror them |
+
+⚑ **`pool_impression` needs a decision before building** — one row per Driver per Pool render is a firehose.
+Debounce, sample, or aggregate. Put the options to the founder.
+⚑ **Tag every one `source` correctly** (`app` / `client_rpc`, never `db_trigger`) so a reader can always tell
+a guaranteed row from a best-effort one. That distinction is what keeps the log honest.
+⚑ Plan it and show the founder BEFORE writing code.
+
+#### STEP 4 · SETTLE MICHELIN vs GOOGLE WITH EVIDENCE
+See the mapping block below. 20 minutes, and it ends an opinion argument.
+
+---
 
 ### 🗺 MAPPING — decided in principle, one test outstanding
 The founder has a **free Michelin / Mapping Factory key until Aug 2026** (routing, autocomplete, geocode,

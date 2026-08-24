@@ -171,6 +171,27 @@ paginated), and Spend + its CSV are clean. No console errors; server log shows o
 ⚑ Note for next time: `read_page` returned "(empty page)" with a 0×0 viewport throughout — screenshots,
 clicks and `javascript_tool` all worked, so drive this app by screenshot rather than by the a11y tree.
 
+### Closing S65 — the queue the founder set for next session
+
+**In order, and the founder asked to be GUIDED through it:**
+1. ⚑ **Brainstorm the Lock-in window BEFORE coding.** Their question: *"Is 1 hour too late? Would the
+   business panic because 1 hour is really tight?"* The numbers say they are probably right — there is a
+   **2-hour dead zone** between the Lock-in deadline (T−3h) and the earliest reclaim (T−60min), and a trip
+   re-pooled at T−60min gives a replacement less than the travel time its own 50 km radius implies, into a
+   Pool already thinned by the ±90 min slot band. Counter-argument to keep it honest: reclaiming early
+   punishes a Driver who is mid-job and simply not looking at their phone. **The window is the founder's
+   trade to make.**
+2. Then fix it — mockup first, one commit, SQL guard + button together.
+3. ⚑ **Wire the event log's app-side half** — explicitly requested. 12 event types write nothing today.
+4. Settle Michelin vs Google by running both against real hotels and terminals.
+
+**Founder decisions locked this session:** § V → V3+ (a supply contingency, not a feature — the stranded
+Classe V is NOT a bug) · flight tracking → yes for V1 · waybill → restart from their own framing, not the
+arrêté · mapping → Michelin for distance, Google for the address box, **to be proven not argued**.
+
+⚑ **Process note the founder raised twice: brainstorm before coding.** It was honoured for § V and not for
+the event log, which they called out fairly. Agree the shape first.
+
 ### ✅ THE EVENT LOG — LIVE. The founder applied it 2026-08-24 and it was verified on the real DB.
 
 **Live after the paste:** `mission_event` = **1 737 rows** (715 status_event + 1 022 mission-row backfill).

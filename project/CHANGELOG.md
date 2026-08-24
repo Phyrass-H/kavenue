@@ -1269,3 +1269,30 @@ your side.
 **Still to settle, and it's a good question:** a Driver who wants out of a trip for free can just say nothing
 and let you take it back. Cancelling properly costs them; going quiet currently doesn't. Written up with the
 options, nothing decided.
+
+## 2026-08-24 — the trip diary now writes down the things it was silently missing
+
+The event log went live yesterday and records everything that happens to a trip. It turns out nine of the
+things it *said* it recorded were never actually being written down — the list existed, the writing didn't.
+Now they are:
+
+- **A Driver checking in.** It also notes *how long before pickup* they did it — which is exactly the number
+  we had to guess at this morning when deciding the two-hour rule. In a few weeks it'll be a fact, not a guess.
+- **A Driver saying a trip didn't happen**, and a Driver answering the "what happened?" question at all.
+- **A change or a release being proposed, and answered** — on both sides, including a refusal, which used to
+  leave no trace anywhere because nothing about the trip moved.
+- **An edit to a booking's details.**
+- **A Driver being turned away.** If someone tries to take a trip and Kavenue refuses — already gone, clashes
+  with another job, wrong car — that's now recorded. If one reason keeps coming up, the rule is wrong, not the
+  Driver.
+- **A Guest's phone number being shown to a Driver**, once per Driver per trip. That's the answer to "who was
+  given this number, and when" if it's ever asked.
+
+**What we decided NOT to record: Drivers browsing the Pool.** You asked what the use would be, and the honest
+answer is: not much, at nine Drivers you can phone. The one thing it would tell us — whether a trip expired
+because nobody saw it or because everyone said no — we can work out from what we already store. It would also
+have been roughly 300,000 rows a day once you have 200 Drivers. Parked until the Driver list is too long to
+ring round.
+
+**Needs the migration run** — one short data-only one, so the log's own index stops listing things nothing
+writes.

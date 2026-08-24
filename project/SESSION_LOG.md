@@ -4112,3 +4112,77 @@ hasn't checked in" on one panel. The card supersedes it, so `t.hint` is now supp
 - **⚑ `npm run build` fails while `npm run dev` is running.** Both write `.next`, so the build reads a
   half-written manifest and dies with `PageNotFoundError: Cannot find module for page: /_not-found`. Stop the
   dev server and `rm -rf .next` first. It cost a confused minute; CI is unaffected (clean checkout).
+
+## Session 66, part B — 2026-08-24 · the event log's app half, wired ([[d87]])
+
+**Migration written, data-only, not yet applied:** `docs/migrations/2026-08-24_event_registry_truth.sql`.
+
+### The measurement, and a trap inside the measurement
+
+⚑ **The first probe of the event registry was WRONG, and wrong in the way that reads as a finding.** A plain
+`.select("event_type")` on `mission_event` is **capped at 1000 rows by PostgREST**, silently. The truncated
+read showed `en_route` and four other types with **zero** rows — i.e. "the trigger isn't firing" — when
+`en_route` actually has 172. Re-done with `count:'exact', head:true` per type.
+
+**Add it to the reflexes:** any count over a table with more than 1000 rows must be a `head:true` count or a
+paginated read. A silent cap does not look like an error, it looks like an answer.
+
+The true picture (n=1848 rows, 23 registered types):
+
+| | |
+|---|---|
+| live writers (`db_trigger`) | created · pooled · repooled · confirmed · cancelled · no_show, plus the execution steps |
+| rows but **no live writer** | checked_in 184 · close_answered 7 · amendment_proposed 3 · info_changed 2 — all `mission_row_backfill` |
+| **no rows at all** | accept_rejected · contact_revealed · mission_viewed · pool_impression · release_proposed · release_answered · amendment_answered |
+
+So the handoff's "12 write nothing" was right in substance: **eleven types had no live writer**, and
+`log_mission_event()` was called from nowhere in the codebase.
+
+### The decision that shaped the build — see [[d87]]
+
+The founder cut `pool_impression` and then `mission_viewed`. Claude argued for impressions once (they are the
+only way to tell "expired unseen" from "expired and refused" across 49 expired trips), and conceded: the
+valuable half is a **query over stored data** — which Drivers matched a trip's category, zone and radius at
+the time — not a ~300k-rows/day log. The founder's clarifying question is what settled `mission_viewed`: is
+that page a Pool trip or one of their own? It is the Pool (`missions/[id]` is the pre-accept page), so it is
+browsing one click deeper.
+
+### Shipped
+
+| file | change |
+|---|---|
+| `lib/mission-events-server.ts` | **new** — `recordMissionEvent()`. `source='app'`, never throws, optional `dedupeKey` |
+| `lib/mission-events.ts` | records why two types stay unwired, so nobody "fixes" them |
+| `lib/database.types.ts` | `mission_event` + `mission_event_type` added (hand-written, D3) |
+| `app/(app)/rides/actions.ts` | checked_in · close_answered · amendment_answered · release_answered |
+| `app/(app)/missions/[id]/actions.ts` | accept_rejected |
+| `app/(app)/missions/[id]/page.tsx` | contact_revealed |
+| `app/(dispatch)/dispatch/actions.ts` | release_proposed |
+| `app/(dispatch)/dispatch/[id]/amend/actions.ts` | amendment_proposed |
+| `app/(dispatch)/dispatch/[id]/edit/actions.ts` | info_changed |
+| `tests/event-wiring.test.ts` | **17 tests** that count call sites |
+
+⚑ **The tests read the source on purpose.** The failure being guarded against is an **absent call**, not a
+broken one — nothing throws, nothing warns, the rows simply never appear. Only counting call sites catches
+that. `DELIBERATELY_UNWIRED` distinguishes "the founder said no" from "someone forgot".
+
+⚑ **`amendment_proposed` is written BEFORE the `redirect()`.** `redirect()` throws by design in Next, so
+anything after it is dead code — an easy way to ship a call that never runs.
+
+### Verified live, in the browser, against the real DB
+
+Signed in as the demo Driver via `/api/dev-login?as=driver` and drove the real UI:
+
+| event | proof |
+|---|---|
+| `checked_in` | tapped Check in → `source=app`, `actor_kind=driver`, `{"hours_before_pickup":2.45}` |
+| `contact_revealed` | added a shared Guest phone, loaded the trip **three times** → **one** row, `{"phones":1}` |
+| `accept_rejected` | ⚑ raced a real accept: loaded a pooled trip, took it with another Driver behind the page's back, then tapped Accept → row landed, `{"reason":"Mission no longer available"}` |
+
+⚑ **The `accept_rejected` row is attributed to `c3758a83` — the Driver who was REFUSED — while the trigger's
+`confirmed` row went to `619cf8c9`, the Driver who won the race.** That is the distinction the log has to get
+right, and it survived a transaction that rolled back. Proof that writing it out of band was necessary.
+
+Test data removed; mission table back to 280, `mission_event` back to 1848.
+
+`npx tsc --noEmit` clean · **516 tests passing** (17 new) · `npm run build` clean.

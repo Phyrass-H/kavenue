@@ -1962,3 +1962,54 @@ not check in and let the Business take the trip back. Today that costs them one 
 nothing else. Whether it should carry the cancellation penalty is the next question.
 
 Migration: `docs/migrations/2026-08-24_reclaim_at_t2h.sql`. [[d45]] [[d55]] [[d61]] [[d82]]
+
+### D87 — The event log records what happens to a TRIP, not what a Driver browses (2026-08-24, S66)
+Wiring § AG's app half. The trigger already wrote every committed status transition; eleven types were
+declared, registered in the DB as `captured_by='app'`, and written by **nothing**. `log_mission_event()` was
+called from nowhere in the codebase. Nine are now wired; **two were deliberately left out**, and that is the
+decision worth recording.
+
+**⚑ The founder's question, verbatim:** *"I don't think we should record a driver just checking the pool,
+what would be the use for it?"* and then, on being shown the design: *"a driver that looks around the pool
+it's just browsing and brings no values to us unless we need to understand like in a shopping website, they
+need to understand users behaviour and why do they close or not a purchase, so do we need it?"*
+
+**Claude argued for it once, then conceded.** The honest case: `pool_impression` answers a question Kavenue
+cannot answer at all — of 49 expired trips, which were **seen and refused** (price too low) versus **never
+seen** (matching broken: category, zone, radius, slot conflict)? Those need opposite fixes.
+
+**Why the founder is right anyway, and this is the part to remember:** the valuable half needs no impressions.
+For any expired trip you can ask *"how many Drivers matched its category, zone and radius, with no slot
+conflict, at that moment?"* — a **query over data already stored**, not a new firehose (~300 000 rows/day at
+200 Drivers × 50 pooled trips). And at nine Drivers a phone call beats a log. § AF deferred aggregate demand
+sensing on the same reasoning.
+
+**`mission_viewed` went with it.** Claude tried to keep it — a Driver *opening* a trip is deliberate, not a
+page render, and "opened it and didn't take it" is a sharp price signal. The founder asked the clarifying
+question that settled it: is this a trip in the Pool or one of their own? It is the Pool — `missions/[id]` is
+the pre-accept page. So it is browsing one click deeper, the same category, and it goes too.
+
+**The two that stayed, because neither is browsing:**
+- **`accept_rejected`** — a Driver who **tried and was refused by Kavenue's own rules**. If one guard
+  dominates, the rule is misconfigured, not the Driver.
+- **`contact_revealed`** — who was given a Guest's phone number, and when. A data-access trail for GDPR and
+  disputes, on a trip the Driver already holds.
+
+**Two implementation facts that are load-bearing:**
+1. **`accept_rejected` MUST be written from the app, after the RPC returns.** `accept_mission` refuses by
+   `raise`, and a raise rolls back the transaction — a row written inside it disappears with the very error it
+   exists to record. Verified by racing a real accept: the event landed attributed to the Driver who was
+   **refused**, while the trigger's `confirmed` row went to the Driver who **won**.
+2. **`contact_revealed` is deduped per Driver per trip**, using the table's existing unique `dedupe_key`. It
+   fires on a page *render*; a Driver reloading twenty times is one disclosure. Verified: three renders, one row.
+
+**Every app-written row is `source='app'` and best effort, by construction.** Only `db_trigger` rows are
+guaranteed, and `isObserved()` is the single gate for that. The helper swallows its own errors on purpose: a
+log write that throws would turn *"your check-in worked but we failed to note it"* into *"your check-in
+failed"*. The log is a witness, never a participant.
+
+**`checked_in` carries `hours_before_pickup`** — the exact number [[d86]] had to be argued from because
+nothing recorded it. In a few weeks the Lock-in window becomes a measurement rather than a judgement call.
+
+Migrations: `docs/migrations/2026-08-24_event_registry_truth.sql` (data only — stop the registry claiming
+writers that don't exist). [[d86]] · § AG · § AF

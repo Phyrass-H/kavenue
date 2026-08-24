@@ -22,10 +22,13 @@ import {
 } from "@/lib/format";
 import {
   canEditInfo,
+  checkInOpen,
   isExpired,
   missionTone,
   needsClosing,
   negotiationAnswerable,
+  reclaimOpen,
+  reclaimUnlocksAt,
   TONE_BG,
   TONE_COLOR,
 } from "@/lib/dispatch-status";
@@ -248,13 +251,18 @@ export function TripRow({
       mission.status === "confirmed" ||
       mission.status === "en_route" ||
       mission.status === "arrived");
-  // T-60 reclaim: the Driver accepted but never confirmed the Lock-in (still 'accepted')
-  // and pickup is within the hour. The RPC re-checks; this only decides whether to offer it.
-  const reclaimEligible =
-    !archived &&
-    mission.status === "accepted" &&
-    !!driver &&
-    new Date(mission.pickup_at).getTime() <= Date.now() + 60 * 60_000;
+  // Reclaim (D86): the Driver is holding this trip and has never checked in.
+  //
+  // ⚑ This used to read `mission.status === "accepted"`, a status that has not
+  // existed since Option A/D55 — so the card below never rendered for anyone.
+  // The card appears the moment check-in opens (T−3h) with its button locked,
+  // and the button goes live at T−2h, so the Dispatcher can call first.
+  // The RPC re-checks; this only decides what to offer.
+  const reclaimVisible = !archived && !!driver && checkInOpen(mission);
+  const canReclaim = reclaimVisible && reclaimOpen(mission);
+  const reclaimUnlock = reclaimVisible ? reclaimUnlocksAt(mission) : null;
+  const reclaimUrgent =
+    reclaimVisible && new Date(mission.pickup_at).getTime() <= Date.now() + 60 * 60_000;
   // "Edited · time" stamp — when the info was last edited (null = never).
   const editedAt = mission.info_edited_at;
   const languages = parseLanguages(mission.required_languages);
@@ -577,8 +585,15 @@ export function TripRow({
       </summary>
 
       <div className="dx-trip__detail">
-        {reclaimEligible && driver && (
-          <ReclaimCard missionId={mission.id} driverName={driver.name} driverPhone={driver.phone} />
+        {reclaimVisible && driver && (
+          <ReclaimCard
+            missionId={mission.id}
+            driverName={driver.name}
+            driverPhone={driver.phone}
+            canReclaim={canReclaim}
+            unlockAt={reclaimUnlock}
+            urgent={reclaimUrgent}
+          />
         )}
         {/* Top meta line: the private Reference tag (Business-only) + the detail-only
             "Edited · time" stamp. The stamp stays even after the trip is frozen so the
@@ -886,7 +901,12 @@ export function TripRow({
           </div>
         )}
 
-        {t.hint && <div className="notice warn" style={{ marginTop: 12 }}>{t.hint}</div>}
+        {/* The reclaim card at the top of this panel says the same thing and carries
+            the actions, so the tone's own hint would be the second copy of one
+            message on one screen. The card supersedes it; every other tone keeps it. */}
+        {t.hint && !reclaimVisible && (
+          <div className="notice warn" style={{ marginTop: 12 }}>{t.hint}</div>
+        )}
 
         {/* Scan strip — the numbers a Dispatcher acts on. Pickup on the left, fare
             on the right; the Flight tile drops out when there's no flight. */}

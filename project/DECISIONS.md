@@ -1908,3 +1908,57 @@ Driver opt-in flag plus the matching `accept_mission` guard, **in one commit** w
 
 Full design and the open items: `project/BACKLOG.md` § V. [[d81]] [[d82]] · § AB · § AF · § AG
 
+
+### D86 — The Business takes a trip back at T−2h, and the gate is check-in, not a status nobody reaches (2026-08-24, S66)
+The founder's question, verbatim, carried over from S65: *"Is 1 hour too late? Would the business panic
+because 1 hour is really tight?"* Brainstormed before any code, as asked.
+
+**The answer was worse than "too late": it was never possible at all.** Both `reclaim_mission` and the button
+in `components/trip-row.tsx` were gated on `status = 'accepted'` — a status that has not existed since
+Option A / [[d55]] made `accept_mission` confirm immediately. Measured live on 2026-08-24, three ways:
+
+    mission.status          280 rows · 'accepted' = 0
+    status_event history    715 rows · 'accepted' = 0
+    mission_cancellation      0 rows · the RPC had never once run
+
+So a Business could not take a trip back from a silent Driver by any route, and the card had never rendered
+for anyone. Nothing in 499 tests noticed for three months, because a gate that is never satisfied looks
+exactly like a feature nobody happens to use.
+
+**1. The gate is now `confirmed AND checked_in_at IS NULL`.** Check-in is the signal that survived [[d55]] —
+`checked_in_at` is live and populated on 184 rows, and `checkInOpen()` already read it. `accepted` is not a
+state to restore; it is a state to stop referring to.
+
+**2. The window is T−2h** (founder's call, chosen over T−2h30 and T−1h30). Check-in opens at T−3h, so the
+Driver keeps a **full hour of grace** before the trip can be taken off them, and a replacement gets **two
+hours**. T−60min gave the replacement less time than the drive itself — the default 50 km radius implies
+45–75 min on the Riviera, and the ±90min slot band has already excluded any Driver working either side.
+
+**⚑ The measurement that made this cheap.** Median lead time from posting to pickup is **58 hours**, and
+**16% of trips are posted inside 3h**. Those short-notice trips auto-confirm on accept and never enter this
+flow, so widening the window costs them nothing — the trade only touches the 84% booked with real lead time,
+where it is close to pure upside. Worth remembering as a method: the founder's instinct was right, and the
+data turned a judgement call into an easy one.
+
+**3. Claude was wrong about the Pool, and the founder corrected it.** A draft of the card said re-pooling
+this late mostly fails because "most Drivers are too far away or already booked". The founder: the Riviera
+has a very dense concentration of Drivers everywhere, so that is a false assumption. **The argument for T−2h
+rests on travel time and the slot band, never on an empty Pool** — and the copy must not imply otherwise.
+
+**4. The card shows from T−3h with its button locked**, naming the unlock time, then goes live at T−2h and
+red inside T−1h where the row already escalates. Founder's steer on the copy: *do not tell the Dispatcher
+when they MAY act* — an inexperienced one reads that as a process to respect — so the time lives on the
+button as the control's own state, not as a sentence. And the card advises **calling first**, because a
+Driver who hasn't answered may simply be driving a Guest.
+
+**5. `t60_reclaim` became `reclaim`.** The name would have lied about when it fires. `mission_cancellation`
+held 0 rows, so this was the only moment the correction was free.
+
+**Nothing to wire for the event log.** The re-pool's `update mission set status = 'pooled'` already fires the
+§ AG trigger, which records it as `repooled` with `source='db_trigger'` — the guaranteed side of the log.
+
+**⚑ Still open, founder-raised, not decided (see BACKLOG § AH):** a Driver who wants out for free can simply
+not check in and let the Business take the trip back. Today that costs them one `reliability_marks` point and
+nothing else. Whether it should carry the cancellation penalty is the next question.
+
+Migration: `docs/migrations/2026-08-24_reclaim_at_t2h.sql`. [[d45]] [[d55]] [[d61]] [[d82]]

@@ -1248,3 +1248,24 @@ Still on the list, and none of them is a wrong charge — they're things the app
 you type without picking it from the suggestions is free, the night rate is invisible once a trip is booked,
 a settled waiting charge doesn't show its rate, and a penalty a Driver owes you doesn't appear anywhere on
 your side.
+
+## 2026-08-24 — you can finally take a trip back from a Driver who has gone quiet
+
+- **The "take it back" button has never worked. Not once.** It was waiting for the Driver to be in a state
+  the app stopped using back in July, so it never appeared for anybody — 280 trips, and not one of them could
+  ever have been reclaimed. Fixed: it now watches whether the Driver has **checked in**, which is the thing
+  you actually care about.
+- **You can act from two hours before pickup, not one.** One hour left a replacement Driver less time than
+  the drive itself. Two hours still gives your Driver a full hour of grace after check-in opens to answer.
+- **The trip card tells you it's coming.** From three hours out you'll see "Marc hasn't checked in" with the
+  button greyed and the time it unlocks, so you can ring them first rather than being surprised at the last
+  minute. It turns amber when you can act, and red inside the last hour.
+- **It tells you to call first.** A Driver who isn't answering may simply be driving someone. Taking the trip
+  back costs you nothing, but the phone is the faster fix.
+- **One less thing shouting at you.** The panel used to repeat the same warning twice, once in the card and
+  once underneath. Now it says it once.
+- **Not live yet** — this needs the migration run first, and until then the button will refuse.
+
+**Still to settle, and it's a good question:** a Driver who wants out of a trip for free can just say nothing
+and let you take it back. Cancelling properly costs them; going quiet currently doesn't. Written up with the
+options, nothing decided.

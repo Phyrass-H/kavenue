@@ -1858,3 +1858,50 @@ and it is exactly the shape the founder asked for. ⚑ Check `lib/pdp.ts` first:
 `re_pooled` distinction), write a row from every RPC that changes status, and stamp `pooled_at` on first
 post. Additive; the founder applies the migration.
 
+
+## AH. Not checking in is a free cancellation for the Driver ❓🔨 (founder, 2026-08-24, S66 — raised while building [[d86]])
+
+**The founder's question, verbatim:** *"A driver that don't check in, should he pay the penalty fee? Because
+I was thinking if a driver wants to cancel a trip for free it just need to not check in and let the Hotel
+take the trip back which will remove the trip from him and for free."*
+
+**It is a real hole, and D86 made it reachable for the first time.** Before 2026-08-24 no Business could take
+a trip back at all (`reclaim_mission` was gated on a status that never occurs), so the loophole existed on
+paper only. Now that the reclaim works, the cheapest way for a Driver to drop a job they no longer want is to
+say nothing:
+
+| route out | what it costs the Driver today |
+|---|---|
+| `driver_cancel_mission` | the [[d45]] cancellation fee, up to 100% of the agreed fare near pickup |
+| **silence until the Business reclaims** | **`reliability_marks + 1`, and nothing else** |
+
+So the honest Driver who cancels early pays, and the one who ghosts pays nothing. That is backwards.
+
+**⚑ The founder's own counter, and it is the strong one:** *"it will definitely impact his reputation once
+we put in place review and reputation."* Reliability marks already accumulate — `reclaim_mission` increments
+them — they are simply invisible to everyone right now. If the reputation system lands, silence stops being
+free without any money changing hands.
+
+**The argument against charging it, which must be answered before building anything.** A missed check-in is
+not proof of intent. The founder made exactly this point about the card's copy: a Driver may be mid-job with
+a Guest in the car and unable to touch their phone. Charging a cancellation fee on silence would bill a
+Driver who fully intended to turn up and simply had their hands full — the failure mode the T−2h window and
+the "call them first" advice exist to avoid. A penalty that fires on ambiguity will be wrong often enough to
+cost trust with the supply side, which at 9 Drivers is the scarce resource.
+
+**Options, none chosen:**
+1. **Reputation only** (the founder's lean) — no fee; make `reliability_marks` visible when reviews ship.
+   Cheapest, and it cannot punish an innocent Driver by mistake. Does nothing until that system exists.
+2. **A small flat fee**, well under the [[d45]] scale — priced as an admin cost, not as a cancellation.
+   Restores *some* asymmetry without treating silence as intent.
+3. **The full [[d45]] fee**, treating a reclaim as a driver cancel. Closes the hole completely and is the
+   most likely to be unfair in the cases that matter.
+4. **Escalate on repetition** — free the first time in a window, charged after. Distinguishes the Driver who
+   was busy once from the one who does it habitually, which is the distinction that actually matters. Needs
+   the event log (§ AG) to count reliably, which now exists.
+
+**⚑ Note that (4) is the only option that separates the two cases the founder is worried about**, and the
+§ AG event log makes it measurable for the first time. Worth costing before defaulting to (1).
+
+**Related:** § H2 (the [[d45]] fee is arguably too weak on cheap trips) is the same argument from the other
+end — both are "what does abandoning a job cost?", and they should probably be decided together.

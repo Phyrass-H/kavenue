@@ -49,6 +49,54 @@ export function checkInOpen(
 }
 
 /**
+ * How long before pickup the Business may take a trip back from a Driver who is
+ * holding it but has never checked in (founder, 2026-08-24, D86).
+ *
+ * Check-in opens at T−3h, so the Driver keeps a full hour of grace before the
+ * trip can be taken off them, and a replacement gets two. The old window was
+ * T−60min, which left the replacement less time than the drive itself — the
+ * default 50 km radius implies 45–75 min on the Riviera.
+ */
+export const RECLAIM_OPENS_MS = 2 * 3_600_000;
+
+/**
+ * Is the reclaim button live for this trip? (Business side.)
+ *
+ * ⚑ The gate is `confirmed AND never checked in` — NOT `accepted`. Since
+ * Option A / D55 `accept_mission` confirms immediately, so `accepted` has never
+ * happened: 0 of 280 missions and 0 of 715 status transitions, measured on the
+ * live DB 2026-08-24. The old gate is why this button never rendered for anyone.
+ *
+ * Deliberately a narrowing of `checkInOpen` rather than its own window: the card
+ * appears the moment check-in opens with its button locked, so the Dispatcher
+ * can see it coming and call first, and the button unlocks an hour later. One
+ * predicate can't drift from the other if one is defined in terms of the other.
+ *
+ * ⚑ Mirrored by `reclaim_mission` (docs/migrations/2026-08-24_reclaim_at_t2h.sql),
+ * which is the real guard and re-checks. This only decides what to OFFER, so it
+ * must stay a SUBSET of the SQL — never the other way round.
+ */
+export function reclaimOpen(
+  m: Pick<MissionRow, "status" | "pickup_at" | "checked_in_at">,
+  now: Date = new Date(),
+): boolean {
+  if (!checkInOpen(m, now)) return false;
+  return new Date(m.pickup_at).getTime() <= now.getTime() + RECLAIM_OPENS_MS;
+}
+
+/**
+ * When the reclaim button unlocks, for the locked state's label. Null once it
+ * already has — the caller shows the live button instead.
+ */
+export function reclaimUnlocksAt(
+  m: Pick<MissionRow, "status" | "pickup_at" | "checked_in_at">,
+  now: Date = new Date(),
+): string | null {
+  if (reclaimOpen(m, now)) return null;
+  return new Date(new Date(m.pickup_at).getTime() - RECLAIM_OPENS_MS).toISOString();
+}
+
+/**
  * § P — is this trip dead? Either already swept to `expired`, or still `pooled`
  * with its pickup time behind us, which is the same thing a moment earlier.
  *

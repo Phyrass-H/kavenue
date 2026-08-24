@@ -48,7 +48,9 @@ export type CancellationKind =
   | "business_cancel"
   | "no_show"
   | "business_no_show"
-  | "t60_reclaim"
+  // Renamed from `t60_reclaim` on 2026-08-24 (D86) — it fires at T−2h now, and
+  // the table held 0 rows, so the old name could be corrected for free.
+  | "reclaim"
   | "agreed_release";
 export type DocumentType =
   | "drivers_licence"

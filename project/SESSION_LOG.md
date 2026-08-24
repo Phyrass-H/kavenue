@@ -4010,3 +4010,105 @@ were deleted on merge.
 **The lesson worth keeping: a handoff is a claim about the repo, and claims decay.** These were written the
 same day, by the session that did the work, and a fifth of them were already false — several *because of that
 same session's own migrations*. Verify a handoff against the code before closing, not just proofread it.
+
+## Session 66 — 2026-08-24 · the reclaim was dead code; the Business can take a trip back now ([[d86]])
+
+**Branch:** `main` (via `s66-reclaim`, per the CI ruleset). **Migration written, not yet applied.**
+
+### The gate ran first, and it earned its keep
+
+`handoff-check.ts` → 16 ok, **1 STALE** (an S64CURVE demo trip aged past its pickup — cosmetic, the seed
+data, not a code claim). `npx tsc --noEmit` clean; **487 tests passing** (the handoff said 462 — it had
+grown, not drifted). All six DB probes `ALL AGREE`: `diff-sql-vs-lib` 693, `write-test` 170, `curve-live` 8,
+`accepted-fare` 20, `migrations-2026-08-10` 61/0, `migrations-2026-08-11` 23/0.
+
+### Step 1 — the Lock-in brainstorm, before any code (the founder asked twice)
+
+The question carried over from S65: *"Is 1 hour too late? Would the business panic because 1 hour is really
+tight?"* Answered by measuring rather than reasoning, and the measurement changed the question.
+
+**`accepted` has never happened.** Three independent probes on the live DB:
+
+| probe | result |
+|---|---|
+| `mission.status` over 280 rows | `accepted` = **0** |
+| `status_event` full history, 715 rows | `accepted` = **0** |
+| `mission_cancellation` | **0 rows** — `reclaim_mission` had never run |
+
+Both `reclaim_mission` (`2026-08-22e_repool_touches_nothing.sql:145`) and the button
+(`components/trip-row.tsx:255`) demanded it. So the reclaim was not *late*, it was **unreachable**, and the
+card had never rendered for anyone since D45 shipped it. 499 tests and three months of use did not catch it,
+because a gate nothing satisfies is indistinguishable from a feature nobody uses.
+
+**Second measurement, which decided the window.** Lead time posted → pickup, n=279:
+
+    p10 2.6h · p25 6.6h · median 58.2h · p75 149.8h · p90 190.8h
+    posted <3h ahead: 16%   ·   <6h ahead: 24%
+
+Trips posted inside 3h auto-confirm on accept (`kavenue_schema.sql:241`) and never enter the Lock-in flow, so
+widening the reclaim window cannot hurt them. The trade only touches the 84% with real lead time. The founder
+chose **T−2h** from T−2h30 / T−2h / T−1h30.
+
+**⚑ Claude was wrong once and the founder corrected it.** A draft of the card claimed a late re-pool mostly
+fails because most Drivers are "too far away or already booked". The founder works this market: the Riviera
+is densely covered by Drivers, so that is a false premise. The T−2h argument stands on travel time (45–75 min
+implied by the default 50 km radius) and the ±90min slot band — **never on an empty Pool**, and the copy must
+not imply it. Recorded in [[d86]] § 3 so it is not reintroduced.
+
+### Step 2 — built it, mockup first (D25)
+
+Three preview rounds before a line of code. The founder cut two things from the copy, and both cuts were
+right for the same reason — the card was stating things as if they were procedure:
+
+- *"You can take the trip back from 10:15"* → **removed**. An inexperienced Dispatcher reads that as a
+  process to respect. The time now lives on the greyed button (`Take it back · from 14:25`), where it reads
+  as the control's own state.
+- *"Take it back and it returns to the Pool. No penalty to you."* → it implied the re-pool happens without
+  checking. Replaced with **"Call {first name} first — they may be driving. If you can't reach them, take the
+  trip back. No penalty to you."**
+
+**Shipped:**
+
+| file | change |
+|---|---|
+| `docs/migrations/2026-08-24_reclaim_at_t2h.sql` | the guard → `confirmed AND checked_in_at IS NULL AND now() >= pickup − 2h`; `kind` `t60_reclaim` → `reclaim` |
+| `lib/dispatch-status.ts` | `RECLAIM_OPENS_MS`, `reclaimOpen()`, `reclaimUnlocksAt()` |
+| `components/dispatch-cancel.tsx` | `ReclaimCard` rewritten — three states, tone follows the row |
+| `components/trip-row.tsx` | `reclaimEligible` → `reclaimVisible` / `canReclaim` / `reclaimUrgent`; tone hint suppressed when the card shows |
+| `tests/reclaim-window.test.ts` | 12 tests, incl. one that fails if `accepted` ever returns as the condition |
+
+`reclaimOpen` is defined as a **narrowing of `checkInOpen`**, not its own window — so the card can never be
+live-but-hidden, and one predicate cannot drift from the other. A test pins that relation directly.
+
+**The SQL body was copied from `2026-08-22e_repool_touches_nothing.sql`**, which is the live definition: it is
+the fifth and last of the five 2026-08-22 migrations and **records that order in its own header**. Only the
+guard, the `kind` and the `reason` differ, so [[d81]]/[[d82]] survive intact.
+
+**`t60_reclaim` → `reclaim`.** The name would have lied about when it fires. `mission_cancellation` holds 0
+rows, so the correction was free — and this was the only moment it ever would be.
+
+**Nothing to wire for the event log.** The re-pool's `update mission set status = 'pooled'` already fires the
+§ AG trigger, which maps it to `repooled` with `source='db_trigger'`. A reclaim lands on the guaranteed side
+of the log without an app-side call.
+
+### Verified in the browser, not just in tests
+
+Seeded three trips at T−2.5h / T−1.5h / T−0.5h (`reference = 'S66RECLAIM'`, `confirmed`, never checked in)
+against the real DB and read all three states on the running app: locked with `Take it back · from 14:25`,
+amber and live, then red inside the hour with **Call** promoted to the primary button. Console clean. Seed
+removed afterwards; mission table back to its 280-row baseline, verified.
+
+**Found while looking at it:** the card duplicated the tone's own hint — two sentences saying "the Driver
+hasn't checked in" on one panel. The card supersedes it, so `t.hint` is now suppressed while the card shows.
+
+`npx tsc --noEmit` clean · **499 tests passing** · `npm run build` clean.
+
+### Two things worth carrying forward
+
+- **§ AH (new).** The founder's question, raised mid-build: a Driver who wants out for free can simply not
+  check in and let the Business reclaim. Cancelling properly costs up to 100% of the fare; silence costs one
+  `reliability_marks` point. Four options written up, **none chosen** — the founder leans on reputation doing
+  the work once reviews ship, and the honest counter is that a missed check-in is not proof of intent.
+- **⚑ `npm run build` fails while `npm run dev` is running.** Both write `.next`, so the build reads a
+  half-written manifest and dies with `PageNotFoundError: Cannot find module for page: /_not-found`. Stop the
+  dev server and `rm -rf .next` first. It cost a confused minute; CI is unaffected (clean checkout).

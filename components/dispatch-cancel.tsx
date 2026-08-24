@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Ban, RefreshCw, AlertTriangle, Phone } from "lucide-react";
+import { Ban, RefreshCw, AlertTriangle, Phone, Clock, Lock } from "lucide-react";
 import { businessCancelMission, reclaimMission } from "@/app/(dispatch)/dispatch/actions";
 import {
   businessCancelPct,
@@ -377,18 +377,35 @@ export function BusinessCancel({
   );
 }
 
-// T-60 reclaim card (O7, D45): shown when the assigned Driver accepted but never confirmed
-// and pickup is close. Re-pools penalty-free for the Business — and as a SPEED WIN in
-// fact, because reclaim_mission is gated to pickup within 60 minutes, which is always
-// inside the D46 24h window. The other two re-pool paths are NOT unconditional.
+// The reclaim card (O7, D45; re-gated 2026-08-24, D86): the Business takes a trip
+// back from a Driver who is holding it and has never checked in.
+//
+// ⚑ IT RENDERED FOR NOBODY UNTIL 2026-08-24. Both this card and reclaim_mission
+// were gated on `status = 'accepted'`, which has not existed since Option A/D55 —
+// 0 of 280 missions and 0 of 715 status transitions on the live DB. The gate is
+// now `confirmed AND never checked in`, and the window T−2h rather than T−60min.
+//
+// Three states. ⚑ Every time decision is made on the SERVER and passed in: this
+// is a client component, so computing `now` here would be a hydration mismatch.
+//   • locked — check-in is open, reclaim is not yet. The button names its unlock
+//     time so the Dispatcher sees it coming and rings the Driver first.
+//   • live   — amber, matching the row's own "Not checked in" tone at T−3h…T−1h.
+//   • urgent — red inside T−1h, where the row escalates too. Calling becomes the
+//     primary button; re-pooling stays available, it just stops being the default.
 export function ReclaimCard({
   missionId,
   driverName,
   driverPhone,
+  canReclaim,
+  unlockAt,
+  urgent,
 }: {
   missionId: string;
   driverName: string;
   driverPhone: string | null;
+  canReclaim: boolean;
+  unlockAt: string | null;
+  urgent: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -403,50 +420,81 @@ export function ReclaimCard({
     });
   }
 
+  // "Marc Dubois" → "Marc". The card is about a person the Dispatcher rings up,
+  // not about a record.
+  const firstName = driverName.split(" ")[0] || driverName;
+  const fg = urgent ? "var(--tone-danger-fg)" : "var(--tone-warn-fg)";
+  const bg = urgent ? "var(--tone-danger-bg)" : "var(--tone-warn-bg)";
+  const edge = urgent ? "#f3c3bd" : "#f0c9a4";
+  const btn = {
+    borderRadius: 8,
+    padding: "8px 13px",
+    fontSize: 13,
+    fontWeight: 600,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+  } as const;
+
   return (
-    <div
-      style={{
-        background: "var(--tone-danger-bg)",
-        border: "0.5px solid #fbd9d4",
-        borderLeft: "3px solid var(--tone-danger-fg)",
-        borderRadius: "0 12px 12px 0",
-        padding: "14px 16px",
-        marginBottom: 12,
-      }}
-    >
+    <div style={{ background: bg, borderLeft: `3px solid ${fg}`, borderRadius: 0, padding: "13px 16px", marginBottom: 12 }}>
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <AlertTriangle size={18} style={{ color: "var(--tone-danger-fg)", marginTop: 2, flexShrink: 0 }} aria-hidden />
+        {urgent ? (
+          <AlertTriangle size={18} style={{ color: fg, marginTop: 1, flexShrink: 0 }} aria-hidden />
+        ) : (
+          <Clock size={18} style={{ color: fg, marginTop: 1, flexShrink: 0 }} aria-hidden />
+        )}
         <div style={{ flex: 1 }}>
-          <div style={{ fontWeight: 600, color: "var(--tone-danger-fg)", fontSize: 14 }}>
-            {driverName} hasn’t confirmed — pickup is close
+          <div style={{ fontWeight: 600, color: fg, fontSize: 14 }}>
+            {urgent
+              ? `Pickup is within the hour and ${firstName} hasn’t checked in`
+              : `${firstName} hasn’t checked in`}
           </div>
-          <div style={{ color: "var(--tone-danger-fg)", fontSize: 13, margin: "4px 0 12px" }}>
-            {/* ⚑ It no longer re-pools "as a SPEED WIN". A re-pool changes nothing
-                about the price except that time has passed (2026-08-22, D82) —
-                and this close to the pickup the curve has already carried the
-                fare most of the way to the Ceiling on its own, which is what
-                actually makes another Driver take it. */}
-            They accepted but never locked in. Couldn’t reach them by phone? Take the trip back — it goes
-            straight to the Pool at today’s price, which this close to the pickup is near your maximum. No
-            penalty to you.
-          </div>
-          {error && <div className="notice error" style={{ marginBottom: 10 }}>{error}</div>}
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button
-              type="button"
-              onClick={reclaim}
-              disabled={pending}
-              style={{ background: "var(--tone-danger-fg)", color: "#fff", border: "none", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
-            >
-              <RefreshCw size={14} aria-hidden /> {pending ? "…" : "Take it back and re-pool"}
-            </button>
+          {/* One line, and none at all on the red state — the heading already says it.
+              ⚑ Do NOT reintroduce a claim about how empty the Pool is this late: the
+              founder works this market and the Riviera is densely covered by Drivers
+              (2026-08-24). ⚑ And do not tell the Dispatcher when they MAY act — an
+              inexperienced one reads that as a process they must follow. The unlock
+              time belongs on the button, where it reads as the control's own state. */}
+          {canReclaim && !urgent && (
+            <div style={{ color: fg, fontSize: 13, margin: "4px 0 11px" }}>
+              Call {firstName} first — they may be driving. If you can’t reach them, take the trip back. No
+              penalty to you.
+            </div>
+          )}
+          {error && <div className="notice error" style={{ margin: "8px 0 10px" }}>{error}</div>}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: canReclaim && !urgent ? 0 : 11 }}>
             {driverPhone && (
               <a
                 href={`tel:${driverPhone}`}
-                style={{ background: "#fff", color: "var(--accent)", border: "0.5px solid var(--border-strong)", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                style={{
+                  ...btn,
+                  textDecoration: "none",
+                  background: urgent ? fg : "#fff",
+                  color: urgent ? "#fff" : "var(--accent)",
+                  border: urgent ? "none" : "0.5px solid var(--border-strong)",
+                }}
               >
-                <Phone size={14} aria-hidden /> Call the Driver
+                <Phone size={14} aria-hidden /> Call {firstName}
               </a>
+            )}
+            {canReclaim ? (
+              <button
+                type="button"
+                onClick={reclaim}
+                disabled={pending}
+                style={{ ...btn, background: "#fff", color: fg, border: `0.5px solid ${edge}`, cursor: "pointer" }}
+              >
+                <RefreshCw size={14} aria-hidden /> {pending ? "…" : "Take it back and re-pool"}
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                style={{ ...btn, background: "var(--bg)", color: "var(--text-faint)", border: "0.5px solid var(--border)", cursor: "not-allowed" }}
+              >
+                <Lock size={14} aria-hidden /> Take it back · from {formatTime(unlockAt)}
+              </button>
             )}
           </div>
         </div>

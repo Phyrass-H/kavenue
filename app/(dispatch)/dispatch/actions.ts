@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAppContext } from "@/lib/app-context";
+import { recordMissionEvent } from "@/lib/mission-events-server";
 import { settledFare } from "@/lib/pdp";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
@@ -125,6 +126,18 @@ export async function proposeRelease(
       message: msg && msg.length < 120 ? msg : "Couldn’t send the release — please refresh and try again.",
     };
   }
+
+  // § AG — a release request lives entirely in mission_release and changes no
+  // status, so the trigger never sees it. Only the ANSWER can move the trip, and
+  // if the Driver declines nothing moves at all — which is exactly the case worth
+  // having on the record.
+  await recordMissionEvent({
+    missionId,
+    type: "release_proposed",
+    actorKind: "dispatcher",
+    actorId: ctx.dispatcher?.id ?? null,
+    payload: { note: note?.trim() || null, from_fare: settledFare(mission) },
+  });
 
   revalidateDispatch();
   return { ok: true };

@@ -8,6 +8,7 @@ import { nextStep } from "@/lib/mission-flow";
 import { checkInOpen, needsClosing } from "@/lib/dispatch-status";
 import { parseWaypoints } from "@/lib/waypoints";
 import { settledFare } from "@/lib/pdp";
+import { recordMissionEvent } from "@/lib/mission-events-server";
 import type { CloseAnswer, MissionStep } from "@/lib/database.types";
 
 // The PDP columns needed to compute the fare snapshot recorded on a cancel / no-show.
@@ -17,6 +18,40 @@ const FARE_COLS =
   "id, driver_id, ceiling, pdp_start, speed_win, pickup_at, created_at, pooled_at, accepted_at, accepted_fare";
 
 export type StatusResult = { ok: true } | { ok: false; message: string };
+
+/**
+ * How long before the pickup something happened, in hours, to 2dp — the payload
+ * field that turns the event log into an answer.
+ *
+ * ⚑ Worth having on `checked_in` specifically: "how late does a Driver actually
+ * confirm?" is the exact question the Lock-in window (D86) was argued from, and
+ * it had to be reasoned about because nothing recorded it. Negative means after
+ * the pickup time.
+ */
+function hoursBeforePickup(pickupAt: string | null | undefined): number | null {
+  if (!pickupAt) return null;
+  const ms = Date.parse(pickupAt) - Date.now();
+  return Number.isNaN(ms) ? null : Math.round((ms / 3_600_000) * 100) / 100;
+}
+
+/**
+ * The mission a side-table row belongs to. `respond_to_amendment` /
+ * `respond_to_release` take the negotiation's id, not the trip's, but a
+ * mission_event has to hang off the trip — so the log needs this one hop.
+ * Service role: it is a logging read, and it must not depend on whatever RLS
+ * the caller happens to have.
+ */
+async function missionIdFor(
+  table: "mission_amendment" | "mission_release",
+  rowId: string,
+): Promise<string | null> {
+  const { data } = await createAdminClient()
+    .from(table)
+    .select("mission_id")
+    .eq("id", rowId)
+    .maybeSingle();
+  return data?.mission_id ?? null;
+}
 
 // The Driver's answer to a proposed amendment (D39 Phase 2). Runs the atomic
 // respond_to_amendment RPC via the USER session (it's SECURITY DEFINER and
@@ -46,6 +81,21 @@ export async function respondToAmendment(
       ok: false,
       message: msg && msg.length < 120 ? msg : "Couldn’t apply the change — please refresh and try again.",
     };
+  }
+
+  // § AG — the answer lives in mission_amendment, which the trigger does not
+  // watch. Accepting DOES rewrite the mission (route + fare) but not its status,
+  // so nothing in the log would show why the trip changed shape mid-flight.
+  const amendedMissionId = await missionIdFor("mission_amendment", amendmentId);
+  if (amendedMissionId) {
+    await recordMissionEvent({
+      missionId: amendedMissionId,
+      type: "amendment_answered",
+      actorKind: "driver",
+      actorId: driver.id,
+      driverId: driver.id,
+      payload: { amendment_id: amendmentId, accepted: accept, reason: reason ?? null },
+    });
   }
 
   revalidatePath("/rides");
@@ -251,6 +301,20 @@ export async function answerClose(
     if (error) return { ok: false, message: "Couldn’t record your answer — please try again." };
   }
 
+  // § AG — recorded on BOTH branches, for different reasons. 'driven' does move
+  // the status, so the trigger writes a `completed` row too — but that row says
+  // the trip finished, not that a human was finally asked and answered. And
+  // 'not_driven' changes no status at all, so without this the strongest signal
+  // in the system (the Driver says it never happened) leaves no trace.
+  await recordMissionEvent({
+    missionId,
+    type: "close_answered",
+    actorKind: "driver",
+    actorId: driver.id,
+    driverId: driver.id,
+    payload: { answer, hours_after_pickup: -(hoursBeforePickup(mission.pickup_at) ?? 0) },
+  });
+
   revalidatePath("/rides");
   revalidatePath("/missions", "layout");
   revalidatePath("/dispatch");
@@ -292,6 +356,19 @@ export async function checkIn(missionId: string): Promise<StatusResult> {
     .eq("driver_id", driver.id)
     .is("checked_in_at", null); // first write wins; a double-tap can't move the time
   if (error) return { ok: false, message: "Couldn’t check you in — please try again." };
+
+  // § AG — the DB cannot see this: check-in moves a timestamp, not a status, so
+  // the trigger never fires. Without this call the log has no record that the
+  // Driver ever said they'd be there — which is now the fact the Business's
+  // reclaim (D86) turns on.
+  await recordMissionEvent({
+    missionId,
+    type: "checked_in",
+    actorKind: "driver",
+    actorId: driver.id,
+    driverId: driver.id,
+    payload: { hours_before_pickup: hoursBeforePickup(mission.pickup_at) },
+  });
 
   revalidatePath("/rides");
   revalidatePath("/missions", "layout");
@@ -412,6 +489,22 @@ export async function respondToRelease(
       ok: false,
       message: msg && msg.length < 120 ? msg : "Couldn’t respond — please refresh and try again.",
     };
+  }
+
+  // § AG — accepting a release re-pools the trip, so the trigger writes
+  // `repooled` and that row is guaranteed. What it cannot say is that the Driver
+  // AGREED rather than being reclaimed (D86) or cancelling: three routes to
+  // `pooled` that mean very different things about the same Driver.
+  const releasedMissionId = await missionIdFor("mission_release", releaseId);
+  if (releasedMissionId) {
+    await recordMissionEvent({
+      missionId: releasedMissionId,
+      type: "release_answered",
+      actorKind: "driver",
+      actorId: driver.id,
+      driverId: driver.id,
+      payload: { release_id: releaseId, accepted: accept, reason: reason?.trim() || null },
+    });
   }
 
   revalidatePath("/rides");

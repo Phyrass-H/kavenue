@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { currentFare } from "@/lib/pdp";
+import { recordMissionEvent } from "@/lib/mission-events-server";
+import { getDriverContext } from "@/lib/driver";
 
 export type AcceptResult = { ok: true } | { ok: false; message: string };
 
@@ -37,6 +39,27 @@ export async function acceptMission(missionId: string): Promise<AcceptResult> {
   });
 
   if (error) {
+    // § AG — ⚑ THIS MUST BE WRITTEN HERE, OUTSIDE THE RPC, AND NOWHERE ELSE.
+    // accept_mission refuses by RAISE, and a raise rolls the whole transaction
+    // back — a log row written inside it would vanish with the error it exists to
+    // record. So the only place this fact survives is out here, after the call
+    // returned.
+    //
+    // Worth having: a Driver who TRIED is not browsing, they wanted the work and
+    // Kavenue's own rules said no. If one reason dominates, the rule is wrong.
+    // The raw message is kept, not the Driver-facing wording — the point is which
+    // guard fired.
+    const { driver } = await getDriverContext();
+    await recordMissionEvent({
+      missionId,
+      type: "accept_rejected",
+      actorKind: driver ? "driver" : "unknown",
+      actorId: driver?.id ?? null,
+      // ⚑ The Driver who was REFUSED — deliberately not the mission's driver_id,
+      // which on a lost race is the Driver who won it.
+      driverId: driver?.id ?? null,
+      payload: { reason: error.message ?? null },
+    });
     return { ok: false, message: friendlyAcceptError(error.message) };
   }
 

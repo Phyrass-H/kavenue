@@ -15,6 +15,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDriverContext } from "@/lib/driver";
+import { recordMissionEvent } from "@/lib/mission-events-server";
 import { currentFare } from "@/lib/pdp";
 import { driverNet } from "@/lib/commission";
 import { tripDistanceKm } from "@/lib/geo";
@@ -109,6 +110,31 @@ export default async function MissionDetailPage({
           parseGuestContacts(gc?.contacts),
         ).filter((g) => g.shared)
       : [];
+
+    // § AG — a Guest's personal phone number has just crossed from Kavenue to a
+    // Driver's device. Nothing in the database changes when that happens, so
+    // without this call there is no answer to "who was given this Guest's number,
+    // and when" — which is a GDPR question and a dispute question, not analytics.
+    //
+    // ⚑ Recorded HERE, at the disclosure, not on the tap: the number leaves the
+    // server whether or not they ever press call. A `tel:` link cannot be
+    // observed anyway.
+    //
+    // ⚑ Deduped per Driver per trip, forever. This is a page render — a Driver
+    // reloading their trip twenty times is one disclosure, not twenty, and the
+    // first one is the fact that matters. The DB enforces it, so two concurrent
+    // renders cannot both write.
+    if (guestPhones.length > 0) {
+      await recordMissionEvent({
+        missionId: mission.id,
+        type: "contact_revealed",
+        actorKind: "driver",
+        actorId: driver.id,
+        driverId: driver.id,
+        dedupeKey: `contact_revealed:${mission.id}:${driver.id}`,
+        payload: { phones: guestPhones.length },
+      });
+    }
 
     // Arrival attestation: the latest 'arrived' status_event is the precondition to
     // report a no-show (and the basis of the 5-min on-site floor). NOT the clock

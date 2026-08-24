@@ -10,6 +10,7 @@ import { parseWaypoints, parseWaypointsField, unlocatedStops } from "@/lib/waypo
 import { settledFare } from "@/lib/pdp";
 import { commissionSplit, courseFromBusinessTotal, ratesOf } from "@/lib/commission";
 import { buildFromSnapshot } from "@/lib/amendments";
+import { recordMissionEvent } from "@/lib/mission-events-server";
 import type { MissionStatus } from "@/lib/database.types";
 
 // A mission can only be AMENDED (proposed to a Driver) while a Driver holds it but
@@ -224,6 +225,23 @@ export async function proposeMissionAmendment(missionId: string, formData: FormD
     note: note || null,
   });
   if (error) redirect(backTo("db"));
+
+  // § AG — a proposal changes nothing about the mission until the Driver answers,
+  // so the trigger has nothing to fire on. Without this the log would show a trip
+  // whose route and fare changed with no record that anyone asked.
+  // ⚑ Before the redirect: redirect() throws, and everything after it is dead code.
+  await recordMissionEvent({
+    missionId: id,
+    type: "amendment_proposed",
+    actorKind: "dispatcher",
+    actorId: ctx.dispatcher.id,
+    payload: {
+      new_fare: newFare,
+      new_distance_km: newDistanceKm,
+      new_duration_min: newDurationMin,
+      note: note || null,
+    },
+  });
 
   // Back to the schedule with this trip open — it now reads "Change pending".
   revalidatePath("/dispatch", "layout");

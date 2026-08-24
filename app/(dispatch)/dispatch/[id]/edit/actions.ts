@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getAppContext } from "@/lib/app-context";
+import { recordMissionEvent } from "@/lib/mission-events-server";
 import {
   parsePassengers,
   passengerName as guestFullName,
@@ -192,6 +193,18 @@ export async function updateMissionInfo(missionId: string, formData: FormData) {
       items: changeItems,
     });
     if (logErr) console.error("mission_info_change write failed:", logErr.message);
+
+    // § AG — an info edit applies immediately and needs no consent, so it moves
+    // no status and the trigger stays silent. mission_info_change remains the
+    // domain record (it holds WHAT changed, and it is Business-private); this
+    // mirrors the fact into the one timeline that carries everything else.
+    await recordMissionEvent({
+      missionId: id,
+      type: "info_changed",
+      actorKind: "dispatcher",
+      actorId: ctx.dispatcher.id,
+      payload: { fields: changeItems.length },
+    });
   }
 
   // Guest phones (Driver-unreadable side table), aligned by index — same

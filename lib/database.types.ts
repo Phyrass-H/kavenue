@@ -706,6 +706,71 @@ export interface Database {
         >;
         Relationships: [];
       };
+      // § AG — the Event Log (2026-08-24 migration). Append-only: never UPDATE,
+      // never DELETE. `source` is the column that makes it honest — only
+      // 'db_trigger' rows are guaranteed complete. `seq` and `occurred_at` are
+      // written by the DB and must not be supplied, which is why neither appears
+      // in Insert. The vocabulary lives in lib/mission-events.ts, not in a CHECK:
+      // a constraint on a log aborts the transaction it exists to record.
+      mission_event: {
+        Row: {
+          id: string;
+          seq: number;
+          mission_id: string;
+          business_id: string | null;
+          driver_id: string | null;
+          event_type: string;
+          occurred_at: string;
+          actor_kind: "dispatcher" | "driver" | "admin" | "system" | "unknown";
+          actor_auth_user_id: string | null;
+          actor_id: string | null;
+          audience: string[];
+          source:
+            | "db_trigger"
+            | "client_rpc"
+            | "app"
+            | "status_event_backfill"
+            | "mission_row_backfill";
+          payload: Json;
+          dedupe_key: string | null;
+        };
+        Insert: {
+          id?: string;
+          mission_id: string;
+          business_id?: string | null;
+          driver_id?: string | null;
+          event_type: string;
+          actor_kind?: "dispatcher" | "driver" | "admin" | "system" | "unknown";
+          actor_auth_user_id?: string | null;
+          actor_id?: string | null;
+          audience?: string[];
+          source: string;
+          payload?: Json;
+          dedupe_key?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["mission_event"]["Insert"]>;
+        Relationships: [];
+      };
+      // Reference vocabulary for mission_event. A table, not a constraint —
+      // documentation and a join target for analysis. Nothing enforces it.
+      mission_event_type: {
+        Row: {
+          event_type: string;
+          captured_by: string;
+          guaranteed: boolean;
+          note: string | null;
+        };
+        Insert: {
+          event_type: string;
+          captured_by: string;
+          guaranteed?: boolean;
+          note?: string | null;
+        };
+        Update: Partial<
+          Database["public"]["Tables"]["mission_event_type"]["Insert"]
+        >;
+        Relationships: [];
+      };
       status_event: {
         Row: {
           id: string;

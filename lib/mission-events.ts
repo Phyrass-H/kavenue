@@ -25,12 +25,34 @@ export const TRIGGER_EVENTS = [
   "expired",
 ] as const;
 
-/** Written by the app or by log_mission_event(). BEST EFFORT — never complete. */
+/**
+ * Written by the app or by log_mission_event(). BEST EFFORT — never complete.
+ *
+ * ⚑ NINE OF THESE ELEVEN ARE WIRED (S66, 2026-08-24). `pool_impression` and
+ * `mission_viewed` are DELIBERATELY NOT, and are not an oversight to correct:
+ *
+ *   Both record a Driver BROWSING — scrolling the Pool, or opening a trip that
+ *   is not theirs. The founder's call: at nine Drivers you can ring them and get
+ *   a better answer than a log, and Kavenue is not a shopping site that needs to
+ *   model why a basket was abandoned. The one question they would genuinely
+ *   answer — "did this trip expire because nobody saw it, or because everyone
+ *   refused it?" — is reachable without them, by asking which Drivers MATCHED a
+ *   trip's category, zone and radius at the time. That is a query over data
+ *   already stored, not a new firehose.
+ *
+ *   They stay in the vocabulary because the DB registry lists them and
+ *   log_mission_event() still accepts them; nothing writes them. Revisit when the
+ *   Driver base is too large to phone (§ AF, V2/V3).
+ *
+ * `accept_rejected` and `contact_revealed` ARE wired and are not browsing: one is
+ * Kavenue's own rules refusing a Driver who wanted the work, the other is a
+ * Guest's phone number being disclosed — an access trail, not analytics.
+ */
 export const APP_EVENTS = [
-  "pool_impression",
+  "pool_impression", // not wired — see above
   "contact_revealed",
   "accept_rejected",
-  "mission_viewed",
+  "mission_viewed", // not wired — see above
   "amendment_proposed",
   "amendment_answered",
   "release_proposed",

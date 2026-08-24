@@ -563,16 +563,96 @@ specific trip by drivers name, or passenger or internal reference, or car… per
   Correct at 28 trips. ⚑ **MEASURED S65: the hard break is at 398 archived trips for one Business, not the
   5 000 previously guessed — and the busiest Business is already at 271.** Also skipped: a density toggle.
 
-**★★ START HERE — NOTHING IS BLOCKING. § R rule 1 ✅ SHIPPED S65 (the 398 wall is gone); what is left is
-rules 2 & 3, which are performance, not breakage. (Repo rename ✅ SHIPPED S65. § V ⏸ BRAINSTORMED AND PARKED,
-S65 — the founder said "it's too early"; the design is settled in `BACKLOG.md` § V + [[d85]], and it resumes
-only when they pick the threshold number. **Do not start § V unprompted.**)**
+**★★ START HERE — S65 CLOSED 2026-08-24. READ THIS BLOCK, THEN THE GATE BELOW.**
 
-> **S64 shipped the §6 curve and it is deployed.** Everything below the horizontal rule is S64's own
-> write-up, kept because [[d78]]–[[d84]] constrain what you build. **Read those seven decisions before you
-> touch anything priced.** Five migrations, all applied. Six probes, all green. Suite **462**.
->
-> **The founder set this queue explicitly at the end of S64. Do these three, in this order.**
+## WHERE WE ARE, IN ONE SCREEN
+
+**Everything below is live and deployed unless marked otherwise. `main` = the truth.**
+
+### ✅ Shipped in S65
+| | |
+|---|---|
+| **Repo renamed** | `Phyrass-H/kavenue`. Trademark, not tidiness. Ruleset survived, homepage/description fixed |
+| **§ R rule 1** | The 398-trip wall is **gone**. 8 unbounded reads made constant-size. Verified 3 ways + in-browser |
+| **The Event Log** | **LIVE** — the founder applied the migration. 1 737 rows. A DB trigger no code path can bypass |
+| **"volume ceiling" → "growth limit"** | It collided with `Ceiling`, a glossary term |
+
+### 🎯 THE NEXT JOB — the Lock-in fix (founder said yes, wants a mockup first)
+**The only place the product LIES about a rule it advertises to both sides.** A Driver who accepts and then
+vanishes keeps the trip until pickup; the Business's "take it back" button has **never once rendered**.
+- `accept_mission` always writes `confirmed` (`2026-08-22_accepted_fare.sql:126`) — the `accepted` state has
+  not existed since Option A/D55. **Live: 0 of 280 missions have ever been in `accepted`.**
+- But `reclaim_mission` (`2026-08-22e_repool_touches_nothing.sql:145`) and the button
+  (`components/trip-row.tsx:255`) both require exactly that state.
+- **Fix:** re-gate both on `confirmed AND checked_in_at IS NULL`. `checked_in_at` is live and populated on
+  184 rows. ⚑ **D25 preview first** — this makes a button appear that has never been seen.
+- ⚑ **The founder had a question about this that never got asked. Ask them before building.**
+
+### ⏳ THE EVENT LOG'S SECOND HALF — app-side events
+11 event types record automatically today. **12 more are defined in `mission_event_type` but NOTHING WRITES
+THEM** — `log_mission_event()` is called from **nowhere** in the app (verified 2026-08-24). Those are the
+"learn behaviour" half: `pool_impression`, `mission_viewed`, `contact_revealed`, `accept_rejected`,
+`checked_in`, `info_changed`, amendment/release proposed+answered, `close_answered`.
+⚑ Do not tell the founder these are tracked. They are not. Wiring them is a real job — **plan it first.**
+
+### 🗺 MAPPING — decided in principle, one test outstanding
+The founder has a **free Michelin / Mapping Factory key until Aug 2026** (routing, autocomplete, geocode,
+mapstyle — West Europe) and would prefer Michelin-only because Kavenue is a French project.
+**Claude argued against Michelin-only and the founder asked for no flattery:** the two providers are good at
+different jobs. Michelin (the ViaMichelin engine) is excellent at **road distance — which sets the price**.
+The weak spot in Kavenue is the **address box**, and finding hotels/terminals/POIs is Google Places's
+strength (already named "the real POI fix" in this backlog). Recommendation: **Michelin for distance, Google
+for the address box** — also the cheaper split.
+⚑ **NEXT SESSION: settle it with evidence, not opinion.** Run both against a list of real Riviera hotels and
+airport terminals and compare. If Michelin finds them well, Claude is wrong → Michelin-only, cheaper and
+French. ⚑ The founder pasted the key into chat; **treat it as exposed and rotate it.** Keys belong in
+`.env.local`.
+⚑ Related, found in the V1 audit: **when routing fails today the price-floor guard silently skips**
+(`dispatch/new/actions.ts:230`, `!asDraft && quote &&`). Fix alongside whichever provider wins.
+
+### 📄 THE WAYBILL / BOOKING VOUCHER — restart from scratch
+⚑ **The founder does not remember the "7 mandatory fields" and asked to START FRESH. Do not lead with the
+arrêté.** Their own framing, which is the right one to build from: *"what all apps have — a tiny button that
+displays all the info about the Driver, the Driver's company, who the mission is from, the passengers, the
+car and the mission, to show the police in a control."* They also noted the trip card already carries most
+of it. **Ask them for their simple list first**, then reconcile with `docs/01_Legal_VAT_Compliance.md:28`
+(*justificatif de réservation*, 7 fields, arrêté 6 Aug 2025) — the table `booking_voucher` already exists and
+no code touches it.
+
+### 👤 FOUNDER-OWNED, NOT CLAUDE'S
+- **`pickup-marketplace.vercel.app` is still live** and serving production under La Poste's trademarked name.
+  Founder: *"we will fix it at the next session."* Steps in BACKLOG § AD.
+- **Optional index** `docs/migrations/2026-08-23_info_change_business_idx.sql` — one line, irrelevant at
+  current volume, paste whenever.
+
+### 🅥 EXPLICITLY DEFERRED — do not raise
+- **§ V (lower-class opt-in) → V3+.** Founder: *"forget about it... in case we don't have enough drivers, but
+  if we do then maybe we'll never have to use it."* A supply contingency, not a feature. **The stranded
+  Classe V is NOT a bug to fix.**
+- **§ AF** (aggregate demand sensing) — V2/V3, unmeasurable at 9 Drivers.
+- Notifications / payments / auth / analytics integrations — the founder's standing phase rule.
+
+### 📋 V1 COMPLETENESS (audited 2026-08-24)
+**38 KEEP features in Doc 02: 27 built · 8 partial · 3 missing. Nothing on the critical path is unbuilt.**
+Real gaps beyond the Lock-in fix: no free edits while pooled (D39 says there should be) · no FAQ · no consent
+capture or account-deletion path (GDPR) · booking voucher · no welcome banner + `manifest.webmanifest` ships
+`"icons": []`. ✅ **Flight tracking: the founder said YES to V1** (needs a paid API — FlightAware /
+AeroDataBox — plus localisation; scope it with the mapping decision).
+Thin enough to embarrass: the Driver's photo and languages are captured and shown to **nobody** while two
+shipped strings claim otherwise · an **admin sign-in is an infinite redirect loop**
+(`lib/app-context.ts:94`) · `field_of_activity` and `business_type` are two columns that never talk.
+Full detail: `BACKLOG.md` § AE and the S65 entry in `SESSION_LOG.md`.
+
+### ⚑ THE LESSON OF S65 — it cost real time three times
+**The docs were confidently wrong, and only RUNNING something settled it.** The growth limit was documented
+as 5 000 and measured at **398**. `pooled_at` was said not to exist; it does. A "stale draft price" bug was
+described in detail; it does not exist. `status_event`'s CHECK was read from `docs/kavenue_schema.sql` as
+four values — it is **eight**.
+⚑ **`docs/kavenue_schema.sql` DOES NOT CONTAIN COLUMNS OR CONSTRAINTS ADDED BY LATER MIGRATIONS. Probe the
+live DB.** And when a number matters, measure it before scheduling work around it.
+⚑ **The founder asked twice for a brainstorm BEFORE coding.** Honour it: agree the shape, then build.
+
+---
 
 ## ⚑ 0 · VERIFY BEFORE YOU BUILD — THIS IS A GATE, NOT A SUGGESTION
 

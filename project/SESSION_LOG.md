@@ -171,7 +171,19 @@ paginated), and Spend + its CSV are clean. No console errors; server log shows o
 ⚑ Note for next time: `read_page` returned "(empty page)" with a 0×0 viewport throughout — screenshots,
 clicks and `javascript_tool` all worked, so drive this app by screenshot rather than by the a11y tree.
 
-### ⏳ THE EVENT LOG — built, executed against a replica, awaiting the founder's paste (§ AG)
+### ✅ THE EVENT LOG — LIVE. The founder applied it 2026-08-24 and it was verified on the real DB.
+
+**Live after the paste:** `mission_event` = **1 737 rows** (715 status_event + 1 022 mission-row backfill).
+⚑ **The 23-cancelled-0-events hole is CLOSED**, recovered from `mission.cancelled_at`; the 22 expired
+missions with no `status_event` correctly got nothing — that moment is gone and was not invented.
+⚑ **Live trigger proven, then cleaned to baseline:** a throwaway trip driven create → pooled → confirmed →
+en_route → arrived → on_board → completed gave **exactly 7 `db_trigger` events in order**, written by plain
+PostgREST updates with **no RPC**. `actor_kind='unknown'` is correct — the probe used the service role,
+where `auth.uid()` is NULL.
+⚑ **Supabase warns "destructive operations" on this file.** False alarm, audited line by line: 11 flagged
+statements, all targeting objects the migration itself creates. No existing row is ever updated or deleted.
+
+(Below: how it was designed and pre-verified against a local replica before the founder ran it.)
 
 Founder: *"then need to create and test a full and complete Event Log ready for beta."*
 `docs/migrations/2026-08-24_mission_event_log.sql` — 827 lines, transactional, additive, idempotent.

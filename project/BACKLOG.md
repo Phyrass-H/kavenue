@@ -1752,10 +1752,30 @@ is quiet".**
 
 ---
 
-## AG. Record every state transition — ⏳ BUILT AND TESTED S65, AWAITING THE FOUNDER'S MIGRATION (2026-08-24)
+## AG. Record every state transition — ✅ **LIVE** (founder applied the migration 2026-08-24)
 
-⏳ **The code is written and proven; nothing is live until the founder pastes the migration.**
+✅ **APPLIED AND VERIFIED AGAINST THE REAL DATABASE, 2026-08-24.**
 `docs/migrations/2026-08-24_mission_event_log.sql` (827 lines, transactional, additive, idempotent).
+
+**Live state after the founder ran it:** `mission_event` holds **1 737 rows** —
+715 `status_event_backfill` + 1 022 `mission_row_backfill`. By type: created 280 · pooled 280 ·
+confirmed 229 · completed 173 · checked_in 184 · **cancelled 23** · expired 26 · repooled 0.
+⚑ **The 23-cancelled-0-events hole is CLOSED** — recovered from `mission.cancelled_at`. The 22 expired
+missions with no `status_event` correctly got **no** event: that moment is gone and was not invented.
+
+⚑ **The live trigger was proven on the real DB**, then cleaned up to baseline (280 missions / 1 737 events):
+a throwaway trip driven through create → pooled → confirmed → en_route → arrived → on_board → completed
+produced **exactly 7 events in order, all `source='db_trigger'`** — written by plain PostgREST updates with
+**no RPC**, i.e. the bypass path. `actor_kind='unknown'` on all seven is CORRECT, not a defect: the probe
+used the service-role key, where `auth.uid()` is NULL, and the design records that honestly rather than
+guessing. Real Driver/Dispatcher actions are named.
+
+⚑ **The Supabase SQL editor warns "destructive operations".** It is a keyword scan, and it is a false
+alarm here — audited line by line: 11 flagged statements, **every one targets an object this migration
+itself creates** (its own trigger, its own policies, `revoke` on its own tables, `enable row level security`
+on its own tables). Zero `update`/`delete` of existing rows; zero `alter`/`drop`/`truncate` of `mission`,
+`driver`, `business`, `status_event`, `mission_cancellation` or `dispatcher`. The six frightening
+`drop table` lines are inside the commented rollback block. Say this to the founder if it warns again.
 
 **The design: a database TRIGGER as the spine, a purpose-built table as the body.**
 `mission_event` is append-only and carries `event_type`, `actor_kind`, `actor_id`, `audience`, `source` and

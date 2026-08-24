@@ -766,7 +766,12 @@ pickup **OR** dropoff (`pool/page.tsx:115-117`), so a null pickup with a geocode
 lets any Driver read any pooled mission (`docs/kavenue_schema.sql:310-313`), so it scales with total
 marketplace supply, not with one Business's archive.
 
-## 3 · § V — ⏸ BRAINSTORMED IN FULL AND PARKED BY THE FOUNDER (S65, 2026-08-23)
+## 3 · § V — 🅥 DEFERRED TO V3+ (founder, 2026-08-24). NOT A QUEUE ITEM.
+
+⚑ **"Forget about it please, it's going to be for at least V3 — in case we don't have enough drivers, but
+if we do then maybe we'll never have to use it."** It is a **supply contingency**, not a feature. Do not
+build it and do not raise it. The stranded Classe V is **not a bug to fix**. Design preserved in
+`BACKLOG.md` § V + [[d85]] only in case supply ever runs short.
 
 ⚑ **"Ok record it please, it's too early to work on that."** Nothing was built. **Do not start this
 unprompted** — one number is still the founder's to pick, and everything else is already decided.

@@ -1169,7 +1169,13 @@ knows). **Not adequate once money moves on its own.** Two conditions to watch:
 
 ---
 
-## V. A Driver may opt in to lower-class trips 🔨 (founder, 2026-08-15 · **BRAINSTORMED AND PARKED 2026-08-23, S65**)
+## V. A Driver may opt in to lower-class trips 🅥 (**DEFERRED TO V3+ by the founder, 2026-08-24**)
+
+⚑ **FOUNDER'S CALL, 2026-08-24: "forget about it please, it's going to be for at least V3 — in case we
+don't have enough drivers, but if we do then maybe we'll never have to use it."** This is a **supply
+contingency, not a feature**. Do not build it, do not raise it, and **do not treat the stranded Classe V as
+a bug to fix**. Everything below is a finished design kept only so that IF driver supply ever runs short,
+the thinking does not have to be redone. **Do not re-open unprompted.**
 
 ⚑ **PARKED BY THE FOUNDER, 2026-08-23: "it's too early to work on that."** Nothing was built. Everything
 below is the design settled in the S65 brainstorm — read it before touching this, the answers cost a

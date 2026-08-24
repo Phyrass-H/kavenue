@@ -2013,3 +2013,42 @@ nothing recorded it. In a few weeks the Lock-in window becomes a measurement rat
 
 Migrations: `docs/migrations/2026-08-24_event_registry_truth.sql` (data only — stop the registry claiming
 writers that don't exist). [[d86]] · § AG · § AF
+
+### D88 — The absence of a price is not evidence that the price is fine (2026-08-24, S66)
+The §5 floor guard on posting read:
+
+    if (!asDraft && quote && round2(ceiling!) < round2(quote.floor_price))
+
+`quote` is null whenever routing fails, so a **missing** price was indistinguishable from one that **passed**.
+The trip posted with no floor check at all — and `pdp_start` fell back to 50 % of the Ceiling in the same
+breath, re-opening the auction in the wrong place permanently. A previous session found this while fixing the
+`pdp_start` half and wrote it into a comment (*"…skipped in exactly the same breath"*) without closing it.
+
+**Fixed:** a missing quote is now its own refusal (`noprice`), and the floor comparison runs unconditionally.
+
+**⚑ Two claims Claude made to the founder were wrong and were corrected from the code:**
+1. *"The common cause is a typed address that wasn't picked from the suggestions."* **No** — posting already
+   requires a located drop-off (`nodrop`) and located stops (`nostop`), and a located pickup even for a draft.
+   On a POST, no quote means **routing itself failed**. The typed-address path only reaches this on a draft,
+   which is lenient by design.
+2. *"14 of 280 trips prove this is happening."* **No** — those 14 are seed and legacy rows (June/July, several
+   predating the `nodrop` guard). There is **no evidence it has ever fired in production**. The bug is
+   **latent**, not leaking: it waits for a Mapbox outage. Still worth fixing, at its real severity.
+
+**⚑ Routing is now retried once before refusing.** Making the guard strict without this would have traded a
+silent money bug for a loud availability one — a single transient blip becoming a hotel that cannot book. One
+retry kills blips; a real outage still stops at the guard, which is the correct place to stop.
+
+**Found alongside, same family:** `amend/page.tsx` renders `error && ERROR_COPY[error]`, and the amend action
+had redirected with `noprice` since it was written **with no copy for that key** — so a Dispatcher whose change
+couldn't be priced was bounced back to the form with **no message at all**. A refusal nobody is told about
+reads as a broken button. Copy added, and a test now asserts every error key the posting action can emit has a
+banner.
+
+**The pattern worth naming, because it has now appeared three times in two days:** a guard that treats
+*absence of data* as *absence of a problem*. The § R reclaim gate (`status = 'accepted'`, [[d86]]), the event
+log's eleven declared-but-unwritten types ([[d87]]), and this. In each case nothing errored, nothing warned,
+and the silence read as success. **Where a check needs a value, missing that value must be a refusal, never a
+skip.**
+
+No migration. [[d86]] [[d87]]

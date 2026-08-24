@@ -1296,3 +1296,18 @@ ring round.
 
 **Needs the migration run** — one short data-only one, so the log's own index stops listing things nothing
 writes.
+
+## 2026-08-24 — a trip can no longer be posted without a price
+
+- **If Kavenue can't work out the distance, it now refuses to post the trip** instead of quietly posting it
+  anyway. Before, a routing failure meant the "lowest price this can be offered at" check was skipped
+  entirely, and the starting price fell back to half your ceiling — permanently, for that trip.
+- **It tries twice before giving up**, so a one-second hiccup at the map provider doesn't stop you booking.
+- **And it tells you what happened** in plain words, so nobody re-types a perfectly good address trying to
+  make it work.
+- **Same fix on the change screen.** If a route change couldn't be priced, you were sent back to the form with
+  *no message at all* — the error existed but nobody had written the sentence for it.
+
+To be clear about how serious this was: **there's no sign it ever actually happened to you.** Posting already
+insists on picking addresses from the suggestions, so this only bites if the map provider itself goes down. It
+was a trap waiting rather than a leak running.

@@ -564,6 +564,18 @@ export function MissionForm({
           save it as a draft.
         </div>
       )}
+      {/* Routing failed, so Kavenue has no distance and therefore no floor price.
+          Posting anyway would skip the floor check entirely, so it doesn't — but
+          the Dispatcher must be told it's a hiccup on our side, not their mistake,
+          or they'll re-type perfectly good addresses trying to appease it. */}
+      {error === "noprice" && (
+        <div className="notice error">
+          We couldn’t work out the distance for this trip just now, so we can’t price
+          it — and we won’t post a trip we haven’t priced. Try again in a moment. If it
+          keeps happening, re-pick the addresses from the suggestions, or save it as a
+          draft and post it shortly.
+        </div>
+      )}
       {error === "past" && (
         <div className="notice error">
           That pickup time is in the past. Pick a future time, or save it as a draft.

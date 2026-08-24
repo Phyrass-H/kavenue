@@ -31,6 +31,13 @@ const ERROR_COPY: Record<string, string> = {
   nostop:
     "Pick every stop from the address suggestions — a stop we can’t place isn’t on the route, so it isn’t in the price either.",
   fare: "Enter the new agreed fare.",
+  // ⚑ The action has redirected with this key since it was written, and there was
+  // no copy for it — and the banner renders `error && ERROR_COPY[error]`, so an
+  // unknown key renders NOTHING. A Dispatcher whose change couldn't be priced was
+  // bounced back to the form with no explanation at all. Same family as the §5
+  // floor guard: a refusal nobody is told about reads as "it just didn't work".
+  noprice:
+    "We couldn’t work out the distance for the new route just now, so we can’t price the change. Try again in a moment, or re-pick the addresses from the suggestions.",
   db: "Couldn’t send the change. Please try again.",
 };
 

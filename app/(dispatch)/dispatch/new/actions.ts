@@ -189,15 +189,24 @@ export async function createMission(formData: FormData) {
   // never wipes a previously-cached ETA.
   const departAt =
     pickupAt!.getTime() > Date.now() ? pickupAt!.toISOString().replace(/\.\d{3}Z$/, "Z") : null;
-  const metrics =
+  // ⚑ Retried ONCE on failure. Since the floor guard below now refuses to post
+  // without a price, a single transient Mapbox blip would otherwise turn into a
+  // hotel unable to book — trading a silent money bug for a loud availability
+  // one. One retry kills the blips; a real outage still stops at the guard,
+  // which is the correct place to stop.
+  const routeOnce = () =>
     pickupValid && dropoffValid
-      ? await routeMetrics(
+      ? routeMetrics(
           { lat: pickupLat!, lng: pickupLng! },
           { lat: dropoffLat!, lng: dropoffLng! },
           departAt,
           via,
         )
-      : null;
+      : Promise.resolve(null);
+  let metrics = await routeOnce();
+  if (metrics == null && pickupValid && dropoffValid && !asDraft) {
+    metrics = await routeOnce();
+  }
   const eta = metrics
     ? { distance_km: metrics.distanceKm, duration_min: metrics.durationMin }
     : {};
@@ -227,7 +236,24 @@ export async function createMission(formData: FormData) {
   // Both sides of this comparison are ALL-IN: the rate card's floor is what the
   // Business would pay, and so is the number they typed. The conversion to the
   // stored Course happens below, after the guard.
-  if (!asDraft && quote && round2(ceiling!) < round2(quote.floor_price)) {
+  // ⚑ NO PRICE MEANS NO FLOOR CHECK — SO REFUSE, DON'T WAVE IT THROUGH.
+  //
+  // This guard used to read `!asDraft && quote && …`, which made a MISSING quote
+  // indistinguishable from a quote that passed: routing falls over, `quote` is
+  // null, and the trip posts with no floor check at all — and `pdp_start` falls
+  // back to 50 % of the Ceiling in the same breath (see the note below). The
+  // absence of a price is not evidence that the price is fine.
+  //
+  // ⚑ Only reachable when ROUTING failed, not when an address was typed: posting
+  // already requires a located drop-off (`nodrop`) and located stops (`nostop`),
+  // and the pickup is required even for a draft. So this is the Mapbox-is-down
+  // case — rare, but silent, and it lands on the one number that decides money.
+  //
+  // A draft stays lenient, exactly as it may be parked without a drop-off (S27).
+  if (!asDraft && !quote) {
+    redirect(backTo("noprice"));
+  }
+  if (!asDraft && round2(ceiling!) < round2(quote!.floor_price)) {
     redirect(backTo("belowfloor"));
   }
 
@@ -285,9 +311,13 @@ export async function createMission(formData: FormData) {
   // drop-off yet on a draft). Writing `course * 0.5` here looked harmless because
   // it is what the old curve opened at anyway — but on a RE-SAVED DRAFT that
   // already carries a real rate-card floor, it overwrites it with a number that
-  // has nothing to do with the trip's cost, and the §5 floor guard above is
-  // skipped in exactly the same breath (`!asDraft && quote &&`). A one-off Mapbox
-  // failure would silently re-open the auction in the wrong place, for good.
+  // has nothing to do with the trip's cost. A one-off Mapbox failure would
+  // silently re-open the auction in the wrong place, for good.
+  //
+  // ⚑ This note used to end "…and the §5 floor guard above is skipped in exactly
+  // the same breath". That is no longer true — the guard now REFUSES to post
+  // without a quote rather than waving the trip through (S66). So on this line
+  // `quote` can only be null on a DRAFT, which is the lenient case by design.
   //
   // Same conditional-spread idiom as `eta` above: absent, not overwritten. On a
   // FIRST insert there is nothing to preserve, so it falls back to the old 50 %

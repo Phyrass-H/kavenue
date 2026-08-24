@@ -39,6 +39,20 @@
   struggling at around 5,000 trips. Nobody had actually tested it. It turns out it **stops working at 398
   past trips for a single hotel** — and it doesn't slow down, it fails. Your busiest hotel is at 271, so
   there's about 127 trips of room. That job just moved up the list.
+- **The Event Log you asked for is built and tested — it needs one paste from you to go live.** From then on,
+  every time a trip changes state, the database itself writes a permanent record: who did it, when, and what
+  changed. It's written as a database rule rather than as app code, and that distinction is the whole point —
+  app code has to *remember* to record, and yours already forgets. Proof: you have **23 cancelled trips and
+  zero cancellation records**, and 48 expired trips with only 26 records. A database rule can't forget.
+- **It also rescues something you were losing.** Posting a draft used to overwrite the moment the draft was
+  created. That moment is now kept permanently, separately, where nothing can overwrite it.
+- **Tested by actually running it, not by reading it.** A throwaway copy of your database was built on this
+  Mac from your real schema and all 47 migrations, then a trip was driven through its whole life — booked,
+  posted, taken, dropped by the Driver, re-posted, taken again, driven, completed. Nine records, exact order.
+  Pasting it twice changes nothing, and switching it off leaves the app working normally.
+- **Being straight about the limits:** it cannot record what never happened in the database — someone
+  browsing the Pool, a tap that failed. And it cannot recover the past: for your 280 existing trips, when
+  each was booked and who took it is gone. That's exactly why starting now matters.
 - **Fixed it — the History and Schedule pages will no longer break as you grow.** The app used to ask the
   database about every one of a hotel's trips by listing them all in one request, which failed outright at
   398. It now asks by hotel instead, so the request stays the same small size whether they have 10 trips or

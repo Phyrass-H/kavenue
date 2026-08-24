@@ -171,9 +171,67 @@ paginated), and Spend + its CSV are clean. No console errors; server log shows o
 ⚑ Note for next time: `read_page` returned "(empty page)" with a 0×0 viewport throughout — screenshots,
 clicks and `javascript_tool` all worked, so drive this app by screenshot rather than by the a11y tree.
 
-**Next:** rules 2 and 3 (SQL filtering, pagination — both constrained: whole-archive chip counts, and fare
-sorting cannot move to SQL). The **Driver side** has the same fan-out with **354 of headroom** vs the
-Business side's 127. § V resumes when the founder picks the threshold number.
+### ⏳ THE EVENT LOG — built, executed against a replica, awaiting the founder's paste (§ AG)
+
+Founder: *"then need to create and test a full and complete Event Log ready for beta."*
+`docs/migrations/2026-08-24_mission_event_log.sql` — 827 lines, transactional, additive, idempotent.
+
+**Design: a DB trigger as the spine, `mission_event` as the body.** Three options were argued and attacked;
+**the live data decided it.** Recording is already permitted for cancellation and expiry and already does
+not happen — **23 cancelled → 0 events, 48 expired → 26 events** — and `p_mission_business_update`
+(`kavenue_schema.sql:320-322`) is USING-only with no WITH CHECK, so a Dispatcher can PATCH `status` with no
+RPC at all. Only a trigger sits below every path. App-side `log_mission_event()` covers what the DB cannot
+see, tagged `source` so a reader can tell a guaranteed row from a best-effort one.
+
+⚑ **VERIFIED BY EXECUTION.** A throwaway Postgres 17 was built locally from `kavenue_schema.sql` + **46 of
+47 migrations** (one unrelated failure) — its reconstructed `status_event` CHECK matched live exactly. The
+migration applied clean; a full lifecycle (draft → post → confirm → **walk** → re-pool → confirm → run →
+complete) produced exactly 9 events in order; post → expire gave 3; a no-op status write emitted nothing;
+re-running the migration twice stayed at 16 events; and disabling the trigger left writes working.
+⚑ Every one of those was driven by **plain UPDATEs with no RPC** — i.e. the bypass path — and logged anyway.
+⚑ **The destroyed draft timeline is rescued:** the `created` event is immutable — overwriting
+`mission.created_at` by three days left it untouched, proved by measuring the resulting gap.
+
+⚑ **NO DDL WAS RUN AGAINST SUPABASE** — Claude's keys are PostgREST, rows only. The founder is the first to
+run it for real. Instant remedy if anything misbehaves:
+`alter table mission disable trigger mission_event_log;` — the app keeps working, only logging stops.
+
+⚑ **What it cannot capture, stated so the log is never over-trusted:** rolled-back transactions, actions
+with no row change (Pool browsing, a contact tapped), the actor behind a service-role write (`auth.uid()`
+is NULL — recorded `unknown`, never guessed), and **the entire pre-migration past** for the 280 existing
+missions. Never infer that past from NULLs: `pooled_at` and `accepted_fare` are NULL on all 280 for reasons
+unrelated to whether the thing happened.
+
+✅ `status_event` is left alone — it is a domain input (the waiting meter and the arrival attestation read
+it), not history. Its 715 rows are copied in once, marked imported. ⚑ Its live CHECK accepts **eight**
+values, not the four in `kavenue_schema.sql:139` — that file is not the live truth. Claude asserted "four"
+and then "six" during this session before probing properly; the six came from testing only `mission_status`
+enum members, and `no_show`/`repooled` are not in that enum.
+
+Suite **473 → 487**. `lib/mission-events.ts`, `tests/mission-events.test.ts`, `.local/probe/event-log-e2e.ts`,
+plus a § AG reconciliation assertion in `handoff-check.ts` that would have caught the 23-cancelled-0-events
+hole.
+
+### The V1 audit — what is genuinely left
+
+38 KEEP features in Doc 02: **27 built, 8 partial, 3 missing.** Nothing on the critical path is unbuilt.
+⚑ **The one that blocks beta, verified:** the **Lock-in 3h rule cannot fire.** Since Option A/D55
+`accept_mission` always writes `confirmed` (`2026-08-22_accepted_fare.sql:126`), but `reclaim_mission`
+(`2026-08-22e_repool_touches_nothing.sql:145`) and the Business's button (`components/trip-row.tsx:255`)
+both require `accepted`. **Live: 0 of 280 missions have ever been in `accepted`** — the reclaim has never
+been reachable, and nothing else re-pools a silent Driver's trip. A Driver who accepts and vanishes holds
+the trip until pickup. Fix: re-gate both on `confirmed AND checked_in_at IS NULL` (already set on 184 rows).
+Other real gaps: no free edits while pooled (D39 says there should be), no FAQ, no consent capture or
+deletion path (GDPR), booking voucher unbuilt (**blocked on the founder's 7-field template**), no welcome
+banner + `manifest.webmanifest` ships `"icons": []`.
+Thin: the Driver's photo and languages are captured and shown to nobody while two shipped strings claim
+otherwise; an admin sign-in is an infinite redirect loop (`lib/app-context.ts:94`); `field_of_activity` and
+`business_type` are two columns that never talk.
+⚑ **Two founder decisions needed:** does **flight tracking** ship in V1 (needs a paid API — not covered by
+the notifications/payments/auth/analytics deferral), and what are the **7 voucher fields**?
+
+**Next:** the Lock-in fix is the one item where the product lies about a rule it advertises. Then § R rules
+2-3, § AE, and § V once the founder picks the threshold.
 
 ---
 

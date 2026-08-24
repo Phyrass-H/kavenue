@@ -1746,7 +1746,67 @@ is quiet".**
 
 ---
 
-## AG. Record every state transition — `status_event` cannot currently do it ⚙️🔨 (founder, 2026-08-23)
+## AG. Record every state transition — ⏳ BUILT AND TESTED S65, AWAITING THE FOUNDER'S MIGRATION (2026-08-24)
+
+⏳ **The code is written and proven; nothing is live until the founder pastes the migration.**
+`docs/migrations/2026-08-24_mission_event_log.sql` (827 lines, transactional, additive, idempotent).
+
+**The design: a database TRIGGER as the spine, a purpose-built table as the body.**
+`mission_event` is append-only and carries `event_type`, `actor_kind`, `actor_id`, `audience`, `source` and
+a `payload jsonb`. It is fed by an `after insert or update of status on mission` trigger, plus explicit
+app-side inserts via `log_mission_event()` for the things the database cannot see.
+
+⚑ **Why a trigger and not "insert from each writer" — the live data settled it.** Recording is *already
+permitted* for cancellation and expiry, and *already does not happen*:
+**23 cancelled missions → 0 cancelled events. 48 expired → 26 events.** On top of that,
+`p_mission_business_update` (`docs/kavenue_schema.sql:320-322`) is USING-only with **no WITH CHECK**, so a
+Dispatcher can PATCH `mission.status` straight through PostgREST with no RPC involved at all. Only a trigger
+sits below every one of those paths.
+
+⚑ **What it CANNOT capture — say this out loud, never let the log be trusted further than it deserves:**
+anything rolled back (a failed `accept_mission` destroys its own log row — refusals must be written
+out-of-band), anything with no row change (a Driver browsing the Pool, a contact tapped), the actor behind
+a service-role write (`auth.uid()` is NULL there — recorded as `unknown`, never guessed), two transitions
+collapsed into one statement, and **the entire pre-migration past**. For the existing 280 missions, when
+each was drafted, pooled and accepted — and who did any of it — is gone. ⚑ Never infer it from NULLs:
+`pooled_at` and `accepted_fare` are NULL on all 280 for reasons unrelated to whether the thing happened.
+
+✅ **`status_event` is left completely alone** — not widened, no new writer. It is not history, it is a
+domain input: the waiting meter reads its `arrived` row (`2026-07-22_waiting_fee.sql:145`) and the arrival
+attestation reads it (`app/(app)/missions/[id]/page.tsx:113-120`). Its 715 rows are copied once into
+`mission_event` with `source='status_event_backfill'`, keeping their original timestamps and marked as
+imported rather than observed.
+⚑ Its live CHECK accepts **eight** values — `en_route, arrived, on_board, completed, cancelled, no_show,
+repooled, expired` — widened twice (`2026-07-13_o7_cancellation.sql:38`, `2026-07-31_expired_missions.sql:44`).
+`docs/kavenue_schema.sql:139` shows only the original four and is **not the live truth**.
+
+### ⚑ VERIFIED BY EXECUTION, not by reading — S65, 2026-08-24
+
+A throwaway Postgres 17 was stood up locally, loaded with `docs/kavenue_schema.sql` and **46 of the 47
+existing migrations** (one unrelated failure: `2026-07-19_no_show_airport_label.sql`), giving a faithful
+replica — its reconstructed `status_event` CHECK matched the live one exactly. Then:
+
+| test | result |
+|---|---|
+| the migration applies | ✅ clean |
+| full lifecycle — draft → post → confirm → **walk** → re-pool → confirm → run → complete | ✅ exactly 9 events, right order |
+| post → expire | ✅ `created → pooled → expired` |
+| a no-op status write (PostgREST mentions `status` on every update) | ✅ emits nothing |
+| ⚑ driven entirely by **plain UPDATEs, no RPC** — the bypass path | ✅ logged anyway |
+| ⚑ the destroyed draft timeline | ✅ the `created` event is **immutable**; overwriting `mission.created_at` by 3 days left it untouched |
+| re-running the migration twice | ✅ idempotent, 16 → 16 → 16 events |
+| rollback (`alter table mission disable trigger`) | ✅ writes keep working, 0 events |
+
+⚑ **No DDL was ever run against Supabase** — Claude's keys go through PostgREST, rows only. The founder is
+still the first to run this against the real database. **If anything misbehaves, the instant remedy is
+`alter table mission disable trigger mission_event_log;`** — the app keeps working, only logging stops.
+
+**Supporting files:** `lib/mission-events.ts` (the app-side vocabulary), `tests/mission-events.test.ts`
+(14 tests, suite 473 → **487**), `.local/probe/event-log-e2e.ts`, and a § AG reconciliation block added to
+`.local/probe/handoff-check.ts` that counts terminal-state missions against events recorded — the assertion
+that would have caught the 23-cancelled-0-events hole.
+
+### The original gap, kept for the trail
 
 **Founder, when told nothing records a mission entering the Pool:** *"We need records of everything and
 that's for us in admin side and for analyses and disputes and learn behaviour and getting better."*

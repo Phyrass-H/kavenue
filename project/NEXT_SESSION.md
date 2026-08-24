@@ -247,7 +247,7 @@ about that point — **fix the file before you build on it.** Then:
     node --experimental-strip-types .local/probe/accepted-fare.ts       #  20 · ALL AGREE
     node --experimental-strip-types .local/probe/reclaim-live.mts       #  20 · D86 end to end
     node --experimental-strip-types .local/probe/event-registry-live.mts #  16 · D87 registry
-    node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 61 · 0 failed
+    node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 63 · 0 failed
     node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
 
 **If a probe fails, that is the job** — not whatever is queued above.
@@ -257,6 +257,29 @@ about that point — **fix the file before you build on it.** Then:
 ---
 
 ## ⚑ TRAPS LEARNED IN S66 — every one cost real time
+
+- ⚑ **TWO PROBES WENT STALE THE MOMENT S66 SHIPPED — fixed 2026-08-24 (S67), read this before writing another.**
+  Both failed for the same reason, and neither was a code regression:
+  - `event-registry-live.mts` asserted `mission_event count === 1848`. **An equality check on an
+    append-only table fails on the first session that uses the app.** It is now a FLOOR (`>= 1848`),
+    because the direction that needs guarding is rows *disappearing* — the table's own comment says
+    *"Never UPDATE or DELETE a row here"*.
+  - `migrations-2026-08-10.ts` case **P2 drove the reclaim from `status='accepted'`** — the exact dead
+    gate D86 deleted hours earlier. It now starts from `confirmed` + never checked in at T−30min, and a
+    new **P5** proves the other side (a Driver who DID check in keeps the trip), so the check-in clause
+    cannot be dropped unnoticed. **61 → 63 checks.**
+  ⚑ **The lesson: a probe is a claim too, and the session that changes behaviour must re-run every probe
+  that touches it, not just the one it wrote.** D86's own `reclaim-live.mts` was green at 20/20 the whole
+  time — the *old* probe was the only thing that noticed, and it was ignored because it looked broken.
+  **When you change a rule, `grep -rl "<rpc_name>" .local/probe/` before you close the session.**
+
+- ⚑ **`mission_event` has NO foreign key to `mission`** (`2026-08-24_mission_event_log.sql:78`) — deliberate,
+  the log outlives the trip. Consequence nobody had measured: **221 of 1 959 events describe a mission that
+  no longer exists**, mostly probe residue, because deleting a mission strands its events. `event-registry-live`
+  now prints that number every run. Two things follow: the pre-launch sweep **must** include this table (already
+  noted), and **the Activity console will meet events with no trip behind them** — design for it. Probe `undo()`
+  helpers now delete `mission_event` by recorded id; that is not a violation of *"never delete"*, because those
+  rows are the history of trips that never existed.
 
 - **`.select()` IS SILENTLY CAPPED AT 1000 ROWS BY PostgREST.** The first read of `mission_event` showed five
   event types with **zero** rows — which reads exactly like "the trigger stopped firing" — when `en_route`

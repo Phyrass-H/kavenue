@@ -5,6 +5,34 @@
 
 ---
 
+## 24 August 2026 — three things that were quietly broken, and the checks that missed them
+
+- **You can now take a trip back off a Driver who hasn't shown up for it.** The button existed, and it had
+  never once worked for anybody — it waited for a state the app stopped using months ago. It now opens **two
+  hours before pickup**, and only for a Driver who hasn't checked in. Check-in opens three hours before, so
+  the Driver still gets a full hour of grace, and whoever replaces them gets two hours to get there.
+- **The Event Log's second half is switched on.** Nine kinds of record were named, listed, and written by
+  nothing at all — check-ins, price change proposals and answers, release requests, a Driver's phone number
+  being revealed. They record now. The two you cut (who *browsed* the Pool) are still off, and now say in
+  writing that this was your decision, so nobody "fixes" them back on.
+- **Kavenue will no longer post a trip it couldn't work out a price for.** If the price came back missing,
+  the check that's supposed to stop an underpriced trip was skipped entirely — and a skipped check looks
+  exactly like a passed one. Now a missing price is a refusal.
+- **⚑ All three were the same mistake, and it's worth naming.** In each case *no data* was being read as
+  *no problem*. Nothing errored, nothing warned, and the silence read as success — which is why all three
+  survived for months. Anywhere a check needs a number, a missing number now has to stop the trip.
+- **Two of our own safety checks were themselves out of date, and were fixed today.** One tested the reclaim
+  through the dead route above, so it went red the moment the real fix landed. The other insisted the Event
+  Log hold *exactly* 1,848 records — on a log that grows every time anything happens, so it was destined to
+  fail on the next working day. Both corrected, and one new check added: a Driver who **has** checked in must
+  keep the trip, so that rule can't be dropped without something noticing.
+- **One thing found along the way that you'll want to know about later.** The Event Log deliberately keeps a
+  trip's history after the trip itself is deleted. That's right — but it means **221 of the 1,959 records
+  describe trips that no longer exist** (nearly all of them from our own testing). It's now printed every time
+  we run the checks, so the number can't creep up unseen, and the big clean-out before launch already covers it.
+
+---
+
 ## 23 August 2026 — the old name is off the code repository
 
 - **The code repository is now called `kavenue`.** It was still `Pickup-marketplace` — a public page under a

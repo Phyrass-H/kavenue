@@ -4253,3 +4253,63 @@ session at the wrong thing with the wrong urgency.
 - Test data removed throughout: **280 missions · 1848 events**, both back to baseline.
 
 `npx tsc --noEmit` clean · **523 tests passing** (36 new across three files) · `npm run build` clean.
+
+## Session 67 — 2026-08-24 · the two probes that went stale the moment S66 shipped
+
+Setup session. Ran the full gate from `NEXT_SESSION.md` § 0. **21 of 23 green; the two failures were both
+stale probe expectations, not code regressions** — and both were confirmed against the live DB before touching
+anything, per the S63 rule (*suspect the probe's expectations before the code*).
+
+### The two failures
+
+**1 · `.local/probe/migrations-2026-08-10.ts` — case P2 drove the reclaim through the dead gate.**
+`mk("P2 reclaim <24h", 0.5, "accepted")`. [[d86]] had replaced that gate hours earlier: `accepted` is a status
+nothing has reached since [[d55]] (0 of 280 mission rows, 0 of 715 `status_event` rows), which is exactly why
+the reclaim was unreachable for months. So the probe was asserting the old, dead rule and failing on the fix.
+- P2 is now `confirmed` + `checkedIn: false` at **T−30min** — what a real reclaim looks like.
+- Added **P5**, which did not exist in any form: a `confirmed` trip the Driver **did** check in on must be
+  **refused** (`Not eligible for reclaim`) and stay theirs. Without it the check-in clause could be dropped
+  from `reclaim_mission` and every probe would still be green.
+- ⚑ `repooled()`'s `checked_in_at CLEARED` assertion is now **vacuous on the P2 branch** and deliberately left
+  in — [[d86]] only lets a reclaim start from `checked_in_at IS NULL`, so there is nothing to clear. The RPC
+  still writes it, and P0/P1/P3/P4 still prove the clearing on rows that really were checked in. Noted at the
+  call site so nobody reads that green tick as proof.
+- **61 → 63 checks, 0 failed.** (The handoff's "61" reconciles: the P2 failure was skipping the seven
+  `repooled()` assertions behind `if (!error)`.)
+
+**2 · `.local/probe/event-registry-live.mts` — an equality check on an append-only table.**
+`t("mission_event untouched by a data-only migration", total.count === 1848)`. The log grows every time
+anything happens to any trip, so this was guaranteed to go red on the first working session after D87 — a
+false alarm indistinguishable from a real regression. The direction that needs guarding is the opposite one
+(the table comment: *"Never UPDATE or DELETE a row here"*). Now a **floor**: `count >= 1848`, dated, with a
+note not to lower it to make it pass. **16 passed · 0 failed.**
+
+### ⚑ The lesson, which is the S66 pattern one level up
+**A probe is a claim about the repo too.** D86's own `reclaim-live.mts` was 20/20 green throughout — the
+*old* probe was the only thing that noticed the change, and its red was ignored as breakage. The session that
+changes a rule must re-run every probe that touches it: **`grep -rl "<rpc_name>" .local/probe/` before
+closing.** Written into the S66 trap list in `NEXT_SESSION.md`.
+
+### Found along the way — `mission_event` has no FK to `mission`
+`2026-08-24_mission_event_log.sql:78` declares `mission_id uuid not null` with **no `references`**, on purpose:
+the log outlives the trip. Unmeasured consequence: **221 of 1 959 events point at a mission that no longer
+exists**, nearly all probe residue, because a probe's `undo()` deletes the mission and strands its events.
+- `event-registry-live.mts` now **prints that count every run** (as an observation, not an assertion — the
+  honest answer changes, and it should be 0 after the pre-launch sweep). Both reads page in 1000-row chunks;
+  the PostgREST cap is the S66 trap.
+- `migrations-2026-08-10.ts`'s `undo()` now deletes `mission_event` by **recorded id**. That is not a breach of
+  *"never delete"* — those rows are the history of trips that never existed. Verified: the probe run creates
+  11 missions and their events, and leaves the totals at **1 959 / 221**, unchanged.
+- ⚑ **Two things follow for the Activity console (next session's job 2): it will meet events with no trip
+  behind them, and the pre-launch sweep must include this table.**
+
+### Gate, after the fixes
+`handoff-check` 23/23 · `tsc` clean · **523 tests** · `diff-sql-vs-lib` ALL AGREE · `write-test` 170 ALL AGREE ·
+`curve-live` 8 · `accepted-fare` 20 · `reclaim-live` 20/0 · `event-registry-live` **16/0** ·
+`migrations-2026-08-10` **63/0** · `migrations-2026-08-11` 23/0. Mission table restored to **280**.
+
+### Also closed
+`CHANGELOG.md` had **no entry for 24 August** — S66's three shipped fixes (D86/D87/D88) never got their
+plain-language lines. Written, together with today's.
+
+**No migration. No app code touched — probes and docs only.**

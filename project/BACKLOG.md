@@ -1905,3 +1905,49 @@ cost trust with the supply side, which at 9 Drivers is the scarce resource.
 
 **Related:** § H2 (the [[d45]] fee is arguably too weak on cheap trips) is the same argument from the other
 end — both are "what does abandoning a job cost?", and they should probably be decided together.
+## AI. Live Driver location for the Business, once the native app exists ⚙️🅥 (founder, 2026-08-25, S67)
+
+**The founder's ask:** *"once we have the native app, I would like to implement live location for all
+businesses to track the current drivers."* Parked behind the native app by definition — see below.
+
+### ⚑ WHY IT CANNOT BE A PWA FEATURE, WHICH IS WHY IT WAITS
+A web app **cannot read location in the background**. When the Driver's screen locks or they switch to Waze —
+exactly when they are driving — iOS suspends the page and position updates stop. A live map built on that
+would show the Driver **frozen wherever they last had Kavenue open**, and the Dispatcher would believe the
+dot. That is worse than showing nothing, and it is the same failure shape as [[d86]]/[[d87]]/[[d88]]: a stale
+answer is indistinguishable from a fresh one.
+
+⚑ **The distinction that decides what is buildable today:**
+- **One-shot location, Driver in the foreground** — possible in the PWA right now. This is what [[d45]]'s
+  SPEED WIN reachability gate needs (can this Driver physically reach the pickup in time?).
+- **Continuous location while driving** — native only. This item.
+
+### How it would work
+Native app streams position **during an active trip only** → Supabase Realtime (already in the stack, already
+paid for) → the Dispatcher's screen. **Store the latest position only, not a trail** — cheaper, and a trail is
+a far bigger privacy object than a current position.
+
+### Cost — effectively zero at beta scale, and the reason is worth knowing
+The GPS is the Driver's own phone and is free. The two things that *can* cost:
+1. **The map the Dispatcher looks at**, billed per map load. Mapbox includes 50 000/month; at ~10 trips/day
+   this is order 1 000. Free.
+2. **The live connection** — Supabase Realtime, already covered.
+
+So the cost is **build time, not a bill**: roughly a week on top of an existing native app. ⚑ Re-cost the map
+loads if trips/day goes up by 10×; the per-load line is the only one that scales with usage.
+
+### ⚑ TWO THINGS THAT WILL BITE, AND ONE OF THEM IS A DESIGN DECISION
+1. **Battery.** Continuous GPS drains a phone and Drivers notice and complain. Track **only while a trip is
+   running**, never idle. A Driver who believes Kavenue watches them off-shift will delete the app.
+2. **⚑ SCOPE IT TO THE TRIP, NOT THE FLEET.** The ask says *"all businesses to track the current drivers"*.
+   A Business must see **the Driver on its own trip, while that trip is running** — and nobody else. Every
+   Business seeing every Driver makes Kavenue a surveillance tool for a fleet it does not employ; the Drivers
+   are independent companies and would refuse, correctly. It is also the most sensitive category of personal
+   data there is. Scoped to *your trip, while it runs*, it is the same deal Uber offers and Drivers accept it.
+   ⚑ Kavenue is an **agent**, never the employer — CLAUDE.md hard rule #2 cuts the same way here.
+
+### Related
+Doc 02 marks *"Continuous live-map GPS to Dispatcher"* **CUT** for V1 — this item is the V2+ version of that
+line, not a contradiction of it. · [[d45]] (one-shot, buildable now) · § Q / § U.4 (observed arrival by
+geofence — the other thing the native app unlocks) · § AG (the event log, which would record the trip's taps
+either way).

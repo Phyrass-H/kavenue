@@ -2140,3 +2140,36 @@ decision for the one-mailbox-three-aliases setup this extends.
 **Verified by execution:** a throwaway local admin was created via `/api/dev-login`, promoted, and driven —
 `/` → `/admin`, `/welcome` → `/admin`, and a signed-in Dispatcher hitting `/admin` → `/dispatch`. Then removed;
 roles back to 4 dispatchers / 4 drivers / **0 admins**.
+### D91 — Admin gets its own host, because the session cookie says it must (2026-08-25, S67)
+[[d90]] shipped the admin area with **no subdomain**, served from whichever host the admin happened to sign in
+on — `dispatch.kavenue.fr/admin` in practice. The reasoning was "a subdomain is infrastructure, for a surface
+one person uses". **The founder pushed back the same hour: *"why can't I have the admin elsewhere? Why here?
+it's confusing…"*** They were right, and for a harder reason than the one they gave.
+
+**⚑ THE REASON THAT SETTLES IT IS THE SESSION COOKIE, NOT THE AESTHETICS.** `lib/hosts.ts` splits the app
+across subdomains precisely so each host carries its **own** session cookie — that is why the founder can be a
+Driver on `driver.` and a Business on `dispatch.` at once. An admin area with no host of its own shares
+`dispatch.`'s cookie, so **signing in as admin signs you out of your Business account, and back again, all
+day.** Not untidy — broken. The founder's instinct found it before the analysis did.
+
+**And their stated reason stands on its own:** Dispatch is the *hotel's* app. Kavenue is an **agent**, never
+the principal (hard rule #2) — running Kavenue's own back office behind a customer's front door is the wrong
+shape regardless of cookies.
+
+**`admin.kavenue.fr`.** CNAME at OVH → the per-project Vercel target (read off the panel, not from memory —
+that assumption cost time in S49), the domain added to the Vercel project, and
+`https://admin.kavenue.fr/auth/callback` added to the Supabase redirect allowlist. Verified live: DNS
+resolves, TLS is valid, and `/admin` sends an anonymous visitor to `/login` **on the admin host**.
+
+**⚑ TWO FALL-THROUGH BUGS THE COMPILER CAUGHT, WHICH IS THE POINT OF THE CHANGE.** `homePathForSub()` read
+`sub === "driver" ? "/pool" : "/dispatch"` — the moment `"admin"` joined `RoleSub`, it would have silently sent
+admins to **Dispatch**. Exactly the D86–D90 family, a sixth time. It is now an exhaustive `switch` with a
+`never` assignment, so the **compiler refuses to build** when a subdomain has no home path. That change
+immediately surfaced a second one: the sign-in page's `COPY` map was keyed on a hand-written union and would
+have greeted an admin with *"Kavenue Driver"*. It is now keyed on `RoleSub` itself.
+
+**⚑ The lesson, and it is the one this project keeps paying for:** these were caught because the *type* was
+widened, not because anyone remembered to look. **Where a value must cover every case, make the compiler the
+check — a reviewer's memory is not one.** `tests/hosts.test.ts` (21 assertions) covers the half the compiler
+cannot see: every role maps to a subdomain, every subdomain has a **distinct** home, the mapping round-trips,
+and the whole mechanism stays a no-op off production.

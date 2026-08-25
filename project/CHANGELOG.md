@@ -5,6 +5,26 @@
 
 ---
 
+## 25 August 2026 — the admin area gets its own address: admin.kavenue.fr
+
+- **You said putting the admin area inside the hotel app was confusing. You were right, and it was worse than
+  confusing.** Kavenue deliberately keeps each side on its own web address so they each have their own
+  sign-in. Sharing an address with Dispatch would have meant **signing in as administrator logged you out of
+  your Business account**, and back again, every time you switched. Genuinely broken, not just untidy.
+- **Your reason was right on its own too.** Dispatch is the *hotel's* app. Kavenue's own back office doesn't
+  belong behind a customer's front door.
+- **So it now lives at `admin.kavenue.fr`** — its own address, its own sign-in, alongside `driver.` and
+  `dispatch.` DNS, certificate and sign-in link all verified working.
+- **Two more silent bugs were caught before they shipped, by the computer rather than by anyone remembering.**
+  The rule deciding "which page is home for each address" was written in a way that would have quietly sent
+  administrators to **Dispatch**. And the sign-in page would have greeted you with "Kavenue Driver". Both were
+  the same mistake as the ones from yesterday — something written for two cases, then a third case added.
+- **That's now structurally impossible.** The code is written so it **refuses to build** if a new address is
+  ever added without saying where it leads. Six times this month a "quiet wrong answer" has cost real time;
+  this is the first change that makes the machine catch it instead of a person.
+
+---
+
 ## 25 August 2026 — Kavenue can have an administrator for the first time
 
 - **There was no way to be an administrator, and trying would have trapped you in a loop.** Kavenue has always

@@ -4,9 +4,14 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RoleSub } from "@/lib/hosts";
 
-const COPY: Record<"driver" | "dispatch" | "generic", { title: string; subtitle: string }> = {
+// ⚑ KEYED ON `RoleSub`, NOT A HAND-WRITTEN UNION. When "admin" joined RoleSub the
+// compiler stopped the build here rather than letting an admin see "Kavenue
+// Driver" — which is the only reason this line got written at all. Keep it tied
+// to the type: a new subdomain must be a build error, not a wrong heading.
+const COPY: Record<RoleSub | "generic", { title: string; subtitle: string }> = {
   driver: { title: "Kavenue Driver", subtitle: "Sign in to see available missions." },
   dispatch: { title: "Kavenue Dispatch", subtitle: "Sign in to manage your bookings." },
+  admin: { title: "Kavenue Admin", subtitle: "Sign in to continue." },
   generic: { title: "Kavenue", subtitle: "Sign in to continue." },
 };
 

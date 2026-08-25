@@ -4421,3 +4421,48 @@ creates the wrong role.** They must sign in and STOP there; the profile row is t
 by whoever is at the keyboard. This ordering trap is the only awkward part of the job.
 
 **Next: the Activity console — and it gets a design preview before any of it is built ([[d25]] loop).**
+## Session 67, part D — 2026-08-25 · admin.kavenue.fr, and the compiler starts catching the family bug ([[d91]])
+
+Part C shipped `/admin` with **no subdomain**, on the reasoning that DNS is infrastructure for a one-person
+surface. The founder pushed back the same hour — *"why can't I have the admin elsewhere? Why here? it's
+confusing…"* — and was right for a harder reason than the one they gave.
+
+### ⚑ The session cookie is what settles it
+`lib/hosts.ts` splits the app across hosts so each carries its **own** session cookie; that is why a Driver
+session on `driver.` and a Business session on `dispatch.` coexist. An admin area with no host of its own
+shares `dispatch.`'s cookie — **signing in as admin would sign the founder out of their Business account, and
+back again, all day.** Broken, not untidy. Their stated reason also stands alone: Dispatch is the *hotel's*
+app, and Kavenue is an agent, never the principal (hard rule #2).
+
+### Shipped
+- `RoleSub` → `"driver" | "dispatch" | "admin"`; `subForRole`, `roleSubOf` follow.
+- `app/admin/layout.tsx` gains the wrong-subdomain bounce, identical in shape to the Driver and Dispatch
+  layouts. **Keep all three the same** — they are the only three places this pattern appears.
+- `.env.example` documents `https://admin.kavenue.fr/auth/callback` in the Supabase allowlist.
+- **Founder did:** the OVH CNAME (`admin` → `b995c589bd56b1fa.vercel-dns-017.com.`, trailing dot),
+  the Vercel domain, and the Supabase redirect URL.
+
+### ⚑ TWO FALL-THROUGH BUGS THE COMPILER CAUGHT — the actual story of this part
+1. `homePathForSub()` was `sub === "driver" ? "/pool" : "/dispatch"`. The moment `"admin"` joined `RoleSub`
+   it would have **silently sent admins to Dispatch.** The D86–D90 family, a sixth time.
+2. Fixing it as an exhaustive `switch` with a `never` assignment made the build fail on
+   `app/login/login-form.tsx`, whose `COPY` map was keyed on a hand-written union — an admin would have been
+   greeted with **"Kavenue Driver"**. Now keyed on `RoleSub` itself.
+
+⚑ **Neither was found by looking. Both were found by widening the TYPE.** Where a value must cover every case,
+make the compiler the check; a reviewer's memory is not one. This is the first change in the D86–D91 run that
+moves the guarantee from discipline to the build.
+
+### Tests — `tests/hosts.test.ts`, 21 assertions, suite 534 → **555**
+Covers what the compiler cannot: every `user_role` maps to a subdomain · every subdomain has a **distinct**
+home path (a fall-through would collapse two together) · the host↔sub mapping round-trips · admin is not the
+same host as dispatch · and the whole mechanism stays a **no-op off production**, so localhost and previews
+never redirect to the live site. Also pins `isProdDomain("notkavenue.fr") === false`.
+
+### Verified live
+`dig` → CNAME resolves to the Vercel target · TLS valid · `https://admin.kavenue.fr/admin` → 307 to
+`/login` **on the admin host**, not to dispatch.
+
+⚑ **Still open, unchanged from part C:** the real admin account does not exist. First sign-in with
+`admin@kavenue.fr` lands on `/welcome` with no profile and offers *"Driver or Business"* — **picking either
+creates the wrong role.** Sign in, stop, then write the profile row with `role='admin'`.

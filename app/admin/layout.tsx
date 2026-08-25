@@ -8,16 +8,18 @@
 // infinite redirect that nobody ever hit because no admin account existed (4
 // dispatchers, 4 drivers, 0 admins, measured 2026-08-25).
 //
-// ⚑ NO SUBDOMAIN OF ITS OWN, DELIBERATELY. `subForRole()` maps admin → null, so
-// `urlForRole()` returns a plain path and the admin area is served from whichever
-// host they signed in on (dispatch.kavenue.fr/admin in practice). Giving it
-// admin.kavenue.fr would mean a DNS record, a Vercel domain and a new Supabase
-// redirect URL — infrastructure, for a surface only the founder uses. Revisit if
-// anyone but the founder ever gets an admin account.
+// ⚑ IT HAS ITS OWN SUBDOMAIN, admin.kavenue.fr, AND THE SESSION COOKIE IS WHY
+// ([[d91]]). This first shipped with no host of its own — served from wherever the
+// admin happened to sign in — which meant sharing dispatch's HOST-ONLY session
+// cookie: signing in as admin would have signed the founder out of their Business
+// account, and back again, all day. The founder pushed back on it as confusing
+// before that was even spotted, and they were right twice over — Dispatch is the
+// *hotel's* app, and Kavenue's back office does not belong behind a customer's
+// front door.
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getAppContext, routeFor } from "@/lib/app-context";
-import { urlForRole } from "@/lib/hosts";
+import { urlForRole, isProdDomain, roleSubOf, homePathForSub, PROD_BASE } from "@/lib/hosts";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAppContext();
@@ -27,6 +29,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // Wrong role → their own area (crossing subdomain on production).
   if (ctx.profile?.role !== "admin") {
     redirect(urlForRole(host, ctx.profile?.role, routeFor(ctx)));
+  }
+  // Right role, wrong subdomain (production only) → bounce to the Admin host, so
+  // the session cookie lands where it belongs. Same shape as the Driver and
+  // Dispatch layouts; keep all three identical.
+  if (isProdDomain(host) && roleSubOf(host) !== "admin") {
+    redirect(`https://admin.${PROD_BASE}${homePathForSub("admin")}`);
   }
 
   return <>{children}</>;

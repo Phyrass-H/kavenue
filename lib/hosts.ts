@@ -3,6 +3,7 @@
 // In production the two sides of Kavenue live on separate subdomains:
 //   • driver.kavenue.fr    → the Driver app (Pool, My Rides, …)
 //   • dispatch.kavenue.fr  → the Business / Dispatch app
+//   • admin.kavenue.fr     → Kavenue's own back office (added 2026-08-25, [[d91]])
 //
 // Separate hosts means separate (host-only) session cookies, so a person can be
 // signed in as a Driver on one and a Business on the other at the same time —
@@ -16,7 +17,13 @@ import type { UserRole } from "@/lib/database.types";
 
 export const PROD_BASE = "kavenue.fr";
 
-export type RoleSub = "driver" | "dispatch";
+// ⚑ ADMIN IS A HOST OF ITS OWN, AND THE SESSION COOKIE IS THE REASON. It first
+// shipped with no subdomain ([[d90]]), which would have meant sharing dispatch's
+// host-only cookie — so signing in as admin would have signed the founder OUT of
+// their Business account, and back again, all day. Exactly the clash the split
+// above exists to prevent. Dispatch is also the *hotel's* app; Kavenue's back
+// office does not belong behind a customer's front door. See [[d91]].
+export type RoleSub = "driver" | "dispatch" | "admin";
 
 function hostname(host?: string | null): string {
   return (host ?? "").split(":")[0].toLowerCase();
@@ -31,13 +38,14 @@ export function isProdDomain(host?: string | null): boolean {
 /** Which role-subdomain we're currently on, if any. */
 export function roleSubOf(host?: string | null): RoleSub | null {
   const label = hostname(host).split(".")[0];
-  return label === "driver" || label === "dispatch" ? label : null;
+  return label === "driver" || label === "dispatch" || label === "admin" ? label : null;
 }
 
-/** The subdomain a given role belongs on (admin/unknown → none). */
+/** The subdomain a given role belongs on (unknown role → none). */
 export function subForRole(role: UserRole | null | undefined): RoleSub | null {
   if (role === "driver") return "driver";
   if (role === "dispatcher") return "dispatch";
+  if (role === "admin") return "admin";
   return null;
 }
 
@@ -68,9 +76,26 @@ export function urlForRole(
   return origin ? origin + path : path;
 }
 
-/** Home path for a role-subdomain (used to bounce a right-role/wrong-subdomain hit). */
+/** Home path for a role-subdomain (used to bounce a right-role/wrong-subdomain hit).
+ *
+ *  ⚑ A SWITCH, NOT A TERNARY, AND THAT IS THE POINT. This read
+ *  `sub === "driver" ? "/pool" : "/dispatch"` — so the moment "admin" joined
+ *  RoleSub it would have silently answered "/dispatch" for an admin. A fall-through
+ *  that looks like an answer is the whole D86–D90 family. The `never` assignment
+ *  below makes the COMPILER refuse the next RoleSub added without a path here. */
 export function homePathForSub(sub: RoleSub): string {
-  return sub === "driver" ? "/pool" : "/dispatch";
+  switch (sub) {
+    case "driver":
+      return "/pool";
+    case "dispatch":
+      return "/dispatch";
+    case "admin":
+      return "/admin";
+    default: {
+      const unhandled: never = sub;
+      throw new Error(`homePathForSub: no home path for subdomain ${String(unhandled)}`);
+    }
+  }
 }
 
 /**

@@ -157,8 +157,10 @@ the exported interface is identical, all six call sites untouched.
 The infinite redirect is fixed: `routeFor()` routes `admin → /admin`, `/welcome` now refuses to follow a
 self-referential answer, and `tests/app-routing.test.ts` walks every value of the enum so a future role cannot
 repeat it. `routeFor` moved to `lib/route-for.ts` (pure, testable — it was untestable, which is much of why it
-stayed broken). ⚑ **No `admin.kavenue.fr`** — served from whichever host they signed in on. No migration; the
-RLS policies have granted admins read on everything all along.
+stayed broken). ⚑ **It lives at `admin.kavenue.fr`** ([[d91]]) — its own host, because each host carries its own session
+cookie and sharing `dispatch.`'s would sign the founder out of their Business account every time they
+switched. DNS/TLS/redirect-URL all verified live. No migration; the RLS policies have granted admins read on
+everything all along.
 
 ⚑ **THE REAL ADMIN ACCOUNT MAY STILL NOT EXIST — CHECK FIRST:**
 

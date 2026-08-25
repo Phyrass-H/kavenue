@@ -141,7 +141,14 @@ the exported interface is identical, all six call sites untouched.
 - `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is in `.env.local` and documented in `.env.example`. ⚑ **NOT yet in Vercel** —
   the box will be dead in production until the founder adds it there.
 - Verified live in the browser: `Eden Roc` → the hotel → coords + glance label → **Mapbox routed 25 km ·
-  44 min**. Probe: `.local/probe/google-places-live.mjs`.
+  44 min**. Probe: `.local/probe/google-places-live.mjs` (8 checks).
+- ✅ **Key IS in Vercel** (Production, type *Config* — Vercel warns about the `NEXT_PUBLIC_` prefix; that is
+  correct and intended, the key is protected by its website restrictions, not by secrecy). Redeployed
+  2026-08-25, `7067ab3`, Ready.
+- ⚑ **The key is allowed on `kavenue.fr`, `www.`, `dispatch.` and `driver.` — and REFUSED on the `*.vercel.app`
+  addresses.** So the address box is dead if the app is opened through a vercel.app URL. Fine while nobody
+  does; the probe asserts all four real origins and reports the vercel.app one, so a too-tight key can never
+  pass silently.
 - ⚑ **Trap:** the booking form's address fields are prefilled with the Business's own address, and
   `computer{action:"type"}` does not land in them (focus stays on `body`, and text splices into the middle of
   the existing value). Use `form_input` on the combobox ref.
@@ -254,7 +261,7 @@ about that point — **fix the file before you build on it.** Then:
     node --experimental-strip-types .local/probe/event-registry-live.mts #  16 · D87 registry
     node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 63 · 0 failed
     node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
-    node .local/probe/google-places-live.mjs                             #  4 · D89 address box
+    node .local/probe/google-places-live.mjs                             #  8 · D89 address box
 
 **If a probe fails, that is the job** — not whatever is queued above.
 

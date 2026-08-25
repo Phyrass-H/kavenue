@@ -4313,3 +4313,61 @@ exists**, nearly all probe residue, because a probe's `undo()` deletes the missi
 plain-language lines. Written, together with today's.
 
 **No migration. No app code touched — probes and docs only.**
+
+## Session 67, part B — 2026-08-25 · the address box moves to Google ([[d89]])
+
+Founder set up the Google Cloud project, key and restrictions live during the session; verified before any
+code was written. One file changed: `components/address-autocomplete.tsx`. **No migration, no schema change,
+no change to the exported interface** — all six call sites (`route-stops`, `onboarding`, both settings pages)
+are untouched.
+
+### What moved and what deliberately did not
+- **Moved:** suggestions + the coordinates of the picked place. Mapbox Search Box `suggest`/`retrieve` →
+  Google `places:autocomplete` / `places/{id}`.
+- **NOT moved:** routing. `lib/directions.ts` still calls Mapbox `driving-traffic` with `depart_at`. That is
+  the traffic-predicted duration **at the scheduled pickup time**, feeding the ETA and the ±90min slot band.
+  A comment at the top of the component says so, because "finish the migration" is the obvious wrong instinct.
+
+### The evidence (both live keys, 2026-08-25)
+`Terminal 2 Nice` → Mapbox gave a pharmacy then **Terminal 1** twice; Google gave Terminal 2.
+`Hôtel Negresco` → Mapbox gave three Airbnb flats *"near the Negresco"*; Google gave the hotel.
+`Eden Roc` → Mapbox gave a vinyl café, a villa and a Nice building; Google gave the hotel (2nd).
+`Hôtel du Cap Eden Roc` and `Hôtel Martinez` (full formal names) → both correct on both.
+⚑ A fifth, `Le Grand Hôtel Cannes`, failed on both — **the founder pointed out that business no longer
+exists.** Struck as a bad test, not a provider result.
+
+### ⚑ Nothing was tuned — explicit instruction
+Google ranks the Eden-Roc *restaurant* above the *hotel* (same address, so the coordinates are right; the line
+just reads "Restaurant"). Claude offered a lodging bias; the founder said *"no don't tune anything leave it as
+is"*. The existing Riviera re-rank was **kept**, as existing behaviour rather than new tuning — and it still
+works: it pushed an "Eden Rock" in Cagliari to the bottom of the live list.
+
+### Mechanical notes for whoever touches this next
+- `countries` (comma string) → `includedRegionCodes` array. Prop shape unchanged for the call sites.
+- `proximity` (a bare point for Mapbox) → `locationBias.circle`, which **requires a radius**: 50 km from Nice.
+  ⚑ Bias, not limit — verified, a Riviera-biased "Hôtel Negresco" still returns Barcelona and Palma.
+- `queryPrediction` results are dropped. They are search TERMS, not places — the exact analogue of the
+  `brand`/`category` filter the Mapbox version had.
+- ⚑ **The session token is the bill.** Autocomplete + details billed as ONE session only when both carry the
+  same token. Minted per search, rotated after each pick.
+- ⚑ **The details field mask is REQUIRED and is also the bill** — fewer fields, cheaper SKU. Ours is exactly
+  `location,formattedAddress,displayName,addressComponents`, which is what the component reads and no more.
+- Glance label now comes from `displayName.text` + the `locality` address component, replacing Mapbox's
+  `name_preferred` + `context.place`. Same output shape.
+
+### Verified in the real browser, not just by probe
+Dev server, `/dispatch/new`. Typed `Eden Roc` → five suggestions, Cagliari last → picked the hotel →
+hidden inputs took `43.5483462 / 7.1216026`, `pickup_label` = `Hôtel du Cap-Eden-Roc, Antibes`. Then
+`Terminal 2 Nice` → picked → `dropoff_label` = `Terminal 2, Nice`. **Mapbox then routed the pair: 25 km ·
+44 min**, curve opening 31,60 € against a 97,60 € Ceiling. No console errors, no CORS problem. Nothing was
+submitted, so no DB rows were created and there is nothing to clean up.
+
+⚑ **Trap for the next session: the booking form's address fields are PREFILLED with the Business's own
+address, and `computer{action:"type"}` does not land in them** — the click focuses `body`, and a typed string
+gets spliced into the middle of the existing value. `form_input` on the combobox ref works, and React picks it
+up. This cost several turns.
+
+### New probe
+`.local/probe/google-places-live.mjs` — 4 checks: three real queries return suggestions, and **a request from
+an unlisted website is refused (403)**, which is the one that proves the key restrictions are actually applied
+rather than merely configured. Never prints the key.

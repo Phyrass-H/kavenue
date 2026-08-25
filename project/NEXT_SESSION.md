@@ -130,16 +130,21 @@ guard you touch. This is now three for three.
 
 ### 🎯 NEXT SESSION — THE FOUNDER AGREED THIS ORDER. Confirm in one line, don't re-offer a menu.
 
-#### 1 · THE GOOGLE ADDRESS BOX ← start here
-**Decided, no debate left.** Move **autocomplete/geocoding only** to Google Places. **Routing stays on
-Mapbox** — it already returns traffic-predicted durations at the scheduled pickup time, which is the thing
-the founder said matters most, and it is already paid for.
-- The address box is the first thing a hotel touches and the weak spot today (finding "Hôtel Martinez",
-  "Terminal 2" by name). Mapbox POI search is the thing being replaced, nothing else.
-- ⚑ **Do NOT move routing.** `lib/directions.ts` uses `driving-traffic` + `depart_at`. Losing that to gain a
-  slightly better kilometre count is a downgrade — the duration feeds the ETA and the ±90min slot band.
-- Existing stored addresses stay as they are. This is not a migration.
-- Needs `NEXT_PUBLIC_GOOGLE_MAPS_KEY` in `.env.local` + Vercel; the founder creates it.
+#### 1 · THE GOOGLE ADDRESS BOX — ✅ SHIPPED (2026-08-25, S67, [[d89]])
+Autocomplete + the picked place's coordinates now come from **Google Places API (New)**. **Routing stayed on
+Mapbox** (`lib/directions.ts`, `driving-traffic` + `depart_at`) and must stay there — that duration is
+traffic-predicted at the *scheduled pickup time* and feeds the ETA and the ±90min slot band. One file changed,
+the exported interface is identical, all six call sites untouched.
+- ⚑ **NOTHING WAS TUNED — founder's explicit instruction.** Google ranks the Eden-Roc *restaurant* above the
+  *hotel* (same address, so the pickup point is right; the line just reads "Restaurant"). A lodging bias was
+  offered and declined: *"no don't tune anything leave it as is"*. **Do not helpfully fix this later.**
+- `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is in `.env.local` and documented in `.env.example`. ⚑ **NOT yet in Vercel** —
+  the box will be dead in production until the founder adds it there.
+- Verified live in the browser: `Eden Roc` → the hotel → coords + glance label → **Mapbox routed 25 km ·
+  44 min**. Probe: `.local/probe/google-places-live.mjs`.
+- ⚑ **Trap:** the booking form's address fields are prefilled with the Business's own address, and
+  `computer{action:"type"}` does not land in them (focus stays on `body`, and text splices into the middle of
+  the existing value). Use `form_input` on the combobox ref.
 
 #### 2 · ADMIN ACCESS, THEN THE SUPPORT CONSOLE
 ⚑ **There is no admin surface at all today**, and `routeFor()` (`lib/app-context.ts:94`) falls through every
@@ -249,6 +254,7 @@ about that point — **fix the file before you build on it.** Then:
     node --experimental-strip-types .local/probe/event-registry-live.mts #  16 · D87 registry
     node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 63 · 0 failed
     node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
+    node .local/probe/google-places-live.mjs                             #  4 · D89 address box
 
 **If a probe fails, that is the job** — not whatever is queued above.
 

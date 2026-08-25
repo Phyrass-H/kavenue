@@ -2052,3 +2052,46 @@ and the silence read as success. **Where a check needs a value, missing that val
 skip.**
 
 No migration. [[d86]] [[d87]]
+
+### D89 — Google finds the place people type; Mapbox knows the road. Each keeps the half it wins (2026-08-25, S67)
+The address box moved to the **Google Places API (New)** — `places:autocomplete` → `places/{id}`. **Routing
+did not move and must not.** `lib/directions.ts` still calls Mapbox `driving-traffic` with `depart_at`, which
+returns a duration predicted for the **scheduled pickup time**; that duration feeds the ETA and the ±90min
+slot band, and nothing on the Google side replaces it.
+
+**The evidence, measured on both live keys 2026-08-25** — typing what a receptionist actually types:
+
+| typed | Mapbox | Google |
+|---|---|---|
+| `Terminal 2 Nice` | a pharmacy, then **Terminal 1**, twice | **Terminal 2** |
+| `Hôtel Negresco` | three Airbnb flats *"near the Negresco"* | the hotel |
+| `Eden Roc` | a vinyl café, a villa, a Nice building | the hotel (2nd, behind its own restaurant) |
+| `Hôtel du Cap Eden Roc` (full formal name) | correct | correct |
+| `Hôtel Martinez` | correct | correct |
+
+**The pattern: Mapbox needs the exact registered name; Google works from the short name people say out loud.**
+A Dispatcher typing at speed types "Eden Roc".
+
+⚑ **A fifth query, `Le Grand Hôtel Cannes`, failed on BOTH and was struck from the comparison** — the founder
+pointed out that business no longer exists. It was a bad test, not a provider result. See
+[[founder-knows-the-market]]: on how the trade actually works, their read beats the reasoning.
+
+**⚑ NOTHING WAS TUNED — the founder's explicit instruction.** Google ranks the Eden-Roc *restaurant* above the
+*hotel* (same address, so the pickup point is right either way, but the line reads "Restaurant"). Claude
+offered to bias the ranking toward lodging and the answer was *"no don't tune anything leave it as is"*. The
+existing Riviera re-rank is kept because it is **existing app behaviour, not new tuning** — and it still earns
+its place: it pushed an "Eden Rock" in Cagliari to the bottom of the live list.
+
+**What changed, exactly:** one file, `components/address-autocomplete.tsx`. The exported interface is
+byte-identical, so all six call sites are untouched. `countries` (a comma string) now becomes
+`includedRegionCodes`; `proximity` (a bare point for Mapbox) becomes a `locationBias` circle, which needs a
+radius — 50 km from Nice. ⚑ **It is a bias, not a limit**: Geneva / Milano still resolve, verified by a
+Riviera-biased "Hôtel Negresco" still returning Barcelona and Palma.
+
+**⚑ The session token is the bill.** Google prices autocomplete + details as ONE session when both carry the
+same token; without it every address costs two billed calls. Minted per search, rotated after each pick.
+
+**Verified in the real browser, not just by probe:** typed `Eden Roc` → picked the hotel → the hidden inputs
+took `43.5483462 / 7.1216026`, the glance label came out `Hôtel du Cap-Eden-Roc, Antibes`, and then **Mapbox
+routed it: 25 km · 44 min**, with the curve opening at 31,60 € against a 97,60 € Ceiling. No console errors,
+no CORS problem. The address half is Google's, the road half is still Mapbox's, and they meet correctly.

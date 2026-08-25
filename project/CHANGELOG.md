@@ -5,6 +5,32 @@
 
 ---
 
+## 25 August 2026 — the address box now finds what people actually type
+
+- **Typing "Eden Roc" now finds the Hôtel du Cap-Eden-Roc.** Before today it found a vinyl café in Antibes, a
+  holiday flat, and a building in Nice — the hotel wasn't in the list at all. The address search moved to
+  Google; everything else about the box is unchanged.
+- **"Terminal 2 Nice" now returns Terminal 2.** It used to return a pharmacy, then **Terminal 1**, twice.
+- **"Hôtel Negresco" now returns the Negresco.** It used to return three Airbnb flats advertised as being
+  *near* the Negresco.
+- **The pattern, in one line: the old search needed the hotel's exact registered name; the new one works from
+  the short name people actually say.** Type the full formal name and both were always fine — but nobody types
+  the full formal name when a guest is standing at the desk.
+- **Nothing about how the box looks or behaves has changed** — same field, same list, same keyboard, same
+  everything the rest of the form does with it.
+- **We deliberately left one thing imperfect, because you said so.** Google puts the Eden-Roc *restaurant*
+  just above the *hotel*. They share an address, so the car goes to the right place either way — the line just
+  reads "Restaurant". There's a setting that would push hotels up; you said leave it, so it's left.
+- **Journey times and distances have NOT moved and are still Mapbox.** That was deliberate: Mapbox can tell us
+  how long a drive will take *at the hour it's actually booked for*, traffic included — which is what feeds the
+  arrival time and the Driver's time slot. Verified end to end today: address from Google, then Antibes →
+  Nice Terminal 2 priced as **25 km · 44 min**.
+- **You now have a Google account with a card on it, and a key locked to your own sites.** It's restricted to
+  the one service it needs and refuses to work from anywhere that isn't kavenue.fr or your own machine —
+  tested by trying it from a fake site and being refused.
+
+---
+
 ## 24 August 2026 — three things that were quietly broken, and the checks that missed them
 
 - **You can now take a trip back off a Driver who hasn't shown up for it.** The button existed, and it had

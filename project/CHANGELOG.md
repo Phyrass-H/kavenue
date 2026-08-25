@@ -5,6 +5,32 @@
 
 ---
 
+## 25 August 2026 — Kavenue can have an administrator for the first time
+
+- **There was no way to be an administrator, and trying would have trapped you in a loop.** Kavenue has always
+  had three kinds of account — Driver, Business, and administrator — but only two of them had anywhere to go.
+  An administrator signing in would have been sent to the "who are you?" screen, which would have sent them
+  straight back, over and over, forever.
+- **Nobody ever hit it, because nobody had ever been made an administrator.** Four Business accounts, four
+  Driver accounts, zero administrators. The fault has been there since the beginning and was completely
+  invisible — the third kind of account had simply never been tried.
+- **This is the same mistake as the three from yesterday, for the fourth time.** Something written but never
+  reached. It doesn't break loudly; it just sits there looking like a feature nobody uses.
+- **Your database always knew about administrators — the app didn't.** The permission rules have granted
+  administrators access to everything from day one. Nothing about your data had to change. The missing piece
+  was purely a way to get in.
+- **Fixed properly, not just patched.** Three things: administrators now have a home; the "who are you?" screen
+  now refuses to send anyone in a circle even if a future account type is forgotten; and a test now checks
+  every kind of account can actually get somewhere, so this can't happen again quietly.
+- **You now have an `admin@kavenue.fr` address, at no extra cost.** It's an alias on your existing mailbox
+  rather than a second paid account — a second Workspace user would have been about €7 a month for something
+  you'd only use to sign in.
+- **What's actually there so far is deliberately almost empty:** a page that says "Admin". That's the point of
+  this step — getting in. The real thing, **Activity** — search a Driver, a hotel or a trip and read its whole
+  story in order — comes next, and you'll see a design before it's built.
+
+---
+
 ## 25 August 2026 — the address box now finds what people actually type
 
 - **Typing "Eden Roc" now finds the Hôtel du Cap-Eden-Roc.** Before today it found a vinyl café in Antibes, a

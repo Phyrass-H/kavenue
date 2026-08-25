@@ -9,16 +9,13 @@ import type {
   DispatcherRow,
   BusinessRow,
 } from "@/lib/database.types";
-import type { User } from "@supabase/supabase-js";
-
-export interface AppContext {
-  user: User | null;
-  profile: ProfileRow | null;
-  driver: DriverRow | null;
-  vehicle: VehicleRow | null;
-  dispatcher: DispatcherRow | null;
-  business: BusinessRow | null;
-}
+// ⚑ The context SHAPE and the routing rule live in lib/route-for.ts — pure, no
+// Supabase import, therefore testable (tests/app-routing.test.ts). This module is
+// the half that talks to the database. Both names are re-exported here so every
+// existing `from "@/lib/app-context"` import is unchanged.
+import { type AppContext, routeFor } from "@/lib/route-for";
+export { routeFor };
+export type { AppContext };
 
 export async function getAppContext(): Promise<AppContext> {
   const supabase = await createClient();
@@ -79,18 +76,4 @@ export async function getAppContext(): Promise<AppContext> {
   }
 
   return ctx;
-}
-
-/** Where this user belongs right now. Never returns "/" or "/login" for a
- *  logged-in user, so it's safe to redirect to from "/" and "/login". */
-export function routeFor(ctx: AppContext): string {
-  if (!ctx.user) return "/login";
-  if (!ctx.profile) return "/welcome";
-  if (ctx.profile.role === "driver") {
-    return ctx.driver && ctx.vehicle ? "/pool" : "/onboarding";
-  }
-  if (ctx.profile.role === "dispatcher") {
-    return ctx.dispatcher && ctx.business ? "/dispatch" : "/onboarding-business";
-  }
-  return "/welcome";
 }

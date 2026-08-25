@@ -6,7 +6,16 @@ import { getAppContext, routeFor } from "@/lib/app-context";
 export default async function WelcomePage() {
   const ctx = await getAppContext();
   if (!ctx.user) redirect("/login");
-  if (ctx.profile) redirect(routeFor(ctx)); // already has a role
+  // Already has a role → send them to their area.
+  // ⚑ NEVER FOLLOW A SELF-REFERENTIAL ANSWER. routeFor() returning "/welcome" for
+  // a user who HAS a profile means this page redirects to itself, forever — which
+  // is what `role='admin'` did from the day the enum was written. A role this
+  // build does not know about must land here and STOP, showing the picker, not
+  // spin. The missing case is a dead end, never a loop.
+  if (ctx.profile) {
+    const to = routeFor(ctx);
+    if (to !== "/welcome") redirect(to);
+  }
 
   return (
     <main className="container" style={{ paddingTop: 28 }}>

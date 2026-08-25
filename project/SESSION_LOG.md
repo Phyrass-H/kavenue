@@ -4371,3 +4371,53 @@ up. This cost several turns.
 `.local/probe/google-places-live.mjs` — 4 checks: three real queries return suggestions, and **a request from
 an unlisted website is refused (403)**, which is the one that proves the key restrictions are actually applied
 rather than merely configured. Never prints the key.
+## Session 67, part C — 2026-08-25 · admin access; the loop nobody could reach ([[d90]])
+
+Step 1 of the support console: **an admin can get into the app.** No migration, no schema change.
+
+### The bug, exactly
+`routeFor()` had `driver` and `dispatcher` branches and fell through to `return "/welcome"`. `/welcome` opens
+`if (ctx.profile) redirect(routeFor(ctx))`. `role='admin'` → `/welcome` → `routeFor()` → `/welcome`. Forever.
+⚑ **0 admin accounts exist** (4 dispatchers, 4 drivers, measured), so it had never once run. Latent like
+[[d88]]; a branch that never fires looks exactly like a feature nobody uses — four for four now.
+
+### ⚑ The DB was never the problem
+`app_role()='admin'` is already in RLS policies across `docs/kavenue_schema.sql` — driver, business, mission,
+dispatcher, side tables. An admin has read on everything the moment one exists. **Only the app was missing.**
+
+### Fixed three ways
+1. `routeFor()` → `/admin` for admin.
+2. `/welcome` will not follow a self-referential answer: `const to = routeFor(ctx); if (to !== "/welcome")
+   redirect(to)`. An unknown role lands on the picker and **stops**. Dead end, never a loop.
+3. `tests/app-routing.test.ts` — walks **every** value of `user_role` and asserts none routes to `/welcome`,
+   `/login` or `/`. Suite **523 → 534**.
+
+### ⚑ routeFor moved to lib/route-for.ts, and the reason matters
+`lib/app-context.ts` imports `lib/supabase/server`, which reads env at module load — so the first test of
+`routeFor()` died on *"Missing environment variable NEXT_PUBLIC_SUPABASE_URL"* before running a line, and
+**would have died identically in CI, which has no `.env.local`**. The rule is pure logic; it now sits with
+`lib/pdp.ts` and `lib/rate-card.ts`. `app-context.ts` re-exports `routeFor` and `AppContext`, so **no call
+site changed**. ⚑ *It was untestable, which is a large part of why it stayed broken for two months.*
+
+### ⚑ No admin subdomain, deliberately
+`subForRole()` already returns null for admin, so `urlForRole()` yields a plain path and `/admin` is served
+from whichever host they signed in on — `dispatch.kavenue.fr/admin` in practice. `admin.kavenue.fr` would
+mean a DNS record + a Vercel domain + a Supabase redirect URL: infrastructure for a one-person surface.
+
+### Identity
+`admin@kavenue.fr` — a **free alias** on the existing paid Workspace mailbox, not a second user (~€7/mo for a
+login). Deliberately not `support@`, which is printed in the app and therefore publicly writable-to.
+
+### Verified by execution
+Throwaway local user via `/api/dev-login?email=s67.admin@pickup.local`, promoted to admin with the service
+role, then driven in the browser: `/` → `/admin` (renders, shows the signed-in email), `/welcome` → `/admin`,
+and a signed-in Dispatcher hitting `/admin` → `/dispatch`. Then deleted — profile + auth user — and roles
+re-asserted at **4 dispatchers / 4 drivers / 0 admins**.
+
+### ⚑ Open, and it needs the founder
+The real admin account does not exist yet. When they sign in with `admin@kavenue.fr` for the first time they
+will have **no profile**, so they land on `/welcome` and are offered *"Driver or Business"* — **picking either
+creates the wrong role.** They must sign in and STOP there; the profile row is then written with `role='admin'`
+by whoever is at the keyboard. This ordering trap is the only awkward part of the job.
+
+**Next: the Activity console — and it gets a design preview before any of it is built ([[d25]] loop).**

@@ -2095,3 +2095,48 @@ same token; without it every address costs two billed calls. Minted per search, 
 took `43.5483462 / 7.1216026`, the glance label came out `Hôtel du Cap-Eden-Roc, Antibes`, and then **Mapbox
 routed it: 25 km · 44 min**, with the curve opening at 31,60 € against a 97,60 € Ceiling. No console errors,
 no CORS problem. The address half is Google's, the road half is still Mapbox's, and they meet correctly.
+### D90 — A role with no branch is an infinite redirect, not a missing feature (2026-08-25, S67)
+`routeFor()` (`lib/app-context.ts`) had branches for `driver` and `dispatcher` and fell through to
+`return "/welcome"`. `/welcome` opens with `if (ctx.profile) redirect(routeFor(ctx))`. So for
+`role='admin'` — a value in the `user_role` enum since the schema was written — the app redirected to
+`/welcome`, which redirected to `/welcome`, forever.
+
+**⚑ Nobody had ever hit it, because no admin account existed.** Measured 2026-08-25: **4 dispatchers, 4
+drivers, 0 admins.** Latent exactly like [[d88]], and the same family as [[d86]] (a gate on a status nothing
+reaches) and [[d87]] (event types nothing wrote) — *a branch that never fires looks exactly like a feature
+nobody uses.*
+
+**⚑ THE DATABASE HAS KNOWN ABOUT ADMINS ALL ALONG.** `app_role()='admin'` appears in RLS policies right
+across `docs/kavenue_schema.sql`, granting read on driver, business, mission, dispatcher and the side tables.
+No schema work was needed. **Only the app was missing.**
+
+**Fixed three ways, deliberately, because one of them is not enough:**
+1. `routeFor()` gains `admin → /admin`. The feature.
+2. **`/welcome` refuses to follow a self-referential answer.** If `routeFor()` ever returns `/welcome` for a
+   user who *has* a profile, the page now stops and shows the picker instead of redirecting. A role this build
+   does not know about is a **dead end, never a loop** — the same rule as [[d88]]'s "a missing value must be a
+   refusal, not a skip".
+3. **`tests/app-routing.test.ts` walks EVERY value of the enum** and asserts none of them routes to
+   `/welcome`, `/login` or `/`. The next role added to the database cannot repeat this silently.
+
+**⚑ ROUTEFOR MOVED TO `lib/route-for.ts`, and this is the reason.** `lib/app-context.ts` imports
+`lib/supabase/server`, which reads the environment at module load — so a test of `routeFor()` died on
+*"Missing environment variable NEXT_PUBLIC_SUPABASE_URL"* before running a line, **and would have died the
+same way in CI, which has no `.env.local`.** The routing rule is pure logic and now sits with the other pure
+logic (`lib/pdp.ts`, `lib/rate-card.ts`). `lib/app-context.ts` re-exports both names, so no call site changed.
+⚑ *The rule was untestable, which is a large part of why it went wrong for two months.*
+
+**⚑ NO `admin.kavenue.fr`, DELIBERATELY.** `subForRole()` already maps admin → null, so `urlForRole()` returns
+a plain path and the admin area is served from whichever host the founder signed in on
+(`dispatch.kavenue.fr/admin` in practice). A subdomain would mean a DNS record, a Vercel domain and a new
+Supabase redirect URL — infrastructure, for a surface one person uses. Revisit if anyone but the founder ever
+gets an admin account.
+
+**Admin identity: `admin@kavenue.fr`, a free Workspace ALIAS on the existing paid mailbox** — not a second
+user (~€7/month for something used only to log in), and deliberately **not** `support@`, which is printed in
+the app (Driver help card, Dispatch settings) and therefore an address strangers can email. See the S49 email
+decision for the one-mailbox-three-aliases setup this extends.
+
+**Verified by execution:** a throwaway local admin was created via `/api/dev-login`, promoted, and driven —
+`/` → `/admin`, `/welcome` → `/admin`, and a signed-in Dispatcher hitting `/admin` → `/dispatch`. Then removed;
+roles back to 4 dispatchers / 4 drivers / **0 admins**.

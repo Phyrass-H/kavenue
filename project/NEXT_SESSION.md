@@ -153,10 +153,21 @@ the exported interface is identical, all six call sites untouched.
   `computer{action:"type"}` does not land in them (focus stays on `body`, and text splices into the middle of
   the existing value). Use `form_input` on the combobox ref.
 
-#### 2 · ADMIN ACCESS, THEN THE SUPPORT CONSOLE
-⚑ **There is no admin surface at all today**, and `routeFor()` (`lib/app-context.ts:94`) falls through every
-branch for `role='admin'` and lands on `/welcome`, which bounces back — **the infinite redirect loop**. Fix
-that first; the console cannot exist without it.
+#### 2 · ADMIN ACCESS ✅ SHIPPED (2026-08-25, [[d90]]) · THE SUPPORT CONSOLE ← START HERE
+The infinite redirect is fixed: `routeFor()` routes `admin → /admin`, `/welcome` now refuses to follow a
+self-referential answer, and `tests/app-routing.test.ts` walks every value of the enum so a future role cannot
+repeat it. `routeFor` moved to `lib/route-for.ts` (pure, testable — it was untestable, which is much of why it
+stayed broken). ⚑ **No `admin.kavenue.fr`** — served from whichever host they signed in on. No migration; the
+RLS policies have granted admins read on everything all along.
+
+⚑ **THE REAL ADMIN ACCOUNT MAY STILL NOT EXIST — CHECK FIRST:**
+
+    select role, count(*) from profile group by role;   -- 2026-08-25: dispatcher 4, driver 4, admin 0
+
+`admin@kavenue.fr` exists as a **Workspace alias** (free, on the existing mailbox — not `support@`, which is
+printed in the app). ⚑ **The ordering trap:** on first sign-in that address has **no profile**, so it lands on
+`/welcome` and is offered *"Driver or Business"* — **picking either creates the wrong role.** Sign in, STOP at
+the picker, then write the profile row with `role='admin'`.
 
 Then the console. **The founder's framing, which is the right one: don't build an "event log screen".** They
 will never think *"let me open the event log"* — they think *"why did that trip fail"* or *"is Marc
@@ -173,6 +184,9 @@ reliable"*. Call it **Activity**. The log is fuel, not the product.
   this week, always a slot clash"*, *"nobody has ever used the release request"*.
 - Two rules: **silent by default** (a check that isn't confident says nothing) and **no roll-up counts** —
   the named thing on the row, which is the founder's stated preference twice over.
+- ⚑ **It is a UI job, so it gets a design preview FIRST** ([[d25]] loop) — the founder's hard expectation.
+- ⚑ **The Activity console WILL meet events whose mission was deleted** — `mission_event` has no FK to
+  `mission` (221 of 1 959 today, mostly probe residue). Design for it rather than being surprised.
 
 #### 3 · THE TWO TRACKERS — start them EARLY, they need weeks of data
 Both are things the founder explicitly asked for and neither exists:

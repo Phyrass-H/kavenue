@@ -5,6 +5,26 @@
 
 ---
 
+## 26 August 2026 — a full written inventory of what the Admin page will show you
+
+- **You now have a plain-English list of every single thing Admin can show**, saved in your project as
+  `What-Admin-Can-See.html` and also online. Every item is marked as ready, partly there, or missing — with the
+  real count, so nothing quietly pretends to be complete.
+- **Three things it turned up that nobody knew.** The field meant to hold a trip's *area* has been filled with
+  whatever was handy — 22 different values mixing hotel names, street addresses, terminals and towns, including
+  "Nice" and "nice" as two separate things. So **"show me trips by region" doesn't work today** — it'll have to
+  be worked out from the map instead. **23 trips are marked cancelled and there is no record of why any of them
+  were cancelled.** And no Driver has ever uploaded a single document.
+- **One alarm that turned out to be nothing, and it's worth saying.** The price a trip actually sold for is
+  blank on all 280 trips — which looks exactly like the faults found this week. It was checked rather than
+  assumed: the recording works, it's been live since 22 August, and those 280 trips are all older or test data.
+  Real trips from here will carry it.
+- **We agreed the order for what's next:** build the Admin *Activity* screen first, then generate a clean set of
+  realistic test data, then you do your own hands-on pass on it and tell me what feels wrong. Your eye catches
+  what mine can't; mine catches the faults that never announce themselves.
+
+---
+
 ## 25 August 2026 — the admin area gets its own address: admin.kavenue.fr
 
 - **You said putting the admin area inside the hotel app was confusing. You were right, and it was worse than

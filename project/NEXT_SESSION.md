@@ -109,24 +109,36 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ---
 
-## WHERE WE ARE (2026-08-24, end of S66)
+## WHERE WE ARE (2026-08-26, end of S67)
 
-`main` = **`b16bedd`**. Everything below is live and deployed. Both S66 migrations are applied and verified.
+`main` = **`7ca02ee`**, deployed. **NO migration was written or needed all session** — every fix was app-side.
 
-### ✅ Shipped in S66
+### ✅ Shipped in S67
 | | |
 |---|---|
-| **D86 · the reclaim** | Gated on `accepted` — a status that has **never existed** since D55. Dead since it shipped. Now `confirmed AND never checked in`, from **T−2h**. Verified 20/20 live |
-| **D87 · the event log's app half** | Nine types were declared, registered as `captured_by='app'`, and written by **nothing**. Now wired. Verified by driving the real app |
-| **D88 · the price floor** | `!asDraft && quote &&` made a *missing* price indistinguishable from one that *passed*. Now a refusal. Verified by posting a real trip |
+| **two stale probes** | `migrations-2026-08-10` drove the reclaim through the gate D86 had just deleted (**61→63**); `event-registry-live` asserted `mission_event === 1848`, an equality check on an **append-only** table. Both now green |
+| **D89 · the Google address box** | Autocomplete + coordinates on **Google Places (New)**. **Routing stayed on Mapbox** and must. One file; the exported interface is identical, all six call sites untouched. Key is in Vercel, verified on all four live origins |
+| **D90 · admin can get in** | `routeFor()` had no `admin` branch → `/welcome` → `routeFor()` → **infinite redirect**. Never hit: **0 admin accounts existed** |
+| **D91 · `admin.kavenue.fr`** | Founder pushed back on admin living inside the hotel's app. Right — and the **session cookie** made it not just untidy but broken |
+| **§ AI** | Live Driver location backlogged (native app; battery; scope it to *your* trip, not the fleet) |
 
-### ⚑ THE PATTERN BEHIND ALL THREE — read this before you build anything
-**A guard that treats *absence of data* as *absence of a problem*.** The reclaim gate, eleven unwritten event
-types, and the floor check. In every case **nothing errored, nothing warned, and the silence read as success**
-— and each survived months because a check that never fires looks exactly like a feature nobody uses.
+### ⚑ THE PATTERN — now SIX, and S67 changed how it's caught
+D86 (a gate on a status nothing reaches) · D87 (event types nothing wrote) · D88 (a check skipped when data was missing) · D90 (a role with no branch) · **and two more in D91 that never shipped, because the COMPILER stopped them**: `homePathForSub()` would have silently sent admins to Dispatch, and the login page would have said *"Kavenue Driver"*.
 
-**Where a check needs a value, missing that value must be a REFUSAL, never a skip.** Grep for `&& x &&` in any
-guard you touch. This is now three for three.
+**Neither of those two was found by looking. Both were found by widening the TYPE.**
+
+> **Where a value must cover every case, make the compiler the check. A reviewer's memory is not one.**
+> Exhaustive `switch` + `const x: never = value`. Key a lookup on the *type*, never a hand-written union.
+> And still: **where a check needs a value, a missing value is a REFUSAL, never a skip** (D88).
+
+### ⚑ AND THE COUNTER-LESSON, LEARNED THE SAME SESSION
+**"Zero rows" is NOT proof of a bug.** `accepted_fare` is null on all 280 missions — the exact shape of the four faults above. Claude flagged it to the founder as urgent, then checked: it is **wired, live since 2026-08-22, and covered by `accepted-fare.ts`**. All 280 predate it or were seeded (seeders bypass the app). **Verify before alarming**, and correct it plainly when wrong.
+
+### 🅐 THE ADMIN ACCOUNT NOW EXISTS — don't recreate it
+`admin@kavenue.fr` · a **free Workspace alias** on the founder's existing mailbox (deliberately not `support@`, which is printed in the app). Roles live: **4 dispatcher · 4 driver · 1 admin**.
+- The admin area is `admin.kavenue.fr`, its own host, its own session cookie.
+- ⚑ **RLS already grants admins read on everything** (`app_role()='admin'` across the schema). No migration is needed to read anything for the console.
+- ⚑ `/admin` today is an almost-empty placeholder. That is deliberate — part C shipped *getting in*.
 
 ### 🎯 NEXT SESSION — THE FOUNDER AGREED THIS ORDER. Confirm in one line, don't re-offer a menu.
 
@@ -153,42 +165,38 @@ the exported interface is identical, all six call sites untouched.
   `computer{action:"type"}` does not land in them (focus stays on `body`, and text splices into the middle of
   the existing value). Use `form_input` on the combobox ref.
 
-#### 2 · ADMIN ACCESS ✅ SHIPPED (2026-08-25, [[d90]]) · THE SUPPORT CONSOLE ← START HERE
-The infinite redirect is fixed: `routeFor()` routes `admin → /admin`, `/welcome` now refuses to follow a
-self-referential answer, and `tests/app-routing.test.ts` walks every value of the enum so a future role cannot
-repeat it. `routeFor` moved to `lib/route-for.ts` (pure, testable — it was untestable, which is much of why it
-stayed broken). ⚑ **It lives at `admin.kavenue.fr`** ([[d91]]) — its own host, because each host carries its own session
-cookie and sharing `dispatch.`'s would sign the founder out of their Business account every time they
-switched. DNS/TLS/redirect-URL all verified live. No migration; the RLS policies have granted admins read on
-everything all along.
+#### 2 · ADMIN ACCESS ✅ SHIPPED (D90 + D91) · **THE ACTIVITY CONSOLE ← START HERE**
 
-⚑ **THE REAL ADMIN ACCOUNT MAY STILL NOT EXIST — CHECK FIRST:**
+⚑ **The founder asked Claude to make the call between "build the console" and "build a clean test dataset
+first", and the answer given — which they accepted — was CONSOLE FIRST.** The reasoning, so it is not re-argued:
+the dataset exists to be *looked at*, and there is no tool to look at it with; the console needs no new data
+(280 trips, ~2 057 events, real cancellations and expiries are plenty); and building the console is what
+reveals which scenarios the dataset actually needs. The dataset is throwaway anyway — it gets wiped again once
+Stripe/email/notifications land.
 
-    select role, count(*) from profile group by role;   -- 2026-08-25: dispatcher 4, driver 4, admin 0
+**Order: Activity console → clean dataset → the founder's own UI/UX pass on it.**
 
-`admin@kavenue.fr` exists as a **Workspace alias** (free, on the existing mailbox — not `support@`, which is
-printed in the app). ⚑ **The ordering trap:** on first sign-in that address has **no profile**, so it lands on
-`/welcome` and is offered *"Driver or Business"* — **picking either creates the wrong role.** Sign in, STOP at
-the picker, then write the profile row with `role='admin'`.
-
-Then the console. **The founder's framing, which is the right one: don't build an "event log screen".** They
-will never think *"let me open the event log"* — they think *"why did that trip fail"* or *"is Marc
-reliable"*. Call it **Activity**. The log is fuel, not the product.
+**The founder's framing, which is the right one: don't build an "event log screen".** They will never think
+*"let me open the event log"* — they think *"why did that trip fail"* or *"is Marc reliable"*. Call it
+**Activity**. The log is fuel, not the product.
 - Search a name / hotel / trip → profile → their trips → **one trip's whole story in order, with times**.
-- ⚑ **Build this feature first, it is the highest-value one:** a button answering *"why can't this Driver see
-  or take this trip?"* — re-run the real rules and say which one blocked them (tier, zone, radius, slot
-  clash, not verified). Same on the hotel side: *"why has nobody taken this?"* → how many Drivers matched.
-  Today answering that means Claude querying the DB by hand.
+- ⚑ **Build this feature first, it is the highest-value one** (founder's judgement, Claude agrees): a button
+  answering *"why can't this Driver see or take this trip?"* — re-run the real rules and say which one blocked
+  them (tier, zone, radius, slot clash, not verified). Same on the hotel side: *"why has nobody taken this?"*
+  → how many Drivers matched. Today answering that means Claude querying the DB by hand.
 - **Findings as plain sentences at the top**, each clicking through to the entries that prove it.
 - ⚑ **Named checks, NOT anomaly detection.** At 9 Drivers and ~10 trips/day there is no baseline, so
-  "anything unusual" fires constantly and gets ignored. Write specific known-bad shapes, each a sentence a
-  human can read and delete: *"this trip has been taken and dropped 3 times"*, *"Marc was refused 6 times
-  this week, always a slot clash"*, *"nobody has ever used the release request"*.
-- Two rules: **silent by default** (a check that isn't confident says nothing) and **no roll-up counts** —
-  the named thing on the row, which is the founder's stated preference twice over.
-- ⚑ **It is a UI job, so it gets a design preview FIRST** ([[d25]] loop) — the founder's hard expectation.
-- ⚑ **The Activity console WILL meet events whose mission was deleted** — `mission_event` has no FK to
-  `mission` (221 of 1 959 today, mostly probe residue). Design for it rather than being surprised.
+  "anything unusual" fires constantly and gets ignored. Specific known-bad shapes, each a sentence a human can
+  read and delete: *"this trip has been taken and dropped 3 times"*, *"nobody has ever used the release
+  request"*.
+- Two rules: **silent by default** and **no roll-up counts** — the named thing on the row (founder, twice).
+- ⚑ **UI job → DESIGN PREVIEW FIRST** ([[d25]] loop). Hard expectation. Claude had just offered the preview
+  when the session ran out of context; **that is the exact next action.**
+- ⚑ **It WILL meet events whose mission was deleted** — `mission_event` has no FK to `mission` (221 of ~2 057,
+  mostly probe residue). Design for it.
+- ⚑ **`project/What-Admin-Can-See.html`** (in the repo, also published as an Artifact) is the full inventory of
+  what the console can show, read from the live DB on 2026-08-26. **Read it before designing** — it lists every
+  field, every sum, every cross-check, and what is Ready / Partial / Missing.
 
 #### 3 · THE TWO TRACKERS — start them EARLY, they need weeks of data
 Both are things the founder explicitly asked for and neither exists:
@@ -268,7 +276,7 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 **23 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 523 passing
+    npx tsc --noEmit && npx vitest run          # expect 555 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 693 · ALL AGREE
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
@@ -284,6 +292,42 @@ about that point — **fix the file before you build on it.** Then:
 ⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
 
 ---
+
+## ⚑ TRAPS LEARNED IN S67 — every one cost real time
+
+- ⚑ **`computer{action:"type"}` DOES NOT LAND IN THE BOOKING FORM'S ADDRESS FIELDS.** They are prefilled with
+  the Business's own address, the click leaves focus on `body`, and a typed string gets **spliced into the
+  middle of the existing value** ("58 Bd de la Croisette Cs 40**Eden Roc**052…"). Triple-click, ⌘A and
+  clicking by screenshot coordinates all failed. **`form_input` on the combobox ref works** and React picks it
+  up. This cost several turns.
+- ⚑ **A PROBE IS A CLAIM ABOUT THE REPO TOO, AND IT ROTS.** Two probes went red the moment S66 shipped, and
+  neither was a code regression. D86's own `reclaim-live.mts` was 20/20 green throughout — the *old* probe was
+  the only thing that noticed the change, and its red was misread as breakage.
+  **When you change a rule: `grep -rl "<rpc_name>" .local/probe/` before closing the session.**
+- ⚑ **NEVER ASSERT EQUALITY ON AN APPEND-ONLY TABLE.** `mission_event count === 1848` was guaranteed to go red
+  on the first working day. It is a dated **floor** now. The direction worth guarding is rows *disappearing*.
+- ⚑ **`mission_event` HAS NO FOREIGN KEY TO `mission`** (`2026-08-24_mission_event_log.sql:78`) — deliberate,
+  the log outlives the trip. So deleting a mission **strands its events**: 221 of ~2 057 point at a mission
+  that no longer exists, nearly all probe residue. `event-registry-live` prints the count every run. Probe
+  `undo()` helpers now delete `mission_event` by recorded id.
+- ⚑ **A PROBE THAT DIES MID-RUN LEAVES A TAGGED ROW, AND THE NEXT RUN CATCHES IT.** `accepted-fare.ts` failed
+  its own *"no tagged stragglers"* check with one `AFPROBE` mission left over (and it carried an
+  `accepted_fare`, which quietly changed the population). Deleted by tag + its events; the re-run is 20/20.
+  **That straggler assertion is the safety net — never delete it to make a probe pass.**
+- ⚑ **"ZERO ROWS" IS NOT PROOF OF A BUG — CHECK BEFORE ALARMING.** `accepted_fare` null on all 280 looks
+  exactly like D86–D88. It is fine: wired, live since 2026-08-22, covered by `accepted-fare.ts`. Claude told
+  the founder it was urgent and had to correct that. Read the call site before raising it.
+- ⚑ **`lib/app-context.ts` CANNOT BE IMPORTED BY A TEST.** It imports `lib/supabase/server`, which reads env at
+  module load — a test dies on *"Missing environment variable NEXT_PUBLIC_SUPABASE_URL"* before running a
+  line, **and would die the same way in CI, which has no `.env.local`.** Pure logic goes in its own module
+  (`lib/route-for.ts` now, beside `lib/pdp.ts` / `lib/rate-card.ts`). ⚑ `routeFor` being untestable is much of
+  why D90 survived two months.
+- ⚑ **The Google key is restricted to `*.kavenue.fr` + `localhost:3000` — the `*.vercel.app` origins are
+  REFUSED.** Opening the app through a vercel.app URL gives a dead address box. Deliberate: a `*.vercel.app`
+  wildcard would let any Vercel site spend the quota.
+- ⚑ **OVH CNAME targets need the TRAILING DOT** or OVH appends the zone silently. Check the *Aperçu de
+  l'enregistrement* line before adding. Vercel's target is **per-project** — read it off the panel, never from
+  memory (`b995c589bd56b1fa.vercel-dns-017.com.` today).
 
 ## ⚑ TRAPS LEARNED IN S66 — every one cost real time
 

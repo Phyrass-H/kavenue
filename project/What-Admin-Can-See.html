@@ -1,0 +1,756 @@
+<title>What Admin Can See</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+
+<style>
+  :root {
+    --ground:      #F7F8FA;
+    --surface:     #FFFFFF;
+    --ink:         #1B2432;
+    --ink-soft:    #4E5A6E;
+    --ink-faint:   #78849A;
+    --rule:        #E2E6ED;
+    --rule-soft:   #EDF0F4;
+    --navy:        #25344C;
+    --navy-tint:   #E8ECF3;
+    --ready:       #2F6B4F;
+    --ready-bg:    #E7F1EB;
+    --partial:     #8A6224;
+    --partial-bg:  #F7EEDD;
+    --absent:      #8C4B3E;
+    --absent-bg:   #F6E8E4;
+    --shadow:      0 1px 2px rgba(27,36,50,.05), 0 8px 24px -18px rgba(27,36,50,.35);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:     #12161D;
+      --surface:    #191F28;
+      --ink:        #E7EBF1;
+      --ink-soft:   #A9B4C4;
+      --ink-faint:  #7C8798;
+      --rule:       #2B333F;
+      --rule-soft:  #222933;
+      --navy:       #A9BEDF;
+      --navy-tint:  #232D3D;
+      --ready:      #7FBF9C;
+      --ready-bg:   #1B2A22;
+      --partial:    #D6AC68;
+      --partial-bg: #2A2419;
+      --absent:     #D79383;
+      --absent-bg:  #2B1E1B;
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground:     #12161D;
+    --surface:    #191F28;
+    --ink:        #E7EBF1;
+    --ink-soft:   #A9B4C4;
+    --ink-faint:  #7C8798;
+    --rule:       #2B333F;
+    --rule-soft:  #222933;
+    --navy:       #A9BEDF;
+    --navy-tint:  #232D3D;
+    --ready:      #7FBF9C;
+    --ready-bg:   #1B2A22;
+    --partial:    #D6AC68;
+    --partial-bg: #2A2419;
+    --absent:     #D79383;
+    --absent-bg:  #2B1E1B;
+    --shadow:     0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 72px 28px 120px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+
+  /* ── masthead ─────────────────────────────────────────── */
+  .masthead { display: flex; flex-direction: column; gap: 18px; }
+
+  .eyebrow {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-size: clamp(30px, 5vw, 42px);
+    line-height: 1.15;
+    font-weight: 500;
+    letter-spacing: -.015em;
+    margin: 0;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-size: 17px;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+
+  .asof {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    border-top: 1px solid var(--rule);
+    padding-top: 14px;
+    margin: 0;
+  }
+
+  /* ── key ──────────────────────────────────────────────── */
+  .key {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 20px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: var(--shadow);
+  }
+  .key h2 {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 11.5px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 500; margin: 0;
+  }
+  .key-row { display: flex; gap: 12px; align-items: baseline; font-size: 14.5px; color: var(--ink-soft); }
+  .key-row span:last-child { flex: 1; }
+
+  /* ── pills ────────────────────────────────────────────── */
+  .pill {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 10.5px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    font-weight: 500;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+    min-width: 74px;
+    text-align: center;
+  }
+  .p-ready   { background: var(--ready-bg);   color: var(--ready); }
+  .p-partial { background: var(--partial-bg); color: var(--partial); }
+  .p-absent  { background: var(--absent-bg);  color: var(--absent); }
+
+  /* ── sections ─────────────────────────────────────────── */
+  section { display: flex; flex-direction: column; gap: 4px; }
+
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 10px;
+    margin-bottom: 18px;
+  }
+  .sec-head h2 {
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-size: 23px;
+    font-weight: 500;
+    letter-spacing: -.01em;
+    margin: 0;
+    flex: 1;
+  }
+  .sec-count {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+  .sec-note {
+    font-size: 15px;
+    color: var(--ink-soft);
+    margin: -6px 0 18px;
+    max-width: 64ch;
+  }
+
+  /* ── item rows ────────────────────────────────────────── */
+  .item {
+    display: grid;
+    grid-template-columns: 88px 1fr;
+    gap: 4px 16px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--rule-soft);
+    align-items: start;
+  }
+  .item:last-child { border-bottom: none; }
+  .item-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .item-name { font-weight: 500; font-size: 15.5px; color: var(--ink); }
+  .item-desc { font-size: 14.5px; color: var(--ink-soft); max-width: 64ch; }
+  .item-desc em { font-style: normal; color: var(--ink); font-weight: 500; }
+  .item-real {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── callouts ─────────────────────────────────────────── */
+  .flag {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--absent);
+    border-radius: 3px;
+    padding: 16px 20px;
+    margin: 20px 0 4px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .flag-title {
+    font-weight: 600;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  .flag p { margin: 0; font-size: 14.5px; color: var(--ink-soft); max-width: 64ch; }
+
+  .note {
+    background: var(--navy-tint);
+    border-radius: 3px;
+    padding: 16px 20px;
+    margin: 20px 0 4px;
+    font-size: 14.5px;
+    color: var(--ink-soft);
+  }
+  .note strong { color: var(--ink); font-weight: 600; }
+
+  /* ── figures strip ────────────────────────────────────── */
+  .figures {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .fig { background: var(--surface); padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+  .fig-n {
+    font-family: "IBM Plex Serif", Georgia, serif;
+    font-size: 26px; font-weight: 500; line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--navy);
+  }
+  .fig-l { font-size: 12.5px; color: var(--ink-faint); }
+
+  /* ── month bars ───────────────────────────────────────── */
+  .months { display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
+  .month { display: grid; grid-template-columns: 62px 1fr 46px; gap: 12px; align-items: center; }
+  .month-l { font-size: 13.5px; color: var(--ink-soft); }
+  .month-track { height: 9px; background: var(--rule-soft); border-radius: 2px; overflow: hidden; }
+  .month-fill { height: 100%; background: var(--navy); border-radius: 2px; }
+  .month-n {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-size: 13px; color: var(--ink-soft); text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  footer {
+    border-top: 1px solid var(--rule);
+    padding-top: 22px;
+    font-size: 14px;
+    color: var(--ink-faint);
+    max-width: 64ch;
+  }
+
+  /* Printing / Save as PDF: force the light palette (a dark-mode print wastes ink
+     and loses the pills), keep rows off page breaks, and drop the shadows. */
+  @media print {
+    :root, :root[data-theme="dark"] {
+      --ground: #FFFFFF; --surface: #FFFFFF; --ink: #141B26; --ink-soft: #3D4757;
+      --ink-faint: #6B7688; --rule: #C9D0DA; --rule-soft: #E2E6ED; --navy: #25344C;
+      --navy-tint: #F0F3F7; --ready: #245239; --ready-bg: #EAF2ED; --partial: #6B4A16;
+      --partial-bg: #F7F0E1; --absent: #6E382C; --absent-bg: #F7EAE6; --shadow: none;
+    }
+    body { background: #FFFFFF; font-size: 11pt; }
+    .page { max-width: none; padding: 0; gap: 30px; }
+    section, .key, .figures, .flag, .note { break-inside: auto; }
+    .item, .flag, .note, .key-row, .fig, .month { break-inside: avoid; }
+    .sec-head { break-after: avoid; }
+    h1 { font-size: 26pt; }
+    footer { break-inside: avoid; }
+  }
+
+  @media (max-width: 560px) {
+    .page { padding: 48px 18px 90px; gap: 44px; }
+    .item { grid-template-columns: 1fr; gap: 7px; }
+    .pill { align-self: start; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="eyebrow">Kavenue · Admin</div>
+    <h1>What Admin Can See</h1>
+    <p class="standfirst">
+      Every single thing the Admin page can show you, in plain words — plus the sums it can work out,
+      the things you can cross-check against each other, and the questions it genuinely cannot answer yet.
+      Nothing here is a guess: every number was read out of your live database.
+    </p>
+    <p class="asof">Read from the live database · 26 August 2026</p>
+  </header>
+
+  <div class="figures">
+    <div class="fig"><div class="fig-n">9</div><div class="fig-l">Drivers</div></div>
+    <div class="fig"><div class="fig-n">3</div><div class="fig-l">Hotels</div></div>
+    <div class="fig"><div class="fig-n">6</div><div class="fig-l">Their staff</div></div>
+    <div class="fig"><div class="fig-n">280</div><div class="fig-l">Trips ever</div></div>
+    <div class="fig"><div class="fig-n">2 057</div><div class="fig-l">Recorded events</div></div>
+  </div>
+
+  <div class="key">
+    <h2>How to read this</h2>
+    <div class="key-row"><span class="pill p-ready">Ready</span><span>The information is there and it's good. We can show it as soon as it's built.</span></div>
+    <div class="key-row"><span class="pill p-partial">Partial</span><span>It's there, but not for everyone or not reliably. The page must say how much is missing rather than quietly counting only what it finds.</span></div>
+    <div class="key-row"><span class="pill p-absent">Missing</span><span>Kavenue doesn't record this at all today. Something has to be built or switched on first.</span></div>
+  </div>
+
+  <!-- ══ DRIVERS ══ -->
+  <section>
+    <div class="sec-head"><h2>A Driver</h2><span class="sec-count">9 people</span></div>
+    <p class="sec-note">Everything Kavenue knows about one Driver, on one page.</p>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Name</div>
+      <div class="item-desc">First and last name.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Phone and email</div>
+      <div class="item-desc">How to reach them directly.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Verified, or not</div>
+      <div class="item-desc">Whether you've approved them to take work.</div>
+      <div class="item-real">8 of 9 verified · 1 not</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Towns they work</div>
+      <div class="item-desc">The places they've said they'll take trips in — Nice, Cannes, Antibes, Monaco.</div>
+      <div class="item-real">All 9 have set them · 6 of 9 cover all four towns</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">How far they'll travel</div>
+      <div class="item-desc">The distance they're willing to drive to reach a pickup.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Whether they do luggage runs</div>
+      <div class="item-desc">Bags without passengers — some Drivers say no.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Their car</div>
+      <div class="item-desc">Class, body type, make, model, colour, plate, number of seats, and whether it's currently in service.</div>
+      <div class="item-real">9 cars · 6 Business · 2 First · 1 Eco · 7 saloons · 2 vans</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Which map app they use</div>
+      <div class="item-desc">Waze, Google or Apple — what Kavenue opens when they tap an address.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">When they joined</div>
+      <div class="item-desc">The date they signed up. This is what growth charts are built from.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Times they've let a trip go</div>
+      <div class="item-desc">A running count that goes up when a trip is taken back off them or they drop it.</div>
+      <div class="item-real">All 9 sit at 0 — nothing has ever counted against anyone</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Where they're based</div>
+      <div class="item-desc">Their home base, as a place on the map. Needed for anything about distance or coverage.</div>
+      <div class="item-real">3 of 9 have a location · a map of Drivers must say "3 of 9 located"</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Company details</div>
+      <div class="item-desc">Company name, SIRET, VAT number. Drivers are companies, not employees — this is their legal identity.</div>
+      <div class="item-real">1 of 9 has a SIRET · normally filled in during verification</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Photo and languages</div>
+      <div class="item-desc">What they look like, and which languages they speak.</div>
+      <div class="item-real">1 of 9 has a photo · 2 of 9 listed languages</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">Their papers</div>
+      <div class="item-desc">Licence, insurance, VTC card, vehicle registration — with expiry dates, so you'd know when something lapses.</div>
+      <div class="item-real">The filing cabinet exists and is completely empty — 0 documents</div></div></div>
+
+    <div class="flag">
+      <div class="flag-title">The photo and languages are collected and shown to nobody</div>
+      <p>Drivers can fill these in, and two screens already promise the hotel will see them. Nothing displays them. It's a small fix with a bad look, and it's on the list.</p>
+    </div>
+  </section>
+
+  <!-- ══ HOTELS ══ -->
+  <section>
+    <div class="sec-head"><h2>A hotel</h2><span class="sec-count">3 businesses · 6 staff</span></div>
+    <p class="sec-note">Carlton Cannes, Le Grand Hôtel, Hôtel Belles-Rives — all three are test accounts today.</p>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Name and logo</div>
+      <div class="item-desc">What they're called and their mark, shown to Drivers on the trip.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Reception phone and billing email</div>
+      <div class="item-desc">Who to call, and where invoices go.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Their booking habits</div>
+      <div class="item-desc">The class of car they default to, standing notes they send with every trip, and whether their own address auto-fills as the pickup.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">When they joined</div>
+      <div class="item-desc">Signup date — the other half of every growth chart.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">The people inside the hotel</div>
+      <div class="item-desc">Each Dispatcher: name, email, phone, when they were added — and which of them booked which trip.</div>
+      <div class="item-real">6 people across 3 hotels</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Their address</div>
+      <div class="item-desc">Where they actually are, as a place on the map.</div>
+      <div class="item-real">1 of 3 located</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Legal identity</div>
+      <div class="item-desc">Legal name, SIRET, VAT number, registered address — needed on invoices.</div>
+      <div class="item-real">0 of 3 have a SIRET</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">What kind of business they are</div>
+      <div class="item-desc">Hotel, agency, concierge.</div>
+      <div class="item-real">Stored in two separate places that never talk — one says "Hotel" for all three, the other is empty for all three</div></div></div>
+
+    <div class="flag">
+      <div class="flag-title">Two columns that never talk</div>
+      <p>"Field of activity" and "business type" are both meant to answer the same question and neither knows about the other. Any breakdown by kind of customer is unreliable until one of them wins. Small job, already on the list.</p>
+    </div>
+  </section>
+
+  <!-- ══ TRIPS ══ -->
+  <section>
+    <div class="sec-head"><h2>One trip</h2><span class="sec-count">280 trips · 74 details each</span></div>
+    <p class="sec-note">This is the richest thing in Kavenue. Everything below is per trip.</p>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Who's involved</div>
+      <div class="item-desc">Which hotel, which member of their staff booked it, and which Driver has it.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Where it stands</div>
+      <div class="item-desc">Draft, in the Pool, taken, driver on the way, arrived, guest aboard, finished, cancelled, or expired.</div>
+      <div class="item-real">184 completed · 48 expired · 23 cancelled · 13 taken · 9 running · 3 in the Pool</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Class of car asked for</div>
+      <div class="item-desc">Eco, Business or First.</div>
+      <div class="item-real">210 Business · 43 Eco · 27 First</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Pickup and drop-off</div>
+      <div class="item-desc">Full address, the exact spot on the map, and the short name for the schedule line.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Stops along the way</div>
+      <div class="item-desc">Any extra stops, and how many the Driver has already reached.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">When it's for</div>
+      <div class="item-desc">Pickup date and time — and for airport jobs, the flight number, its landing time, and when the guest is actually ready.</div>
+      <div class="item-real">89 of 280 gave a flight number</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">The guests</div>
+      <div class="item-desc">Names, how many people, how many bags, and whether it's bags only with no passengers.</div>
+      <div class="item-real">17 luggage-only runs</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">What the hotel asked for</div>
+      <div class="item-desc">Specific body type, a particular make or model, languages the Driver should speak, dress code, and the name to hold on a sign at arrivals.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Notes</div>
+      <div class="item-desc">The hotel's comment, their own private reference tag, and any message left for the Driver.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Distance and journey time</div>
+      <div class="item-desc">The booked route — kilometres and minutes, with traffic predicted for the hour it's booked for.</div>
+      <div class="item-real">266 of 280 have both</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">The price setup</div>
+      <div class="item-desc">Your maximum, the price it opened at, whether it climbs, and whether SPEED WIN was on.</div>
+      <div class="item-real">250 of 280 priced · 78 were SPEED WIN</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Every timestamp</div>
+      <div class="item-desc">Created, posted, taken, confirmed, checked in, cancelled, closed. This is what "the whole story in order" is made of.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Waiting time</div>
+      <div class="item-desc">When the free wait started and ended, how many minutes were charged, at what rate, for how much.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">No-show</div>
+      <div class="item-desc">Whether the guest never appeared, when that was called, and who called it.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">How it ended</div>
+      <div class="item-desc">The Driver's answer to "did this trip happen?" — driven, or didn't happen — and when they answered.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">The commission at the time</div>
+      <div class="item-desc">The rates that applied to this specific trip, frozen so a later rate change can't rewrite history.</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">What the trip actually sold for</div>
+      <div class="item-desc">The final agreed price at the moment a Driver took it — as opposed to what the hotel offered.</div>
+      <div class="item-real">Recording works and is switched on · 0 of 280 filled, because none of them were accepted after it shipped on 22 August</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Which area it's in</div>
+      <div class="item-desc">Meant to be the region, for grouping trips by place.</div>
+      <div class="item-real">22 different values, and they're a mixture of hotel names, street addresses, terminals and towns — including "Nice" and "nice" as two separate things</div></div></div>
+
+    <div class="note">
+      <strong>Checked, because "empty" and "broken" look identical.</strong> The selling price is blank on all 280 trips, which is
+      exactly the shape of the four silent faults found this month. It isn't one: the recording is wired, live since 22 August,
+      and has its own automated check. Every one of those 280 trips was either accepted before that date or created by test
+      seeding, which bypasses the app. <strong>Real trips from here will carry it</strong> — but the 280 behind us never will,
+      so money figures covering the past have to be worked out from the offered price instead.
+    </div>
+
+    <div class="flag">
+      <div class="flag-title">"By region" doesn't work today</div>
+      <p>You asked specifically about checking things by region. The field meant to hold it has been filled with whatever was handy — sometimes a hotel name, sometimes a street. Grouping by it right now would produce 22 meaningless buckets. Two ways out: tidy it up, or work the region out from the map coordinates instead, which every trip has. The second is more reliable and doesn't need anyone to remember anything.</p>
+    </div>
+  </section>
+
+  <!-- ══ THE STORY ══ -->
+  <section>
+    <div class="sec-head"><h2>The story of a trip</h2><span class="sec-count">2 057 events</span></div>
+    <p class="sec-note">The thing you switched on two days ago. Every change to every trip, permanently, in order.</p>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">The twelve automatic records</div>
+      <div class="item-desc">Booked, posted, taken, put back, confirmed, on the way, arrived, aboard, completed, no-show, cancelled, expired. Written by the database itself, so they cannot be forgotten.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">The nine app records</div>
+      <div class="item-desc">Checked in, price change proposed and answered, release asked for and answered, a refused acceptance, details edited, closing answered, phone number revealed.</div>
+      <div class="item-real">Switched on two days ago — so only trips from then on have them</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Who did it, and when</div>
+      <div class="item-desc">Every record carries the person behind it and the exact moment, down to the second.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">What changed</div>
+      <div class="item-desc">The before and after — including, on a re-post, which Driver walked away.</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Events for trips that no longer exist</div>
+      <div class="item-desc">The record deliberately outlives the trip. So some entries describe trips that have since been deleted.</div>
+      <div class="item-real">221 of 2 057 — nearly all our own testing</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">Who looked at a trip and didn't take it</div>
+      <div class="item-desc">Deliberately off. Your decision, written down so nobody switches it on by accident.</div></div></div>
+
+    <div class="flag">
+      <div class="flag-title">23 cancelled trips with no cancellation record</div>
+      <p>The table that holds "who cancelled, when, why, and what it cost" has zero rows, while 23 trips are marked cancelled. For those 23, the Admin page can tell you that it was cancelled but never why or by whom. They pre-date the recording. New ones will be complete.</p>
+    </div>
+  </section>
+
+  <!-- ══ COUNTING ══ -->
+  <section>
+    <div class="sec-head"><h2>Sums it can work out</h2><span class="sec-count">counting &amp; comparing</span></div>
+    <p class="sec-note">You asked whether it can total things up and show growth. Yes — here's exactly which sums, and how trustworthy each one is.</p>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">How many of everything</div>
+      <div class="item-desc">Drivers, hotels, hotel staff, cars, trips. Totals and running totals.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Growth, month by month</div>
+      <div class="item-desc">New Drivers, new hotels and new trips per month — and the percentage change between them, which is the number an investor asks for first.</div></div></div>
+
+    <div class="months">
+      <div class="month"><span class="month-l">May</span><span class="month-track"><span class="month-fill" style="width:70%"></span></span><span class="month-n">71</span></div>
+      <div class="month"><span class="month-l">June</span><span class="month-track"><span class="month-fill" style="width:100%"></span></span><span class="month-n">101</span></div>
+      <div class="month"><span class="month-l">July</span><span class="month-track"><span class="month-fill" style="width:84%"></span></span><span class="month-n">85</span></div>
+      <div class="month"><span class="month-l">August</span><span class="month-track"><span class="month-fill" style="width:23%"></span></span><span class="month-n">23</span></div>
+    </div>
+    <div class="note">Trips booked per month. <strong>August isn't a collapse</strong> — the last trip in the system is from 22 August and much of this is seeded test data, not real trading. A growth chart has to say that, or it tells a lie with true numbers.</div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Signups per week</div>
+      <div class="item-desc">The finer-grained version, for spotting whether a push actually worked.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Trips broken down by anything</div>
+      <div class="item-desc">By class of car, by hotel, by how they ended, by luggage-only, by SPEED WIN, by airport or not.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">How often trips find a Driver</div>
+      <div class="item-desc">What share get taken, and how long it takes. <em>The single most important number a marketplace has</em> — 48 of your 280 expired with nobody taking them, which is 17%.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Cancellation and no-show rates</div>
+      <div class="item-desc">What share go wrong, and which side caused it.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Average distance and journey time</div>
+      <div class="item-desc">And the spread — whether you're a short-hop business or a long-transfer one.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">How far ahead people book</div>
+      <div class="item-desc">The gap between posting a trip and the pickup. Tells you how much of your business is planned versus panic.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Repeat business</div>
+      <div class="item-desc">Which hotels came back, how often, and whether they're speeding up or slowing down — retention, by joining month.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Who's actually working</div>
+      <div class="item-desc">Trips per Driver, and how lopsided it is — whether two Drivers are doing everything.</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Money through the platform</div>
+      <div class="item-desc">Total value of trips, and your commission on it.</div>
+      <div class="item-real">Exact for trips from 22 August onward · estimated from the offered price for the 280 before that</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Anything by region</div>
+      <div class="item-desc">Trips by town, Drivers by coverage, which areas are short of cars.</div>
+      <div class="item-real">Needs the region worked out from map coordinates — the region field itself is unusable</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">How many people actually opened the app</div>
+      <div class="item-desc">Daily and monthly active users. Nothing records that someone came.</div>
+      <div class="item-real">One small change: one mark per person per day. It cannot be worked out later.</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">Where people give up booking</div>
+      <div class="item-desc">Started a booking, finished it, or abandoned it — the only way to answer "how easy is it to create a trip".</div>
+      <div class="item-real">Three small marks on the booking form. Also cannot be worked out later.</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">Real money movement</div>
+      <div class="item-desc">Payments in, payouts to Drivers, the running ledger.</div>
+      <div class="item-real">All three tables exist and all three are empty — no money has moved through Kavenue yet</div></div></div>
+
+    <div class="note">
+      <strong>The two missing ones above are the reason to start early.</strong> Everything else on this page can be worked out
+      whenever you like, because the underlying facts are already stored. Those two can't — a day that goes unrecorded is gone.
+      Every week without them is a week your analytics will never be able to describe.
+    </div>
+  </section>
+
+  <!-- ══ CROSS-MATCHING ══ -->
+  <section>
+    <div class="sec-head"><h2>Things checked against each other</h2><span class="sec-count">cross-matching</span></div>
+    <p class="sec-note">You asked about cross-matching. These are the combinations that actually tell you something — all possible from what you already store.</p>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Why can't this Driver take this trip?</div>
+      <div class="item-desc">Re-run the real rules for one Driver against one trip and name the one that blocked them — wrong class, wrong town, too far, already busy at that hour, not verified. <em>The highest-value thing on this whole page.</em> Today, answering it means asking me to query the database by hand.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Why has nobody taken this trip?</div>
+      <div class="item-desc">The same question from the hotel's side — how many Drivers even matched, and what ruled the rest out.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">What the auction saved the hotel</div>
+      <div class="item-desc">The gap between the hotel's maximum and what the trip actually went for — your clearest proof of value to a hotel.</div>
+      <div class="item-real">Needs trips accepted after 22 August — the mechanism is live, the history isn't there</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Which hotel books which class</div>
+      <div class="item-desc">Whether the Carlton is all First and someone else is all Eco — who your premium demand actually comes from.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Which Drivers work for which hotels</div>
+      <div class="item-desc">Whether relationships are forming, or whether it's genuinely a shared pool.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Time of day and day of week</div>
+      <div class="item-desc">When trips get booked and when they run — your peaks, and where cars run short.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Airport work versus town work</div>
+      <div class="item-desc">Flights against everything else — 89 of 280 gave a flight number.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Does SPEED WIN actually work?</div>
+      <div class="item-desc">78 trips used it. Compare how fast they got taken against the ones that didn't — whether paying more up front buys speed.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">What the expired trips had in common</div>
+      <div class="item-desc">48 trips nobody took. Class, town, hour, price, notice given — the pattern in what your marketplace can't serve.</div></div></div>
+
+    <div class="item"><span class="pill p-ready">Ready</span><div class="item-body">
+      <div class="item-name">Passed around trips</div>
+      <div class="item-desc">Trips taken and dropped more than once — visible in the story of each trip, and usually a sign something's wrong with it.</div></div></div>
+
+    <div class="item"><span class="pill p-partial">Partial</span><div class="item-body">
+      <div class="item-name">Is a Driver reliable?</div>
+      <div class="item-desc">Trips completed against trips dropped, refused, or never checked in for.</div>
+      <div class="item-real">The counter exists but sits at 0 for all 9 — nothing has counted against anyone yet</div></div></div>
+  </section>
+
+  <!-- ══ NOT POSSIBLE ══ -->
+  <section>
+    <div class="sec-head"><h2>Things it will never be able to tell you</h2><span class="sec-count">at least not soon</span></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">Where a Driver is right now</div>
+      <div class="item-desc">A web app can't follow a phone once the screen locks — which is exactly when someone's driving. Needs the native app.</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">What a guest thought of the trip</div>
+      <div class="item-desc">No ratings or reviews anywhere in Kavenue yet.</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">Why the 23 cancelled trips were cancelled</div>
+      <div class="item-desc">Not recoverable. The recording started after they happened.</div></div></div>
+
+    <div class="item"><span class="pill p-absent">Missing</span><div class="item-body">
+      <div class="item-name">Anything about people who never signed up</div>
+      <div class="item-desc">Hotels that looked and left, Drivers who started and stopped. Kavenue only knows about accounts that exist.</div></div></div>
+  </section>
+
+  <footer>
+    Every figure on this page was read from your live Supabase database on 26 August 2026, not from documentation.
+    Where something says "partial", the number is the honest count — a page that quietly totals only what it can find
+    would be worse than one that admits the gap.
+  </footer>
+
+</div>

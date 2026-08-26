@@ -4466,3 +4466,69 @@ never redirect to the live site. Also pins `isProdDomain("notkavenue.fr") === fa
 ⚑ **Still open, unchanged from part C:** the real admin account does not exist. First sign-in with
 `admin@kavenue.fr` lands on `/welcome` with no profile and offers *"Driver or Business"* — **picking either
 creates the wrong role.** Sign in, stop, then write the profile row with `role='admin'`.
+## Session 67 — CLOSED (2026-08-26). Four shipped, and the first change that makes the machine do the catching
+
+`main` = **`7ca02ee`** + this close. **No migration was written or needed all session.**
+
+| | |
+|---|---|
+| two stale probes | 63/0 and 16/0. Neither was a code regression — both were probes asserting yesterday's rules |
+| [[d89]] | the address box → Google Places (New). **Routing stayed on Mapbox and must** |
+| [[d90]] | an admin can get into the app — `routeFor()` had no `admin` branch, so `/welcome` redirected to itself |
+| [[d91]] | `admin.kavenue.fr` — its own host, because each host carries its own session cookie |
+| § AI | live Driver location backlogged behind the native app |
+
+### ⚑ Six of the same fault this month — and S67 changed how it gets caught
+D86 · D87 · D88 · D90 were all *a branch that never fires looks exactly like a feature nobody uses*. The two in
+D91 **never shipped**: widening `RoleSub` from two values to three made the **compiler** fail the build twice —
+`homePathForSub()` would have silently sent admins to Dispatch, and the login page would have said *"Kavenue
+Driver"*. Neither was found by reading the code.
+
+> **Where a value must cover every case, make the compiler the check. A reviewer's memory is not one.**
+
+### ⚑ The counter-lesson, same session
+Claude told the founder that `accepted_fare` being null on all 280 missions was urgent — the exact shape of the
+four faults. It is not: wired, live since 2026-08-22, covered by `accepted-fare.ts`. **"Zero rows" is not proof
+of a bug.** Corrected plainly in the artifact and to the founder.
+
+### The founder's own contributions this session, worth recording
+- **They caught D91's premise before the analysis did** — *"why can't I have the admin elsewhere? Why here?
+  it's confusing…"* Claude had chosen "no subdomain" to avoid infrastructure. The session-cookie clash that
+  made it genuinely broken was only found *because* they pushed back. See [[be-an-adviser-not-a-yes-man]].
+- **They killed a bad test**: `Le Grand Hôtel Cannes` failed on both Mapbox and Google, and they pointed out
+  the business no longer exists. Struck from the comparison. See [[founder-knows-the-market]].
+- **They rejected a per-feature "definition of done" checklist as too heavy**, and chose a periodic audit
+  session instead. Recorded in Claude's memory; do not re-propose the checklist.
+- **They decided the admin area gets restricted access levels later, not now** — one column when a second
+  person needs access.
+
+### Deliverable: `project/What-Admin-Can-See.html`
+Full inventory of everything the Admin page can show — every field, every sum, every cross-check, marked
+Ready / Partial / Missing, **read from the live DB on 2026-08-26**, also published as an Artifact. Findings
+worth carrying: `mission.zone` is unusable free text (22 values mixing hotel names, streets, terminals, and
+`Nice` vs `nice`) so *"by region"* must come from coordinates · **23 cancelled missions with 0 cancellation
+records** · Driver photo + languages collected and shown to nobody while two shipped strings promise otherwise
+· `business_type` and `field_of_activity` still never talk · payment/payout/ledger/document all **0 rows**.
+
+### Discussed and decided, so it is not re-argued
+- **Console BEFORE the clean test dataset.** The founder asked Claude to make the call. Reasoning: the dataset
+  exists to be looked at and there is no tool to look at it with; the console needs no new data; building the
+  console reveals what the dataset should contain; and the dataset is thrown away after Stripe/email land.
+- **Simulation, when it comes: script the real RPCs, never raw table inserts.** Raw inserts are what made the
+  280 trips that cannot answer money questions. ⚑ Four months of *time* cannot be simulated — the curve,
+  check-in windows and expiry all read the clock. ⚑ **Simulated scale is not real scale**: 35 fake Drivers must
+  not reopen decisions parked at "revisit past ~50 Drivers".
+- **Money: simulate the maths, never the movement.** Fares/commission/VAT/invoices are live and parity-checked;
+  faking Stripe rows would prove nothing.
+- **The founder will do their own UI/UX pass** on a clean dataset and report findings — complementary to
+  Claude's dev-side testing, which catches the silent faults they cannot see.
+
+### Gate at close
+`tsc` clean · **555 tests** · handoff-check 23/23 · diff-sql-vs-lib · write-test 170 · curve-live 8 ·
+accepted-fare 20 · reclaim-live 20/0 · event-registry-live 16/0 · migrations-08-10 **63/0** · migrations-08-11
+23/0 · google-places-live **8/0**. Mission table restored to **280**; roles 4 dispatcher / 4 driver / **1 admin**.
+
+### ⚑ THE NEXT ACTION, EXACTLY
+**The Activity console — and the very next thing is the DESIGN PREVIEW** ([[d25]] loop), which Claude had just
+offered when the session ran out of context. Read `project/What-Admin-Can-See.html` first. Build the *"why
+can't this Driver take this trip?"* answer first within it.

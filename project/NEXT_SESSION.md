@@ -234,6 +234,9 @@ SPEED WIN trip whose `pdp_start` is under 70 % of the Ceiling the two floors dif
 app — the accept server action computes the number with `openingPrice()` — but a hand-made RPC call could
 store an `accepted_fare` below the basis the cancel would later clamp to, and the charge would then exceed
 the quote. Same family as the other § H2 residuals; nothing waits on it.
+⚑ **PROVEN LIVE, not read off a migration:** `npx tsx .local/probe/accept-floor.mts` — 6 checks. Ceiling 100,
+`pdp_start` 30, SPEED WIN: the cancel floor reads 70 and `accept_mission(p_fare => 30)` stamps 30. Written
+that way deliberately, because reading instead of running is what produced the false alarm it came out of.
 
 #### 1 · THE TEST DATASET — ✅ DONE (2026-08-26, S68, [[d94]])
 The database was **bleached** (3 210 rows) and rebuilt as **three months of trading**: 4 hotels · 6 desks ·
@@ -391,6 +394,7 @@ about that point — **fix the file before you build on it.** Then:
     node .local/probe/google-places-live.mjs                             #  8 · D89 address box
     npx tsx .local/probe/eligibility-live.mts                            # 33 · D92/D93 — ⚑ tsx, NOT node
     npx tsx .local/probe/dataset-audit.mts                               # 30 · the seeded dataset (D94)
+    npx tsx .local/probe/accept-floor.mts                                #  6 · the § H2 two-floors residual
     npx tsx .local/probe/sweep-orphans.mts                                #    after any live-probe session
 
 **If a probe fails, that is the job** — not whatever is queued above.

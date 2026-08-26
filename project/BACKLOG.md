@@ -190,6 +190,11 @@ accountant? ⚠️ Keep the **agent/intermediary** framing in the copy: Kavenue 
   (`greatest(…, ceiling × 0.70)`). On a SPEED WIN trip whose `pdp_start` sits below 70 % of the Ceiling the
   two disagree, so a stored `accepted_fare` can legally be **below** the floor a later cancellation clamps
   to — and the charge would then exceed the quote the Business was shown.
+  ⚑ **PROVEN AGAINST THE LIVE DATABASE, not read out of the migration files** —
+  `.local/probe/accept-floor.mts`, 6 checks. A SPEED WIN trip with Ceiling 100 and `pdp_start` 30: the cancel
+  RPCs' floor reads **70**, and `accept_mission(p_fare => 30)` stamped **`accepted_fare = 30`**. Written this
+  way on purpose: the same day's false alarm ([[d97]]) came from explaining a money path by reading rather
+  than running it.
   ⚑ **Unreachable through the app**: the accept server action computes `p_fare` with `openingPrice()`, the
   same SPEED-WIN-aware function, so it never sends a number below that floor. It needs a hand-made PostgREST
   call, which is the same threat model as the other residuals here. Fix is one line — point

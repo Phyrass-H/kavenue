@@ -22,6 +22,7 @@ import {
   TRIGGER_EVENTS,
   APP_EVENTS,
   isImported,
+  isSeeded,
   orderEvents,
   type MissionEventRow,
   type MissionEventType,
@@ -78,6 +79,13 @@ export interface StoryEntry {
    * the record itself says is uncertain, so the screen can show it verbatim.
    */
   approxBecause: string | null;
+  /**
+   * Set when the row was manufactured by the seed. ⚑ A DIFFERENT CLAIM FROM
+   * `approxBecause`: a reconstructed time really happened and we are unsure
+   * when; a seeded one never happened at all. Merging them into one "approx"
+   * would let test data pass as history.
+   */
+  seededLabel: string | null;
   /** True when this row's type isn't in the vocabulary — shown, never dropped. */
   unknown: boolean;
 }
@@ -122,6 +130,7 @@ export function missionStory(rows: MissionEventRow[]): StoryEntry[] {
       says: phrase?.says ?? e.event_type,
       phase: phrase?.phase ?? "assignment",
       detail: detailOf(e),
+      seededLabel: isSeeded(e) ? "test data" : null,
       approxBecause: isImported(e)
         ? // The backfill wrote its own caveat into every row it created; where
           // one is missing, say the honest general thing rather than nothing.
@@ -136,6 +145,11 @@ export function missionStory(rows: MissionEventRow[]): StoryEntry[] {
 /** How many of a story's entries are reconstructed — the footer's one number. */
 export function approxCount(story: StoryEntry[]): number {
   return story.filter((s) => s.approxBecause !== null).length;
+}
+
+/** How many were manufactured. Nothing about a seeded trip is evidence. */
+export function seededCount(story: StoryEntry[]): number {
+  return story.filter((s) => s.seededLabel !== null).length;
 }
 
 /** ⚑ The date the log started observing. Before it, every entry is a reconstruction. */

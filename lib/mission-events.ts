@@ -79,7 +79,18 @@ export type EventSource =
   | "client_rpc"
   | "app"
   | "status_event_backfill"
-  | "mission_row_backfill";
+  | "mission_row_backfill"
+  /**
+   * ⚑ MANUFACTURED. A row written by `.local/seed/`, describing a trip that was
+   * invented to test with. It exists because the alternative was worse: the
+   * trigger stamps `clock_timestamp()`, so driving three months of seeded
+   * history through real transitions produces a log where everything happened
+   * today. Re-stamping those rows and leaving them labelled 'db_trigger' would
+   * have made the log lie about being observed — the exact fault D86–D92 are
+   * all instances of. So the label tells the truth instead, and every reader is
+   * forced by the type to decide what to do with it.
+   */
+  | "seed";
 
 export type Audience = "business" | "driver" | "admin";
 
@@ -106,6 +117,11 @@ export function isObserved(e: Pick<MissionEventRow, "source">): boolean {
 /** Imported from a column or an old table. True, but not observed at the time. */
 export function isImported(e: Pick<MissionEventRow, "source">): boolean {
   return e.source === "status_event_backfill" || e.source === "mission_row_backfill";
+}
+
+/** Manufactured by the seed. Not a record of anything that happened. */
+export function isSeeded(e: Pick<MissionEventRow, "source">): boolean {
+  return e.source === "seed";
 }
 
 /**

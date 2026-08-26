@@ -5,6 +5,35 @@
 
 ---
 
+## 26 August 2026 — everything deleted, and three months rebuilt from scratch
+
+- **The database was bleached.** Every Driver, hotel, trip and log entry ever tested — 3,210 rows — is gone.
+  The price list, the fee schedule and your admin login survived; nothing else did. The schema was never
+  touched.
+- **In its place: three months of trading.** 4 hotels with 6 booking desks, 11 Drivers with real cars and
+  paperwork, and **348 trips from late May to today** — growing month over month (75 in June, 137 in July, 128
+  so far in August), the way a real business would.
+- **It behaves like a business, not a demo.** 84% of trips found a Driver and 48 didn't — Belles-Rives is the
+  worst affected, with 10 of its 42 unfilled. There are cancellations from both sides, no-shows with waiting
+  charged, trips taken and given back, and one still sitting in the Pool that nobody in the fleet can serve.
+- **⚑ Every trip was driven through the real steps**, one at a time — posted, taken, on the way, arrived,
+  aboard, finished — so the history was written by the same machinery the live app uses, not typed in.
+- **⚑ And the history says openly that it is made up.** Each of those entries is labelled *test data* on the
+  screen. The alternative was to let three months of invented trips claim the database had watched them
+  happen, which would have been a lie the app itself would believe. The handful of trips posted today are the
+  real thing and are not labelled.
+- **The "which area?" problem is fixed.** That field held 22 different values mixing hotel names, streets and
+  terminals. It now holds five towns, so trips by area finally answers something.
+- **A trip that's over now asks a better question.** It used to say "this Driver can't take it — it's
+  finished", eleven times over. It now says **who could have taken it** — the nine-day trip that was dropped
+  three times opens with *"5 of 11 Drivers matched this trip"*.
+- **⚑ Three things were quietly broken and a new check caught them.** Cancellations, release requests and
+  Driver documents were all being written with wrong column names — the database rejected every one, the
+  seeding script never looked, and it reported success. All three tables were empty while the log said
+  everything worked.
+
+---
+
 ## 26 August 2026 — the fleet can be reached, and the console can be browsed
 
 - **Your six Drivers without a base now have one.** Marc Fontaine and Élodie Marchand work out of Nice, Sofia

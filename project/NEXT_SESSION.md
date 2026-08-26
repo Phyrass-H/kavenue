@@ -148,6 +148,46 @@ consulted by nothing.**
 
 ### 🎯 NEXT SESSION — the founder's stated order, confirm in one line
 
+#### 0 · ⚑ THE QUOTE AND THE CHARGE DISAGREE ONCE `accepted_fare` IS SET — **START HERE**
+
+**Found 2026-08-26 by the reseed. NOT a regression, NOT proven wrong money in production, and NOT patched.**
+
+`write-test.ts` reports **24 problems**, and they are all one thing. The probe snapshots the fare with
+`settledFare()`, which returns the frozen **`accepted_fare`** when it exists; `business_cancel_mission`
+computes its own basis in SQL from the **live PDP curve**. Same cancellation percentage, three different
+stored fees:
+
+| case | pct | probe's basis | probe expects | SQL stored |
+|---|---|---|---|---|
+| A1 | 50 % | 81,06 | 40,53 | **42,75** |
+| A2 | 50 % | 81,06 | 40,53 | **61,73** |
+| A3 | 50 % | 81,06 | 40,53 | 40,53 ✓ |
+| A4 | 55 % | 81,06 | 44,58 | **109,99** |
+| A5 | 55 % | 81,06 | 44,58 | 44,58 ✓ |
+
+⚑ **WHY IT WAS GREEN FOR FOUR DAYS.** `accepted_fare` shipped 2026-08-22 and was **NULL on all 280 live
+missions** — so `settledFare()` always fell through to recomputing the curve, landed on the same number as
+SQL, and the check passed. The S68 seed stamps it exactly where the app stamps it, and the disagreement
+appeared at once. **The old data was hiding it.** (S67's "zero rows is not proof of a bug" has a twin: *zero
+rows is not proof of correctness either.*)
+
+**What to establish first, before changing any code:**
+1. Which side is right — the modal's quote (`accepted_fare`, what the Business was shown) or the RPC's charge
+   (the live curve)? Doc 06 §9 says *"the fare freezes at acceptance"*, which argues for the frozen one.
+2. Is this the **§ H2 residual already on record** — *"the fee basis can still be understated down to
+   `pdp_start`"* — surfacing, or something new?
+3. ⚑ The A3 and A5 cases are **correct**, so the mechanism works. Find what differs about A1/A2/A4 (they are
+   the cases whose `pickup_at` is moved to simulate the lead time — suspect the curve moving between the
+   probe's read and the RPC's computation).
+
+**Evidence it is not a regression:** `diff-sql-vs-lib` **1 921 checks · ALL AGREE** over the 350 real
+missions · `curve-live` 8/8 · `accepted-fare` 20/20 · `migrations-2026-08-10` 63/63 ·
+`migrations-2026-08-11` 23/23. Nothing S68 changed touches the money path.
+
+⚑ **Do NOT make the probe green by relaxing the assertion.** One PAGE-READ assertion in it WAS relaxed this
+session, correctly and for a different reason (it compared a commission-inclusive number to a
+commission-exclusive one and had also been passing for the wrong reason). These 24 are not that.
+
 #### 1 · A CLEAN TEST DATASET ← **START HERE** (partly begun)
 The console exists now, which was the whole reason to build it first: *building the console is what reveals
 which scenarios the dataset actually needs.* ⚑ **The six missing bases were already fixed** (S68 part B), so

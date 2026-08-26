@@ -3826,3 +3826,6 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 /* A list row with no time column — the fleet and the hotels. */
 .adm-row--3 { grid-template-columns: 1fr auto auto auto; }
 .adm-row__kind--bad { color: var(--tone-danger-fg); }
+/* Manufactured by the seed — a different claim from "approx", and it must not
+   read as a milder version of it. */
+.adm-approx--seed { color: var(--tone-warn-fg); border-bottom-color: var(--tone-warn-fg); }

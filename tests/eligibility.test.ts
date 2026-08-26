@@ -208,6 +208,57 @@ describe("a refusal outranks a hidden trip", () => {
   });
 });
 
+describe("the past-tense question", () => {
+  // ⚑ WHY THIS MODE EXISTS. On a finished trip every Driver fails `still_pooled`,
+  // so the console answered "the trip is no longer in the Pool" eleven times and
+  // buried the question a person actually has: who could have taken it while it
+  // sat there for nine days. Seen on real seeded data, not imagined.
+  it("drops the two time-dependent rules rather than faking them as passing", () => {
+    const e = explainEligibility({
+      ...input(),
+      mission: mission({ required_body_type: null, status: "completed" }),
+      now: new Date("2026-07-20T09:00:00+02:00"), // long after the pickup
+      asIfPooled: true,
+    });
+    expect(e.rules.map((r) => r.id)).not.toContain("still_pooled");
+    expect(e.rules.map((r) => r.id)).not.toContain("not_past_due");
+    expect(e.verdict).toBe("can_take");
+    expect(e.answer).toBe("Yes — Marc Fontaine could have taken this trip.");
+  });
+
+  it("still reports the rules that do not depend on when you ask", () => {
+    const e = explainEligibility({
+      ...input(),
+      mission: mission({ required_body_type: null, status: "expired" }),
+      vehicle: { category: "eco", body_type: "sedan", make: "Peugeot", model: "508" },
+      asIfPooled: true,
+    });
+    expect(e.blocker?.id).toBe("vehicle_class");
+    expect(e.answer).toBe("No — Marc Fontaine would have been refused.");
+    expect(becauseOf(e, true)).toContain("would have turned the acceptance down");
+  });
+
+  it("says the trip never reached them, in the past tense", () => {
+    const base = input();
+    const e = explainEligibility({
+      ...base,
+      mission: mission({ required_body_type: null, status: "completed" }),
+      driver: { ...base.driver, base_lat: 48.8566, base_lng: 2.3522, service_radius_km: 15 },
+      asIfPooled: true,
+    });
+    expect(e.answer).toBe("No — Marc Fontaine was never shown it.");
+    expect(becauseOf(e, true)).toContain("never reached their Pool");
+  });
+
+  it("without the flag, a finished trip still refuses everyone — that is correct too", () => {
+    const e = explainEligibility({
+      ...input(),
+      mission: mission({ required_body_type: null, status: "completed" }),
+    });
+    expect(e.blocker?.id).toBe("still_pooled");
+  });
+});
+
 describe("recorded, but decides nothing", () => {
   // ⚑ These two are reported, never omitted. A console that quietly left them out
   // would let a reader assume they matter — and one of them is `verified`.

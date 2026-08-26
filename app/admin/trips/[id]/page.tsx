@@ -16,7 +16,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { readFleet, readCommitments, readMissionEvents, matchFleet } from "@/lib/admin-activity";
 import { becauseOf } from "@/lib/eligibility";
-import { missionStory, approxCount } from "@/lib/mission-story";
+import { missionStory, approxCount, seededCount } from "@/lib/mission-story";
 import { tripLabel, whenLabel } from "@/lib/activity-findings";
 import {
   formatDateTime,
@@ -33,6 +33,12 @@ const VERDICT_PILL = {
   can_take: { className: "adm-pill adm-pill--ok", text: "Can take it" },
   refused: { className: "adm-pill adm-pill--bad", text: "Refused" },
   never_seen: { className: "adm-pill adm-pill--warn", text: "Never seen it" },
+} as const;
+
+const PAST_PILL = {
+  can_take: { className: "adm-pill adm-pill--ok", text: "Matched" },
+  refused: { className: "adm-pill adm-pill--bad", text: "Wrong car" },
+  never_seen: { className: "adm-pill adm-pill--warn", text: "Out of reach" },
 } as const;
 
 export default async function AdminTripPage({
@@ -56,10 +62,16 @@ export default async function AdminTripPage({
     readMissionEvents(db, id),
   ]);
 
-  const matched = matchFleet(mission, fleet, commitments);
+  // ⚑ A trip that has left the Pool gets the PAST-TENSE question. Asking "can
+  // they take it" about a finished trip answers "no, it is completed" eleven
+  // times over and buries the question a person actually has, which is who
+  // could have taken it while it was sitting there.
+  const settled = mission.status !== "pooled";
+  const matched = matchFleet(mission, fleet, commitments, new Date(), settled);
   const takers = matched.filter((m) => m.eligibility.verdict === "can_take");
   const story = missionStory(events);
   const approx = approxCount(story);
+  const seeded = seededCount(story);
   const holder = fleet.find((f) => f.driver.id === mission.driver_id);
 
   // Default the picker to a Driver who CAN'T take it — an answer is more useful
@@ -110,6 +122,16 @@ export default async function AdminTripPage({
         </div>
       </header>
 
+      {settled && (
+        <p className="adm-lede">
+          {takers.length === 0
+            ? "Nobody in the fleet matched this trip."
+            : `${takers.length} of ${matched.length} Drivers matched this trip: ${takers
+                .map((t) => `${t.fleet.driver.first_name} ${t.fleet.driver.last_name}`)
+                .join(", ")}.`}
+        </p>
+      )}
+
       {mission.status === "pooled" && (
         <p className="adm-lede">
           {takers.length === 0
@@ -123,7 +145,9 @@ export default async function AdminTripPage({
       )}
 
       <section className="adm-sect">
-        <h2 className="adm-sect__h">Why can’t this Driver take it?</h2>
+        <h2 className="adm-sect__h">
+          {settled ? "Who could have taken this trip?" : "Why can’t this Driver take it?"}
+        </h2>
         <div className="adm-pick">
           {matched.map((m) => {
             const on = m.fleet.driver.id === selected?.fleet.driver.id;
@@ -145,11 +169,12 @@ export default async function AdminTripPage({
           <div className="adm-verdict">
             <p className="adm-verdict__a">
               {selected.eligibility.answer}{" "}
-              <span className={VERDICT_PILL[selected.eligibility.verdict].className}>
-                {VERDICT_PILL[selected.eligibility.verdict].text}
-              </span>
+              {(() => {
+                const pill = (settled ? PAST_PILL : VERDICT_PILL)[selected.eligibility.verdict];
+                return <span className={pill.className}>{pill.text}</span>;
+              })()}
             </p>
-            <p className="adm-verdict__b">{becauseOf(selected.eligibility)}</p>
+            <p className="adm-verdict__b">{becauseOf(selected.eligibility, settled)}</p>
 
             <details className="adm-checks">
               <summary>
@@ -200,6 +225,14 @@ export default async function AdminTripPage({
                 <span className="adm-ev__body">
                   {e.says}
                   {e.detail && <span className="adm-ev__d"> · {e.detail}</span>}
+                  {/* ⚑ Two different claims, never merged. "approx" means it
+                      really happened and the time is reconstructed; "test data"
+                      means it never happened at all. */}
+                  {e.seededLabel && (
+                    <abbr className="adm-approx adm-approx--seed" title="Manufactured by the seed. This trip never happened.">
+                      {e.seededLabel}
+                    </abbr>
+                  )}
                   {e.approxBecause && (
                     <abbr className="adm-approx" title={e.approxBecause}>
                       approx
@@ -209,6 +242,12 @@ export default async function AdminTripPage({
               </li>
             ))}
           </ol>
+        )}
+        {seeded > 0 && (
+          <p className="adm-quiet">
+            This trip was manufactured by the seed — {seeded} of its {story.length} entries are test
+            data, not a record of anything that happened.
+          </p>
         )}
         {approx > 0 && (
           <p className="adm-quiet">

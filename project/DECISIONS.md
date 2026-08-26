@@ -2243,3 +2243,65 @@ Driver and the founder's whole reaction was *"it's overwhelming"* — correctly.
 take this?" wants the reason, not an audit. One sentence, then the passing checks folded away behind a
 summary.
 
+---
+
+### D94 — A seeded log must not claim the database watched it happen (2026-08-26, S68)
+
+The founder asked for the database to be bleached and rebuilt as a realistic three months, so both sides could
+test properly. Wiping was the easy half. The hard half was a detail with no obvious right answer, and getting
+it wrong would have been invisible for months.
+
+**THE PROBLEM.** `mission_event.occurred_at` defaults to `clock_timestamp()` and the trigger does not override
+it. Every trip therefore has to be *walked* — one UPDATE per status change — for the trigger to compute what it
+alone gets right: `repooled` vs `pooled`, `no_show` vs `completed`, the from/to payload. But walking three
+months of history writes a log in which **everything happened this afternoon**: a trip booked in June, driven
+in July and closed in August carries all thirteen of its entries inside the same minute.
+
+**THE TEMPTING FIX, AND WHY IT WAS REFUSED.** Correct the dates and leave the rows alone. They would then read
+perfectly — right types, right payloads, right order, right dates. And every one of them would still say
+`source='db_trigger'`, which is not a label but a **promise that the database observed the transition**.
+`isObserved()` admits nothing else, and the console renders those entries as fact. That is manufactured
+evidence, and it is the precise shape of every fault this project has hit this month: [[d86]], [[d87]],
+[[d88]], [[d90]], [[d92]] are all a value that meant one thing while every reader believed another. The
+difference here is that we would have built it deliberately.
+
+**THE DECISION: a new source, `seed`, and the type system enforces it.** `EventSource` gains a member, so every
+reader has to decide what to do with it. `isObserved()` is untouched and still admits only `db_trigger`. The
+console marks those entries **"test data"** — deliberately a *different* word from "approx", because they are
+different claims: a reconstructed time really happened and we are unsure when; a seeded one never happened at
+all. Merging them would let test data pass as history.
+
+**And a real remainder is kept honest.** The trips seeded as genuinely live — posted now, for pickups in the
+next few days — are **not** re-stamped. Their events are real, observed, and stay `db_trigger`. Without them
+there would be nothing observed left in the database and the distinction would be untestable. It is also what
+the real system will look like in three months: recent observed, older imported.
+
+**⚑ WHAT THE AUDIT CAUGHT THAT THE SEED DID NOT.** `dataset-audit.mts` was written to distrust the seed, and
+it earned itself immediately: 30 cancellations, 7 release requests and every Driver document had been written
+with **column names that do not exist**. PostgREST answered *"could not find the column in the schema cache"*
+every time, the seed never checked, and it reported success. Three tables were silently empty. This is the S57
+probe lesson word for word — *"an insert whose error is never checked reports success and silently does
+nothing"* — and it is why the seed's own output is not evidence that the seed worked.
+
+**⚑ AND WHAT THE AUDIT GOT WRONG.** It flagged one trip as taken by a Driver who had not signed up yet. The
+data was right and the assertion was wrong: a trip posted on day 10, still in the Pool when a Driver joined on
+day 12 and taken by them on day 13 is ordinary. The check compared against the post, not the accept. **A probe
+is a claim too, and the fix belonged in the probe.**
+
+---
+
+### D95 — On a trip that is over, the useful question is the past-tense one (2026-08-26, S68)
+
+Opening a finished trip in the console asked *"why can't this Driver take it?"* and answered, eleven times in
+a row, *"the trip is no longer in the Pool — it is completed."* True, and useless. It also buried the question
+a person opening that trip actually has, which the seeded data made unmissable: one trip sat in the Pool for
+nine days and was taken and given back three times, and the screen had nothing to say about why.
+
+So a settled trip now asks **"who could have taken this trip?"** — the two rules that depend on *when* you ask
+(`still_pooled`, `not_past_due`) are **dropped from the answer entirely**, never faked as passing, and the
+wording moves to the past tense so nobody mistakes it for a live verdict. The trip above now opens with *"5 of
+11 Drivers matched this trip"*, by name. That is the answer to "why did this take nine days".
+
+⚑ **Found by looking at real data, not by reasoning about the design.** The behaviour was correct on every
+pooled trip, which is what the tests and the preview both covered.
+

@@ -84,6 +84,8 @@ export function matchFleet(
   fleet: DriverWithCar[],
   commitments: Map<string, string[]>,
   now = new Date(),
+  /** Past tense — see EligibilityInput.asIfPooled. */
+  asIfPooled = false,
 ): Matched[] {
   return fleet.map((f) => ({
     fleet: f,
@@ -97,6 +99,7 @@ export function matchFleet(
         (t) => t !== mission.pickup_at,
       ),
       now,
+      asIfPooled,
     } satisfies EligibilityInput),
   }));
 }

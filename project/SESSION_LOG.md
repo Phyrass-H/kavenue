@@ -111,6 +111,82 @@ collapse. Six Drivers with no base read fine as six names; two unrelated sentenc
 
 vitest **636 → 643**.
 
+### Part C — the bleach, and three months rebuilt
+
+**The founder's instruction, verbatim:** *"clean everything even in the database and on the activity console
+and everything related bleach everything, then try to create real period out of three months whatever you can
+do to have like for you to test properly."* Plus: do the developer-side verification myself, because they
+cannot.
+
+**`.local/seed/bleach.mts`** — dry run first, `--confirm` to act. **3 210 operational rows deleted.** Kept:
+`rate_card`, `commission_rate`, `mission_event_type` (config the app cannot run without), the
+`admin@kavenue.fr` auth user + profile, and the founder's two personal addresses. 17 test auth users deleted.
+**No DDL** — rows only, through PostgREST, which cannot do DDL even if asked.
+
+### ⚑ D94 — the decision the whole rebuild turned on
+`mission_event.occurred_at` defaults to `clock_timestamp()`, so walking three months of history writes a log
+in which **everything happened this afternoon**. Correcting the dates is trivial. The trap is leaving the rows
+labelled `db_trigger`, which is a *promise the database observed the transition* — `isObserved()` admits
+nothing else and the console renders those entries as fact. That would have been **manufactured evidence**,
+the exact shape of D86–D92, built deliberately.
+
+So `EventSource` gains **`seed`**, the type system forces every reader to handle it, and the console marks
+those entries **"test data"** — deliberately a different word from "approx", because a reconstructed time
+really happened and a seeded one never did. The 7 live trips are **not** re-stamped: their events are real,
+observed, and stay `db_trigger`.
+
+### What was built
+| | |
+|---|---|
+| `bleach.mts` | the wipe · dry-run default · keeps config + the admin |
+| `riviera.mts` | 17 real places, 26 real road legs (km + minutes), 11 Driver specs, 4 hotels |
+| `seed-3months.mts` | hotels, desks, Drivers, cars — joined dates spread for a growth curve |
+| `seed-trips.mts` | **340 trips WALKED** through real status transitions (~4 min) |
+| `restamp.mts` | re-date the trigger's rows + relabel `source='seed'` · **refuses on a count mismatch** |
+| `seed-sidetables.mts` | 42 cancellations · 3 release requests · 47 documents · **every insert error checked** |
+| `seed-live.mts` | 7 trips live now, chosen so the matcher has something to say |
+| `seed-hard-cases.mts` | 2 passed-around trips · 1 nobody can serve |
+| `seed-probe-accounts.mts` | the 3 accounts 15 live probes sign in as |
+| `.local/probe/dataset-audit.mts` | **30 checks.** Distrusts the seed on principle |
+
+**Result: 348 trips · 2 489 events · 11 Drivers · 4 hotels.** May 10 · June 75 · July 137 · Aug 128.
+84% fill rate, 48 unfilled, 30 cancellations, 12 no-shows, 106 with waiting charged.
+
+### ⚑ WHAT THE AUDIT CAUGHT THAT THE SEED DID NOT
+**Three tables were silently empty.** Cancellations, release requests and every Driver document had been
+written with **column names that do not exist** (`cancelled_at` for `created_at`, `reason` for `note`,
+`driver_id` for `owner_id`). PostgREST answered *"could not find the column in the schema cache"* every single
+time, the seed never checked the error, and it printed success. **This is the S57 lesson word for word** — an
+insert whose error is never checked reports success and silently does nothing. `seed-sidetables.mts` now
+routes every insert through one checked helper and exits non-zero if any fails.
+
+**And the audit itself was wrong once.** It flagged a trip taken by a Driver who "had not signed up yet". The
+data was right: a trip posted day 10, still pooled when a Driver joined day 12, taken day 13, is ordinary. The
+check compared against the POST, not the ACCEPT. **A probe is a claim too, and the fix belonged in the probe.**
+
+### ⚑ D95 — a finished trip asks the past-tense question
+The matcher answered *"the trip is no longer in the Pool"* eleven times on any settled trip. The seeded data
+made it unmissable: one trip sat nine days and was dropped three times, and the screen had nothing to say. A
+settled trip now asks **"who could have taken this trip?"** — the two time-dependent rules are **dropped from
+the answer**, never faked as passing, and the wording moves to past tense. That trip now opens with *"5 of 11
+Drivers matched this trip"*, by name. **Found by looking at real data**, not by reasoning: the behaviour was
+correct on every pooled trip, which is all the tests and the preview covered.
+
+### The probes, after the reseed
+- `diff-sql-vs-lib` **1 921 checks · ALL AGREE** (was 693 — the bigger dataset exercises it harder)
+- `curve-live` 8 · `eligibility-live` **33** · `dataset-audit` **30** · `handoff-check` **30**
+- ⚑ **Two handoff assertions drifted the moment `seed` existed**, both assuming every event is `db_trigger`:
+  the terminal-event check reported 6 phantom holes, and the trigger-liveness check compared a numerator that
+  shrank to a denominator that did not. Fixed — and `seed` counts in the *did the trigger fire* question but
+  **never** where a row is read as evidence.
+- ⚑ **15 probes died at the sign-in** because the bleach deleted `demo.driver@pickup.local` and
+  `demo.business@pickup.local`. Rather than edit fifteen files, `seed-probe-accounts.mts` puts them back as
+  ordinary members of the fleet.
+
+### The "by region" problem is fixed
+`mission.zone` held 22 values mixing hotel names, streets, terminals and towns ("Nice" and "nice" as two
+things). Every seeded trip sets it from the pickup's town: **5 values**. Trips by area now answers something.
+
 ### Next
 The founder's stated order stands: **a clean test dataset**, then their own UI/UX pass on the console. The
 two trackers (§3 in the handoff) still want starting early — they cannot be reconstructed later.

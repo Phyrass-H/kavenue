@@ -143,6 +143,18 @@ export interface EligibilityInput {
   /** The Driver's other live trips — pickup times only. Empty = no clash. */
   otherPickupsAt: string[];
   now?: Date;
+  /**
+   * Ask "could they ever have taken this?" instead of "can they take it now".
+   *
+   * ⚑ WHY IT EXISTS. On a trip that has already been taken, driven or expired,
+   * every Driver fails `still_pooled` and the console answers eleven times with
+   * "the trip is no longer in the Pool" — true, useless, and it drowns the
+   * question actually being asked, which is why the thing sat unclaimed for nine
+   * days. With this set, the two rules that depend on WHEN you ask are dropped
+   * from the answer rather than silently passed, and the wording changes to the
+   * past tense so nobody mistakes it for a live verdict.
+   */
+  asIfPooled?: boolean;
 }
 
 /**
@@ -169,6 +181,9 @@ export function explainEligibility(input: EligibilityInput): Eligibility {
       detail,
     });
 
+  // The two time-dependent rules. Omitted entirely under asIfPooled — never
+  // faked as passing, which would claim the trip is in the Pool when it is not.
+  if (!input.asIfPooled) {
   add(
     "still_pooled",
     m.status === "pooled",
@@ -180,6 +195,7 @@ export function explainEligibility(input: EligibilityInput): Eligibility {
 
   const pastDue = Date.parse(m.pickup_at) <= now.getTime();
   add("not_past_due", !pastDue, "its pickup time has already passed", null);
+  }
 
   // accept_mission checks the Driver's vehicle rows; no car on file is a refusal
   // there too (the `not exists` finds nothing), so it is one here.
@@ -267,12 +283,19 @@ export function explainEligibility(input: EligibilityInput): Eligibility {
   const verdict: Eligibility["verdict"] =
     blocker == null ? "can_take" : blocker.kind === "refuse" ? "refused" : "never_seen";
 
+  const past = input.asIfPooled === true;
   const answer =
     verdict === "can_take"
-      ? `Yes — ${name} can take this trip.`
+      ? past
+        ? `Yes — ${name} could have taken this trip.`
+        : `Yes — ${name} can take this trip.`
       : verdict === "refused"
-        ? `No — ${name} would be refused.`
-        : `No — ${name} has never been shown it.`;
+        ? past
+          ? `No — ${name} would have been refused.`
+          : `No — ${name} would be refused.`
+        : past
+          ? `No — ${name} was never shown it.`
+          : `No — ${name} has never been shown it.`;
 
   return {
     rules,
@@ -306,10 +329,19 @@ export function nearestKm(
 }
 
 /** The sentence under the answer: why, in the reader's words. */
-export function becauseOf(e: Eligibility): string {
-  if (!e.blocker) return "It is in their Pool right now, and nothing would stop them accepting it.";
+export function becauseOf(e: Eligibility, past = false): string {
+  if (!e.blocker) {
+    return past
+      ? "Nothing about their car, their base or their diary would have stopped them."
+      : "It is in their Pool right now, and nothing would stop them accepting it.";
+  }
   const because = `Because ${e.blocker.says}.`;
-  return e.blocker.kind === "refuse"
-    ? `${because} Kavenue would turn the acceptance down.`
+  if (e.blocker.kind === "refuse") {
+    return past
+      ? `${because} Kavenue would have turned the acceptance down.`
+      : `${because} Kavenue would turn the acceptance down.`;
+  }
+  return past
+    ? `${because} Nothing refused them — the trip simply never reached their Pool.`
     : `${because} Nothing refuses them — the trip just never appears in their Pool.`;
 }

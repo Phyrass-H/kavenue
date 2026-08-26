@@ -188,16 +188,21 @@ missions · `curve-live` 8/8 · `accepted-fare` 20/20 · `migrations-2026-08-10`
 session, correctly and for a different reason (it compared a commission-inclusive number to a
 commission-exclusive one and had also been passing for the wrong reason). These 24 are not that.
 
-#### 1 · A CLEAN TEST DATASET ← **START HERE** (partly begun)
-The console exists now, which was the whole reason to build it first: *building the console is what reveals
-which scenarios the dataset actually needs.* ⚑ **The six missing bases were already fixed** (S68 part B), so
-the matching rules now decide something. What is still seeded junk: 280 trips, 23 cancellations with no
-record, 442 stranded log entries, and three demo `S64CURVE` rows that age out every session.
-- ⚑ **The sweep must include `mission_event` and `status_event`.** 431 log entries already point at deleted
-  trips. Every S66/S68 probe cleans up after itself; copy that pattern.
-- ⚑ The founder's own words: *"you and me we are going to delete every single Driver and company and trips
-  ever tested in the database"*. Schema stays, only rows go.
-- ⚑ `.local/seed/seed-fleet.mjs --undo` · `.local/probe/s64curve-refresh.mts` for the demo curve rows.
+#### 1 · THE TEST DATASET — ✅ DONE (2026-08-26, S68, [[d94]])
+The database was **bleached** (3 210 rows) and rebuilt as **three months of trading**: 4 hotels · 6 desks ·
+11 Drivers · **348 trips** from late May to today. May 10 · June 75 · July 137 · Aug 128. 84 % filled, 48
+unfilled, 30 cancellations, 12 no-shows, 106 with waiting charged, 2 passed around, 1 nobody can serve.
+
+- **Rebuild it:** `.local/seed/README.md` has the seven commands in order, and says why each exists.
+- ⚑ **The seeded log says `source='seed'`, not `db_trigger`** — see [[d94]]. Only the 7 live trips are
+  genuinely observed. **Never relabel them to make something green.**
+- ⚑ **`.local/probe/dataset-audit.mts` — 30 checks. Trust it, not the seed's own output**, which reported
+  success while three tables were silently empty.
+- ⚑ **The old seeders are superseded** — `seed-fleet.mjs`, `s64-curve.ts`, `s61-priced.ts`, `recover.mjs`.
+  Do not run them; they would put a second, contradictory demo set on top of this one.
+- ⚑ **`seed-probe-accounts.mts` exists because the bleach killed the accounts 15 live probes sign in as.**
+  If a probe ever dies at `Invalid login credentials`, that is the file to run.
+- ⚑ **The live trips age out.** When `handoff-check` says the Pool is empty, re-run `seed-live.mts`.
 
 #### 2 · THE FOUNDER'S OWN UI/UX PASS ON THE CONSOLE
 Agreed order: console → dataset → their pass. ⚑ **The console is bigger than the preview shows** — the
@@ -282,12 +287,12 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**29 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**30 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 643 passing
+    npx tsc --noEmit && npx vitest run          # expect 647 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 693 · ALL AGREE
-    node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
+    node --experimental-strip-types .local/probe/write-test.ts          # 170 · ⚑ 24 PROBLEMS — see job 0
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
     node --experimental-strip-types .local/probe/accepted-fare.ts       #  20 · ALL AGREE
     node --experimental-strip-types .local/probe/reclaim-live.mts       #  20 · D86 end to end
@@ -295,7 +300,9 @@ about that point — **fix the file before you build on it.** Then:
     node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 63 · 0 failed
     node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
     node .local/probe/google-places-live.mjs                             #  8 · D89 address box
-    npx tsx .local/probe/eligibility-live.mts                            # 23 · D92/D93 — ⚑ tsx, NOT node
+    npx tsx .local/probe/eligibility-live.mts                            # 33 · D92/D93 — ⚑ tsx, NOT node
+    npx tsx .local/probe/dataset-audit.mts                               # 30 · the seeded dataset (D94)
+    npx tsx .local/probe/sweep-orphans.mts                                #    after any live-probe session
 
 **If a probe fails, that is the job** — not whatever is queued above.
 
@@ -304,6 +311,35 @@ about that point — **fix the file before you build on it.** Then:
 ---
 
 ## ⚑ TRAPS LEARNED IN S68 — every one cost real time
+
+- ⚑ **RUN THE LIVE PROBES ONE AT A TIME.** `write-test`, `migrations-2026-08-10/11`, `event-wiring-live` and
+  `reclaim-live` each create tagged missions and assert a mission-count baseline at the end. Run concurrently,
+  they see each other's rows and all report a false *"baseline NOT restored"*. Three probes were debugged for
+  a failure that was only the other two running.
+- ⚑ **"ZERO ROWS IS NOT PROOF OF A BUG" HAS A TWIN: it is not proof of correctness either.** `write-test`'s
+  fee checks were green for four days because `accepted_fare` was NULL on all 280 live missions, so
+  `settledFare()` fell through to recomputing the curve and matched SQL by accident. The reseed stamps it
+  where the app stamps it and 24 checks went red at once. **A dataset that exercises nothing proves nothing.**
+- ⚑ **AND THE SAME PROBE HAD A SECOND CHECK PASSING FOR THE WRONG REASON.** Its PAGE-READ assertion compared
+  `rowCost` (commission-INCLUSIVE since 2026-08-17) against the RPC's bare `fee_amount`. It only ever passed
+  because no mission had commission rates stamped, so ×1.15 was ×1.00. Fixed by wrapping the expectation in
+  `businessCost` — the code was right, the expectation was not.
+- ⚑ **`mission_event.occurred_at` DEFAULTS TO `clock_timestamp()` AND THE TRIGGER DOES NOT OVERRIDE IT.** Any
+  script that walks historical trips writes a log dated today. See [[d94]] for what to do about it, and what
+  not to do about it.
+- ⚑ **AN INSERT WHOSE ERROR IS NEVER CHECKED REPORTS SUCCESS AND SILENTLY DOES NOTHING.** Recorded in S57,
+  re-learned in full: cancellations, release requests and every Driver document were written with column names
+  that do not exist, PostgREST rejected all 90-odd, and the seed printed success. Three tables silently empty.
+  **Route every insert through one checked helper and exit non-zero.**
+- ⚑ **THE RATE CARDS ARE ALL `effective_from` 2026-08-16.** Asking `priceFor(..., { at: <a date in June> })`
+  returns **null**, and a seed that treats null as "skip" loses 295 of 336 trips with no symptom but a smaller
+  number. Seeded history must be priced with TODAY's card.
+- ⚑ **LIVE PROBES LEAVE ORPHANED EVENTS BY DESIGN** — they delete their missions and `mission_event` has no FK.
+  356 accumulated in one session. `sweep-orphans.mts` clears them; run it before quoting any log number.
+- ⚑ **THE BLEACH DELETES THE ACCOUNTS THE PROBES SIGN IN AS.** Fifteen probes died at `Invalid login
+  credentials`. `seed-probe-accounts.mts` puts `demo.driver@`, `demo.business@` and `s46.driver@` back as
+  ordinary members of the fleet — do not edit the probes.
+
 
 - ⚑ **A PROBE THAT IMPORTS AN `@/`-ALIASED MODULE MUST RUN UNDER `tsx`, NOT `node`.** Plain
   `node --experimental-strip-types` dies with `ERR_MODULE_NOT_FOUND '@/lib'` — it does not read tsconfig

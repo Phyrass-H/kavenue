@@ -379,7 +379,7 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**30 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**31 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 683 passing
@@ -404,6 +404,29 @@ about that point — **fix the file before you build on it.** Then:
 ---
 
 ## ⚑ TRAPS LEARNED IN S69
+
+- ⚑ **A PROBE THAT CLONES A REAL MISSION INHERITS ITS MONEY.** `{ ...tmpl }` copies every column not
+  overridden, and since the S68 reseed that includes **`accepted_fare`** — a frozen price belonging to a
+  different trip. This produced a full session's false alarm about cancellation overcharging ([[d97]]) and was
+  loaded in **eight** more probes. All pinned, and `handoff-check.ts` now **refuses to pass** if a cloning
+  probe has no `accepted_fare` pin. ⚑ **Pin it explicitly even when null** — `null` is a decision, an absent
+  key is an accident.
+- ⚑ **A CHECK IS NOT VERIFIED UNTIL YOU HAVE WATCHED IT GO RED.** The guard above was wrong three times, each
+  time passing when it should have failed: `.includes("accepted_fare")` matched the *comment* explaining the
+  pin; `/accepted_fare\s*:/` missed `m.accepted_fare = 90`; `/accepted_fare\s*[:=]/` matched
+  `after!.accepted_fare === null`, an assertion that merely *reads* the column. Every one was "confirmed" by
+  running it and seeing green. **Break the thing on purpose and watch the check fail before you trust it.**
+- ⚑ **`board-guest-test.ts` WAS RED AND NOBODY HAD LOOKED** — 9 problems, all stale expectations, none an app
+  bug. It asserted a **flat 1,00 €/min waiting rate** (per-class since 2026-08-18 — the *same* finding as S63's
+  `diff-sql-vs-lib`, in a file that never got the fix) and compared `missionAmount` (**net** of commission)
+  against fare + waiting (**gross**) — the same defect S68 found in `write-test`'s page-read check. **When a
+  rule changes, `grep -rl` the probes for the OLD number, not just for the function name.** 56 · 0 now.
+- ⚑ **`reclaim-live.mts` HAD BEEN DEAD SINCE THE BLEACH** on a hardcoded driver id, dying at
+  `violates foreign key constraint` before its first assertion — while the handoff still advertised it as
+  *"20 · D86 end to end"*. **A probe must LOOK UP its identities by email, never hold an id.** 20/20 now.
+- ⚑ **RUNNING *SOME* OF THE GATE IS NOT RUNNING THE GATE.** S69's own opening pass skipped `reclaim-live`,
+  `curve-live`, `accepted-fare`, `event-registry-live` and `board-guest-test` — two of which were already
+  broken. The list at § 0 is a list, not a menu.
 
 - ⚑ **`main` IS UNPUSHABLE WHILE GITHUB ACTIONS IS DOWN, AND THAT IS THE RULESET WORKING.** On 2026-08-26 at
   **15:11 UTC** Actions went into a major outage (database primary failover, inbound traffic throttled). The

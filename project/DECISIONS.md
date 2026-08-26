@@ -2390,3 +2390,50 @@ because the columns it forgets are supplied by whatever the database happens to 
 [[d96]] for the neighbouring lesson from the same session: seeded data decides what the tests can see.
 
 ---
+
+**⚑ WHAT THE MIGRATION WOULD HAVE DONE — the founder asked, and the answer is the point of this entry.**
+The proposed fix was *"make `business_cancel_mission` use the frozen fare instead of recomputing"*. It does
+not recompute. It does this:
+
+    v_floor := mission_opening_price(v_mission);
+    v_basis := round(least(greatest(coalesce(p_fare_snapshot, 0), v_floor), v_mission.ceiling), 2);
+
+That clamp **is** the thing that looked like an overcharge. And `2026-08-11_fee_basis_band.sql` says in its
+own header exactly why it exists: `p_fare_snapshot` is supplied over PostgREST **by the party who pays the
+fee**, and omitting the argument is not an error — `coalesce(…, 0)` recorded a **0,00 € fee on a cancel that
+can be 100 %**. So the migration would have deleted the only guard standing between a hotel and a free
+cancellation, in order to fix an overcharge that did not exist. It would have destroyed **no data** — a
+`create or replace function` touches no rows — which is worse, not better: nothing would have looked wrong
+afterwards. The same header also refuses the diagnosis outright: *"WHY NOT JUST RECOMPUTE THE FARE HERE.
+Because there is no fare function in SQL and there should not be one."* The answer was written down before
+the question was asked.
+
+**⚑ THE RULE, in the order it must happen.** The founder's question was *"how do we avoid touching the data
+before being sure something is really an issue"*:
+1. **Read the code that is allegedly wrong, before describing what it does.** The false diagnosis was written
+   from a probe's OUTPUT. Two minutes in the RPC would have ended it.
+2. **Read why the thing you are about to change was added.** Every migration in `docs/migrations/` opens with
+   a header saying what hole it closed. Changing a guard without reading its header is how you re-open one.
+3. **Find a second, independent witness before believing a money finding.** `quote-drift.ts` exists to ask
+   this exact question — *"does the fee a hotel is SHOWN equal the cent it is CHARGED?"* — and answers
+   **0,00 € gap** over live cancellations. It was never run.
+4. **Suspect the probe first when the code around it is covered.** `diff-sql-vs-lib` was at 1 921 · ALL AGREE
+   the whole time. S63 wrote this rule down; S69 had it and did not apply it.
+5. **Never let a fixture inherit a money column.** Now mechanical — `handoff-check.ts` refuses to pass if any
+   probe cloning a real mission fails to pin `accepted_fare`.
+
+**⚑ SIX MORE PROBES HAD THE SAME LANDMINE LOADED**, found by grepping for it rather than waiting: `board-guest`,
+`quote-drift`, `migrations-2026-08-10`, `migrations-2026-08-11`, `make-modal-trip`, `reclaim-live`,
+`reclaim-seed`, `event-wiring-live`. All pinned. `board-guest-test` was **already red** and nobody had looked:
+9 problems, every one a stale expectation, none an app bug — it asserted a **flat 1,00 waiting rate** that
+stopped being flat on 2026-08-18 (the S63 finding, in a file that never got the fix) and compared a
+commission-NET Driver amount against a gross one (the S68 finding, likewise). Now **56 checks · 0 problems**.
+And `reclaim-live` had been dead since the bleach on a **hardcoded driver id** that no longer exists, while
+the handoff still advertised it as "20 · D86 end to end". It resolves the Driver by email now: **20/20**.
+
+⚑ **The guard itself was wrong three times before it was right**, which is the same lesson one level up and
+worth the space: `.includes("accepted_fare")` matched the COMMENT explaining the pin; `/accepted_fare\s*:/`
+missed `m.accepted_fare = 90`; `/accepted_fare\s*[:=]/` matched `after!.accepted_fare === null`, an assertion
+that merely READS the column. Each version was "verified" by running it and seeing green. **A check is not
+verified until you have watched it go red**, so it is now proven in both directions and in both pin styles.
+

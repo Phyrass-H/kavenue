@@ -5,6 +5,31 @@
 
 ---
 
+## 26 August 2026 — you were right to make me check, and it went further than one probe
+
+- **What the migration would have done, since you asked.** My "fix" was to stop the database lifting a
+  too-low cancellation price. That lifting is not a bug — it is the guard that stops a hotel cancelling for
+  **free**. The number it is a percentage of is supplied by the hotel's own browser, and if it simply isn't
+  sent, the fee lands at 0,00 € on a cancellation that can be 100 %. I would have removed that, to fix an
+  overcharge that didn't exist. No data would have been damaged, which is the worrying part: nothing would
+  have looked wrong afterwards.
+- **The reason it was written down already.** The note at the top of that migration explains the hole it
+  closed, and even says "we must not recompute the price here" — which was exactly my diagnosis. I read the
+  probe's output instead of the code it was accusing.
+- **So I checked the rest of them, and found more.** Eight other test scripts had the same fault waiting to
+  go off — they copy a real trip to build a fake one, and quietly inherited its price. All fixed.
+- **One was already failing and nobody had looked.** It expected a waiting rate of 1,00 €/min, which stopped
+  being the rate on 18 August, and compared the Driver's pay after our commission against the figure before
+  it. Nine complaints, none of them a real problem. It now runs clean at 56 checks.
+- **Another had been dead for a day** — it pointed at a Driver deleted when we wiped the database, and died
+  before its first check while the notes still described it as passing.
+- **And the safety net now catches this automatically.** The check that runs at the start of every session
+  refuses to pass if a test script copies a real trip without setting its price deliberately. It took three
+  attempts to write correctly — the first two looked fine and caught nothing, which is its own lesson: a
+  check isn't proven until you've broken something on purpose and watched it complain.
+
+---
+
 ## 26 August 2026 — the console got its clean-up pass
 
 - **A hotel's page no longer repeats its own name forty times.** It used to read "Belles-Rives, Juan-les-Pins

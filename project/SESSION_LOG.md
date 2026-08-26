@@ -18,6 +18,42 @@ problems you can start with that?"* So this is the UI pass over the console S68 
 before a line was written — and then the live page overruled it twice. Both are recorded below, because the
 handoff's own rule (*"the first live render is the design review"*) earned its place again.
 
+
+### Part B — the founder refused the money finding, and the audit that followed
+Their question: *"we went through money already and tested so many ways, it's hard to understand why we
+didn't see it earlier. Are you sure?"* The finding was wrong ([[d97]]); what followed is the useful part.
+
+**What the migration would have done.** `business_cancel_mission` does not recompute anything — it clamps the
+caller's basis into `[mission_opening_price, ceiling]`. That clamp IS what looked like an overcharge, and
+`2026-08-11_fee_basis_band.sql` says why it exists: `p_fare_snapshot` comes from the party who PAYS, over
+PostgREST, and omitting it made `coalesce(…, 0)` record **0,00 € on a 100 % cancellation**. The fix would have
+deleted the free-cancellation guard. **No rows would have changed** — which is worse, because nothing would
+have looked wrong. The same header pre-refutes the diagnosis: *"there is no fare function in SQL and there
+should not be one."*
+
+**Then the same landmine, hunted rather than waited for.** Eight further probes cloned a real mission with
+`{ ...tmpl }` and inherited `accepted_fare`. All pinned.
+- ⚑ **`board-guest-test` was already red — 9 problems, zero app bugs.** A flat `waiting_rate === 1` (per-class
+  since 2026-08-18 — S63's finding, in a file that never got S63's fix) and `missionAmount` (commission-NET)
+  compared against fare+waiting (gross) — S68's finding, likewise. **51 → 56 checks · 0 problems.**
+- ⚑ **`reclaim-live` had been dead since the bleach** on a hardcoded driver id, dying at
+  `mission_driver_id_fkey` before its first assertion, while the handoff advertised it as 20/20. Resolves by
+  email now: **20/20**.
+- ⚑ **`quote-drift` — the independent witness nobody ran.** Its whole purpose is *"does the fee a hotel is
+  SHOWN equal the cent it is CHARGED?"*: 5 000 000 rounding pairs, 0 divergences, live gap **0,00 €**. Its
+  `FARE_COLS` was also missing `accepted_fare`, so it had been quoting from a narrower column set than the
+  app — it could not have caught a frozen-fare bug even in principle. Fixed.
+
+**The guard, and the guard's own three failures.** `handoff-check.ts` now refuses to pass if a cloning probe
+has no `accepted_fare` pin (30 → **31 assertions**). It was wrong three times first, each time GREEN when it
+should have been red: `.includes("accepted_fare")` matched the comment explaining the pin;
+`/accepted_fare\s*:/` missed `m.accepted_fare = 90`; `/accepted_fare\s*[:=]/` matched
+`after!.accepted_fare === null`. Proven in both directions and both pin styles before being kept.
+
+**Full re-run, all green:** handoff-check 31 · write-test 170 ALL AGREE · board-guest 56 · quote-drift 0,00 € ·
+reclaim-live 20 · migrations-08-10 63 · migrations-08-11 23 · curve-live 8 · accepted-fare 20 ·
+event-registry-live 16 · diff-sql-vs-lib 1 921 ALL AGREE · sweep-orphans cleared 240 · baseline 350.
+
 ### The six, as shipped
 1. **A hotel's own name is gone from its own rows.** `farLeg()` in the new `lib/admin-list.ts` shows the FAR
    end of each journey: `→ Nice Airport, T2` when the trip leaves the hotel, `← Nice Airport, T1` when it

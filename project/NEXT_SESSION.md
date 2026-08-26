@@ -111,7 +111,7 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ## WHERE WE ARE (2026-08-26, end of S69)
 
-`main` = **`64a68f1`**, CI green on branch `s69-console-ui` then pushed. **NO migration in S68 or S69** — RLS
+`main` = **`8e824f5`**, three commits, each CI-green on a branch before the push to `main`. **NO migration in S68 or S69** — RLS
 already grants `app_role()='admin'` read on everything, so the whole console is app-side.
 
 ### ✅ Shipped in S69 — THE CONSOLE'S UI PASS

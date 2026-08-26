@@ -3823,3 +3823,6 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   .adm-row__when { min-width: 0; }
 }
 .adm-f__rest { color: var(--text-faint); }
+/* A list row with no time column — the fleet and the hotels. */
+.adm-row--3 { grid-template-columns: 1fr auto auto auto; }
+.adm-row__kind--bad { color: var(--tone-danger-fg); }

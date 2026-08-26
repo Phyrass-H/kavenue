@@ -22,6 +22,7 @@ export type FindingId =
   | "driver_unverified"
   | "cancelled_without_record"
   | "trip_passed_around"
+  | "feature_never_used"
   | "orphaned_events";
 
 /** How loudly it reads. `quiet` is background truth, not a problem to solve. */
@@ -32,18 +33,36 @@ export type FindingTone = "attention" | "watch" | "quiet";
  * and what a person is supposed to do about it. (D86/D87/D90 were all a branch
  * nobody could see; a hand-written list is exactly how that happens.)
  */
-export const CHECKS: Record<FindingId, { looksFor: string; tone: FindingTone }> = {
+export const CHECKS: Record<
+  FindingId,
+  {
+    looksFor: string;
+    tone: FindingTone;
+    /**
+     * ⚑ May the screen collapse several of these into one line with the names
+     * beside it? Only when the sentences are variations on one template — six
+     * Drivers with no base read fine as a list of six names. Two dead features
+     * do NOT: their sentences say different things, and collapsing them printed
+     * "2 shipped features have never been used" over the raw table names, which
+     * is exactly the roll-up count this screen exists to avoid.
+     */
+    groups: boolean;
+  }
+> = {
   trip_nobody_can_take: {
     looksFor: "A pooled trip that not one Driver in the fleet is able to take.",
     tone: "attention",
+    groups: true,
   },
   driver_without_base: {
     looksFor: "A Driver with no base, whose Pool is therefore always empty.",
     tone: "attention",
+    groups: true,
   },
   driver_unverified: {
     looksFor: "A Driver you have not verified — which stops nothing today.",
     tone: "watch",
+    groups: true,
   },
   cancelled_without_record: {
     // ⚑ QUIET, AND DELIBERATELY NOT ONE ROW PER TRIP. All of these pre-date the
@@ -52,14 +71,26 @@ export const CHECKS: Record<FindingId, { looksFor: string; tone: FindingTone }> 
     // to-do list. The number only ever shrinks as they age out.
     looksFor: "Cancelled trips from before Kavenue recorded who cancelled them.",
     tone: "quiet",
+    groups: false,
   },
   trip_passed_around: {
     looksFor: "A trip taken and given back more than once — usually the trip's fault.",
     tone: "watch",
+    groups: true,
+  },
+  feature_never_used: {
+    // ⚑ The founder's own example of a good check: *"nobody has ever used the
+    // release request"*. It says something no status count can — that a feature
+    // exists and is dead, which is either a discoverability problem or an honest
+    // sign nobody needs it.
+    looksFor: "A shipped feature that nobody has ever used, once.",
+    tone: "watch",
+    groups: false,
   },
   orphaned_events: {
     looksFor: "Log entries whose trip has since been deleted.",
     tone: "quiet",
+    groups: false,
   },
 };
 
@@ -82,6 +113,29 @@ export interface Finding {
   href: string | null;
 }
 
+/**
+ * Features worth knowing are dead. ⚑ TYPE-KEYED, and each names the table that
+ * answers it — because the honest source is the DOMAIN table, not the event log.
+ * The log only started on 2026-08-24, so "nobody has ever" read from it would
+ * mean "nobody in the last two days", which is not the same claim at all.
+ */
+export type TrackedFeature = "release_request" | "driver_documents";
+
+export const FEATURES: Record<TrackedFeature, { table: string; name: string; sentence: string }> = {
+  release_request: {
+    table: "mission_release",
+    name: "The release request",
+    sentence:
+      "No Driver has ever asked a hotel to let them out of a trip — the release request has never been used once.",
+  },
+  driver_documents: {
+    table: "document",
+    name: "Driver documents",
+    sentence:
+      "No Driver has ever filed a single document — no licence, no insurance, no VTC card, for anyone.",
+  },
+};
+
 export interface ActivitySnapshot {
   /** Pooled, future trips, each with how many Drivers can actually take it. */
   pooled: {
@@ -95,6 +149,8 @@ export interface ActivitySnapshot {
   cancelledWithoutRecord: Pick<MissionRow, "id" | "pickup_label" | "dropoff_label" | "cancelled_at">[];
   /** Trips whose log holds two or more `repooled` entries. */
   passedAround: { id: string; label: string; times: number }[];
+  /** Features whose domain table is empty across all time. */
+  neverUsed: TrackedFeature[];
   /** Log entries pointing at a mission row that no longer exists. */
   orphanedEvents: number;
 }
@@ -192,7 +248,9 @@ export function findings(s: ActivitySnapshot): Finding[] {
       `${n} cancelled ${n === 1 ? "trip doesn’t" : "trips don’t"} say who cancelled ${
         n === 1 ? "it" : "them"
       }, or why — they pre-date the recording and can’t be filled in.`,
-      null,
+      // ⚑ A finding must be able to prove itself. Without somewhere to see WHICH
+      // 23, this sentence is a claim a reader has to take on faith.
+      "/admin/trips?flag=no-cancellation-record",
     );
   }
 
@@ -204,6 +262,10 @@ export function findings(s: ActivitySnapshot): Finding[] {
       `${t.label} has been taken and given back ${t.times} times.`,
       `/admin/trips/${t.id}`,
     );
+  }
+
+  for (const f of s.neverUsed) {
+    push("feature_never_used", f, FEATURES[f].name, FEATURES[f].sentence, null);
   }
 
   // ⚑ The one check with no named subject, because its subject was deleted.
@@ -231,6 +293,7 @@ export function quietChecks(s: ActivitySnapshot, fired: Finding[]): string[] {
   if (!firedIds.has("trip_passed_around"))
     quiet.push("no trip has been taken and given back twice");
   if (!firedIds.has("driver_unverified")) quiet.push("every Driver is verified");
+  if (!firedIds.has("feature_never_used")) quiet.push("every shipped feature has been used at least once");
   if (!firedIds.has("trip_nobody_can_take") && s.pooled.length > 0)
     quiet.push("every trip in the Pool has someone who could take it");
   return quiet;

@@ -14,7 +14,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { explainEligibility, type EligibilityInput } from "@/lib/eligibility";
-import type { ActivitySnapshot } from "@/lib/activity-findings";
+import type { ActivitySnapshot, TrackedFeature } from "@/lib/activity-findings";
+import { FEATURES } from "@/lib/activity-findings";
 import { tripLabel } from "@/lib/activity-findings";
 import type { MissionEventRow } from "@/lib/mission-events";
 import type { DriverRow, VehicleRow, MissionRow } from "@/lib/database.types";
@@ -154,10 +155,32 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
   return {
     pooled,
     drivers: fleet.map((f) => f.driver),
+    neverUsed: await readNeverUsed(db),
     cancelledWithoutRecord,
     passedAround,
     orphanedEvents: await countOrphanedEvents(db),
   };
+}
+
+/**
+ * Which shipped features have never been used, once.
+ *
+ * ⚑ READ FROM THE DOMAIN TABLE, NEVER FROM THE EVENT LOG. The log only started
+ * on 2026-08-24, so "no release_proposed events" would mean "nobody in the last
+ * two days" — a much weaker claim wearing the same words. `mission_release` and
+ * `document` go back to the beginning, so an empty one really does mean never.
+ */
+export async function readNeverUsed(db: Db): Promise<TrackedFeature[]> {
+  const ids = Object.keys(FEATURES) as TrackedFeature[];
+  const counts = await Promise.all(
+    ids.map((id) =>
+      db
+        .from(FEATURES[id].table as "mission_release")
+        .select("*", { count: "exact", head: true })
+        .then((r) => r.count ?? 0),
+    ),
+  );
+  return ids.filter((_, i) => counts[i] === 0);
 }
 
 /** The one sentence explaining why a pooled trip has no takers at all. */

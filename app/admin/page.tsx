@@ -72,18 +72,24 @@ async function search(term: string): Promise<SearchHit[]> {
 /** Findings sharing a check, collapsed to one line that NAMES them all. */
 function Group({ id, items }: { id: FindingId; items: Finding[] }) {
   const tone = CHECKS[id].tone;
-  if (items.length === 1) {
-    const f = items[0];
+  // ⚑ A check that must not group renders each finding on its own line, however
+  // many there are. Collapsing two unrelated sentences into "2 things happened"
+  // is the roll-up the founder has rejected twice.
+  if (items.length === 1 || !CHECKS[id].groups) {
     return (
-      <div className={`adm-f adm-f--${tone}`}>
-        <span className="adm-f__dot" aria-hidden="true" />
-        <p className="adm-f__say">{f.sentence}</p>
-        {f.href && (
-          <Link href={f.href} className="adm-f__go">
-            show me
-          </Link>
-        )}
-      </div>
+      <>
+        {items.map((f) => (
+          <div key={f.key} className={`adm-f adm-f--${tone}`}>
+            <span className="adm-f__dot" aria-hidden="true" />
+            <p className="adm-f__say">{f.sentence}</p>
+            {f.href && (
+              <Link href={f.href} className="adm-f__go">
+                show me
+              </Link>
+            )}
+          </div>
+        ))}
+      </>
     );
   }
   // ⚑ The count is a lead-in, never the finding itself: the names are on screen
@@ -124,6 +130,8 @@ function summarise(id: FindingId, n: number): string {
       return `${n} trips in the Pool can’t be taken by anyone in the fleet.`;
     case "cancelled_without_record":
       return `${n} cancelled trips don’t say who cancelled them, or why.`;
+    case "feature_never_used":
+      return `${n} shipped features have never been used, once.`;
     case "trip_passed_around":
       return `${n} trips have been taken and given back more than once.`;
     case "orphaned_events":

@@ -13,6 +13,7 @@ import {
   quietChecks,
   tripLabel,
   CHECKS,
+  FEATURES,
   type ActivitySnapshot,
   type FindingId,
 } from "@/lib/activity-findings";
@@ -23,6 +24,7 @@ function snapshot(over: Partial<ActivitySnapshot> = {}): ActivitySnapshot {
     drivers: [],
     cancelledWithoutRecord: [],
     passedAround: [],
+    neverUsed: [],
     orphanedEvents: 0,
     ...over,
   };
@@ -58,6 +60,31 @@ describe("silent by default", () => {
 
   it("no check invents a subject or a count when it has nothing to report", () => {
     expect(findings(snapshot())).toHaveLength(0);
+  });
+});
+
+describe("grouping is a decision each check makes", () => {
+  // ⚑ The first live render collapsed two dead features into "2 shipped features
+  // have never been used" over the raw table names `mission_release` and
+  // `document`. Their sentences say completely different things; only checks
+  // whose sentences are variations on one template may be grouped.
+  it("the two absence checks never group", () => {
+    expect(CHECKS.feature_never_used.groups).toBe(false);
+    expect(CHECKS.orphaned_events.groups).toBe(false);
+    expect(CHECKS.cancelled_without_record.groups).toBe(false);
+  });
+
+  it("the per-subject checks do", () => {
+    expect(CHECKS.driver_without_base.groups).toBe(true);
+    expect(CHECKS.driver_unverified.groups).toBe(true);
+    expect(CHECKS.trip_nobody_can_take.groups).toBe(true);
+    expect(CHECKS.trip_passed_around.groups).toBe(true);
+  });
+
+  it("a feature's subject is its name, never its table", () => {
+    const f = findings(snapshot({ neverUsed: ["release_request", "driver_documents"] }));
+    expect(f.map((x) => x.subject)).toEqual(["The release request", "Driver documents"]);
+    expect(f.map((x) => x.subject).join()).not.toContain("_");
   });
 });
 
@@ -166,6 +193,8 @@ describe("trips", () => {
     expect(f[0].sentence).toBe(
       "2 cancelled trips don’t say who cancelled them, or why — they pre-date the recording and can’t be filled in.",
     );
+    // Every finding that can be proved must say where the proof is.
+    expect(f[0].href).toBe("/admin/trips?flag=no-cancellation-record");
   });
 
   it("reads correctly when only one is left — the number only ever shrinks", () => {
@@ -189,6 +218,34 @@ describe("trips", () => {
   });
 });
 
+describe("a feature nobody has ever used", () => {
+  // ⚑ The founder's own example of a check worth having. It says something no
+  // status count can: the feature is shipped and dead.
+  it("names the feature in words, not the table", () => {
+    const f = findings(snapshot({ neverUsed: ["release_request"] }));
+    expect(f).toHaveLength(1);
+    expect(f[0].id).toBe("feature_never_used");
+    expect(f[0].sentence).toBe(
+      "No Driver has ever asked a hotel to let them out of a trip — the release request has never been used once.",
+    );
+  });
+
+  it("has nowhere to click, because the proof is an absence", () => {
+    expect(findings(snapshot({ neverUsed: ["driver_documents"] }))[0].href).toBeNull();
+  });
+
+  it("is silent once a feature has been used", () => {
+    expect(findings(snapshot({ neverUsed: [] }))).toEqual([]);
+  });
+
+  it("every tracked feature reads as a sentence, and names its own table", () => {
+    for (const id of Object.keys(FEATURES) as (keyof typeof FEATURES)[]) {
+      expect(FEATURES[id].sentence).toMatch(/^[A-Z].*\.$/);
+      expect(FEATURES[id].table).not.toContain(" ");
+    }
+  });
+});
+
 describe("the orphaned log entries", () => {
   // The one check with no named subject, because the subject was deleted.
   it("reads quietly and has nowhere to click", () => {
@@ -209,10 +266,17 @@ describe("ordering — what is broken now comes first", () => {
       snapshot({
         pooled: [pooledTrip({ takers: 0 })],
         drivers: [driver({ verified: false, base_lat: null, base_lng: null })],
+        neverUsed: ["release_request"],
         orphanedEvents: 5,
       }),
     );
-    expect(f.map((x) => x.tone)).toEqual(["attention", "attention", "watch", "quiet"]);
+    expect(f.map((x) => x.tone)).toEqual([
+      "attention",
+      "attention",
+      "watch",
+      "watch",
+      "quiet",
+    ]);
   });
 });
 
@@ -257,6 +321,7 @@ describe("the quiet footer", () => {
     expect(quietChecks(s, findings(s))).toEqual([
       "no trip has been taken and given back twice",
       "every Driver is verified",
+      "every shipped feature has been used at least once",
       "every trip in the Pool has someone who could take it",
     ]);
   });

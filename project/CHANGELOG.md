@@ -5,6 +5,24 @@
 
 ---
 
+## 26 August 2026 — the fleet can be reached, and the console can be browsed
+
+- **Your six Drivers without a base now have one.** Marc Fontaine and Élodie Marchand work out of Nice, Sofia
+  Berger and Nadia Bouchard from Cannes, Karim Nasri from Antibes, Thomas Rey from Monaco — with deliberately
+  different distances, so the *"how far will they drive"* rule actually decides something instead of passing
+  for everyone. **Every trip in the Pool now has at least one Driver who could take it**, where two of the
+  three had nobody an hour ago. Fully reversible with one command if you'd rather set them yourself.
+- **You can now browse, not just search.** Drivers, Hotels and Trips each have a list. The Drivers list puts
+  the one thing that matters on every row — where they work and how far they'll go, or *"no base — Pool
+  empty"* in red. The Hotels list says how many of each hotel's trips nobody took.
+- **The check you asked for by name is built.** *"Nobody has ever used the release request"* — and it's true:
+  in Kavenue's whole history, not one Driver has asked a hotel to let them out of a trip. It found a second
+  one too: **no Driver has ever filed a single document** — no licence, no insurance, no VTC card, for anyone.
+- **Every finding can now prove itself.** *"23 cancelled trips don't say who cancelled them"* clicks straight
+  through to those 23 trips, instead of asking you to take it on faith.
+
+---
+
 ## 26 August 2026 — the Activity console: search anyone, and ask why a Driver can't take a trip
 
 - **There is now an admin console at `admin.kavenue.fr`, and it answers questions instead of listing data.**

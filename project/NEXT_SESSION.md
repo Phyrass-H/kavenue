@@ -122,15 +122,19 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 | **D92** | ⚑ **Two fields recorded about every Driver decide nothing** — `operational_zones` and `verified`. Reported, not omitted; guarded by grep in two probes |
 | **D93** | ⚑ **Refused ≠ never shown.** Six rules refuse (`accept_mission`), three only hide (the Pool query). Different problems, different fixes |
 | **tests** | 555 → **636** (+81) across `eligibility` · `activity-findings` · `mission-story` |
+| **browse** | `/admin/{drivers,businesses,trips}` + nav. The state is on the ROW — *"no base — Pool empty"*, *"3 nobody took"* — never a count at the top |
+| **the founder's own check** | *"nobody has ever used the release request"* — true, all time. ⚑ Read from the **domain table**, never the log (the log is 2 days old; `mission_release` goes back to the beginning) |
 | **probe** | `.local/probe/eligibility-live.mts` — 23 checks. ⚑ **`npx tsx`, not node** |
+| **the fleet** | `.local/probe/s68-driver-bases.mts` gave the six baseless Drivers a real base + **unequal radii**. `--undo` puts them back |
 
-### ⚑ WHAT THE CONSOLE FOUND ON ITS FIRST RUN — real, live, still true
-- **Two of the three trips in the Pool cannot be taken by anyone in the fleet.** Both ask for **Eco**; the only
-  Eco Driver (Élodie Marchand) has **never set a base**, so her Pool is empty and the trips were shown to
-  nobody.
-- **Six of nine Drivers have never set a base** — Élodie Marchand, Karim Nasri, Marc Fontaine, Nadia Bouchard,
-  Sofia Berger, Thomas Rey. They have never been offered a single trip.
+### ⚑ WHAT THE CONSOLE FOUND, AND WHAT WAS DONE ABOUT IT
+- ~~Two of the three pooled trips could be taken by nobody~~ · ~~six of nine Drivers had no base~~ — **FIXED
+  the same session** by giving those six a real base (see the table above). Every pooled trip now has at least
+  one taker. ⚑ **Do not "re-fix" this** — and note the radii are unequal ON PURPOSE.
 - **Marc Dubois is unverified and can accept work today** (see D92 — that is not a bug to "fix" quietly).
+- **No Driver has ever asked to be let out of a trip** (`mission_release` = 0, all time) and **no Driver has
+  ever filed a single document** (`document` = 0). Both are live findings on the console.
+- **442 log entries point at a deleted trip.** Designed: `mission_event` has no FK to `mission`.
 
 ### ⚑ THE PATTERN — now SEVEN
 D86 (a gate on a status nothing reaches) · D87 (event types nothing wrote) · D88 (a check skipped when data
@@ -144,10 +148,11 @@ consulted by nothing.**
 
 ### 🎯 NEXT SESSION — the founder's stated order, confirm in one line
 
-#### 1 · A CLEAN TEST DATASET ← **START HERE**
+#### 1 · A CLEAN TEST DATASET ← **START HERE** (partly begun)
 The console exists now, which was the whole reason to build it first: *building the console is what reveals
-which scenarios the dataset actually needs.* It has revealed several — see "what the console found" above.
-Every one of those is a **seeded-data artefact**, not a product fault, and they crowd out the real signal.
+which scenarios the dataset actually needs.* ⚑ **The six missing bases were already fixed** (S68 part B), so
+the matching rules now decide something. What is still seeded junk: 280 trips, 23 cancellations with no
+record, 442 stranded log entries, and three demo `S64CURVE` rows that age out every session.
 - ⚑ **The sweep must include `mission_event` and `status_event`.** 431 log entries already point at deleted
   trips. Every S66/S68 probe cleans up after itself; copy that pattern.
 - ⚑ The founder's own words: *"you and me we are going to delete every single Driver and company and trips
@@ -155,7 +160,9 @@ Every one of those is a **seeded-data artefact**, not a product fault, and they 
 - ⚑ `.local/seed/seed-fleet.mjs --undo` · `.local/probe/s64curve-refresh.mts` for the demo curve rows.
 
 #### 2 · THE FOUNDER'S OWN UI/UX PASS ON THE CONSOLE
-Agreed order: console → dataset → their pass. ⚑ **The first preview was rejected as "overwhelming"** and the
+Agreed order: console → dataset → their pass. ⚑ **The console is bigger than the preview shows** — the
+Artifact is the three original screens; `/admin/drivers`, `/admin/businesses` and `/admin/trips` shipped after
+it and are not in it. ⚑ **The first preview was rejected as "overwhelming"** and the
 second cut it to one sentence per finding, the blocker instead of the rulebook, and a hoverable `approx` tag
 instead of caveat boxes. **That is the calibration for anything added here.** Preview:
 `project/Activity-Console-Preview.html` (also published as an Artifact).
@@ -235,10 +242,10 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**27 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**29 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 636 passing
+    npx tsc --noEmit && npx vitest run          # expect 643 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 693 · ALL AGREE
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
@@ -272,6 +279,14 @@ about that point — **fix the file before you build on it.** Then:
 - ⚑ **COLLIDING REACT KEYS SILENTLY DROP ROWS.** A findings list keyed on the subject warned *"children may be
   duplicated and/or omitted"* — the live DB has **four** trips called *"Le Grand Hôtel → Monaco"*. A findings
   screen that silently drops a finding is the one failure it cannot have. Key on the entity id.
+- ⚑ **GROUPING IS A PER-CHECK DECISION, AND THE DEFAULT IS WRONG FOR ABSENCES.** Collapsing findings that
+  share a check printed *"2 shipped features have never been used"* over the raw table names `mission_release`
+  and `document` — the exact roll-up count the screen exists to avoid, produced by the code written to avoid
+  it. `CHECKS[id].groups` is now type-keyed: only checks whose sentences are variations on one template may
+  collapse. **Six Drivers with no base read fine as six names; two unrelated sentences never do.**
+- ⚑ **"NOBODY HAS EVER…" MUST COME FROM THE DOMAIN TABLE, NOT THE EVENT LOG.** The log started 2026-08-24. A
+  zero count in `mission_event` means "nobody in the last two days" and reads as "nobody, ever" — a much
+  weaker claim wearing the same words. `mission_release` and `document` go back to the beginning.
 - ⚑ **THE FIRST LIVE RENDER IS THE DESIGN REVIEW.** A 23-name wall and a duplicated *"never consulted · never
   consulted"* both looked fine in the mockup and were obvious the second real data hit them. Screenshot the
   real page before calling a UI job done.

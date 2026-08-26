@@ -80,6 +80,37 @@ important fact about the fleet.
 - **The first live render is the design review.** The 23-name wall and the duplicated *"never consulted · never
   consulted"* both looked fine in the mockup and were obvious the moment real data hit them.
 
+### Part B — the fleet, and the three gaps the founder named
+
+**The founder's call, asked and answered:** *"do you want to create new profiles?"* — recommended **no**.
+Six of nine Drivers had no base, so the matching rules were barely exercised and two pooled trips were
+invisible to everyone; that is six UPDATEs on Drivers who already exist, versus new accounts on a database
+already earmarked for a wipe. They chose the recommendation.
+
+**`.local/probe/s68-driver-bases.mts`** — six rows, `--undo`, and it **only ever fills an EMPTY base** so a
+Driver who set their own can't be overwritten by a test script. Bases spread Nice / Cannes / Antibes / Monaco
+with **deliberately unequal radii** (Thomas Rey: Monaco, 25 km — so Cannes is genuinely out of his reach). A
+fleet where every check passes tests nothing. Result: every pooled trip now has at least one taker
+(0 → 1, 2 → 5, 0 → 1).
+
+**The three gaps, all closed:**
+1. **`feature_never_used`** — the founder's own example of a good check. ⚑ **Read from the DOMAIN table, never
+   from the event log**: the log started 2026-08-24, so "no `release_proposed` events" would mean "nobody in
+   the last two days" — a much weaker claim wearing the same words. `mission_release` = **0 all time**, and
+   `document` = **0** (no Driver has ever filed a paper).
+2. **Browse lists** — `/admin/{drivers,businesses,trips}` + nav. The state is on the row, never a count at the
+   top: *"no base — Pool empty"* in red beside *"Monaco · 25 km"*.
+3. **Findings prove themselves** — `/admin/trips?flag=no-cancellation-record` is where *"which 23?"* is
+   answered. A finding with no proof behind it is a claim a reader has to take on faith.
+
+⚑ **A THIRD DEFECT THE FIRST LIVE RENDER CAUGHT.** Grouping collapsed the two dead features into *"2 shipped
+features have never been used"* printed over the raw table names `mission_release` and `document` — the exact
+roll-up the screen exists to avoid, produced by the code written to avoid it. **Grouping is now a per-check
+decision** (`CHECKS[id].groups`, type-keyed): only checks whose sentences are variations on one template may
+collapse. Six Drivers with no base read fine as six names; two unrelated sentences never do.
+
+vitest **636 → 643**.
+
 ### Next
 The founder's stated order stands: **a clean test dataset**, then their own UI/UX pass on the console. The
 two trackers (§3 in the handoff) still want starting early — they cannot be reconstructed later.

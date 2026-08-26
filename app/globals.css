@@ -3834,6 +3834,9 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
    that have none, or those rows would shift left. */
 .adm-row--4 { grid-template-columns: minmax(0, 1fr) 118px 158px 182px 98px; }
 .adm-row--4 > :not(.adm-row__name) { text-align: right; }
+/* A grid cell stretches its child by default, so an inline-flex pill was being
+   pulled to the full width of whatever column it landed in. */
+.adm-row .adm-pill { justify-self: end; }
 .adm-row__kind--bad { color: var(--tone-danger-fg); }
 /* Nobody is getting work out of this Driver. Amber, not red: it is a fact to
    act on, not a fault — the red is reserved for "the Pool cannot reach them". */
@@ -3880,6 +3883,9 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 
 @media (max-width: 720px) {
   .adm-row--4 { grid-template-columns: 1fr auto; }
+  /* Wrapped to two columns, the pill is a badge under the name — not a stray
+     sitting at the right-hand edge of the left-hand half. */
+  .adm-row .adm-pill { justify-self: start; }
 }
 /* Manufactured by the seed — a different claim from "approx", and it must not
    read as a milder version of it. */

@@ -371,6 +371,19 @@ GDPR consent capture + account deletion are still absent — **founder-owned, do
 
 ---
 
+## ⚑ IF `handoff-check` SAYS `local main != origin/main` — READ THIS FIRST
+
+S69 closed during a **GitHub Actions `major_outage`** (2026-08-26, confirmed on githubstatus.com). Its final
+commit is pushed to the branch **`s69-close`** and cannot reach `main` until Actions runs a check on it —
+which is the ruleset working, not a fault. To finish it:
+
+    gh run list --branch s69-close        # wait for `success`
+    git push origin main                  # same SHA, now checked -> accepted
+    git push origin --delete s69-close
+
+⚑ **Do not weaken the ruleset to get round it**, and do not re-do the work — it is committed, and everything
+in this file already describes the post-S69 state. If `main` already matches, delete this block.
+
 ## ⚑ 0 · VERIFY BEFORE YOU BUILD — THIS IS A GATE, NOT A SUGGESTION
 
 A handoff is a *claim about the repo*, and claims decay — fastest when the session writing them is also the
@@ -379,7 +392,7 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**31 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**32 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 683 passing
@@ -423,7 +436,11 @@ about that point — **fix the file before you build on it.** Then:
   rule changes, `grep -rl` the probes for the OLD number, not just for the function name.** 56 · 0 now.
 - ⚑ **`reclaim-live.mts` HAD BEEN DEAD SINCE THE BLEACH** on a hardcoded driver id, dying at
   `violates foreign key constraint` before its first assertion — while the handoff still advertised it as
-  *"20 · D86 end to end"*. **A probe must LOOK UP its identities by email, never hold an id.** 20/20 now.
+  *"20 · D86 end to end"*. **A probe must LOOK UP its identities by email, never hold an id.** 20/20 now, and
+  two more files held the same dead uuid (`reclaim-seed`, `event-accept-rejected`) plus one holding a dead
+  mission id (`amend-check`). ⚑ **`handoff-check` now refuses to pass on a literal uuid in any probe**, with
+  the all-zeros one exempt because it deliberately names a row that does not exist. Both new assertions were
+  verified by breaking a file on purpose and watching them go red.
 - ⚑ **RUNNING *SOME* OF THE GATE IS NOT RUNNING THE GATE.** S69's own opening pass skipped `reclaim-live`,
   `curve-live`, `accepted-fare`, `event-registry-live` and `board-guest-test` — two of which were already
   broken. The list at § 0 is a list, not a menu.

@@ -44,13 +44,14 @@ should not be one."*
   `FARE_COLS` was also missing `accepted_fare`, so it had been quoting from a narrower column set than the
   app — it could not have caught a frozen-fare bug even in principle. Fixed.
 
-**The guard, and the guard's own three failures.** `handoff-check.ts` now refuses to pass if a cloning probe
-has no `accepted_fare` pin (30 → **31 assertions**). It was wrong three times first, each time GREEN when it
+**Two guards, and one guard's own three failures.** `handoff-check.ts` now refuses to pass if a cloning probe
+has no `accepted_fare` pin, **or if any probe holds a literal uuid** (the all-zeros sentinel exempted — it
+deliberately names a row that does not exist). 30 → **32 assertions**. It was wrong three times first, each time GREEN when it
 should have been red: `.includes("accepted_fare")` matched the comment explaining the pin;
 `/accepted_fare\s*:/` missed `m.accepted_fare = 90`; `/accepted_fare\s*[:=]/` matched
 `after!.accepted_fare === null`. Proven in both directions and both pin styles before being kept.
 
-**Full re-run, all green:** handoff-check 31 · write-test 170 ALL AGREE · board-guest 56 · quote-drift 0,00 € ·
+**Full re-run, all green:** handoff-check 32 · write-test 170 ALL AGREE · board-guest 56 · quote-drift 0,00 € ·
 reclaim-live 20 · migrations-08-10 63 · migrations-08-11 23 · curve-live 8 · accepted-fare 20 ·
 event-registry-live 16 · diff-sql-vs-lib 1 921 ALL AGREE · sweep-orphans cleared 240 · baseline 350.
 

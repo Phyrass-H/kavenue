@@ -23,6 +23,8 @@
   it. Nine complaints, none of them a real problem. It now runs clean at 56 checks.
 - **Another had been dead for a day** — it pointed at a Driver deleted when we wiped the database, and died
   before its first check while the notes still described it as passing.
+- **Three more scripts pointed at a Driver we deleted**, and one at a trip we deleted — they look things up
+  by email now instead of remembering an id, so wiping the database can't kill them again.
 - **And the safety net now catches this automatically.** The check that runs at the start of every session
   refuses to pass if a test script copies a real trip without setting its price deliberately. It took three
   attempts to write correctly — the first two looked fine and caught nothing, which is its own lesson: a

@@ -5,6 +5,24 @@
 
 ---
 
+## 26 August 2026 — one thing found that we haven't fixed yet
+
+- **The price the cancellation box quotes and the price we actually charge don't always match.** Same
+  cancellation percentage, three different fees. It affects cancellations only, and only since 22 August.
+- **It was invisible until today, and the reason matters.** The number it depends on — the fare frozen at the
+  moment a Driver accepts — had never once been filled in on any of the 280 old trips, so both sides quietly
+  fell back to the same calculation and agreed by accident. The new data fills it in the way the real app
+  does, and they stopped agreeing.
+- **It has deliberately not been patched.** It's money, it isn't something this week's work broke — the 1,921
+  price checks all still agree — and the honest fix needs a proper session rather than the last twenty
+  minutes of a long one. It's written up as the first job for next time, with a note not to make the warning
+  go away by loosening the check.
+- **A second check turned out to have been passing for the wrong reason too**, and that one is fixed: it was
+  comparing what a hotel actually pays (fare + our fee) against the fee alone, and only ever matched because
+  no old trip had our commission recorded on it.
+
+---
+
 ## 26 August 2026 — everything deleted, and three months rebuilt from scratch
 
 - **The database was bleached.** Every Driver, hotel, trip and log entry ever tested — 3,210 rows — is gone.

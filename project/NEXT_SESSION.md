@@ -121,20 +121,27 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 | **the flagship** | *"Why can't this Driver take this trip?"* — pick any Driver against any trip, get one sentence back. Answering that used to mean querying the DB by hand |
 | **D92** | ⚑ **Two fields recorded about every Driver decide nothing** — `operational_zones` and `verified`. Reported, not omitted; guarded by grep in two probes |
 | **D93** | ⚑ **Refused ≠ never shown.** Six rules refuse (`accept_mission`), three only hide (the Pool query). Different problems, different fixes |
-| **tests** | 555 → **636** (+81) across `eligibility` · `activity-findings` · `mission-story` |
+| **tests** | 555 → **647** (+92) across `eligibility` · `activity-findings` · `mission-story` |
 | **browse** | `/admin/{drivers,businesses,trips}` + nav. The state is on the ROW — *"no base — Pool empty"*, *"3 nobody took"* — never a count at the top |
 | **the founder's own check** | *"nobody has ever used the release request"* — true, all time. ⚑ Read from the **domain table**, never the log (the log is 2 days old; `mission_release` goes back to the beginning) |
-| **probe** | `.local/probe/eligibility-live.mts` — 23 checks. ⚑ **`npx tsx`, not node** |
-| **the fleet** | `.local/probe/s68-driver-bases.mts` gave the six baseless Drivers a real base + **unequal radii**. `--undo` puts them back |
+| **probe** | `.local/probe/eligibility-live.mts` — 33 checks. ⚑ **`npx tsx`, not node** |
+| **the fleet** | ⚑ SUPERSEDED by the bleach — the whole database was rebuilt, see below |
+| **D94 · the bleach + 3 months** | 3 210 rows deleted · 4 hotels · 11 Drivers · **348 trips** over 3 months, each one WALKED through real status transitions. The seeded log says `source='seed'`, never `db_trigger` |
+| **D95 · past tense** | A settled trip asks *"who could have taken this?"* instead of refusing everyone eleven times |
 
-### ⚑ WHAT THE CONSOLE FOUND, AND WHAT WAS DONE ABOUT IT
-- ~~Two of the three pooled trips could be taken by nobody~~ · ~~six of nine Drivers had no base~~ — **FIXED
-  the same session** by giving those six a real base (see the table above). Every pooled trip now has at least
-  one taker. ⚑ **Do not "re-fix" this** — and note the radii are unequal ON PURPOSE.
-- **Marc Dubois is unverified and can accept work today** (see D92 — that is not a bug to "fix" quietly).
-- **No Driver has ever asked to be let out of a trip** (`mission_release` = 0, all time) and **no Driver has
-  ever filed a single document** (`document` = 0). Both are live findings on the console.
-- **442 log entries point at a deleted trip.** Designed: `mission_event` has no FK to `mission`.
+### ⚑ WHAT THE CONSOLE SAYS TODAY — three findings, all true, all deliberate
+⚑ **Everything the console found on the OLD fleet is gone with it** — Marc Dubois, the six baseless Drivers,
+the two unservable Eco trips. That whole database was bleached on 2026-08-26. **Do not go looking for them.**
+Against the new dataset it reports:
+1. **Nobody in the fleet can take Valberg → Marseille Airport** — First-class van, and the only one (Karim
+   Nasri) is 61 km away on a 60 km radius. ⚑ **Seeded on purpose**, so the check has something to find.
+2. **Amine Belkacem and Clara Vidal aren't verified, and can accept work anyway** — [[d92]], still true, still
+   not a bug to fix quietly.
+3. **Two trips have been taken and given back more than once** — Cannes → Valberg (three times, over nine
+   days) and Nice → Saint-Tropez (twice). ⚑ Also seeded on purpose; the founder named this check themselves.
+
+Quiet, and correctly so: every shipped feature has now been used at least once, every Driver has a base, every
+cancelled trip carries its record, and nothing is orphaned in the log.
 
 ### ⚑ THE PATTERN — now SEVEN
 D86 (a gate on a status nothing reaches) · D87 (event types nothing wrote) · D88 (a check skipped when data
@@ -146,7 +153,14 @@ consulted by nothing.**
 > And still: **a missing value is a REFUSAL, never a skip** (D88); **"zero rows" is not proof of a bug** (S67)
 > — D92 was found by `grep -rn`, not by an empty query.
 
-### 🎯 NEXT SESSION — the founder's stated order, confirm in one line
+### 🎯 NEXT SESSION — the founder's own words, at the close of S68
+
+> *"wrap up everything, update docs and prepare next session with whatever needs to be fixed — and I want to
+> test the activity console and improve the UI."*
+
+**So the order is: § 2 (they test the console, then the UI pass) is THE JOB.** § 0 below is the one real
+defect left open and must be settled before anything money-adjacent is touched, but it does not block the UI
+work and should not be allowed to eat the session. Confirm in one line; don't re-offer a menu.
 
 #### 0 · ⚑ THE QUOTE AND THE CHARGE DISAGREE ONCE `accepted_fare` IS SET — **START HERE**
 
@@ -204,13 +218,47 @@ unfilled, 30 cancellations, 12 no-shows, 106 with waiting charged, 2 passed arou
   If a probe ever dies at `Invalid login credentials`, that is the file to run.
 - ⚑ **The live trips age out.** When `handoff-check` says the Pool is empty, re-run `seed-live.mts`.
 
-#### 2 · THE FOUNDER'S OWN UI/UX PASS ON THE CONSOLE
-Agreed order: console → dataset → their pass. ⚑ **The console is bigger than the preview shows** — the
-Artifact is the three original screens; `/admin/drivers`, `/admin/businesses` and `/admin/trips` shipped after
-it and are not in it. ⚑ **The first preview was rejected as "overwhelming"** and the
-second cut it to one sentence per finding, the blocker instead of the rulebook, and a hoverable `approx` tag
-instead of caveat boxes. **That is the calibration for anything added here.** Preview:
-`project/Activity-Console-Preview.html` (also published as an Artifact).
+#### 2 · ⚑ THE FOUNDER TESTS THE CONSOLE, AND THEN THE UI PASS ← **THE MAIN JOB**
+
+**They said so at the end of S68: *"I want to test the activity console and improve the UI."*** The dataset is
+built for exactly this. Open with the sign-in below, let them drive, and take notes — do not start editing
+until they have been round it once.
+
+**How they get in (local):**
+
+    npm run dev
+    open http://localhost:3000/api/dev-login?email=admin@kavenue.fr
+
+Then `/admin`. On production it is `admin.kavenue.fr`, same account. ⚑ **The seeded live trips age out** — if
+the Pool looks empty, re-run `.local/seed/seed-live.mts`.
+
+**What is worth them looking at, in order:**
+1. **`/admin`** — five sentences, or fewer. Each names its subject. Nothing when a check is quiet.
+2. **`/admin/trips` → the Cannes → Valberg one** — taken and given back three times over nine days. The whole
+   story in order, and *"5 of 11 Drivers matched this trip"*.
+3. **The matcher** — pick any Driver against any trip. On a live trip it says why they can't take it; on a
+   finished one, who could have.
+4. **`/admin/drivers`** — where each one works and how far they'll go, or *"no base — Pool empty"* in red.
+
+**⚑ UI ISSUES CLAUDE ALREADY SPOTTED — offer these, don't pre-empt their own list:**
+- **A hotel's own name is repeated on every row of its own page** (*"Belles-Rives, Juan-les-Pins → Nice
+  Airport"*, forty times). On a hotel page the destination is the information; the origin is the heading.
+  This is the worst one.
+- **`/admin/businesses` and the Driver page still carry roll-up counts in their headings** (*"9 nobody took"*,
+  *"8 of 15 completed"*). The rows already say `Unfilled`. Against the founder's own twice-stated rule.
+- **The Driver picker on a trip is eleven chips on two rows**, and it grows with the fleet. Fine at 11,
+  unusable at 50 — needs a search or a "who matched" default.
+- **No date grouping in any list.** Forty rows of `sam. 29 août` with no visual break. Dispatch's Schedule
+  groups by day and this does not, so the two surfaces read differently.
+- **No pagination** — trips cap at 120, a Driver's at 40, search at 8 per kind, all silently.
+- **The Drivers list says nothing about who is actually working.** Trips done, or last seen, would be the most
+  useful column on it and both are computable today.
+
+**⚑ THE DESIGN CALIBRATION, learned the hard way this session:** the first preview was rejected in three words
+— *"it's overwhelming"*. What fixed it was **fewer words on screen at once**, not less information: one
+sentence per finding, the blocker instead of the checklist, a hoverable tag instead of a callout box. Hold
+anything new to that. And **the first live render is the design review** — a 23-name wall and a duplicated
+phrase both looked fine in the mockup and were obvious the second real data hit them.
 
 #### 3 · THE TWO TRACKERS — start them EARLY, they need weeks of data
 Both are things the founder explicitly asked for and neither exists:
@@ -229,10 +277,14 @@ the police in a control."* **Ask them for their list first**, then reconcile wit
 
 #### 5 · THE EMBARRASSING DETAILS
 - The Driver's **photo and languages are collected and shown to nobody**, while two shipped strings promise
-  otherwise. Small fix, bad look.
+  otherwise. Small fix, bad look. ⚑ The seeded Drivers all have `languages` set, so the gap is now visible.
 - `manifest.webmanifest` ships `"icons": []` — no app icon.
 - No welcome banner · no FAQ · no free edits while pooled (D39 says there should be).
-- `field_of_activity` and `business_type` are two columns that never talk.
+- `field_of_activity` and `business_type` are two columns that never talk. ⚑ **The DATA is no longer the
+  problem** — the seed sets both to `hotel` on all four. The two columns still exist and still don't know
+  about each other; one of them should win in code.
+- ⚑ **`booking_voucher` is still an empty table no code touches** (§ 4 above), and `payment` / `payout` /
+  `ledger_transaction` are all empty — no money has moved through Kavenue yet. Correct, not a gap.
 
 #### 6 · THE ANALYTICS PAGE — last, deliberately
 It needs data to say anything. **Free from what you already store:** counts of Drivers/Businesses/trips,
@@ -268,10 +320,17 @@ post a trip, and where people abandon.
 - **`pickup-marketplace.vercel.app` is still live** under La Poste's trademark. Founder's call, § AD.
 - Notifications / payments / auth / analytics integrations — the founder's standing phase rule.
 
-### 🧹 BEFORE REAL LAUNCH — the founder's own plan
-*"you and me we are going to delete every single Driver and company and trips ever tested in the database"*.
-Clean to do: the schema stays, only rows go. ⚑ **The sweep must include `mission_event` and `status_event`** —
-test runs fill the log too. Every S66 probe cleans up after itself; copy that pattern.
+### 🧹 BEFORE REAL LAUNCH — ✅ THE TOOL EXISTS AND HAS BEEN RUN ONCE
+The founder's plan — *"you and me we are going to delete every single Driver and company and trips ever tested
+in the database"* — is now a script: **`.local/seed/bleach.mts --confirm`**. It ran on 2026-08-26 and removed
+**3 210 rows**, including `mission_event` and `status_event`. The schema was never touched; it cannot be, since
+PostgREST does not do DDL.
+- ⚑ **It keeps `rate_card`, `commission_rate`, `mission_event_type`, the admin login and the founder's own two
+  addresses.** Everything else goes. Read the KEEP list before running it again — that list is the whole
+  safety of the thing.
+- ⚑ **It deletes the accounts 15 live probes sign in as.** Run `seed-probe-accounts.mts` straight after, or
+  they all die at `Invalid login credentials`.
+- Before the real launch, run it once more and DON'T re-seed.
 
 ### 📋 V1 COMPLETENESS
 **38 KEEP features in Doc 02: 27 built · 8 partial · 3 missing.** Nothing on the critical path is unbuilt.

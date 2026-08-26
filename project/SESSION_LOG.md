@@ -187,9 +187,39 @@ correct on every pooled trip, which is all the tests and the preview covered.
 `mission.zone` held 22 values mixing hotel names, streets, terminals and towns ("Nice" and "nice" as two
 things). Every seeded trip sets it from the pickup's town: **5 values**. Trips by area now answers something.
 
+### The state at close
+| | |
+|---|---|
+| `main` | pushed, CI green, deployed |
+| tests | **647** · `tsc` clean |
+| `handoff-check` | **30/30** — *"The handoff still matches reality"* |
+| `dataset-audit` | **30/30** — *"The dataset holds together"* |
+| `eligibility-live` | 33/33 · `diff-sql-vs-lib` **1 921/1 921** · `curve-live` 8/8 · `accepted-fare` 20/20 |
+| `migrations-08-10` | 63/63 · `migrations-08-11` 23/23 · `event-registry-live` 16/16 · `reclaim-live` 20/20 |
+| ⚑ `write-test` | **170 checks · 24 PROBLEMS — OPEN, deliberately not patched.** See job 0 in the handoff |
+| database | 4 hotels · 6 desks · **14 Drivers** (11 seeded + 3 probe accounts) · **348 trips** · 2 489 events |
+
+### ⚑ THE ONE THING LEFT OPEN, AND WHY IT WAS NOT CLOSED
+`write-test` reports 24 problems where the cancellation modal's **quote** (the frozen `accepted_fare`) and the
+RPC's **charge** (the live PDP curve) disagree — the same percentage producing 42,75 · 61,73 · 40,53 from one
+81,06 snapshot. Two of the eleven cases are correct, so the mechanism works.
+
+It was invisible for four days because `accepted_fare` shipped 2026-08-22 and was **NULL on all 280 live
+missions**, so `settledFare()` always fell through to recomputing the curve and matched SQL by accident. The
+S68 seed stamps it exactly where the app stamps it.
+
+**Not closed because:** it is money, it is not a regression (nothing S68 touched goes near the money path, and
+`diff-sql-vs-lib` is 1 921/1 921 over the new 350 missions), and it may be the § H2 residual already on record
+— *"the fee basis can still be understated down to `pdp_start`"* — surfacing rather than anything new. It
+needs a session, not the last twenty minutes of this one. Written up as **job 0**, with what to establish
+before touching code and an explicit instruction not to relax the assertion.
+
 ### Next
-The founder's stated order stands: **a clean test dataset**, then their own UI/UX pass on the console. The
-two trackers (§3 in the handoff) still want starting early — they cannot be reconstructed later.
+**The founder's own words at the close:** *"wrap up everything, update docs and prepare next session with
+whatever needs to be fixed — and I want to test the activity console and improve the UI."* So: they drive the
+console, Claude takes notes, then the UI pass. Six UI issues Claude already spotted are listed in the handoff
+(the worst: a hotel's own name repeated on every row of its own page). Job 0 must be settled before anything
+money-adjacent, but must not eat the session.
 
 ---
 

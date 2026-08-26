@@ -5,6 +5,34 @@
 
 ---
 
+## 26 August 2026 — the Activity console: search anyone, and ask why a Driver can't take a trip
+
+- **There is now an admin console at `admin.kavenue.fr`, and it answers questions instead of listing data.**
+  Search a Driver, a hotel or a trip by name, open it, and read what happened — in order, with times.
+- **The button you asked for first is built: *"why can't this Driver take this trip?"*** Pick any Driver
+  against any trip and it re-runs the real rules and gives you one sentence back — *"their car is Eco and this
+  trip asks for Business"*, *"they have never set a base, so their Pool is empty"*. Answering that used to mean
+  asking Claude to query the database by hand.
+- **It separates two things that look the same and aren't.** A Driver who would be **refused** saw the trip and
+  would be turned down. A Driver who has **never been shown it** was never offered it at all — nothing refuses
+  them, the trip simply doesn't reach them. Those need completely different fixes.
+- **The front page only speaks when something is wrong.** Five lines today, one sentence each, every one naming
+  the Driver or the trip it's about. When a check finds nothing, it says nothing.
+- **⚑ Two things it found on its first run.** *Nobody in your fleet can take two of the three trips currently
+  in the Pool* — both want an Eco car, your only Eco Driver has never set a base, so her Pool is empty and the
+  trips were never shown to anyone. And **six of your nine Drivers have never set a base**, which means they
+  have never been offered a single trip.
+- **⚑ And two things you record about every Driver turn out to decide nothing.** The towns a Driver says they
+  work in, and whether you have verified them — both are collected, both are shown on screen, and neither is
+  consulted when Kavenue decides who sees a trip or who may take one. Marc Dubois isn't verified and can accept
+  work today. Rather than quietly fix it, the console *says* so on every Driver, so it can't be forgotten — and
+  a check now fails if either ever becomes a real rule without the console being told.
+- **A trip's story is honest about what it can't prove.** Everything before 24 August was reconstructed when
+  the log was switched on, so those times are marked *approx* and each one tells you exactly what it doesn't
+  prove when you hover it.
+
+---
+
 ## 26 August 2026 — a full written inventory of what the Admin page will show you
 
 - **You now have a plain-English list of every single thing Admin can show**, saved in your project as

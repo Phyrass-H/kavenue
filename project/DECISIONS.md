@@ -2173,3 +2173,73 @@ widened, not because anyone remembered to look. **Where a value must cover every
 check — a reviewer's memory is not one.** `tests/hosts.test.ts` (21 assertions) covers the half the compiler
 cannot see: every role maps to a subdomain, every subdomain has a **distinct** home, the mapping round-trips,
 and the whole mechanism stays a no-op off production.
+
+---
+
+### D92 — Two fields Kavenue records about every Driver decide nothing, and the console says so out loud (2026-08-26, S68)
+
+Building the Activity console meant writing down, for the first time, the rules that stand between a Driver and
+a trip. There are nine, they come from two different authorities, and **two of the things the founder assumed
+were rules are not rules at all.**
+
+**`driver.operational_zones` — "the towns they work" — is read by nothing.** Not by the Pool, not by
+`accept_mission`, not by anything in `app/` or `lib/`. The Pool matches on **base + radius** (`lib/geo.ts`),
+which is what the data spine actually says: *"matching is by location, not a town list"*. The column is
+collected at onboarding, shown back to the Driver in settings, and consulted by no code path in the product.
+
+**`driver.verified` gates nothing either.** It is rendered once, on the Driver's own settings page, and never
+branched on. **Marc Dubois is unverified and can accept work today.** `lib/driver-readiness.ts` says so in its
+own header — *"this SHOWS gaps, it does not gate the Pool"*, deliberately, because enforcing it would empty
+every Pool while no beta Driver has filed a document. That is a reasonable beta decision; what was missing is
+anyone being able to SEE it.
+
+**⚑ This is the seventh instance of the pattern** ([[d86]] a gate on a status nothing reaches · [[d87]] event
+types nothing wrote · [[d88]] a check skipped when data was missing · [[d90]] a role with no branch · and the
+two the compiler caught in [[d91]]). It was found the same way as most of them: by writing down what a value
+is *for* and discovering nothing consumes it. **And unlike the "zero rows" false alarm of S67, it was verified
+before it was raised** — `grep -rn` over `app/ lib/ components/`, not an empty query result.
+
+**THE DECISION: report them, never omit them.** The console's answer panel ends with a third group —
+*"recorded, but decides nothing"* — listing both, greyed, on every Driver and every trip. The tempting
+alternatives were both worse:
+- **Leave them out.** A reader who doesn't see `verified` in the list assumes it was checked and passed. The
+  console would be lying by omission about the one field a person would most expect to be a gate.
+- **Wire them up now.** Turning `verified` into a real gate is a product decision with a beta cost the founder
+  has already priced (every Pool empties). Making it silently on the way past would be exactly the "dirty
+  route" the working agreement forbids.
+
+**And the absence is now guarded.** `.local/probe/eligibility-live.mts` greps for both names and fails if
+either appears outside the screens that collect them and the console that reports them — because an absence
+cannot be queried out of a database, and if either becomes a real rule the console's *"never consulted"*
+turns into a confident lie that still renders perfectly.
+
+---
+
+### D93 — A refusal and a trip nobody was shown are different answers, and the console must never merge them (2026-08-26, S68)
+
+The nine rules split into two groups that read alike and mean opposite things:
+
+- **Six REFUSE.** They live in `accept_mission` (SECURITY DEFINER SQL). The Driver can see the trip, tap
+  Accept, and be turned down: wrong class, wrong body, a luggage run they never opted into, a trip that left
+  the Pool, a trip past its pickup, another job within ±90 minutes.
+- **Three HIDE.** They live in the Pool query (`app/(app)/pool/page.tsx`). They refuse nothing — they decide
+  whether the trip is ever SHOWN: no base set, outside the service radius, a specific car the Driver hasn't
+  got.
+
+**§ B made the SQL a strict superset of the listing on purpose, so drift can only ever hide a trip, never
+refuse one the Pool offered.** That guarantee is worth nothing to an admin who cannot tell which happened.
+*"They were turned down"* is a rules problem — you change the trip or you tell the Driver why. *"They never
+saw it"* is a reach problem — the Driver is unreachable and no amount of explaining fixes it. **Six of the nine
+live Drivers have never set a base**, so their Pool is empty and always has been; a console that answered
+"not eligible" would have buried the single most important fact about the fleet.
+
+So the answer is one sentence with three shapes — *"can take it"*, *"would be refused"*, *"has never been shown
+it"* — and a refusal outranks a hidden trip when both are true, because it is the harder problem.
+`tests/eligibility.test.ts` pins which rule sits in which group; moving one between them is the failure this
+guards against.
+
+**And it shows the blocker, not the rulebook.** The first design preview listed all nine checks for every
+Driver and the founder's whole reaction was *"it's overwhelming"* — correctly. A person asking "why can't Marc
+take this?" wants the reason, not an audit. One sentence, then the passing checks folded away behind a
+summary.
+

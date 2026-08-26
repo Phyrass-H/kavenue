@@ -3619,3 +3619,207 @@ a.dxs-w.is-on .dxs-w__l { color: var(--accent); }
   margin: 10px 0 0; padding-top: 10px; border-top: 1px solid var(--border);
   font-size: 12px; line-height: 1.55; color: var(--text-muted);
 }
+
+/* ============================================================================
+   ADMIN — the Activity console (admin.kavenue.fr).
+   Its own namespace (.adm-*) because it is Kavenue's back office, not a third
+   theme: it reuses the app's tokens exactly, and adds no colour of its own.
+   Quiet by construction — the loudest thing on the page should be a sentence.
+   ========================================================================= */
+.adm { min-height: 100vh; background: var(--bg); }
+
+.adm-hdr {
+  display: flex; align-items: center; gap: 20px; height: 52px; padding: 0 20px;
+  background: var(--surface); border-bottom: 1px solid var(--border);
+}
+.adm-brand {
+  display: flex; align-items: center; gap: 9px;
+  font-weight: 600; font-size: 15px; letter-spacing: -0.01em;
+  color: var(--text); text-decoration: none;
+}
+.adm-mark {
+  width: 22px; height: 22px; border-radius: 6px; background: var(--accent);
+  color: var(--text-on-accent); display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+}
+.adm-nav { display: flex; gap: 2px; }
+.adm-nav a {
+  font-size: 13.5px; color: var(--text-muted); text-decoration: none;
+  padding: 5px 10px; border-radius: 6px;
+}
+.adm-nav a:hover { color: var(--text); background: var(--surface-2); }
+.adm-who { margin-left: auto; font-size: 12.5px; color: var(--text-faint); }
+
+.adm-main { max-width: 940px; margin: 0 auto; padding: 26px 20px 80px; }
+
+/* ── search ─────────────────────────────────────────────────────────────── */
+.adm-search {
+  display: flex; align-items: center; gap: 10px; max-width: 520px; height: 42px;
+  padding: 0 14px; background: var(--surface);
+  border: 1px solid var(--border-strong); border-radius: 8px;
+}
+.adm-search svg { flex: 0 0 auto; color: var(--text-faint); }
+.adm-search input {
+  width: 100%; height: 100%; border: 0; outline: 0; background: transparent;
+  color: var(--text); font: inherit; font-size: 15px;
+}
+.adm-search input::placeholder { color: var(--text-faint); }
+.adm-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+/* ── sections ───────────────────────────────────────────────────────────── */
+.adm-sect { margin-top: 30px; }
+.adm-sect__h {
+  margin: 0 0 2px; font-size: 12px; font-weight: 500; letter-spacing: 0.11em;
+  text-transform: uppercase; color: var(--text-faint);
+}
+.adm-none, .adm-quiet {
+  margin: 12px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.6;
+}
+.adm-lede { margin: 14px 0 0; font-size: 16px; line-height: 1.5; }
+.adm-lede--bad { color: var(--danger); }
+
+/* ── findings: one sentence, one row ────────────────────────────────────── */
+.adm-f {
+  display: grid; grid-template-columns: 6px 1fr auto; gap: 0 14px;
+  align-items: baseline; padding: 13px 0; border-top: 1px solid var(--border);
+}
+.adm-f__dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--border-strong);
+  align-self: center;
+}
+.adm-f--attention .adm-f__dot { background: var(--tone-danger-fg); }
+.adm-f--watch .adm-f__dot { background: var(--tone-warn-fg); }
+.adm-f__say { margin: 0; font-size: 15px; line-height: 1.5; min-width: 0; }
+.adm-f__lead { margin: 0; font-size: 15px; line-height: 1.5; }
+.adm-f__names {
+  display: flex; flex-wrap: wrap; gap: 4px 14px;
+  margin: 6px 0 0; padding: 0; list-style: none;
+  font-size: 13.5px; color: var(--text-muted);
+}
+.adm-f__names a { color: var(--accent); text-decoration: none; }
+.adm-f__names a:hover { text-decoration: underline; }
+.adm-f__go {
+  font-size: 12.5px; color: var(--text-faint); text-decoration: none; white-space: nowrap;
+}
+.adm-f:hover .adm-f__go { color: var(--accent); }
+
+/* ── search hits + list rows ────────────────────────────────────────────── */
+.adm-hit, .adm-row {
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 14px;
+  align-items: baseline; padding: 11px 0; border-top: 1px solid var(--border);
+  color: var(--text); text-decoration: none; font-size: 14.5px;
+}
+.adm-hit { grid-template-columns: 1fr auto; }
+a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
+.adm-hit__kind, .adm-row__kind {
+  font-size: 12.5px; color: var(--text-faint); white-space: nowrap;
+}
+.adm-row__when {
+  font-size: 13px; color: var(--text-muted); white-space: nowrap;
+  font-variant-numeric: tabular-nums; min-width: 132px;
+}
+.adm-row__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.adm-row__side {
+  font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums;
+}
+
+/* ── the head of a trip / Driver / hotel ────────────────────────────────── */
+.adm-head {
+  display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;
+  padding-bottom: 16px; border-bottom: 1px solid var(--border);
+}
+.adm-head__main { flex: 1; min-width: 260px; }
+.adm-head h1 { margin: 0; font-size: 20px; font-weight: 500; letter-spacing: -0.015em; }
+.adm-head__meta { margin: 4px 0 0; font-size: 13.5px; color: var(--text-muted); }
+.adm-head__meta a { color: var(--accent); text-decoration: none; }
+.adm-head__side { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+.adm-pill {
+  display: inline-flex; align-items: center; font-size: 12px; font-weight: 500;
+  padding: 3px 10px; border-radius: 999px; text-decoration: none;
+  background: var(--tone-neutral-bg); color: var(--tone-neutral-fg);
+}
+.adm-pill--info { background: var(--tone-info-bg); color: var(--tone-info-fg); }
+.adm-pill--ok { background: var(--tone-success-bg); color: var(--tone-success-fg); }
+.adm-pill--warn { background: var(--tone-warn-bg); color: var(--tone-warn-fg); }
+.adm-pill--bad { background: var(--tone-danger-bg); color: var(--tone-danger-fg); }
+
+/* ── the matcher ────────────────────────────────────────────────────────── */
+.adm-pick { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 0; }
+.adm-pick__b {
+  font-size: 13px; padding: 5px 11px; border-radius: 999px; text-decoration: none;
+  background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+}
+.adm-pick__b:hover { border-color: var(--border-strong); color: var(--text); }
+.adm-pick__b.is-on {
+  background: var(--accent); border-color: var(--accent);
+  color: var(--text-on-accent); font-weight: 500;
+}
+.adm-verdict {
+  margin: 16px 0 0; padding: 18px 20px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+}
+.adm-verdict__a {
+  margin: 0; font-size: 18px; font-weight: 500; letter-spacing: -0.015em; line-height: 1.4;
+}
+.adm-verdict__a .adm-pill { vertical-align: 3px; margin-left: 6px; }
+.adm-verdict__b { margin: 8px 0 0; font-size: 14.5px; color: var(--text-muted); max-width: 62ch; }
+
+.adm-checks { margin: 14px 0 0; }
+.adm-checks summary {
+  font-size: 13px; color: var(--text-muted); cursor: pointer; list-style: none;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.adm-checks summary::-webkit-details-marker { display: none; }
+.adm-checks summary::before { content: "▸"; font-size: 10px; color: var(--text-faint); }
+.adm-checks[open] summary::before { content: "▾"; }
+.adm-checks summary:hover { color: var(--text); }
+.adm-check {
+  display: grid; grid-template-columns: 16px 1fr auto; gap: 10px; align-items: baseline;
+  padding: 6px 0; border-top: 1px solid var(--border);
+  font-size: 13.5px; color: var(--text-muted);
+}
+.adm-check:first-of-type { margin-top: 8px; }
+.adm-check__ic { color: var(--tone-success-fg); font-size: 12px; text-align: center; }
+.adm-check--dead .adm-check__ic { color: var(--text-faint); }
+.adm-check__d { font-size: 12.5px; color: var(--text-faint); white-space: nowrap; }
+
+/* ── the story ──────────────────────────────────────────────────────────── */
+.adm-story { list-style: none; margin: 12px 0 0; padding: 0; }
+.adm-ev { display: grid; grid-template-columns: 148px 16px 1fr; gap: 0 12px; }
+.adm-ev__when {
+  font-size: 12.5px; color: var(--text-muted); padding-top: 8px; text-align: right;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.adm-ev__rail { position: relative; }
+.adm-ev__rail::before {
+  content: ""; position: absolute; left: 7px; top: 0; bottom: 0; width: 1px; background: var(--border);
+}
+.adm-ev:first-child .adm-ev__rail::before { top: 14px; }
+.adm-ev:last-child .adm-ev__rail::before { bottom: auto; height: 14px; }
+.adm-ev__rail::after {
+  content: ""; position: absolute; left: 2px; top: 12px; width: 9px; height: 9px;
+  border-radius: 50%; background: var(--surface); border: 2px solid var(--border-strong);
+}
+.adm-ev--running .adm-ev__rail::after {
+  background: var(--tone-success-fg); border-color: var(--tone-success-fg);
+}
+.adm-ev--ending .adm-ev__rail::after {
+  background: var(--tone-neutral-fg); border-color: var(--tone-neutral-fg);
+}
+.adm-ev__body { padding: 7px 0 8px; font-size: 14.5px; min-width: 0; }
+.adm-ev__d { color: var(--text-muted); font-size: 13.5px; }
+/* A reconstructed time, marked without shouting. The title carries what the
+   record itself says it cannot prove. */
+.adm-approx {
+  margin-left: 7px; font-size: 11px; color: var(--text-faint);
+  border-bottom: 1px dotted var(--text-faint); cursor: help; text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .adm-ev { grid-template-columns: 1fr; }
+  .adm-ev__when { text-align: left; padding-top: 12px; }
+  .adm-ev__rail { display: none; }
+  .adm-row, .adm-hit { grid-template-columns: 1fr auto; }
+  .adm-row__when { min-width: 0; }
+}
+.adm-f__rest { color: var(--text-faint); }

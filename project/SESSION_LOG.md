@@ -5,6 +5,87 @@
 
 ---
 
+## 2026-08-26 — Session 68 — THE ACTIVITY CONSOLE, AND THE TWO FIELDS THAT DECIDE NOTHING
+
+**Gate first.** `handoff-check.ts` **23/23** — *"The handoff still matches reality"* — `tsc` clean, vitest
+**555**. Nothing had drifted since S67 closed, so the queued job stood.
+
+**Shipped: the Activity console** (`admin.kavenue.fr`, the surface [[d90]]/[[d91]] made reachable). No
+migration — RLS already grants `app_role()='admin'` read on everything, and the console runs as the signed-in
+admin through the ordinary server client, never the service role. A console that bypasses RLS can't be trusted
+to show what an admin can really see.
+
+### The design loop, and the correction that mattered
+The first preview put three screens, five multi-paragraph findings, a ten-entry story with four amber caveat
+boxes and a nine-row rule table on one page. The founder's entire reaction: **"it's overwhelming"** — and they
+were right. The second cut one sentence per finding, replaced the caveat boxes with a hoverable `approx` tag,
+and — the real change — made the answer panel show **the blocker, not the rulebook**. Artifact:
+`project/Activity-Console-Preview.html`, published and updated in place.
+
+### What was built
+| module | what it is |
+|---|---|
+| `lib/eligibility.ts` | The nine rules, re-run and named. Pure. **Type-keyed `RULES: Record<EligibilityRuleId, …>`** so a new rule cannot be added without describing it |
+| `lib/activity-findings.ts` | The named checks. Pure. Silent when they find nothing |
+| `lib/mission-story.ts` | `mission_event` rows → sentences. **Type-keyed `PHRASES: Record<MissionEventType, …>`** |
+| `lib/admin-activity.ts` | The reads. Server-only, every count `{ count: "exact", head: true }` |
+| `app/admin/{page,trips/[id],drivers/[id],businesses/[id]}` | Activity, one trip, one Driver, one hotel |
+| `.local/probe/eligibility-live.mts` | **23 checks.** ⚑ Run with **`npx tsx`**, not node — it imports `@/`-aliased modules |
+
+`tsc` clean · vitest **555 → 636** (+81) · every read-only probe re-run green (693 · 8 · 20 · 16 · 20).
+
+### ⚑ D92 — the seventh instance of the pattern
+Writing the rules down for the first time revealed that **two of the things everyone assumed were rules are
+not rules.** `driver.operational_zones` ("the towns they work") is read by **nothing** — the Pool matches on
+base + radius, which is what the spine says. `driver.verified` is rendered once, on the Driver's own settings
+page, and branched on **nowhere**: Marc Dubois is unverified and can accept work today.
+
+⚑ **Verified before it was raised** — `grep -rn` over `app/ lib/ components/`, not an empty query result. That
+is the S67 counter-lesson applied.
+
+The console **reports both rather than omitting them** (a reader who doesn't see `verified` assumes it passed)
+and rather than wiring them up (a product decision with a beta cost the founder has already priced). The
+absence is guarded by grep in the probe, because **an absence cannot be queried out of a database**.
+
+### ⚑ D93 — refused ≠ never shown
+Six rules refuse (`accept_mission`, SQL). Three hide (the Pool query). § B makes the SQL a strict superset so
+drift can only hide a trip, never refuse one the Pool offered — but that guarantee is worthless to an admin who
+can't tell which happened. *"Turned down"* is a rules problem; *"never saw it"* is a reach problem. **Six of
+nine live Drivers have never set a base**, so a merged "not eligible" would have buried the single most
+important fact about the fleet.
+
+### What the console found on its first live run
+- **Two of the three pooled trips cannot be taken by anyone.** Both ask for Eco; the only Eco Driver
+  (Élodie Marchand) has no base, so her Pool is empty and the trips were never shown to a soul.
+- **Six of nine Drivers have no base** — never offered a single trip.
+- 431 log entries point at a deleted mission (designed: no FK, the log outlives the trip).
+
+### ⚑ Three defects the build caught, each worth keeping
+1. **`"".trim()` satisfies `??`.** `tripLabel`'s fallback chain returned an empty string for a whitespace-only
+   label. Caught by a test written *because* the live Pool rows have null labels. `|| undefined` before `??`.
+2. **Colliding React keys silently drop rows.** The name list was keyed on `subject`, and the live DB has four
+   trips called *"Le Grand Hôtel → Monaco"* — React warned children "may be duplicated and/or omitted". A
+   findings screen that silently drops a finding is the one failure it cannot have. `Finding.key` is now
+   `${id}:${entityId}`.
+3. **The type-keyed map earned itself in the first minute** — `PHRASES` refused to compile until
+   `close_answered` was written. That is [[make-the-compiler-check]] working exactly as intended.
+
+### ⚑ Traps for next time
+- **A probe importing `@/`-aliased app modules must run under `tsx`, not `node`.** Plain node dies with
+  `ERR_MODULE_NOT_FOUND '@/lib'`. Every earlier probe got away with `node` only because it imported alias-free
+  modules (`lib/geo.ts`) or none at all.
+- **`mission_event.seq` is NOT time order.** The backfill inserted a table at a time, so the live log has
+  `en_route` at a *lower* seq than `created`, six weeks earlier. Rendering by `seq` says a trip was driven
+  before it was booked. `orderEvents()` already handles it — use it.
+- **The first live render is the design review.** The 23-name wall and the duplicated *"never consulted · never
+  consulted"* both looked fine in the mockup and were obvious the moment real data hit them.
+
+### Next
+The founder's stated order stands: **a clean test dataset**, then their own UI/UX pass on the console. The
+two trackers (§3 in the handoff) still want starting early — they cannot be reconstructed later.
+
+---
+
 ## 2026-08-23 — Session 65 — THE REPO RENAME, AND THE BIGGER THING IT UNCOVERED
 
 **Queue item 1 of 3, shipped.** `Phyrass-H/Pickup-marketplace` → **`Phyrass-H/kavenue`**. Chosen over

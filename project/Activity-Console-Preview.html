@@ -1,0 +1,244 @@
+<title>Activity console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --page:#F1F4F8; --surface:#FFFFFF; --surface-2:#FAFBFC; --sunk:#F5F7FA;
+  --border:#E6EBF1; --border-strong:#CBD5E1;
+  --text:#0F172A; --muted:#64748B; --faint:#98A3B3;
+  --navy:#25344C; --navy-soft:#E9EDF4;
+  --neutral-fg:#667085; --neutral-bg:#EEF2F7;
+  --info-fg:#1B5E8A;  --info-bg:#E3EBF2;
+  --ok-fg:#157347;    --ok-bg:#E6F6EC;
+  --warn-fg:#B54708;  --warn-bg:#FFF6ED;
+  --bad-fg:#B42318;   --bad-bg:#FEF3F2;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#0E1319; --surface:#161C24; --surface-2:#1A2029; --sunk:#131A22;
+  --border:#272F3A; --border-strong:#3A4450;
+  --text:#E8EDF3; --muted:#98A4B4; --faint:#6E7A8A;
+  --navy:#AFC2E0; --navy-soft:#212B3A;
+  --neutral-fg:#96A1B2; --neutral-bg:#20272F;
+  --info-fg:#79B4D9;  --info-bg:#152530;
+  --ok-fg:#67BE8D;    --ok-bg:#132520;
+  --warn-fg:#DCA05C;  --warn-bg:#2A2117;
+  --bad-fg:#E08C82;   --bad-bg:#2B1A18;
+}}
+:root[data-theme="dark"]{
+  --page:#0E1319; --surface:#161C24; --surface-2:#1A2029; --sunk:#131A22;
+  --border:#272F3A; --border-strong:#3A4450;
+  --text:#E8EDF3; --muted:#98A4B4; --faint:#6E7A8A;
+  --navy:#AFC2E0; --navy-soft:#212B3A;
+  --neutral-fg:#96A1B2; --neutral-bg:#20272F;
+  --info-fg:#79B4D9;  --info-bg:#152530;
+  --ok-fg:#67BE8D;    --ok-bg:#132520;
+  --warn-fg:#DCA05C;  --warn-bg:#2A2117;
+  --bad-fg:#E08C82;   --bad-bg:#2B1A18;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.5;margin:0}
+.wrap{max-width:980px;margin:0 auto;padding:36px 24px 90px}
+.screenlabel{display:flex;align-items:center;gap:12px;margin:38px 0 12px;color:var(--faint);
+  font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase}
+.screenlabel:first-of-type{margin-top:0}
+.screenlabel::after{content:"";flex:1;height:1px;background:var(--border)}
+.frame{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.hdr{display:flex;align-items:center;gap:20px;padding:0 20px;height:52px;border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em}
+.mark{width:22px;height:22px;border-radius:6px;background:var(--navy);display:grid;place-items:center;
+  font-size:11px;font-weight:600;color:var(--surface)}
+.hnav{display:flex;gap:2px}
+.hnav a{font-size:13.5px;color:var(--muted);text-decoration:none;padding:5px 10px;border-radius:6px}
+.hnav a.on{color:var(--text);background:var(--navy-soft);font-weight:500}
+.hwho{margin-left:auto;font-size:12.5px;color:var(--faint);font-family:var(--mono)}
+.searchpad{padding:24px 20px}
+.searchbox{display:flex;align-items:center;gap:10px;background:var(--surface);
+  border:1px solid var(--border-strong);border-radius:8px;padding:0 14px;height:42px;max-width:520px}
+.searchbox svg{flex:0 0 auto;color:var(--faint)}
+.searchbox input{border:0;outline:0;background:transparent;color:var(--text);font:inherit;width:100%;height:100%}
+.searchbox input::placeholder{color:var(--faint)}
+.sect{padding:0 20px 8px}
+.secthead{font-size:12px;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;
+  color:var(--faint);margin:0 0 2px}
+.f{display:grid;grid-template-columns:6px 1fr auto;gap:0 14px;align-items:baseline;
+  border-top:1px solid var(--border);padding:13px 0}
+.f .dotm{width:6px;height:6px;border-radius:50%;background:var(--border-strong);align-self:center}
+.f.bad .dotm{background:var(--bad-fg)}
+.f.warn .dotm{background:var(--warn-fg)}
+.f p{margin:0;font-size:15px}
+.f .more{font-family:var(--mono);font-size:11.5px;color:var(--faint);white-space:nowrap}
+.f:hover .more{color:var(--navy)}
+.foot{padding:13px 20px;border-top:1px solid var(--border);background:var(--surface-2);
+  font-size:13px;color:var(--muted)}
+.triphead{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;gap:18px;align-items:baseline;flex-wrap:wrap}
+.triphead h2{margin:0;font-size:17px;font-weight:500;letter-spacing:-.015em;flex:1;min-width:240px}
+.tripmeta{margin:3px 0 0;font-size:13.5px;color:var(--muted);flex-basis:100%;order:3}
+.pill{display:inline-flex;align-items:center;font-size:12px;font-weight:500;padding:3px 9px;border-radius:20px}
+.p-neutral{background:var(--neutral-bg);color:var(--neutral-fg)}
+.p-info{background:var(--info-bg);color:var(--info-fg)}
+.p-ok{background:var(--ok-bg);color:var(--ok-fg)}
+.p-warn{background:var(--warn-bg);color:var(--warn-fg)}
+.p-bad{background:var(--bad-bg);color:var(--bad-fg)}
+.story{padding:8px 20px 4px}
+.ev{display:grid;grid-template-columns:132px 16px 1fr;gap:0 12px}
+.evwhen{font-family:var(--mono);font-size:12.5px;color:var(--muted);padding:8px 0 0;text-align:right;
+  font-variant-numeric:tabular-nums;white-space:nowrap}
+.evrail{position:relative}
+.evrail::before{content:"";position:absolute;left:7px;top:0;bottom:0;width:1px;background:var(--border)}
+.ev:first-child .evrail::before{top:14px}
+.ev:last-child .evrail::before{height:14px;bottom:auto}
+.dot{position:absolute;left:2px;top:12px;width:9px;height:9px;border-radius:50%;
+  background:var(--surface);border:2px solid var(--border-strong)}
+.ev.k-run .dot{background:var(--ok-fg);border-color:var(--ok-fg)}
+.ev.k-end .dot{background:var(--neutral-fg);border-color:var(--neutral-fg)}
+.evb{padding:7px 0 8px;font-size:14.5px}
+.evb .who{color:var(--muted);font-size:13.5px}
+.approx{font-family:var(--mono);font-size:11px;color:var(--faint);border-bottom:1px dotted var(--faint);
+  cursor:help;margin-left:6px}
+.picker{display:flex;flex-wrap:wrap;gap:6px;padding:13px 20px;border-bottom:1px solid var(--border);background:var(--surface-2)}
+.pick{font:inherit;font-size:13px;padding:5px 11px;border-radius:20px;cursor:pointer;
+  background:var(--surface);border:1px solid var(--border);color:var(--muted)}
+.pick:hover{border-color:var(--border-strong);color:var(--text)}
+.pick[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:var(--surface);font-weight:500}
+.pick:focus-visible{outline:2px solid var(--navy);outline-offset:2px}
+.pickl{font-size:12px;color:var(--faint);font-family:var(--mono);align-self:center;margin-right:4px}
+.verdict{padding:20px}
+.vans{margin:0;font-size:19px;font-weight:500;letter-spacing:-.015em;line-height:1.35;max-width:44ch}
+.vbecause{margin:8px 0 0;font-size:14.5px;color:var(--muted);max-width:60ch}
+details{margin:16px 0 0}
+summary{font-size:13px;color:var(--muted);cursor:pointer;list-style:none;display:inline-flex;gap:6px;align-items:center}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"▸";font-size:10px;color:var(--faint)}
+details[open] summary::before{content:"▾"}
+summary:hover{color:var(--text)}
+.vrow{display:grid;grid-template-columns:16px 1fr auto;gap:10px;align-items:baseline;
+  padding:6px 0;border-top:1px solid var(--border);font-size:13.5px;color:var(--muted)}
+.vrow:first-of-type{margin-top:8px}
+.vrow .ic{font-family:var(--mono);font-size:12px;color:var(--ok-fg)}
+.vrow .det{font-family:var(--mono);font-size:11.5px;color:var(--faint);white-space:nowrap}
+.vrow.dead .ic{color:var(--faint)}
+@media (max-width:720px){.ev{grid-template-columns:1fr}.evwhen{text-align:left}.evrail{display:none}}
+</style>
+
+<div class="wrap">
+
+<div class="screenlabel">Screen 1 · Activity</div>
+<div class="frame">
+  <div class="hdr">
+    <div class="brand"><span class="mark">K</span>Kavenue</div>
+    <nav class="hnav"><a href="#" class="on">Activity</a><a href="#">Drivers</a><a href="#">Hotels</a><a href="#">Trips</a></nav>
+    <span class="hwho">admin@kavenue.fr</span>
+  </div>
+  <div class="searchpad">
+    <div class="searchbox">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="text" placeholder="Marc Fontaine · Carlton Cannes · a trip reference" aria-label="Search">
+    </div>
+  </div>
+  <div class="sect">
+    <p class="secthead">Worth a look</p>
+    <div class="f bad"><span class="dotm"></span><p>Nobody in the fleet can take tomorrow’s Cannes → Antibes trip.</p><span class="more">show me</span></div>
+    <div class="f bad"><span class="dotm"></span><p>Six Drivers have never set a base, so their Pool has always been empty.</p><span class="more">name them</span></div>
+    <div class="f warn"><span class="dotm"></span><p>Marc Dubois isn’t verified, and can accept work anyway.</p><span class="more">show me</span></div>
+    <div class="f warn"><span class="dotm"></span><p>Twenty-three cancelled trips don’t say who cancelled them, or why.</p><span class="more">list them</span></div>
+  </div>
+  <div class="foot">Quiet: no trip taken and dropped twice · no release requests · no marks against any Driver.</div>
+</div>
+
+<div class="screenlabel">Screen 2 · One trip</div>
+<div class="frame">
+  <div class="triphead">
+    <h2>Croisette, Cannes → Nice Airport T1</h2>
+    <span class="pill p-neutral">Completed</span>
+    <p class="tripmeta">Le Grand Hôtel · Marc Dubois · Business · 17 June · settled at 120,00 €</p>
+  </div>
+  <div class="story">
+    <div class="ev"><div class="evwhen">16 Jun · 22:41</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Booked by Le Grand Hôtel<span class="approx" title="Reconstructed when the log was switched on — the creation stamp resets when a draft is posted">approx</span></div></div>
+    <div class="ev"><div class="evwhen">16 Jun · 22:41</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Posted to the Pool at 70,00 €<span class="approx" title="Approximated from the creation time — this trip predates the log">approx</span></div></div>
+    <div class="ev"><div class="evwhen">17 Jun · 11:03</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Taken by Marc Dubois <span class="who">· 12h 22m in the Pool</span></div></div>
+    <div class="ev"><div class="evwhen">25 Jul · 18:53</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Confirmed<span class="approx" title="Describes the Driver holding it now — any earlier acceptance was overwritten">approx</span></div></div>
+    <div class="ev k-run"><div class="evwhen">31 Jul · 16:16</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Checked in, then set off</div></div>
+    <div class="ev k-run"><div class="evwhen">31 Jul · 16:16</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Arrived, guest aboard <span class="who">· no waiting charged</span></div></div>
+    <div class="ev k-end"><div class="evwhen">10 Aug · 20:02</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Driver confirmed it happened <span class="who">· asked 10 days late</span></div></div>
+    <div class="ev k-end"><div class="evwhen">10 Aug · 20:02</div><div class="evrail"><span class="dot"></span></div>
+      <div class="evb">Finished</div></div>
+  </div>
+  <div class="foot">Four times are marked <span class="approx" title="example">approx</span> — this trip predates the log. Trips from 24 August are recorded as they happen.</div>
+</div>
+
+<div class="screenlabel">Screen 3 · Why can’t this Driver take this trip?</div>
+<div class="frame">
+  <div class="triphead">
+    <h2>Nice → Cannes</h2>
+    <span class="pill p-neutral">In the Pool</span>
+    <p class="tripmeta">Carlton Cannes · Business · 28 Aug, 11:48 · 31 km · Ceiling 95,65 €</p>
+  </div>
+  <div class="picker" id="picker"><span class="pickl">Check</span></div>
+  <div class="verdict" id="verdict"></div>
+</div>
+
+</div>
+
+<script>
+const TRIP={cat:"business",lat:43.663,lng:7.215,dlat:43.552,dlng:7.017};
+const D=[
+ {n:"Demo Driver",cat:"business",car:"Mercedes E-Class",ver:true,base:"Nice",lat:43.7009,lng:7.2683,r:60},
+ {n:"Marc Dubois",cat:"business",car:"Mercedes Classe E",ver:false,base:"Antibes",lat:43.58151,lng:7.126377,r:75},
+ {n:"Pool Tester",cat:"business",car:"Mercedes E-Class",ver:true,base:"Paris",lat:48.8566,lng:2.3522,r:15},
+ {n:"Marc Fontaine",cat:"business",car:"Mercedes Classe E",ver:true,base:null,r:50},
+ {n:"Sofia Berger",cat:"business",car:"BMW Série 5",ver:true,base:null,r:50},
+ {n:"Nadia Bouchard",cat:"business",car:"VW Multivan",ver:true,base:null,r:50},
+ {n:"Élodie Marchand",cat:"eco",car:"Peugeot 508",ver:true,base:null,r:50},
+ {n:"Karim Nasri",cat:"luxury",car:"Mercedes Classe V",ver:true,base:null,r:50},
+ {n:"Thomas Rey",cat:"luxury",car:"Mercedes Classe S",ver:true,base:null,r:50}
+];
+const LABEL={eco:"Eco",business:"Business",luxury:"First"};
+function km(a,b,c,d){const R=6371,r=x=>x*Math.PI/180,dA=r(c-a),dB=r(d-b);
+ const h=Math.sin(dA/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(dB/2)**2;return 2*R*Math.asin(Math.sqrt(h));}
+function render(i){
+ const d=D[i],pass=[],based=d.base!=null;
+ let block=null;
+ pass.push({r:"The trip is still in the Pool",v:"pooled"});
+ pass.push({r:"Its pickup time hasn’t passed",v:"28 Aug"});
+ pass.push({r:"Nothing else booked within 90 minutes",v:"free"});
+ pass.push({r:"No particular car was asked for",v:"any"});
+ if(d.cat!==TRIP.cat) block={kind:"refuse",say:"their car is "+LABEL[d.cat]+", and this trip asks for "+LABEL[TRIP.cat],det:d.car};
+ else pass.push({r:"Their car is the class asked for",v:d.car});
+ if(!block){
+  if(!based) block={kind:"hide",say:"they have never set a base, so their Pool is empty",det:"no base"};
+  else{const dist=Math.round(Math.min(km(d.lat,d.lng,TRIP.lat,TRIP.lng),km(d.lat,d.lng,TRIP.dlat,TRIP.dlng)));
+   if(dist>d.r) block={kind:"hide",say:"it is "+dist+" km away and they drive up to "+d.r+" km",det:dist+" km"};
+   else pass.push({r:"Inside the distance they’ll drive",v:dist+" of "+d.r+" km"});}
+ } else if(based){const dist=Math.round(Math.min(km(d.lat,d.lng,TRIP.lat,TRIP.lng),km(d.lat,d.lng,TRIP.dlat,TRIP.dlng)));
+   if(dist<=d.r) pass.push({r:"Inside the distance they’ll drive",v:dist+" of "+d.r+" km"});}
+ let ans,pil,because;
+ if(!block){ans="Yes — "+d.n+" can take this trip.";pil='<span class="pill p-ok">Can take it</span>';
+  because="It is in their Pool right now.";}
+ else if(block.kind==="refuse"){ans="No — "+d.n+" would be refused.";pil='<span class="pill p-bad">Refused</span>';
+  because="Because "+block.say+". Kavenue would turn the acceptance down.";}
+ else{ans="No — "+d.n+" has never been shown it.";pil='<span class="pill p-warn">Never seen it</span>';
+  because="Because "+block.say+". Nothing refuses them — the trip just never appears.";}
+ document.getElementById("verdict").innerHTML=
+  '<p class="vans">'+ans+' '+pil+'</p><p class="vbecause">'+because+'</p>'+
+  '<details><summary>'+pass.length+' other checks passed</summary>'+
+   pass.map(p=>'<div class="vrow"><span class="ic">✓</span><span>'+p.r+'</span><span class="det">'+p.v+'</span></div>').join("")+
+   '<div class="vrow dead"><span class="ic">–</span><span>Towns they say they work — never consulted</span><span class="det">ignored</span></div>'+
+   '<div class="vrow dead"><span class="ic">–</span><span>'+(d.ver?"Verified by you":"Not verified by you")+' — never consulted</span><span class="det">ignored</span></div>'+
+  '</details>';
+ [...document.querySelectorAll(".pick")].forEach((b,j)=>b.setAttribute("aria-pressed",j===i?"true":"false"));
+}
+const p=document.getElementById("picker");
+D.forEach((d,i)=>{const b=document.createElement("button");b.className="pick";b.type="button";b.textContent=d.n;
+ b.setAttribute("aria-pressed","false");b.onclick=()=>render(i);p.appendChild(b);});
+render(3);
+</script>

@@ -17,6 +17,7 @@
 // *hotel's* app, and Kavenue's back office does not belong behind a customer's
 // front door.
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { getAppContext, routeFor } from "@/lib/app-context";
 import { urlForRole, isProdDomain, roleSubOf, homePathForSub, PROD_BASE } from "@/lib/hosts";
@@ -37,5 +38,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect(`https://admin.${PROD_BASE}${homePathForSub("admin")}`);
   }
 
-  return <>{children}</>;
+  return (
+    <div className="adm">
+      <header className="adm-hdr">
+        <Link href="/admin" className="adm-brand">
+          <span className="adm-mark">K</span>
+          Kavenue
+        </Link>
+        <nav className="adm-nav">
+          <Link href="/admin">Activity</Link>
+        </nav>
+        <span className="adm-who">{ctx.user.email}</span>
+      </header>
+      {children}
+    </div>
+  );
 }

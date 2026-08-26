@@ -405,6 +405,15 @@ about that point — **fix the file before you build on it.** Then:
 
 ## ⚑ TRAPS LEARNED IN S69
 
+- ⚑ **`main` IS UNPUSHABLE WHILE GITHUB ACTIONS IS DOWN, AND THAT IS THE RULESET WORKING.** On 2026-08-26 at
+  **15:11 UTC** Actions went into a major outage (database primary failover, inbound traffic throttled). The
+  symptoms in order, all of which look like a broken repo and are not: a push that produces **no run at all**,
+  a run that completes as **`startup_failure`** with GitHub emailing *"CI: No jobs were run"*, and a re-run
+  that sits **`queued`** for half an hour. `gh workflow list` says `active`, the YAML is untouched since S58,
+  and `gh api .../actions/permissions` says enabled — **check `githubstatus.com` before debugging any of it.**
+  S69's last commits waited on branch **`s69-probe-truth`** until it cleared. ⚑ **Do not weaken the ruleset to
+  get round it** — "no commit lands unchecked" is exactly the rule an outage tests.
+
 - ⚑ **A MOCKUP APPROVED ON FIVE ROWS IS NOT APPROVED ON FORTY.** Day bands were signed off on a preview
   showing five trips and were obviously wrong the moment the real page rendered: a hotel books about **one
   trip a day**, so its own 42 trips produced **42 one-row bands** — a striped wall, worse than the flat list

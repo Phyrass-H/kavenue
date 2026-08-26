@@ -5,6 +5,35 @@
 
 ---
 
+## 26 August 2026 — the console got its clean-up pass
+
+- **A hotel's page no longer repeats its own name forty times.** It used to read "Belles-Rives, Juan-les-Pins
+  → Nice Airport" on every single row of Belles-Rives' own page. Now the row shows only the other end of the
+  journey — "→ Nice Airport" when the car leaves the hotel, "← Nice Airport" when it brings someone back.
+- **The counts at the top of a list are gone.** "10 nobody took", "83 of 90 completed" — the rows already say
+  it one at a time, which is how you asked for it.
+- **The Drivers list finally says who is actually working.** "83 trips · last 25 Aug" beside each name, or
+  "never taken a trip" in amber. Three of the thirteen have never taken one.
+- **Long lists say what they aren't showing.** They used to just stop — at 120 trips, at 40, at 8 — without a
+  word. Now it reads "Newest 40 of 110" with a link to the older ones.
+- **Trips are grouped by day, and a hotel's or a Driver's own trips by month.** Grouping by day was tried
+  first and looked wrong the moment real data hit it: a hotel books about one trip a day, so it produced
+  forty headings over forty rows.
+- **Picking a Driver on a trip now has a search box** instead of every name laid out in rows. It works the
+  same at eleven Drivers or fifty.
+
+- **Your question about the Drivers living in hotels was right, and it's fixed.** They are in towns now —
+  Nice, Cannes, Antibes, Mougins, Monaco — not at the Negresco. It was only ever the test data: the app has
+  always asked a Driver for their own address. Every town was chosen close enough to the old one that none of
+  the three months of history stopped making sense, and the one deliberate gap in the fleet — nobody able to
+  reach Valberg — is still there.
+- **Two things the real screens caught that the mock-up couldn't.** The console was explaining a refusal with
+  "it is 60 km from their base, and they drive up to 60 km", which reads like a broken rule — it was rounding
+  60,4 down. And one of the automated checks had been quietly failing since the database was rebuilt, for a
+  reason that had nothing to do with this work. Both fixed.
+
+---
+
 ## 26 August 2026 — one thing found that we haven't fixed yet
 
 - **The price the cancellation box quotes and the price we actually charge don't always match.** Same

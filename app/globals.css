@@ -3735,7 +3735,7 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 .adm-head__side { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
 .adm-pill {
   display: inline-flex; align-items: center; font-size: 12px; font-weight: 500;
-  padding: 3px 10px; border-radius: 999px; text-decoration: none;
+  padding: 3px 10px; border-radius: 999px; text-decoration: none; white-space: nowrap;
   background: var(--tone-neutral-bg); color: var(--tone-neutral-fg);
 }
 .adm-pill--info { background: var(--tone-info-bg); color: var(--tone-info-fg); }
@@ -3825,7 +3825,62 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 .adm-f__rest { color: var(--text-faint); }
 /* A list row with no time column — the fleet and the hotels. */
 .adm-row--3 { grid-template-columns: 1fr auto auto auto; }
+/* The fleet row, which also carries "is this Driver working".
+   ⚑ FIXED WIDTHS, NOT `auto`. Every .adm-row is its OWN grid, so `auto` columns
+   size to each row's own content and nothing lines up down the page — with two
+   cells that only looked untidy, with four it made the activity column jump
+   around by fifty pixels a row. Fixed widths are what make five separate grids
+   read as one table. The last column is sized for the pill even on the rows
+   that have none, or those rows would shift left. */
+.adm-row--4 { grid-template-columns: minmax(0, 1fr) 118px 158px 182px 98px; }
+.adm-row--4 > :not(.adm-row__name) { text-align: right; }
 .adm-row__kind--bad { color: var(--tone-danger-fg); }
+/* Nobody is getting work out of this Driver. Amber, not red: it is a fact to
+   act on, not a fault — the red is reserved for "the Pool cannot reach them". */
+.adm-row__side--idle { color: var(--tone-warn-fg); }
+
+/* ── day bands ──────────────────────────────────────────────────────────────
+   Deliberately the same band Dispatch's Schedule uses (.dx-day), so the two
+   surfaces read the same way. The row drops its date in exchange, which is why
+   this ADDS structure while REMOVING text. */
+.adm-day {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin: 14px 0 0; padding: 7px 12px;
+  background: var(--tone-neutral-bg); border-bottom: 1px solid var(--border);
+}
+.adm-day h3 {
+  margin: 0; font-size: 13px; font-weight: 500; color: var(--accent);
+  text-transform: capitalize;
+}
+/* The direction of a journey seen from a hotel's own page: "→ Nice Airport"
+   leaves, "← Nice Airport" comes back. Faint on purpose — the direction is
+   information, not a tone, and amber here would read as a warning. */
+.adm-leg { color: var(--text-faint); margin-right: 5px; }
+
+/* ── what a capped list is not showing ─────────────────────────────────────*/
+.adm-page {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+  font-size: 13px; color: var(--text-muted);
+}
+.adm-page__go { display: flex; gap: 18px; }
+.adm-page__go a { color: var(--accent); text-decoration: none; }
+.adm-page__go a:hover { text-decoration: underline; }
+
+/* ── find a Driver ─────────────────────────────────────────────────────────*/
+.adm-find { margin: 14px 0 0; }
+.adm-find input {
+  width: 100%; max-width: 260px; height: 34px; padding: 0 12px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: 8px;
+  color: var(--text); font: inherit; font-size: 13.5px; outline: 0;
+}
+.adm-find input::placeholder { color: var(--text-faint); }
+.adm-find input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.adm-pick__none { font-size: 13px; color: var(--text-muted); }
+
+@media (max-width: 720px) {
+  .adm-row--4 { grid-template-columns: 1fr auto; }
+}
 /* Manufactured by the seed — a different claim from "approx", and it must not
    read as a milder version of it. */
 .adm-approx--seed { color: var(--tone-warn-fg); border-bottom-color: var(--tone-warn-fg); }

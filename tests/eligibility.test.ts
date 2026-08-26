@@ -281,3 +281,57 @@ describe("recorded, but decides nothing", () => {
     expect(e.decidesNothing[1].detail).toBeNull();
   });
 });
+
+// ⚑ FOUND ON THE LIVE SCREEN. The fleet's only First-class van sits 60,4 km from
+// a Valberg pickup on a 60 km radius, so the console printed "it is 60 km from
+// their base, and they drive up to 60 km" as the reason he was REFUSED — a
+// sentence that reads as a broken rule rather than an explanation of one. And a
+// near-boundary case is precisely when someone comes looking for the reason.
+describe("the distance sentence never contradicts itself", () => {
+  const VALBERG = { lat: 44.0958, lng: 6.9297 };
+  const JUAN_LES_PINS = { lat: 43.5678, lng: 7.1076 }; // 60,4 km from Valberg
+
+  function radiusRule(radius: number) {
+    const e = explainEligibility(
+      input({
+        mission: mission({
+          required_body_type: null,
+          pickup_lat: VALBERG.lat,
+          pickup_lng: VALBERG.lng,
+          dropoff_lat: VALBERG.lat,
+          dropoff_lng: VALBERG.lng,
+        }),
+        driver: {
+          ...input().driver,
+          base_lat: JUAN_LES_PINS.lat,
+          base_lng: JUAN_LES_PINS.lng,
+          base_label: "Juan-les-Pins",
+          service_radius_km: radius,
+        },
+      }),
+    );
+    return e.rules.find((r) => r.id === "within_radius")!;
+  }
+
+  it("shows a decimal when a rounded distance would equal the radius it failed", () => {
+    const rule = radiusRule(60);
+    expect(rule.ok).toBe(false);
+    expect(rule.says).toContain("60,4 km from their base");
+    expect(rule.says).not.toMatch(/it is 60 km from their base/);
+    expect(rule.detail).toBe("60,4 of 60 km");
+  });
+
+  it("still rounds when the number is nowhere near the boundary", () => {
+    const rule = radiusRule(40);
+    expect(rule.ok).toBe(false);
+    expect(rule.says).toContain("60 km from their base");
+  });
+
+  // A passing rule carries a fixed phrase, so the number only appears in the
+  // detail — which must still round, because there is nothing to contradict.
+  it("rounds a distance that PASSES, even where rounding meets the radius", () => {
+    const rule = radiusRule(61);
+    expect(rule.ok).toBe(true);
+    expect(rule.detail).toBe("60 of 61 km");
+  });
+});

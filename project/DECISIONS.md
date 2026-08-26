@@ -2305,3 +2305,42 @@ wording moves to the past tense so nobody mistakes it for a live verdict. The tr
 ⚑ **Found by looking at real data, not by reasoning about the design.** The behaviour was correct on every
 pooled trip, which is what the tests and the preview both covered.
 
+### D96 — A Driver lives in a town, not in a hotel (2026-08-26, S69)
+
+**The founder saw it on the fleet list and asked the right question:** *"why would a driver be based at the
+Negresco?"*
+
+**What had happened.** The S68 seed set every Driver's base from `PLACES` — the map of trip ENDPOINTS —
+because that was the coordinate list that already existed. So the console read *"Élodie Marchand · Hôtel
+Negresco · 35 km"*, and the Driver page said *"based in Hôtel Negresco, Nice"*.
+
+**The app was never wrong.** `app/(app)/settings/area` asks the Driver *"Your base — start typing a town or
+address"* and stores what they type. Only the test data was wrong, which is the whole reason it was worth
+five minutes: a demo dataset that describes something the product cannot produce teaches the reader the wrong
+model of the product.
+
+**The decision.** `BASES` is a SEPARATE map from `PLACES` in `.local/seed/riviera.mts`. Not a few extra
+entries in the existing one — separate, so the next person to add a Driver cannot reach for a hotel by
+accident. A hotel is somewhere a trip starts; it is not somewhere a Driver sleeps.
+
+⚑ **The constraint that decided WHICH towns.** The three months of history were generated against the old
+bases. A Driver moved too far would have past trips outside their own radius, and the console's past-tense
+matcher ([[d95]]) would then report that the Driver who actually drove a trip could never have taken it — a
+screen contradicting itself, produced by a data tidy-up. Every town is within ~10 km of the hotel it replaced,
+and `.local/seed/rebase-drivers.mts` **refuses to write at all** if any move would strand a trip. Measured
+before the move: 0 of 294.
+
+⚑ **And the one that decided a single Driver.** Karim Nasri owns the fleet's only First-class van, so his
+range is the entire reason *"nobody in the fleet can take Valberg → Marseille Airport"* is a true sentence.
+Belles-Rives put him 60,8 km out on a 60 km radius; Juan-les-Pins puts him 60,4 km out. Antibes (59,4) would
+have deleted the finding. **A seeded gap is as much a part of the dataset as a seeded trip.**
+
+**What it then exposed** — and this is the part worth keeping. At 60,4 km the console explained his refusal as
+*"it is 60 km from their base, and they drive up to 60 km"*. `Math.round` had turned the explanation into a
+contradiction. Nobody would have written that sentence on purpose, and no test would have caught it, because
+the bug only appears within half a kilometre of a boundary — which is precisely when a human comes looking
+for the reason. `quoteKm()` shows one decimal, and only when rounding would collide with the radius the
+distance failed. See [[d92]] for the neighbouring lesson: what a console SAYS is as load-bearing as what it
+computes.
+
+---

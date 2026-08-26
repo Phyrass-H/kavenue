@@ -15,6 +15,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { readFleet, readCommitments, readMissionEvents, matchFleet } from "@/lib/admin-activity";
+import { AdminDriverPicker } from "@/components/admin-driver-picker";
 import { becauseOf } from "@/lib/eligibility";
 import { missionStory, approxCount, seededCount } from "@/lib/mission-story";
 import { tripLabel, whenLabel } from "@/lib/activity-findings";
@@ -148,22 +149,14 @@ export default async function AdminTripPage({
         <h2 className="adm-sect__h">
           {settled ? "Who could have taken this trip?" : "Why can’t this Driver take it?"}
         </h2>
-        <div className="adm-pick">
-          {matched.map((m) => {
-            const on = m.fleet.driver.id === selected?.fleet.driver.id;
-            return (
-              <Link
-                key={m.fleet.driver.id}
-                href={`?driver=${m.fleet.driver.id}`}
-                scroll={false}
-                className={`adm-pick__b${on ? " is-on" : ""}`}
-                aria-current={on ? "true" : undefined}
-              >
-                {m.fleet.driver.first_name} {m.fleet.driver.last_name}
-              </Link>
-            );
-          })}
-        </div>
+        <AdminDriverPicker
+          drivers={matched.map((m) => ({
+            id: m.fleet.driver.id,
+            name: `${m.fleet.driver.first_name} ${m.fleet.driver.last_name}`.trim(),
+          }))}
+          selectedId={selected?.fleet.driver.id ?? null}
+          hrefFor={`/admin/trips/${id}`}
+        />
 
         {selected && (
           <div className="adm-verdict">

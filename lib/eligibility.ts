@@ -247,18 +247,33 @@ export function explainEligibility(input: EligibilityInput): Eligibility {
   // The Pool accepts a trip whose pickup OR dropoff is in range, so the distance
   // worth quoting is the nearer of the two.
   const radius = d.service_radius_km ?? 50;
+
+  /**
+   * The distance, rounded — unless rounding would make the sentence contradict
+   * itself.
+   *
+   * ⚑ FOUND ON THE LIVE SCREEN, NOT IN A TEST. Karim Nasri sits 60,4 km from
+   * Valberg on a 60 km radius, and the console said "it is 60 km from their
+   * base, and they drive up to 60 km" as the REASON he was refused — a sentence
+   * that reads as a bug in the rule rather than an explanation of it. Any
+   * near-boundary case does this, and near-boundary is exactly when someone
+   * comes looking for the reason. One decimal, only when it is needed.
+   */
+  const quoteKm = (km: number, r: number, ok: boolean): string =>
+    Math.round(km) === r && !ok ? km.toFixed(1).replace(".", ",") : String(Math.round(km));
   if (based) {
     const inRange =
       withinRadius(d.base_lat!, d.base_lng!, radius, m.pickup_lat, m.pickup_lng) ||
       withinRadius(d.base_lat!, d.base_lng!, radius, m.dropoff_lat, m.dropoff_lng);
     const km = nearestKm(d.base_lat!, d.base_lng!, m);
+    const said = km == null ? null : quoteKm(km, radius, inRange);
     add(
       "within_radius",
       inRange,
-      km == null
+      said == null
         ? "the trip has no coordinates, so it can’t be matched to anyone"
-        : `it is ${Math.round(km)} km from their base, and they drive up to ${radius} km`,
-      km == null ? "no coordinates" : `${Math.round(km)} of ${radius} km`,
+        : `it is ${said} km from their base, and they drive up to ${radius} km`,
+      said == null ? "no coordinates" : `${said} of ${radius} km`,
     );
   } else {
     add("within_radius", false, "distance can’t be measured without a base", null);

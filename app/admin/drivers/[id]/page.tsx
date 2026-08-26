@@ -5,34 +5,42 @@
 // been — they have never been offered a single trip and nothing in the app tells
 // anyone that. Everything here is read straight from the rules the Pool applies
 // (lib/eligibility.ts), so it can't drift into flattery.
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { tripLabel, whenLabel } from "@/lib/activity-findings";
-import {
-  formatDateTime,
-  formatMoney,
-  missionStatusLabel,
-  serviceClassLabel,
-  shortPlaceLabel,
-} from "@/lib/format";
+import { AdminTripList } from "@/components/admin-trip-list";
+import { pageWindow, pageNote } from "@/lib/admin-list";
+import { serviceClassLabel } from "@/lib/format";
+
+const PER_PAGE = 40;
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminDriverPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminDriverPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { id } = await params;
+  const { page } = await searchParams;
+  const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
 
   const { data: driver } = await db.from("driver").select("*").eq("id", id).maybeSingle();
   if (!driver) notFound();
 
-  const [{ data: vehicles }, { data: trips }] = await Promise.all([
+  const [{ data: vehicles }, { data: trips, count }] = await Promise.all([
     db.from("vehicle").select("*").eq("driver_id", id),
-    db.from("mission").select("*").eq("driver_id", id).order("pickup_at", { ascending: false }).limit(40),
+    db
+      .from("mission")
+      .select("*", { count: "exact" })
+      .eq("driver_id", id)
+      .order("pickup_at", { ascending: false })
+      .range(win.from, win.to),
   ]);
   const car = (vehicles ?? []).find((v) => v.is_active) ?? (vehicles ?? [])[0] ?? null;
   const based = driver.base_lat != null && driver.base_lng != null;
-  const done = (trips ?? []).filter((t) => t.status === "completed").length;
 
   return (
     <main className="adm-main">
@@ -87,29 +95,17 @@ export default async function AdminDriverPage({ params }: { params: Promise<{ id
       </section>
 
       <section className="adm-sect">
-        <h2 className="adm-sect__h">
-          Their trips {trips?.length ? `· ${done} of ${trips.length} completed` : ""}
-        </h2>
-        {!trips?.length ? (
-          <p className="adm-none">They have never held a trip.</p>
-        ) : (
-          trips.map((t) => (
-            <Link key={t.id} href={`/admin/trips/${t.id}`} className="adm-row">
-              <span className="adm-row__when">{formatDateTime(t.pickup_at)}</span>
-              <span className="adm-row__name">
-                {tripLabel(
-                  {
-                    pickup_label: t.pickup_label ?? shortPlaceLabel(t.pickup_address),
-                    dropoff_label: t.dropoff_label ?? shortPlaceLabel(t.dropoff_address),
-                  },
-                  whenLabel(t.pickup_at),
-                )}
-              </span>
-              <span className="adm-row__side">{formatMoney(t.ceiling)}</span>
-              <span className="adm-row__kind">{missionStatusLabel(t.status)}</span>
-            </Link>
-          ))
-        )}
+        {/* ⚑ NO ROLL-UP HERE. This used to read "· 83 of 90 completed" over rows
+            that each already carry their own ending. The fleet list is where
+            "is this Driver working" belongs, and it says so per Driver. */}
+        <h2 className="adm-sect__h">Their trips</h2>
+        <AdminTripList
+          rows={trips ?? []}
+          note={pageNote(count ?? 0, win, PER_PAGE)}
+          pageHref={(p) => (p === 0 ? `/admin/drivers/${id}` : `/admin/drivers/${id}?page=${p}`)}
+          empty="They have never held a trip."
+          band="month"
+        />
       </section>
     </main>
   );

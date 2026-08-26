@@ -5,6 +5,81 @@
 
 ---
 
+## 2026-08-26 — Session 69 — THE CONSOLE'S UI PASS, AND THE DRIVERS WHO LIVED IN HOTELS
+
+**Gate first.** `handoff-check.ts` **30/30** — *"The handoff still matches reality. Proceed."* — `tsc` clean,
+vitest **647**. Nothing had drifted since S68 closed.
+
+**Scope.** The founder chose § 2's second half without the first: *"I don't drive i'm not ready, you said 6 UI
+problems you can start with that?"* So this is the UI pass over the console S68 shipped, and § 0 (the
+`accepted_fare` fee disagreement) is still open and still the first job.
+
+**The D25 loop ran properly.** A mockup built from the real tokens and the real rows was shown and signed off
+before a line was written — and then the live page overruled it twice. Both are recorded below, because the
+handoff's own rule (*"the first live render is the design review"*) earned its place again.
+
+### The six, as shipped
+1. **A hotel's own name is gone from its own rows.** `farLeg()` in the new `lib/admin-list.ts` shows the FAR
+   end of each journey: `→ Nice Airport, T2` when the trip leaves the hotel, `← Nice Airport, T1` when it
+   comes back, and the whole `A → B` when the hotel is at neither end (or both, or there is no address on
+   file). ⚑ **Matched on COORDINATES, never on the name** — *"Hôtel Belles-Rives"* the business and
+   *"Belles-Rives, Juan-les-Pins"* the saved address label are not the same string, and a hotel can rename
+   itself. Threshold `SAME_PLACE_KM = 0.25`: a lobby and a service entrance are two Google places for one
+   building. Against the live data it classifies **all 350 trips** — 348 leave, 1 returns, 1 touches neither.
+2. **The roll-up counts are out of both headings** — *"· 10 nobody took"* and *"· 83 of 90 completed"*, over
+   rows that each already carry their own ending. The founder's twice-stated rule, applied.
+3. **The Driver picker has a find box** (`components/admin-driver-picker.tsx`, the console's first client
+   component). Appears at 8 Drivers and above. ⚑ **Alphabetical and deliberately NOT tinted by verdict** —
+   who matched is already stated in full in the sentence directly above it, and a second visual language
+   there could only repeat it or disagree with it.
+4. **Day bands** on `/admin/trips`, **month bands** on a hotel's and a Driver's page — see the trap below.
+5. **Pagination**, replacing three silent caps. `pageNote()` returns **null** when everything fits, so the
+   console stays silent by construction; otherwise *"Newest 40 of 110"* + `← Newer` / `Older →`.
+6. **The fleet list says who is working**: `83 trips · last 25 Aug`, or `never taken a trip` in amber. ⚑
+   **Three states, not two** — a Driver who has held eight and finished none reads `held 8, none finished`,
+   because *"0 trips"* would hide the interesting half. Nobody is in that state today, which is exactly why
+   the branch is written now rather than discovered later.
+
+### The Drivers who lived in hotels ([[d96]])
+The founder's own catch, and the real subject of the session: *"why would a driver be based at the
+Negresco?"* The S68 seed set each Driver's base from `PLACES`, the map of trip ENDPOINTS, because that was the
+coordinate list that already existed. The app has always asked the Driver for their own address; only the test
+data was wrong. `BASES` is now a separate map of eleven towns, and `.local/seed/rebase-drivers.mts` moved the
+13 live rows.
+
+⚑ **It refuses any move that would strand a trip.** The three months of history were generated against the OLD
+bases, so a town too far away would put a past trip outside the range of the Driver who actually drove it —
+and the past-tense matcher would then report that the holder could never have taken it, a screen contradicting
+itself. Checked before writing: **0 of 294** held trips fall out of range. The Pool is unchanged on 7 of 8
+live trips; the eighth gains Clara Vidal, who is 20,7 km from the Negresco where she was 25,2 km.
+
+⚑ **Karim Nasri's 400 metres are load-bearing.** He is 60,4 km from Valberg on a 60 km radius (he was 60,8),
+owns the fleet's only First-class van, and is therefore the whole reason *"nobody can take Valberg → Marseille
+Airport"* is true. `eligibility-live` **33/33** after the move, with that trip still at **0 can take it**.
+
+### Two defects the live screens found, neither of them the UI job
+- ⚑ **A refusal that read as a broken rule.** With Karim at 60,4 km the console said *"it is **60** km from
+  their base, and they drive up to **60** km"* — as the REASON he was refused. `Math.round` had turned an
+  explanation into a contradiction, and a near-boundary case is exactly when somebody comes looking for the
+  reason. `quoteKm()` in `lib/eligibility.ts` now shows one decimal, and only when rounding would collide with
+  the radius it failed. Three tests pin it.
+- ⚑ **`migrations-2026-08-11` case B4 had been failing since the bleach, and not because of anything here.**
+  It asserts that a luggage run is refused to a Driver who has not opted in — and never SET the flag, it read
+  it. `seed-probe-accounts.mts` recreates the probe Driver with `accepts_luggage_runs: true`, so since
+  2026-08-26 B4 failed with *"no error — it accepted!"*, which reads exactly like a broken SQL guard. The
+  probe now sets its own precondition. **23/23.**
+
+### Verification
+`tsc` clean · vitest **647 → 683** (+36, `admin-list` 33 + `eligibility` 3) · `handoff-check` 30/30 ·
+`eligibility-live` 33/33 · `dataset-audit` 30/30 · `migrations-2026-08-11` 23/23 (was 22/1) ·
+`diff-sql-vs-lib` **1 921 · ALL AGREE** · `sweep-orphans` cleared 95, log back to 2 489. Every changed screen
+read in the browser against real rows, not only in the mockup.
+
+**Still open, unchanged:** § 0, the quote-versus-charge disagreement once `accepted_fare` is set —
+`write-test` 24 problems. Not touched, not re-measured, still the first job.
+
+---
+
 ## 2026-08-26 — Session 68 — THE ACTIVITY CONSOLE, AND THE TWO FIELDS THAT DECIDE NOTHING
 
 **Gate first.** `handoff-check.ts` **23/23** — *"The handoff still matches reality"* — `tsc` clean, vitest

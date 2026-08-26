@@ -1,40 +1,50 @@
 // One hotel: who they are, who books for them, and what they have posted.
-import Link from "next/link";
+//
+// ⚑ THE HOTEL'S OWN NAME USED TO BE ON EVERY ROW of its own page —
+// "Belles-Rives, Juan-les-Pins → Nice Airport", forty times down the screen.
+// The heading already says whose page this is, so the row's information is the
+// OTHER end of the journey. `farLeg` decides which end that is on COORDINATES,
+// never on the name: "Hôtel Belles-Rives" the business and "Belles-Rives,
+// Juan-les-Pins" the saved address label are not the same string.
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { tripLabel, whenLabel } from "@/lib/activity-findings";
+import { AdminTripList } from "@/components/admin-trip-list";
+import { pageWindow, pageNote } from "@/lib/admin-list";
 import type { VehicleCategory } from "@/lib/database.types";
-import {
-  formatDateTime,
-  formatMoney,
-  missionStatusLabel,
-  serviceClassLabel,
-  shortPlaceLabel,
-} from "@/lib/format";
+import { formatDateTime, serviceClassLabel } from "@/lib/format";
 
 // Mirrors app/(dispatch)/dispatch/settings/actions.ts — the column is a bare
 // string, so the label lookup narrows rather than trusts.
 const VEHICLE_CATEGORIES: readonly VehicleCategory[] = ["eco", "business", "luxury"];
 
+const PER_PAGE = 40;
+
 export const dynamic = "force-dynamic";
 
-export default async function AdminBusinessPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminBusinessPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
+}) {
   const { id } = await params;
+  const { page } = await searchParams;
+  const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
 
   const { data: business } = await db.from("business").select("*").eq("id", id).maybeSingle();
   if (!business) notFound();
 
-  const [{ data: staff }, { data: trips }] = await Promise.all([
+  const [{ data: staff }, { data: trips, count }] = await Promise.all([
     db.from("dispatcher").select("*").eq("business_id", id).order("created_at"),
     db
       .from("mission")
-      .select("*")
+      .select("*", { count: "exact" })
       .eq("business_id", id)
       .order("pickup_at", { ascending: false })
-      .limit(40),
+      .range(win.from, win.to),
   ]);
-  const unfilled = (trips ?? []).filter((t) => t.status === "expired").length;
 
   return (
     <main className="adm-main">
@@ -73,31 +83,18 @@ export default async function AdminBusinessPage({ params }: { params: Promise<{ 
       </section>
 
       <section className="adm-sect">
-        <h2 className="adm-sect__h">
-          What they have posted
-          {/* Unfilled is the number a hotel actually feels — name it, never bury it. */}
-          {unfilled > 0 && ` · ${unfilled} nobody took`}
-        </h2>
-        {!trips?.length ? (
-          <p className="adm-none">They have never posted a trip.</p>
-        ) : (
-          trips.map((t) => (
-            <Link key={t.id} href={`/admin/trips/${t.id}`} className="adm-row">
-              <span className="adm-row__when">{formatDateTime(t.pickup_at)}</span>
-              <span className="adm-row__name">
-                {tripLabel(
-                  {
-                    pickup_label: t.pickup_label ?? shortPlaceLabel(t.pickup_address),
-                    dropoff_label: t.dropoff_label ?? shortPlaceLabel(t.dropoff_address),
-                  },
-                  whenLabel(t.pickup_at),
-                )}
-              </span>
-              <span className="adm-row__side">{formatMoney(t.ceiling)}</span>
-              <span className="adm-row__kind">{missionStatusLabel(t.status)}</span>
-            </Link>
-          ))
-        )}
+        {/* ⚑ NO ROLL-UP HERE. This heading used to carry "· 10 nobody took",
+            over rows that each already say `Unfilled`. The founder has rejected
+            a count-at-the-top twice; the state belongs on the row. */}
+        <h2 className="adm-sect__h">What they have posted</h2>
+        <AdminTripList
+          rows={trips ?? []}
+          anchor={{ lat: business.business_address_lat, lng: business.business_address_lng }}
+          note={pageNote(count ?? 0, win, PER_PAGE)}
+          pageHref={(p) => (p === 0 ? `/admin/businesses/${id}` : `/admin/businesses/${id}?page=${p}`)}
+          empty="They have never posted a trip."
+          band="month"
+        />
       </section>
     </main>
   );

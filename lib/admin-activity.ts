@@ -17,6 +17,7 @@ import { explainEligibility, type EligibilityInput } from "@/lib/eligibility";
 import type { ActivitySnapshot, TrackedFeature } from "@/lib/activity-findings";
 import { FEATURES } from "@/lib/activity-findings";
 import { tripLabel } from "@/lib/activity-findings";
+import { tallyActivity, type Activity, type HeldMission } from "@/lib/admin-list";
 import type { MissionEventRow } from "@/lib/mission-events";
 import type { DriverRow, VehicleRow, MissionRow } from "@/lib/database.types";
 
@@ -56,6 +57,24 @@ export async function readFleet(db: Db): Promise<DriverWithCar[]> {
       (vehicles ?? []).find((v) => v.driver_id === driver.id) ??
       null,
   }));
+}
+
+/**
+ * Trips per Driver — the fleet list's "is this person actually working?".
+ *
+ * ⚑ PAGED, not `.select()`. There are ~300 held missions today and PostgREST
+ * silently caps a select at 1000, so the honest read is the one that still works
+ * on the first day the marketplace has 1001 of them.
+ */
+export async function readDriverActivity(db: Db): Promise<Map<string, Activity>> {
+  const rows = await readAll<HeldMission>((from, to) =>
+    db
+      .from("mission")
+      .select("driver_id, status, pickup_at")
+      .not("driver_id", "is", null)
+      .range(from, to),
+  );
+  return tallyActivity(rows);
 }
 
 /** The other live trips a Driver holds — the ±90 minute clash check's input. */

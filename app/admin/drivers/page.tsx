@@ -7,14 +7,15 @@
 // has rejected roll-up summaries twice; this is that rule applied to a list.
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { readFleet } from "@/lib/admin-activity";
-import { serviceClassLabel } from "@/lib/format";
+import { readFleet, readDriverActivity } from "@/lib/admin-activity";
+import { activitySays } from "@/lib/admin-list";
+import { formatShortDay, serviceClassLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDriversPage() {
   const db = await createClient();
-  const fleet = await readFleet(db);
+  const [fleet, activity] = await Promise.all([readFleet(db), readDriverActivity(db)]);
 
   return (
     <main className="adm-main">
@@ -28,13 +29,21 @@ export default async function AdminDriversPage() {
       <section className="adm-sect">
         {fleet.map(({ driver: d, vehicle: v }) => {
           const based = d.base_lat != null && d.base_lng != null;
+          // ⚑ The question the fleet list never answered: is this person
+          // actually working? Both halves are computable today — no tracker
+          // needed, and no browsing recorded to get them.
+          const worked = activitySays(activity.get(d.id));
           return (
-            <Link key={d.id} href={`/admin/drivers/${d.id}`} className="adm-row adm-row--3">
+            <Link key={d.id} href={`/admin/drivers/${d.id}`} className="adm-row adm-row--4">
               <span className="adm-row__name">
                 {d.first_name} {d.last_name}
               </span>
               <span className="adm-row__side">
                 {v ? serviceClassLabel(v.category, v.body_type) : "No car on file"}
+              </span>
+              <span className={worked.idle ? "adm-row__side adm-row__side--idle" : "adm-row__side"}>
+                {worked.text}
+                {worked.on && ` ${formatShortDay(worked.on)}`}
               </span>
               {/* The one fact that decides whether they ever see a trip. */}
               <span className={based ? "adm-row__kind" : "adm-row__kind adm-row__kind--bad"}>

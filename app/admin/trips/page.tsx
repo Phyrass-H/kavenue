@@ -4,13 +4,18 @@
 // ⚑ `?flag=no-cancellation-record` is the one that isn't a status: it is the
 // answer to "which 23?", and without it that finding is a claim with no proof
 // behind it.
+//
+// ⚑ IT USED TO STOP AT 120 ROWS AND SAY NOTHING ABOUT IT. A list that quietly
+// truncates reads as a complete answer, which is the one thing it isn't.
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { tripLabel, whenLabel } from "@/lib/activity-findings";
-import { formatDateTime, formatMoney, missionStatusLabel, shortPlaceLabel } from "@/lib/format";
+import { AdminTripList } from "@/components/admin-trip-list";
+import { pageWindow, pageNote } from "@/lib/admin-list";
 import type { MissionStatus } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
+
+const PER_PAGE = 60;
 
 const FILTERS = [
   { q: "", label: "All" },
@@ -24,24 +29,44 @@ const FILTERS = [
 export default async function AdminTripsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; flag?: string }>;
+  searchParams: Promise<{ status?: string; flag?: string; page?: string }>;
 }) {
-  const { status, flag } = await searchParams;
+  const { status, flag, page } = await searchParams;
+  const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
 
-  let query = db.from("mission").select("*").order("pickup_at", { ascending: false }).limit(120);
-  if (status) query = query.eq("status", status as MissionStatus);
-  // The finding says 23 trips have no cancellation record; this is where a
-  // reader goes to see which ones.
-  if (flag === "no-cancellation-record") query = query.eq("status", "cancelled");
-  const { data: trips } = await query;
+  // ⚑ The flagged view is filtered in JS against `mission_cancellation`, so it
+  // cannot be paged in SQL — it is read whole and capped by the flag itself.
+  const flagged = flag === "no-cancellation-record";
 
-  const { data: records } = await db.from("mission_cancellation").select("mission_id");
-  const recorded = new Set((records ?? []).map((r) => r.mission_id));
-  const rows =
-    flag === "no-cancellation-record"
-      ? (trips ?? []).filter((t) => !recorded.has(t.id))
-      : (trips ?? []);
+  let query = db
+    .from("mission")
+    .select("*", { count: "exact" })
+    .order("pickup_at", { ascending: false });
+  if (status) query = query.eq("status", status as MissionStatus);
+  if (flagged) query = query.eq("status", "cancelled");
+  const { data: trips, count } = await (flagged ? query : query.range(win.from, win.to));
+
+  let rows = trips ?? [];
+  let total = count ?? 0;
+  if (flagged) {
+    // The finding says N cancelled trips have no record; this is where a reader
+    // goes to see which ones.
+    const { data: records } = await db.from("mission_cancellation").select("mission_id");
+    const recorded = new Set((records ?? []).map((r) => r.mission_id));
+    rows = rows.filter((t) => !recorded.has(t.id));
+    total = rows.length;
+    rows = rows.slice(win.from, win.to + 1);
+  }
+
+  const href = (p: number) => {
+    const qs = new URLSearchParams();
+    if (status) qs.set("status", status);
+    if (flag) qs.set("flag", flag);
+    if (p > 0) qs.set("page", String(p));
+    const s = qs.toString();
+    return s ? `/admin/trips?${s}` : "/admin/trips";
+  };
 
   return (
     <main className="adm-main">
@@ -49,7 +74,7 @@ export default async function AdminTripsPage({
         <div className="adm-head__main">
           <h1>Trips</h1>
           <p className="adm-head__meta">
-            {flag === "no-cancellation-record"
+            {flagged
               ? "Cancelled trips with no record of who cancelled them, or why."
               : "Newest first. Open one to read its whole story."}
           </p>
@@ -71,26 +96,12 @@ export default async function AdminTripsPage({
       )}
 
       <section className="adm-sect">
-        {rows.length === 0 ? (
-          <p className="adm-none">No trips match.</p>
-        ) : (
-          rows.map((t) => (
-            <Link key={t.id} href={`/admin/trips/${t.id}`} className="adm-row">
-              <span className="adm-row__when">{formatDateTime(t.pickup_at)}</span>
-              <span className="adm-row__name">
-                {tripLabel(
-                  {
-                    pickup_label: t.pickup_label ?? shortPlaceLabel(t.pickup_address),
-                    dropoff_label: t.dropoff_label ?? shortPlaceLabel(t.dropoff_address),
-                  },
-                  whenLabel(t.pickup_at),
-                )}
-              </span>
-              <span className="adm-row__side">{formatMoney(t.ceiling)}</span>
-              <span className="adm-row__kind">{missionStatusLabel(t.status)}</span>
-            </Link>
-          ))
-        )}
+        <AdminTripList
+          rows={rows}
+          note={pageNote(total, win, PER_PAGE)}
+          pageHref={href}
+          empty="No trips match."
+        />
       </section>
     </main>
   );

@@ -15,7 +15,8 @@
 - **The Drivers list finally says who is actually working.** "83 trips · last 25 Aug" beside each name, or
   "never taken a trip" in amber. Three of the thirteen have never taken one.
 - **Long lists say what they aren't showing.** They used to just stop — at 120 trips, at 40, at 8 — without a
-  word. Now it reads "Newest 40 of 110" with a link to the older ones.
+  word. Now it reads "Newest 40 of 110" with a link to the older ones. The search box does it too: searching
+  "nice" shows eight and tells you 185 trips matched, instead of quietly implying there were eight.
 - **Trips are grouped by day, and a hotel's or a Driver's own trips by month.** Grouping by day was tried
   first and looked wrong the moment real data hit it: a hotel books about one trip a day, so it produced
   forty headings over forty rows.

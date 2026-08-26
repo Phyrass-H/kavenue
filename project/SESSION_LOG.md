@@ -33,7 +33,10 @@ handoff's own rule (*"the first live render is the design review"*) earned its p
    who matched is already stated in full in the sentence directly above it, and a second visual language
    there could only repeat it or disagree with it.
 4. **Day bands** on `/admin/trips`, **month bands** on a hotel's and a Driver's page — see the trap below.
-5. **Pagination**, replacing three silent caps. `pageNote()` returns **null** when everything fits, so the
+5. **Pagination**, replacing **four** silent caps — the three lists, and `/admin`'s search box, which was
+   the one the handoff's own list buried in a sub-clause. It now says *"Showing the first 8 of each kind —
+   185 trips match 'nice'"*, and the heading drops its count when it is holding some back: *"Found 8"* over
+   185 matches is the same half-truth the cap was. `pageNote()` returns **null** when everything fits, so the
    console stays silent by construction; otherwise *"Newest 40 of 110"* + `← Newer` / `Older →`.
 6. **The fleet list says who is working**: `83 trips · last 25 Aug`, or `never taken a trip` in amber. ⚑
    **Three states, not two** — a Driver who has held eight and finished none reads `held 8, none finished`,

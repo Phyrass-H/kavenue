@@ -49,6 +49,7 @@ code,.cmd{font-family:var(--mono);font-size:13.5px}
 .issue:first-of-type{border-top:none}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--warn-fg);align-self:center}
 .issue.worst .dot{background:var(--bad-fg)}
+.issue.done .dot{background:var(--ok-fg)}
 .issue p{margin:0;font-size:15.5px}
 .issue small{display:block;color:var(--muted);font-size:14px;margin-top:3px;max-width:60ch}
 .note{background:var(--navy-soft);border-radius:8px;padding:16px 20px;margin:14px 0 0;
@@ -62,8 +63,8 @@ code,.cmd{font-family:var(--mono);font-size:13.5px}
 <div class="wrap">
 
 <h1>Testing the Activity console</h1>
-<p class="sub">The database now holds three months of made-up but realistic trading, built so this screen has
-something to say. Here’s how to get in, what to try, and what I already know is wrong with it.</p>
+<p class="sub">The database holds three months of made-up but realistic trading, built so this screen has
+something to say. Here’s how to get in, what to try, and what has changed since you last read this.</p>
 
 <h2>Getting in</h2>
 <div class="card">
@@ -78,7 +79,7 @@ something to say. Here’s how to get in, what to try, and what I already know i
 <div class="card">
   <dl class="kv">
     <dt>Hotels</dt><dd>4 — Majestic Cannes, Negresco, Belles-Rives, Métropole Monte-Carlo</dd>
-    <dt>Drivers</dt><dd>11, across Eco / Business / First, saloons and vans</dd>
+    <dt>Drivers</dt><dd>13 — 11 of them, plus two test logins — across Eco / Business / First, saloons and vans</dd>
     <dt>Trips</dt><dd>348, from late May to today</dd>
     <dt>Growth</dt><dd>75 in June · 137 in July · 128 so far in August</dd>
     <dt>Filled</dt><dd>84% found a Driver · 48 nobody took</dd>
@@ -104,16 +105,17 @@ something to say. Here’s how to get in, what to try, and what I already know i
 
   <div class="step"><span class="n">3</span><div>
     <h3>Ask why a Driver can’t take a trip</h3>
-    <p>On any trip, click through the Driver names. On a live trip it tells you what stopped them; on a
-      finished one, who could have taken it.</p>
+    <p>On any trip, type a name into the find box or click one. On a live trip it tells you what stopped
+      them; on a finished one, who could have taken it.</p>
     <p class="look"><b>This is the one you asked for first.</b> Does the answer land in one read?</p>
   </div></div>
 
   <div class="step"><span class="n">4</span><div>
     <h3>The trip nobody can serve</h3>
     <p>The front page names it: <b>Valberg → Marseille Airport</b>. It needs a First-class van and the only
-      one is 61 km away on a 60 km limit.</p>
-    <p class="look"><b>Is one kilometre a good enough explanation?</b></p>
+      one is 60,4 km away on a 60 km limit.</p>
+    <p class="look"><b>Is four hundred metres a good enough explanation?</b> It used to say “60 km on a 60 km
+      limit”, which read like a broken rule — that was rounding, and it’s fixed.</p>
   </div></div>
 
   <div class="step"><span class="n">5</span><div>
@@ -125,34 +127,51 @@ something to say. Here’s how to get in, what to try, and what I already know i
 
   <div class="step"><span class="n">6</span><div>
     <h3>A hotel’s record</h3>
-    <p>Hotels → <b>Belles-Rives</b>. Smallest account, worst luck: 10 of its 42 trips found nobody.</p>
+    <p>Hotels → <b>Belles-Rives</b>. Smallest account, worst luck: 10 of its 42 trips found nobody — and
+      the page no longer says so at the top, it says it on each of the ten rows.</p>
     <p class="look"><b>Would you call them about this?</b> If not, the screen isn’t doing its job.</p>
   </div></div>
 </div>
 
-<h2>What I already know is wrong</h2>
+<h2>The six I said were wrong — all fixed</h2>
 <div class="card">
-  <div class="issue worst"><span class="dot"></span><div>
-    <p>A hotel’s own name is repeated on every row of its own page.</p>
-    <small>“Belles-Rives → Nice Airport”, forty times. On that page only the destination is news. Worst one.</small>
+  <div class="issue done"><span class="dot"></span><div>
+    <p>A hotel’s own name is off its own rows.</p>
+    <small>Belles-Rives now reads “→ Nice Airport, T2”. An arrow pointing back (“← Nice Airport, T1”) means
+    the car was bringing someone <i>to</i> the hotel. Matched on the map coordinates, not the name.</small>
   </div></div>
-  <div class="issue"><span class="dot"></span><div>
-    <p>Two headings still carry a roll-up count.</p>
-    <small>“9 nobody took”, “8 of 15 completed” — when every row already says so. Against your own rule.</small>
+  <div class="issue done"><span class="dot"></span><div>
+    <p>The roll-up counts are out of both headings.</p>
+    <small>Every row already says <i>Unfilled</i> or <i>Completed</i> for itself.</small>
   </div></div>
-  <div class="issue"><span class="dot"></span><div>
-    <p>Eleven Driver names as buttons on a trip. Fine now, unusable at fifty.</p>
+  <div class="issue done"><span class="dot"></span><div>
+    <p>The Driver picker has a find box.</p>
+    <small>Type three letters instead of reading thirteen names. It works the same at fifty.</small>
   </div></div>
-  <div class="issue"><span class="dot"></span><div>
-    <p>No day grouping in any list.</p>
-    <small>Forty dated rows with no break, while Dispatch groups by day. The two read differently.</small>
+  <div class="issue done"><span class="dot"></span><div>
+    <p>Lists are grouped — by day on Trips, by month on a hotel’s or a Driver’s own page.</p>
+    <small>By day everywhere was tried first and looked wrong immediately: a hotel books about one trip a
+    day, so it made forty headings over forty rows.</small>
   </div></div>
-  <div class="issue"><span class="dot"></span><div>
-    <p>Lists stop silently — 120 trips, 40 per Driver, 8 per search.</p>
+  <div class="issue done"><span class="dot"></span><div>
+    <p>Lists say what they are not showing.</p>
+    <small>“Newest 40 of 110”, with a link to the older ones. They used to just stop.</small>
   </div></div>
-  <div class="issue"><span class="dot"></span><div>
-    <p>The Drivers list says nothing about who is actually working.</p>
-    <small>Trips done would be the most useful column on it, and we can work it out today.</small>
+  <div class="issue done"><span class="dot"></span><div>
+    <p>The Drivers list says who is working.</p>
+    <small>“83 trips · last 25 Aug”, or “never taken a trip” in amber. Three of the thirteen have never
+    taken one.</small>
+  </div></div>
+</div>
+
+<h2>And the one you spotted</h2>
+<div class="card">
+  <div class="issue done"><span class="dot"></span><div>
+    <p>The Drivers live in towns now, not in hotels.</p>
+    <small>Nice, Cannes, Antibes, Mougins, Monaco. It was only ever the test data — the app has always asked
+    a Driver for their own address. Each town was picked close enough to the old one that none of the three
+    months of history stopped making sense, and the one deliberate gap in the fleet — nobody who can reach
+    Valberg — is still there.</small>
   </div></div>
 </div>
 

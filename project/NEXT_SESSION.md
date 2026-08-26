@@ -109,10 +109,31 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ---
 
-## WHERE WE ARE (2026-08-26, end of S68)
+## WHERE WE ARE (2026-08-26, end of S69)
 
-`main` = **the S68 commit**, deployed. **NO migration was written or needed** — RLS already grants
-`app_role()='admin'` read on everything, so the whole console shipped app-side.
+`main` = **`64a68f1`**, CI green on branch `s69-console-ui` then pushed. **NO migration in S68 or S69** — RLS
+already grants `app_role()='admin'` read on everything, so the whole console is app-side.
+
+### ✅ Shipped in S69 — THE CONSOLE'S UI PASS
+The founder picked § 2's second half and skipped the first: *"I don't drive i'm not ready, you said 6 UI
+problems you can start with that?"* **All six are done**, plus the one they found themselves.
+
+| | |
+|---|---|
+| **the hotel page** | a hotel's own name is off its own rows — `→ Nice Airport, T2`, or `← Nice Airport, T1` when the trip comes BACK. ⚑ Matched on **coordinates**, never the name; `SAME_PLACE_KM = 0.25`. Classifies all 350 live trips: 348 leave · 1 returns · 1 neither |
+| **the roll-ups** | gone from both headings. The rows already say `Unfilled` |
+| **the picker** | `components/admin-driver-picker.tsx`, the console's first client component. Find box at 8 Drivers and up. ⚑ Alphabetical, **not** tinted by verdict — the sentence above it already names who matched |
+| **bands** | **day** on `/admin/trips`, **month** on a hotel's and a Driver's page — see the trap. `lib/admin-list.ts` |
+| **pagination** | replaces **four** silent caps — the three lists and the search box, which now says *"Showing the first 8 of each kind — 185 trips match"*. `pageNote()` returns **null** when everything fits, so the console stays silent by construction |
+| **the fleet list** | `83 trips · last 25 Aug`, or `never taken a trip`. ⚑ **Three states, not two** — `held 8, none finished` exists and nobody is in it today |
+| **[[d96]] · the bases** | the founder's catch: *"why would a driver be based at the Negresco?"* `BASES` is now a map of **towns**, separate from `PLACES`. 13 live rows moved by `.local/seed/rebase-drivers.mts`, which **refuses to write** if any move would strand a past trip (0 of 294) |
+| **two live-screen defects** | `quoteKm()` — a refusal that read *"60 km … up to 60 km"*; and `migrations-2026-08-11` **B4**, red since the bleach for an unrelated reason |
+| **tests** | 647 → **683** (+36) |
+
+### ⚑ WHAT THE CONSOLE SAYS TODAY — unchanged, all three still true
+Karim Nasri is now **60,4 km** from Valberg (was 60,8 from Belles-Rives) on a 60 km radius, so *"nobody can
+take Valberg → Marseille Airport"* still holds. Amine Belkacem and Clara Vidal are still unverified and can
+still accept work ([[d92]]). Two trips have still been passed around.
 
 ### ✅ Shipped in S68 — THE ACTIVITY CONSOLE
 | | |
@@ -153,14 +174,17 @@ consulted by nothing.**
 > And still: **a missing value is a REFUSAL, never a skip** (D88); **"zero rows" is not proof of a bug** (S67)
 > — D92 was found by `grep -rn`, not by an empty query.
 
-### 🎯 NEXT SESSION — the founder's own words, at the close of S68
+### 🎯 NEXT SESSION — two things, in this order
 
-> *"wrap up everything, update docs and prepare next session with whatever needs to be fixed — and I want to
-> test the activity console and improve the UI."*
+1. **§ 0, the quote-versus-charge disagreement.** Untouched by S68 and S69, still 24 problems in
+   `write-test`, still the first job. It is the only known defect in the repo.
+2. **§ 2, the founder driving the console.** S69 did the UI pass they asked for *instead of* the testing —
+   *"I don't drive i'm not ready"* — so the session where they actually sit in front of it has not happened.
+   `project/Test-The-Console.html` is rewritten for the post-S69 screens and republished as an Artifact
+   (`f237b890-8f21-4344-9ce9-7fe8f689cd30`). ⚑ **Point them at it; don't re-explain it in chat.**
 
-**So the order is: § 2 (they test the console, then the UI pass) is THE JOB.** § 0 below is the one real
-defect left open and must be settled before anything money-adjacent is touched, but it does not block the UI
-work and should not be allowed to eat the session. Confirm in one line; don't re-offer a menu.
+⚑ **ASK FIRST — S69 is the proof.** The queued job was "they test the console, then the UI pass" and they
+took the second half only. A handoff records what was planned, not what the founder wants today.
 
 #### 0 · ⚑ THE QUOTE AND THE CHARGE DISAGREE ONCE `accepted_fare` IS SET — **START HERE**
 
@@ -218,7 +242,7 @@ unfilled, 30 cancellations, 12 no-shows, 106 with waiting charged, 2 passed arou
   If a probe ever dies at `Invalid login credentials`, that is the file to run.
 - ⚑ **The live trips age out.** When `handoff-check` says the Pool is empty, re-run `seed-live.mts`.
 
-#### 2 · ⚑ THE FOUNDER TESTS THE CONSOLE, AND THEN THE UI PASS ← **THE MAIN JOB**
+#### 2 · ⚑ THE FOUNDER TESTS THE CONSOLE ← **STILL NOT DONE.** The UI pass shipped in S69 instead
 
 **They said so at the end of S68: *"I want to test the activity console and improve the UI."*** The dataset is
 built for exactly this. Open with the sign-in below, let them drive, and take notes — do not start editing
@@ -244,19 +268,12 @@ the Pool looks empty, re-run `.local/seed/seed-live.mts`.
    finished one, who could have.
 4. **`/admin/drivers`** — where each one works and how far they'll go, or *"no base — Pool empty"* in red.
 
-**⚑ UI ISSUES CLAUDE ALREADY SPOTTED — offer these, don't pre-empt their own list:**
-- **A hotel's own name is repeated on every row of its own page** (*"Belles-Rives, Juan-les-Pins → Nice
-  Airport"*, forty times). On a hotel page the destination is the information; the origin is the heading.
-  This is the worst one.
-- **`/admin/businesses` and the Driver page still carry roll-up counts in their headings** (*"9 nobody took"*,
-  *"8 of 15 completed"*). The rows already say `Unfilled`. Against the founder's own twice-stated rule.
-- **The Driver picker on a trip is eleven chips on two rows**, and it grows with the fleet. Fine at 11,
-  unusable at 50 — needs a search or a "who matched" default.
-- **No date grouping in any list.** Forty rows of `sam. 29 août` with no visual break. Dispatch's Schedule
-  groups by day and this does not, so the two surfaces read differently.
-- **No pagination** — trips cap at 120, a Driver's at 40, search at 8 per kind, all silently.
-- **The Drivers list says nothing about who is actually working.** Trips done, or last seen, would be the most
-  useful column on it and both are computable today.
+**✅ THE SIX UI ISSUES ARE ALL FIXED (S69) — do not re-raise them.** The hotel-page repetition · the two
+roll-up headings · the chip-wall picker · no grouping · the silent caps · the fleet list saying nothing about
+who works. See the S69 table at the top for what each became.
+
+**⚑ WHAT TO WATCH FOR WHEN THEY DRIVE IT:** their own list will not be this one. Take notes and do not
+pre-empt.
 
 **⚑ THE DESIGN CALIBRATION, learned the hard way this session:** the first preview was rejected in three words
 — *"it's overwhelming"*. What fixed it was **fewer words on screen at once**, not less information: one
@@ -353,15 +370,15 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 **30 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 647 passing
-    node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 693 · ALL AGREE
+    npx tsc --noEmit && npx vitest run          # expect 683 passing
+    node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 921 · ALL AGREE
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ⚑ 24 PROBLEMS — see job 0
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
     node --experimental-strip-types .local/probe/accepted-fare.ts       #  20 · ALL AGREE
     node --experimental-strip-types .local/probe/reclaim-live.mts       #  20 · D86 end to end
     node --experimental-strip-types .local/probe/event-registry-live.mts #  16 · D87 registry
     node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 63 · 0 failed
-    node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
+    node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed (B4 fixed in S69)
     node .local/probe/google-places-live.mjs                             #  8 · D89 address box
     npx tsx .local/probe/eligibility-live.mts                            # 33 · D92/D93 — ⚑ tsx, NOT node
     npx tsx .local/probe/dataset-audit.mts                               # 30 · the seeded dataset (D94)
@@ -372,6 +389,41 @@ about that point — **fix the file before you build on it.** Then:
 ⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
 
 ---
+
+## ⚑ TRAPS LEARNED IN S69
+
+- ⚑ **A MOCKUP APPROVED ON FIVE ROWS IS NOT APPROVED ON FORTY.** Day bands were signed off on a preview
+  showing five trips and were obviously wrong the moment the real page rendered: a hotel books about **one
+  trip a day**, so its own 42 trips produced **42 one-row bands** — a striped wall, worse than the flat list
+  it replaced. `/admin/trips` (the whole marketplace, ~3 a day) groups properly. `lib/admin-list.ts` now
+  takes `band: "day" | "month"`, following what the app already does: Dispatch's **Schedule** bands by day,
+  its **History** bands by month. **Preview the shape at the real row count, not at a comfortable one.**
+- ⚑ **EVERY `.adm-row` IS ITS OWN GRID, SO `auto` COLUMNS DO NOT LINE UP DOWN THE PAGE.** With two cells that
+  only looked untidy; with four, the activity column jumped fifty pixels a row. Fixed widths are what make
+  N separate grids read as one table — and the last column has to be sized for a pill **even on the rows
+  that have none**, or those rows shift left. Also: `.adm-pill` now has `white-space: nowrap`; a pill that
+  wraps to two lines makes its whole row taller than its neighbours.
+- ⚑ **`Math.round` TURNED AN EXPLANATION INTO A CONTRADICTION.** The console gave *"it is **60** km from
+  their base, and they drive up to **60** km"* as the REASON a Driver was refused — he is at 60,4. The bug
+  only appears within half a kilometre of a boundary, which is **exactly** when a human comes looking for
+  the reason. `quoteKm()` in `lib/eligibility.ts`. **A number a sentence argues from cannot be rounded like
+  a number a reader merely glances at.**
+- ⚑ **A CHECK THAT *READS* ITS PRECONDITION IS A CLAIM ABOUT THE DATABASE, NOT ABOUT THE CODE.**
+  `migrations-2026-08-11` case **B4** asserts a luggage run is refused to a Driver who has not opted in — and
+  never set the flag. The bleach deleted the probe accounts and `seed-probe-accounts.mts` recreated them with
+  `accepts_luggage_runs: true`, so B4 had been failing since **2026-08-26** with *"no error — it accepted!"*,
+  which reads exactly like a broken SQL guard. It was NOT a regression and nothing in S69 caused it. It now
+  sets the flag it depends on.
+- ⚑ **TIDYING TEST DATA CAN BREAK THE HISTORY GENERATED FROM IT.** Moving the Drivers off hotel addresses had
+  to keep every past trip inside the range of the Driver who actually drove it — otherwise the past-tense
+  matcher ([[d95]]) would report that the holder could never have taken it, a screen contradicting itself.
+  `rebase-drivers.mts` checks all 294 held trips and **refuses to write** if any would be stranded.
+- ⚑ **A SEEDED GAP IS AS MUCH A PART OF THE DATASET AS A SEEDED TRIP.** Karim Nasri's distance from Valberg
+  is the entire reason *"nobody can take Valberg → Marseille Airport"* is true. Antibes (59,4 km) would have
+  silently deleted a finding the console exists to make; Juan-les-Pins (60,4) keeps it. **Before moving any
+  seeded row, ask which sentence on screen depends on it.**
+- ⚑ **THE DEV SERVER ON :3000 MAY BELONG TO ANOTHER CHAT** and still serve your edits — it reads the same
+  working directory. Fine for verifying; do not `npm run build` against it (S66/S68 trap, still true).
 
 ## ⚑ TRAPS LEARNED IN S68 — every one cost real time
 

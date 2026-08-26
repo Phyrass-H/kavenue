@@ -26,47 +26,69 @@ interface SearchHit {
   kind: string;
 }
 
+interface SearchResult {
+  hits: SearchHit[];
+  /** What each kind is holding back, e.g. "31 trips" — empty when nothing is. */
+  more: string[];
+}
+
+/** Each kind is capped, and the cap is STATED — see `more` below. */
+const PER_KIND = 8;
+
 /** Name, hotel or reference. Deliberately narrow — three tables, no ranking. */
-async function search(term: string): Promise<SearchHit[]> {
+async function search(term: string): Promise<SearchResult> {
   const q = term.trim();
-  if (q.length < 2) return [];
+  if (q.length < 2) return { hits: [], more: [] };
   const db = await createClient();
   const like = `%${q}%`;
+  // ⚑ `count: "exact"` alongside the limit, because the cap has to be able to
+  // say how much it is hiding. A search that quietly returns 8 of 31 matches
+  // reads as "there are 8" — the same silent-truncation lie the list pages had.
   const [drivers, businesses, missions] = await Promise.all([
     db
       .from("driver")
-      .select("id, first_name, last_name, phone")
+      .select("id, first_name, last_name, phone", { count: "exact" })
       .or(`first_name.ilike.${like},last_name.ilike.${like},phone.ilike.${like}`)
-      .limit(8),
-    db.from("business").select("id, name").ilike("name", like).limit(8),
+      .limit(PER_KIND),
+    db.from("business").select("id, name", { count: "exact" }).ilike("name", like).limit(PER_KIND),
     db
       .from("mission")
-      .select("id, reference, pickup_label, dropoff_label, pickup_at")
+      .select("id, reference, pickup_label, dropoff_label, pickup_at", { count: "exact" })
       .or(`reference.ilike.${like},pickup_label.ilike.${like},dropoff_label.ilike.${like}`)
       .order("pickup_at", { ascending: false })
-      .limit(8),
+      .limit(PER_KIND),
   ]);
 
-  return [
-    ...(drivers.data ?? []).map((d) => ({
-      href: `/admin/drivers/${d.id}`,
-      name: `${d.first_name ?? ""} ${d.last_name ?? ""}`.trim() || "A Driver",
-      kind: "Driver",
-    })),
-    ...(businesses.data ?? []).map((b) => ({
-      href: `/admin/businesses/${b.id}`,
-      name: b.name,
-      kind: "Hotel",
-    })),
-    ...(missions.data ?? []).map((m) => ({
-      href: `/admin/trips/${m.id}`,
-      name:
-        [m.pickup_label, m.dropoff_label].filter(Boolean).join(" → ") ||
-        m.reference ||
-        "A trip",
-      kind: new Date(m.pickup_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
-    })),
-  ];
+  const hidden = (count: number | null, shown: number, one: string, many: string) =>
+    (count ?? 0) > shown ? [`${count} ${count === 1 ? one : many}`] : [];
+
+  return {
+    hits: [
+      ...(drivers.data ?? []).map((d) => ({
+        href: `/admin/drivers/${d.id}`,
+        name: `${d.first_name ?? ""} ${d.last_name ?? ""}`.trim() || "A Driver",
+        kind: "Driver",
+      })),
+      ...(businesses.data ?? []).map((b) => ({
+        href: `/admin/businesses/${b.id}`,
+        name: b.name,
+        kind: "Hotel",
+      })),
+      ...(missions.data ?? []).map((m) => ({
+        href: `/admin/trips/${m.id}`,
+        name:
+          [m.pickup_label, m.dropoff_label].filter(Boolean).join(" → ") ||
+          m.reference ||
+          "A trip",
+        kind: new Date(m.pickup_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short" }),
+      })),
+    ],
+    more: [
+      ...hidden(drivers.count, drivers.data?.length ?? 0, "Driver", "Drivers"),
+      ...hidden(businesses.count, businesses.data?.length ?? 0, "hotel", "hotels"),
+      ...hidden(missions.count, missions.data?.length ?? 0, "trip", "trips"),
+    ],
+  };
 }
 
 /** Findings sharing a check, collapsed to one line that NAMES them all. */
@@ -150,7 +172,8 @@ export default async function AdminPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q = "" } = await searchParams;
-  const [hits, snapshot] = await Promise.all([search(q), readActivitySnapshot()]);
+  const [found, snapshot] = await Promise.all([search(q), readActivitySnapshot()]);
+  const { hits, more } = found;
   const fired = findings(snapshot);
   const quiet = quietChecks(snapshot, fired);
 
@@ -174,8 +197,15 @@ export default async function AdminPage({
 
       {q.trim().length >= 2 && (
         <section className="adm-sect">
+          {/* ⚑ The count is dropped the moment the search is holding some back —
+              "Found 8" over 185 matches is the same half-truth the cap itself
+              was. The line under the hits carries the real numbers. */}
           <h2 className="adm-sect__h">
-            {hits.length ? `Found ${hits.length}` : `Nothing matches “${q.trim()}”`}
+            {!hits.length
+              ? `Nothing matches “${q.trim()}”`
+              : more.length
+                ? "Found"
+                : `Found ${hits.length}`}
           </h2>
           {hits.map((h) => (
             <Link key={h.href} href={h.href} className="adm-hit">
@@ -183,6 +213,12 @@ export default async function AdminPage({
               <span className="adm-hit__kind">{h.kind}</span>
             </Link>
           ))}
+          {/* ⚑ Only when something IS held back — silent by construction. */}
+          {more.length > 0 && (
+            <p className="adm-quiet">
+              Showing the first {PER_KIND} of each kind — {more.join(" · ")} match “{q.trim()}”.
+            </p>
+          )}
         </section>
       )}
 

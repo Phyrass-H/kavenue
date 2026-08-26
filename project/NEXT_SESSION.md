@@ -224,6 +224,10 @@ unfilled, 30 cancellations, 12 no-shows, 106 with waiting charged, 2 passed arou
 built for exactly this. Open with the sign-in below, let them drive, and take notes — do not start editing
 until they have been round it once.
 
+⚑ **`project/Test-The-Console.html` is written FOR THE FOUNDER** — how to sign in, six things to try with what
+to look for in each, and the six UI problems below. Also published as an Artifact. Point them at it rather
+than re-explaining.
+
 **How they get in (local):**
 
     npm run dev

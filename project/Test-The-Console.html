@@ -1,0 +1,170 @@
+<title>Testing the Activity console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --page:#F1F4F8; --surface:#FFFFFF; --sunk:#F5F7FA;
+  --border:#E6EBF1; --border-strong:#CBD5E1;
+  --text:#0F172A; --muted:#5B6879; --faint:#93A0B0;
+  --navy:#25344C; --navy-soft:#E9EDF4;
+  --ok-fg:#157347; --warn-fg:#B54708; --bad-fg:#B42318;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --page:#0E1319; --surface:#161C24; --sunk:#131A22;
+  --border:#272F3A; --border-strong:#3A4450;
+  --text:#E8EDF3; --muted:#9DA9B9; --faint:#6E7A8A;
+  --navy:#AFC2E0; --navy-soft:#212B3A;
+  --ok-fg:#67BE8D; --warn-fg:#DCA05C; --bad-fg:#E08C82;
+}}
+:root[data-theme="dark"]{
+  --page:#0E1319; --surface:#161C24; --sunk:#131A22;
+  --border:#272F3A; --border-strong:#3A4450;
+  --text:#E8EDF3; --muted:#9DA9B9; --faint:#6E7A8A;
+  --navy:#AFC2E0; --navy-soft:#212B3A;
+  --ok-fg:#67BE8D; --warn-fg:#DCA05C; --bad-fg:#E08C82;
+}
+*{box-sizing:border-box}
+body{background:var(--page);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.6;margin:0}
+.wrap{max-width:760px;margin:0 auto;padding:56px 24px 100px}
+h1{font-size:29px;font-weight:500;letter-spacing:-.02em;margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--muted);margin:0 0 40px;font-size:16.5px;max-width:60ch}
+h2{font-size:12px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);font-weight:500;margin:44px 0 14px;display:flex;align-items:center;gap:12px}
+h2::after{content:"";flex:1;height:1px;background:var(--border)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 22px;margin:0 0 12px}
+code,.cmd{font-family:var(--mono);font-size:13.5px}
+.cmd{display:block;background:var(--sunk);border:1px solid var(--border);border-radius:8px;
+  padding:12px 14px;margin:10px 0 0;color:var(--text);overflow-x:auto;white-space:pre}
+.step{display:grid;grid-template-columns:26px 1fr;gap:0 16px;padding:15px 0;border-top:1px solid var(--border)}
+.step:first-of-type{border-top:none}
+.n{font-family:var(--mono);font-size:13px;color:var(--faint);padding-top:2px}
+.step h3{margin:0;font-size:17px;font-weight:500;letter-spacing:-.01em}
+.step p{margin:5px 0 0;color:var(--muted);font-size:15.5px;max-width:58ch}
+.step .look{margin:8px 0 0;font-size:14.5px;color:var(--text)}
+.step .look b{font-weight:500}
+.issue{display:grid;grid-template-columns:8px 1fr;gap:0 14px;padding:13px 0;border-top:1px solid var(--border);align-items:baseline}
+.issue:first-of-type{border-top:none}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--warn-fg);align-self:center}
+.issue.worst .dot{background:var(--bad-fg)}
+.issue p{margin:0;font-size:15.5px}
+.issue small{display:block;color:var(--muted);font-size:14px;margin-top:3px;max-width:60ch}
+.note{background:var(--navy-soft);border-radius:8px;padding:16px 20px;margin:14px 0 0;
+  font-size:15px;color:var(--muted)}
+.note b{color:var(--text);font-weight:500}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:7px 18px;margin:0;font-size:15px}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-variant-numeric:tabular-nums}
+</style>
+
+<div class="wrap">
+
+<h1>Testing the Activity console</h1>
+<p class="sub">The database now holds three months of made-up but realistic trading, built so this screen has
+something to say. Here’s how to get in, what to try, and what I already know is wrong with it.</p>
+
+<h2>Getting in</h2>
+<div class="card">
+  <span class="cmd">npm run dev</span>
+  <span class="cmd">open http://localhost:3000/api/dev-login?email=admin@kavenue.fr</span>
+  <p style="margin:12px 0 0;color:var(--muted);font-size:15px">
+    That signs you in as the admin and drops you on the console. On the live site it’s
+    <code>admin.kavenue.fr</code>, same account, no shortcut needed.</p>
+</div>
+
+<h2>What’s in there</h2>
+<div class="card">
+  <dl class="kv">
+    <dt>Hotels</dt><dd>4 — Majestic Cannes, Negresco, Belles-Rives, Métropole Monte-Carlo</dd>
+    <dt>Drivers</dt><dd>11, across Eco / Business / First, saloons and vans</dd>
+    <dt>Trips</dt><dd>348, from late May to today</dd>
+    <dt>Growth</dt><dd>75 in June · 137 in July · 128 so far in August</dd>
+    <dt>Filled</dt><dd>84% found a Driver · 48 nobody took</dd>
+    <dt>Gone wrong</dt><dd>30 cancelled · 12 no-shows · 106 with waiting charged</dd>
+  </dl>
+</div>
+
+<h2>Six things to try</h2>
+<div class="card">
+  <div class="step"><span class="n">1</span><div>
+    <h3>The front page</h3>
+    <p>Three sentences today. Each one names the Driver or the trip it’s about.</p>
+    <p class="look"><b>Is it too much, or not enough?</b> It stays silent when a check finds nothing —
+      no “0 problems”, no green ticks.</p>
+  </div></div>
+
+  <div class="step"><span class="n">2</span><div>
+    <h3>The trip that was dropped three times</h3>
+    <p>Trips → find <b>Cannes → Valberg</b>, 31 July. It sat in the Pool nine days and three Drivers took it
+      and gave it back.</p>
+    <p class="look"><b>Can you follow the story?</b> Every step in order, with times.</p>
+  </div></div>
+
+  <div class="step"><span class="n">3</span><div>
+    <h3>Ask why a Driver can’t take a trip</h3>
+    <p>On any trip, click through the Driver names. On a live trip it tells you what stopped them; on a
+      finished one, who could have taken it.</p>
+    <p class="look"><b>This is the one you asked for first.</b> Does the answer land in one read?</p>
+  </div></div>
+
+  <div class="step"><span class="n">4</span><div>
+    <h3>The trip nobody can serve</h3>
+    <p>The front page names it: <b>Valberg → Marseille Airport</b>. It needs a First-class van and the only
+      one is 61 km away on a 60 km limit.</p>
+    <p class="look"><b>Is one kilometre a good enough explanation?</b></p>
+  </div></div>
+
+  <div class="step"><span class="n">5</span><div>
+    <h3>Search someone</h3>
+    <p>Type <b>Nadia</b>, or <b>Negresco</b>, or a town.</p>
+    <p class="look"><b>Does it find what you meant?</b> It searches names, hotels, references and routes —
+      nothing else yet.</p>
+  </div></div>
+
+  <div class="step"><span class="n">6</span><div>
+    <h3>A hotel’s record</h3>
+    <p>Hotels → <b>Belles-Rives</b>. Smallest account, worst luck: 10 of its 42 trips found nobody.</p>
+    <p class="look"><b>Would you call them about this?</b> If not, the screen isn’t doing its job.</p>
+  </div></div>
+</div>
+
+<h2>What I already know is wrong</h2>
+<div class="card">
+  <div class="issue worst"><span class="dot"></span><div>
+    <p>A hotel’s own name is repeated on every row of its own page.</p>
+    <small>“Belles-Rives → Nice Airport”, forty times. On that page only the destination is news. Worst one.</small>
+  </div></div>
+  <div class="issue"><span class="dot"></span><div>
+    <p>Two headings still carry a roll-up count.</p>
+    <small>“9 nobody took”, “8 of 15 completed” — when every row already says so. Against your own rule.</small>
+  </div></div>
+  <div class="issue"><span class="dot"></span><div>
+    <p>Eleven Driver names as buttons on a trip. Fine now, unusable at fifty.</p>
+  </div></div>
+  <div class="issue"><span class="dot"></span><div>
+    <p>No day grouping in any list.</p>
+    <small>Forty dated rows with no break, while Dispatch groups by day. The two read differently.</small>
+  </div></div>
+  <div class="issue"><span class="dot"></span><div>
+    <p>Lists stop silently — 120 trips, 40 per Driver, 8 per search.</p>
+  </div></div>
+  <div class="issue"><span class="dot"></span><div>
+    <p>The Drivers list says nothing about who is actually working.</p>
+    <small>Trips done would be the most useful column on it, and we can work it out today.</small>
+  </div></div>
+</div>
+
+<h2>One thing to know before you trust a number</h2>
+<div class="note">
+  <b>Everything before today is made up, and the screen says so.</b> Each entry in a trip’s story is tagged
+  <i>test data</i>. Only the handful of trips posted today are real records. That tag is deliberate — without
+  it, three months of invented history would look exactly like the real thing, to you and to the app.
+  <br><br>
+  <b>And one real problem is open.</b> On cancellations, the price the box quotes and the price we charge can
+  disagree. It only became visible with this new data, it isn’t something this week broke, and it’s first in
+  the queue next time.
+</div>
+
+</div>

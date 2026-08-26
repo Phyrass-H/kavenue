@@ -109,94 +109,56 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ---
 
-## WHERE WE ARE (2026-08-26, end of S67)
+## WHERE WE ARE (2026-08-26, end of S68)
 
-`main` = **`7ca02ee`**, deployed. **NO migration was written or needed all session** — every fix was app-side.
+`main` = **the S68 commit**, deployed. **NO migration was written or needed** — RLS already grants
+`app_role()='admin'` read on everything, so the whole console shipped app-side.
 
-### ✅ Shipped in S67
+### ✅ Shipped in S68 — THE ACTIVITY CONSOLE
 | | |
 |---|---|
-| **two stale probes** | `migrations-2026-08-10` drove the reclaim through the gate D86 had just deleted (**61→63**); `event-registry-live` asserted `mission_event === 1848`, an equality check on an **append-only** table. Both now green |
-| **D89 · the Google address box** | Autocomplete + coordinates on **Google Places (New)**. **Routing stayed on Mapbox** and must. One file; the exported interface is identical, all six call sites untouched. Key is in Vercel, verified on all four live origins |
-| **D90 · admin can get in** | `routeFor()` had no `admin` branch → `/welcome` → `routeFor()` → **infinite redirect**. Never hit: **0 admin accounts existed** |
-| **D91 · `admin.kavenue.fr`** | Founder pushed back on admin living inside the hotel's app. Right — and the **session cookie** made it not just untidy but broken |
-| **§ AI** | Live Driver location backlogged (native app; battery; scope it to *your* trip, not the fleet) |
+| **the console** | `admin.kavenue.fr` — search a Driver / hotel / trip · one trip's story in order · one Driver · one hotel. Runs as the signed-in admin through the ordinary server client, **never the service role** |
+| **the flagship** | *"Why can't this Driver take this trip?"* — pick any Driver against any trip, get one sentence back. Answering that used to mean querying the DB by hand |
+| **D92** | ⚑ **Two fields recorded about every Driver decide nothing** — `operational_zones` and `verified`. Reported, not omitted; guarded by grep in two probes |
+| **D93** | ⚑ **Refused ≠ never shown.** Six rules refuse (`accept_mission`), three only hide (the Pool query). Different problems, different fixes |
+| **tests** | 555 → **636** (+81) across `eligibility` · `activity-findings` · `mission-story` |
+| **probe** | `.local/probe/eligibility-live.mts` — 23 checks. ⚑ **`npx tsx`, not node** |
 
-### ⚑ THE PATTERN — now SIX, and S67 changed how it's caught
-D86 (a gate on a status nothing reaches) · D87 (event types nothing wrote) · D88 (a check skipped when data was missing) · D90 (a role with no branch) · **and two more in D91 that never shipped, because the COMPILER stopped them**: `homePathForSub()` would have silently sent admins to Dispatch, and the login page would have said *"Kavenue Driver"*.
+### ⚑ WHAT THE CONSOLE FOUND ON ITS FIRST RUN — real, live, still true
+- **Two of the three trips in the Pool cannot be taken by anyone in the fleet.** Both ask for **Eco**; the only
+  Eco Driver (Élodie Marchand) has **never set a base**, so her Pool is empty and the trips were shown to
+  nobody.
+- **Six of nine Drivers have never set a base** — Élodie Marchand, Karim Nasri, Marc Fontaine, Nadia Bouchard,
+  Sofia Berger, Thomas Rey. They have never been offered a single trip.
+- **Marc Dubois is unverified and can accept work today** (see D92 — that is not a bug to "fix" quietly).
 
-**Neither of those two was found by looking. Both were found by widening the TYPE.**
+### ⚑ THE PATTERN — now SEVEN
+D86 (a gate on a status nothing reaches) · D87 (event types nothing wrote) · D88 (a check skipped when data
+was missing) · D90 (a role with no branch) · two in D91 the **compiler** caught · **and now D92: two fields
+consulted by nothing.**
 
-> **Where a value must cover every case, make the compiler the check. A reviewer's memory is not one.**
-> Exhaustive `switch` + `const x: never = value`. Key a lookup on the *type*, never a hand-written union.
-> And still: **where a check needs a value, a missing value is a REFUSAL, never a skip** (D88).
+> **Where a value must cover every case, make the compiler the check.** `PHRASES` in `lib/mission-story.ts`
+> refused to compile until `close_answered` had a sentence — in the first minute of writing it.
+> And still: **a missing value is a REFUSAL, never a skip** (D88); **"zero rows" is not proof of a bug** (S67)
+> — D92 was found by `grep -rn`, not by an empty query.
 
-### ⚑ AND THE COUNTER-LESSON, LEARNED THE SAME SESSION
-**"Zero rows" is NOT proof of a bug.** `accepted_fare` is null on all 280 missions — the exact shape of the four faults above. Claude flagged it to the founder as urgent, then checked: it is **wired, live since 2026-08-22, and covered by `accepted-fare.ts`**. All 280 predate it or were seeded (seeders bypass the app). **Verify before alarming**, and correct it plainly when wrong.
+### 🎯 NEXT SESSION — the founder's stated order, confirm in one line
 
-### 🅐 THE ADMIN ACCOUNT NOW EXISTS — don't recreate it
-`admin@kavenue.fr` · a **free Workspace alias** on the founder's existing mailbox (deliberately not `support@`, which is printed in the app). Roles live: **4 dispatcher · 4 driver · 1 admin**.
-- The admin area is `admin.kavenue.fr`, its own host, its own session cookie.
-- ⚑ **RLS already grants admins read on everything** (`app_role()='admin'` across the schema). No migration is needed to read anything for the console.
-- ⚑ `/admin` today is an almost-empty placeholder. That is deliberate — part C shipped *getting in*.
+#### 1 · A CLEAN TEST DATASET ← **START HERE**
+The console exists now, which was the whole reason to build it first: *building the console is what reveals
+which scenarios the dataset actually needs.* It has revealed several — see "what the console found" above.
+Every one of those is a **seeded-data artefact**, not a product fault, and they crowd out the real signal.
+- ⚑ **The sweep must include `mission_event` and `status_event`.** 431 log entries already point at deleted
+  trips. Every S66/S68 probe cleans up after itself; copy that pattern.
+- ⚑ The founder's own words: *"you and me we are going to delete every single Driver and company and trips
+  ever tested in the database"*. Schema stays, only rows go.
+- ⚑ `.local/seed/seed-fleet.mjs --undo` · `.local/probe/s64curve-refresh.mts` for the demo curve rows.
 
-### 🎯 NEXT SESSION — THE FOUNDER AGREED THIS ORDER. Confirm in one line, don't re-offer a menu.
-
-#### 1 · THE GOOGLE ADDRESS BOX — ✅ SHIPPED (2026-08-25, S67, [[d89]])
-Autocomplete + the picked place's coordinates now come from **Google Places API (New)**. **Routing stayed on
-Mapbox** (`lib/directions.ts`, `driving-traffic` + `depart_at`) and must stay there — that duration is
-traffic-predicted at the *scheduled pickup time* and feeds the ETA and the ±90min slot band. One file changed,
-the exported interface is identical, all six call sites untouched.
-- ⚑ **NOTHING WAS TUNED — founder's explicit instruction.** Google ranks the Eden-Roc *restaurant* above the
-  *hotel* (same address, so the pickup point is right; the line just reads "Restaurant"). A lodging bias was
-  offered and declined: *"no don't tune anything leave it as is"*. **Do not helpfully fix this later.**
-- `NEXT_PUBLIC_GOOGLE_MAPS_KEY` is in `.env.local` and documented in `.env.example`. ⚑ **NOT yet in Vercel** —
-  the box will be dead in production until the founder adds it there.
-- Verified live in the browser: `Eden Roc` → the hotel → coords + glance label → **Mapbox routed 25 km ·
-  44 min**. Probe: `.local/probe/google-places-live.mjs` (8 checks).
-- ✅ **Key IS in Vercel** (Production, type *Config* — Vercel warns about the `NEXT_PUBLIC_` prefix; that is
-  correct and intended, the key is protected by its website restrictions, not by secrecy). Redeployed
-  2026-08-25, `7067ab3`, Ready.
-- ⚑ **The key is allowed on `kavenue.fr`, `www.`, `dispatch.` and `driver.` — and REFUSED on the `*.vercel.app`
-  addresses.** So the address box is dead if the app is opened through a vercel.app URL. Fine while nobody
-  does; the probe asserts all four real origins and reports the vercel.app one, so a too-tight key can never
-  pass silently.
-- ⚑ **Trap:** the booking form's address fields are prefilled with the Business's own address, and
-  `computer{action:"type"}` does not land in them (focus stays on `body`, and text splices into the middle of
-  the existing value). Use `form_input` on the combobox ref.
-
-#### 2 · ADMIN ACCESS ✅ SHIPPED (D90 + D91) · **THE ACTIVITY CONSOLE ← START HERE**
-
-⚑ **The founder asked Claude to make the call between "build the console" and "build a clean test dataset
-first", and the answer given — which they accepted — was CONSOLE FIRST.** The reasoning, so it is not re-argued:
-the dataset exists to be *looked at*, and there is no tool to look at it with; the console needs no new data
-(280 trips, ~2 057 events, real cancellations and expiries are plenty); and building the console is what
-reveals which scenarios the dataset actually needs. The dataset is throwaway anyway — it gets wiped again once
-Stripe/email/notifications land.
-
-**Order: Activity console → clean dataset → the founder's own UI/UX pass on it.**
-
-**The founder's framing, which is the right one: don't build an "event log screen".** They will never think
-*"let me open the event log"* — they think *"why did that trip fail"* or *"is Marc reliable"*. Call it
-**Activity**. The log is fuel, not the product.
-- Search a name / hotel / trip → profile → their trips → **one trip's whole story in order, with times**.
-- ⚑ **Build this feature first, it is the highest-value one** (founder's judgement, Claude agrees): a button
-  answering *"why can't this Driver see or take this trip?"* — re-run the real rules and say which one blocked
-  them (tier, zone, radius, slot clash, not verified). Same on the hotel side: *"why has nobody taken this?"*
-  → how many Drivers matched. Today answering that means Claude querying the DB by hand.
-- **Findings as plain sentences at the top**, each clicking through to the entries that prove it.
-- ⚑ **Named checks, NOT anomaly detection.** At 9 Drivers and ~10 trips/day there is no baseline, so
-  "anything unusual" fires constantly and gets ignored. Specific known-bad shapes, each a sentence a human can
-  read and delete: *"this trip has been taken and dropped 3 times"*, *"nobody has ever used the release
-  request"*.
-- Two rules: **silent by default** and **no roll-up counts** — the named thing on the row (founder, twice).
-- ⚑ **UI job → DESIGN PREVIEW FIRST** ([[d25]] loop). Hard expectation. Claude had just offered the preview
-  when the session ran out of context; **that is the exact next action.**
-- ⚑ **It WILL meet events whose mission was deleted** — `mission_event` has no FK to `mission` (221 of ~2 057,
-  mostly probe residue). Design for it.
-- ⚑ **`project/What-Admin-Can-See.html`** (in the repo, also published as an Artifact) is the full inventory of
-  what the console can show, read from the live DB on 2026-08-26. **Read it before designing** — it lists every
-  field, every sum, every cross-check, and what is Ready / Partial / Missing.
+#### 2 · THE FOUNDER'S OWN UI/UX PASS ON THE CONSOLE
+Agreed order: console → dataset → their pass. ⚑ **The first preview was rejected as "overwhelming"** and the
+second cut it to one sentence per finding, the blocker instead of the rulebook, and a hoverable `approx` tag
+instead of caveat boxes. **That is the calibration for anything added here.** Preview:
+`project/Activity-Console-Preview.html` (also published as an Artifact).
 
 #### 3 · THE TWO TRACKERS — start them EARLY, they need weeks of data
 Both are things the founder explicitly asked for and neither exists:
@@ -273,10 +235,10 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**23 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**27 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 555 passing
+    npx tsc --noEmit && npx vitest run          # expect 636 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 693 · ALL AGREE
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
@@ -286,12 +248,38 @@ about that point — **fix the file before you build on it.** Then:
     node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 63 · 0 failed
     node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
     node .local/probe/google-places-live.mjs                             #  8 · D89 address box
+    npx tsx .local/probe/eligibility-live.mts                            # 23 · D92/D93 — ⚑ tsx, NOT node
 
 **If a probe fails, that is the job** — not whatever is queued above.
 
 ⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
 
 ---
+
+## ⚑ TRAPS LEARNED IN S68 — every one cost real time
+
+- ⚑ **A PROBE THAT IMPORTS AN `@/`-ALIASED MODULE MUST RUN UNDER `tsx`, NOT `node`.** Plain
+  `node --experimental-strip-types` dies with `ERR_MODULE_NOT_FOUND '@/lib'` — it does not read tsconfig
+  paths. Every earlier probe got away with `node` only because it imported alias-free modules (`lib/geo.ts`)
+  or nothing at all. `eligibility-live.mts` imports `lib/eligibility.ts`, which imports `@/lib/geo`.
+- ⚑ **`mission_event.seq` IS NOT TIME ORDER.** The backfill inserted one table at a time, so the live log
+  holds a trip whose `en_route` row sits at a **lower** seq than its `created` row, six weeks earlier.
+  Rendering the log by `seq` states that a trip was driven before it was booked. `orderEvents()` in
+  `lib/mission-events.ts` already sorts on `occurred_at` then `seq` — **use it, never re-sort by hand.**
+- ⚑ **`"".trim()` SATISFIES `??`.** `tripLabel`'s fallback chain returned an empty string for a
+  whitespace-only label, because `""` is not null or undefined. `|| undefined` before the `??`. Found by a
+  test written *because* the live pooled rows have null labels — the seeded trips carry no route labels at all.
+- ⚑ **COLLIDING REACT KEYS SILENTLY DROP ROWS.** A findings list keyed on the subject warned *"children may be
+  duplicated and/or omitted"* — the live DB has **four** trips called *"Le Grand Hôtel → Monaco"*. A findings
+  screen that silently drops a finding is the one failure it cannot have. Key on the entity id.
+- ⚑ **THE FIRST LIVE RENDER IS THE DESIGN REVIEW.** A 23-name wall and a duplicated *"never consulted · never
+  consulted"* both looked fine in the mockup and were obvious the second real data hit them. Screenshot the
+  real page before calling a UI job done.
+- ⚑ **`npm run build` STILL FAILS WHILE A DEV SERVER IS RUNNING** (S66 trap, hit again — the dev server on
+  :3000 belonged to another session). CI is the honest build check; push a branch and read the run.
+- ⚑ **THE CONSOLE MUST NOT USE THE SERVICE ROLE.** RLS already grants `app_role()='admin'` read on everything,
+  so it runs as the signed-in admin. A console that bypasses RLS cannot be trusted to show what a real admin
+  can see — and it would hide the day a policy breaks.
 
 ## ⚑ TRAPS LEARNED IN S67 — every one cost real time
 

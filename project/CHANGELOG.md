@@ -35,21 +35,24 @@
 
 ---
 
-## 26 August 2026 — one thing found that we haven't fixed yet
+## 26 August 2026 — the cancellation money is fine. The alarm was ours
 
-- **The price the cancellation box quotes and the price we actually charge don't always match.** Same
-  cancellation percentage, three different fees. It affects cancellations only, and only since 22 August.
-- **It was invisible until today, and the reason matters.** The number it depends on — the fare frozen at the
-  moment a Driver accepts — had never once been filled in on any of the 280 old trips, so both sides quietly
-  fell back to the same calculation and agreed by accident. The new data fills it in the way the real app
-  does, and they stopped agreeing.
-- **It has deliberately not been patched.** It's money, it isn't something this week's work broke — the 1,921
-  price checks all still agree — and the honest fix needs a proper session rather than the last twenty
-  minutes of a long one. It's written up as the first job for next time, with a note not to make the warning
-  go away by loosening the check.
-- **A second check turned out to have been passing for the wrong reason too**, and that one is fixed: it was
-  comparing what a hotel actually pays (fare + our fee) against the fee alone, and only ever matched because
-  no old trip had our commission recorded on it.
+- **There is no problem with cancellation prices.** Yesterday's entry said the price the cancellation box
+  quotes and the price we charge could disagree, by as much as 110 € against 45 €. That was wrong, and
+  nothing in the app was ever wrong. All 170 money checks agree.
+- **You are the reason it got caught.** You said we had been through money so many ways that it was hard to
+  believe we would have missed it, and asked to check again before doing anything. That was the right call —
+  and it is a rule already written in our own notes: when a test suddenly reports a pile of failures, suspect
+  the test before the code.
+- **What had actually gone wrong.** The test builds fake trips by copying a real one and changing the bits it
+  cares about. It changed the price, but forgot to change *the price the Driver agreed to* — so all 27 fake
+  trips carried the same agreed price of 81,06 €, whatever their real price was. Every "failure" was the app
+  correctly refusing to charge a percentage of a number that didn't belong to that trip.
+- **And it had been passing for the same reason, backwards.** Before the database was rebuilt, that copied
+  field was empty, so the test worked out the right answer by luck rather than by checking. A test that is
+  handed the right answer isn't testing anything.
+- **No migration, no change to the app.** The test now sets that price itself and stops with a clear message
+  if it ever inherits one again.
 
 ---
 

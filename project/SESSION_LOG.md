@@ -78,8 +78,30 @@ Airport"* is true. `eligibility-live` **33/33** after the move, with that trip s
 `diff-sql-vs-lib` **1 921 · ALL AGREE** · `sweep-orphans` cleared 95, log back to 2 489. Every changed screen
 read in the browser against real rows, not only in the mockup.
 
-**Still open, unchanged:** § 0, the quote-versus-charge disagreement once `accepted_fare` is set —
-`write-test` 24 problems. Not touched, not re-measured, still the first job.
+### § 0 was the probe, not the app ([[d97]]) — closed, no migration
+Reported to the founder as a money defect. They refused it: *"we went through money already and tested so
+many ways and it's hard to understand why we didn't see it earlier. Are you sure about that issues? check
+again."* They were right. **`write-test` is 170 checks · ALL AGREE.**
+
+`write-test` builds each case by spreading `tmpl`, a real mission row, then overriding what it cares about.
+It overrode `pdp_start` per case and **never overrode `accepted_fare`** — and the 2026-08-26 reseed put
+`accepted_fare = 81,06` on that template. All 27 cases carried a frozen fare of 81,06 whatever their own
+price was; `settledFare()` returned it; `business_cancel_mission` correctly clamped it back up to each case's
+own opening price. Every disagreeing case had a `pdp_start` above 81,06, every agreeing one below it.
+
+⚑ **The mechanism S68 described was wrong too, and was stated to the founder with confidence.**
+`business_cancel_mission` does **not** *"recompute the live PDP curve"* — it clamps the caller's
+`p_fare_snapshot` into `[mission_opening_price(m), ceiling]`, which is what `2026-08-11_fee_basis_band` and
+`2026-08-22_opening_price_band` exist to do. The explanation had been reverse-engineered from the probe's
+output instead of read out of the SQL.
+
+⚑ **The four green days were the same bug inverted** — the template's `accepted_fare` was NULL, so every case
+inherited NULL and recomputed the right answer by accident. The probe now sets `accepted_fare: c.fare` and
+asserts `settledFare() === c.fare` before every RPC call.
+
+**One real residual, filed in BACKLOG § H2:** `accept_mission` clamps with the stored floor while the cancel
+functions clamp with `mission_opening_price()` (SPEED-WIN-aware). Unreachable through the app; a hand-made
+RPC call on a SPEED WIN trip could exploit the gap.
 
 ---
 

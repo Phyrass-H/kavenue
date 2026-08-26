@@ -175,57 +175,65 @@ consulted by nothing.**
 > And still: **a missing value is a REFUSAL, never a skip** (D88); **"zero rows" is not proof of a bug** (S67)
 > — D92 was found by `grep -rn`, not by an empty query.
 
-### 🎯 NEXT SESSION — two things, in this order
+### 🎯 NEXT SESSION — the console, and then a choice
 
-1. **§ 0, the quote-versus-charge disagreement.** Untouched by S68 and S69, still 24 problems in
-   `write-test`, still the first job. It is the only known defect in the repo.
-2. **§ 2, the founder driving the console.** S69 did the UI pass they asked for *instead of* the testing —
+⚑ **§ 0 IS CLOSED — there is no known defect in the repo.** Every probe is green. Do not open the session by
+re-investigating the cancellation fee; read [[d97]] instead, which is the more useful lesson anyway.
+
+1. **§ 2, the founder driving the console.** S69 did the UI pass they asked for *instead of* the testing —
    *"I don't drive i'm not ready"* — so the session where they actually sit in front of it has not happened.
    `project/Test-The-Console.html` is rewritten for the post-S69 screens and republished as an Artifact
    (`f237b890-8f21-4344-9ce9-7fe8f689cd30`). ⚑ **Point them at it; don't re-explain it in chat.**
+2. **Then their pick from § 3–§ 6** — the two trackers (they need weeks of data, so early is worth it), the
+   booking voucher, the embarrassing details, or the analytics page. Ask; don't choose for them.
 
 ⚑ **ASK FIRST — S69 is the proof.** The queued job was "they test the console, then the UI pass" and they
 took the second half only. A handoff records what was planned, not what the founder wants today.
 
-#### 0 · ⚑ THE QUOTE AND THE CHARGE DISAGREE ONCE `accepted_fare` IS SET — **START HERE**
+#### 0 · ✅ THE "QUOTE VS CHARGE" DEFECT WAS THE PROBE, NOT THE APP — **CLOSED 2026-08-26 (S69), [[d97]]**
 
-**Found 2026-08-26 by the reseed. NOT a regression, NOT proven wrong money in production, and NOT patched.**
+**`write-test.ts` is 170 checks · ALL AGREE · 0 problems. No migration was needed and none was written.**
 
-`write-test.ts` reports **24 problems**, and they are all one thing. The probe snapshots the fare with
-`settledFare()`, which returns the frozen **`accepted_fare`** when it exists; `business_cancel_mission`
-computes its own basis in SQL from the **live PDP curve**. Same cancellation percentage, three different
-stored fees:
+⚑ **DO NOT REOPEN THIS. There was never a money bug**, and the next session must not spend a morning
+proving that again. What follows is the whole story, because the way it was wrong is worth more than the
+finding was.
 
-| case | pct | probe's basis | probe expects | SQL stored |
-|---|---|---|---|---|
-| A1 | 50 % | 81,06 | 40,53 | **42,75** |
-| A2 | 50 % | 81,06 | 40,53 | **61,73** |
-| A3 | 50 % | 81,06 | 40,53 | 40,53 ✓ |
-| A4 | 55 % | 81,06 | 44,58 | **109,99** |
-| A5 | 55 % | 81,06 | 44,58 | 44,58 ✓ |
+**What S68's handoff claimed:** 24 problems, *"the modal quotes the frozen `accepted_fare`, the RPC
+recomputes the live PDP curve."* **Both halves of that sentence were wrong.**
+`business_cancel_mission` does not recompute anything — it takes the caller's `p_fare_snapshot` and clamps it
+into `[mission_opening_price(m), ceiling]`, which is exactly what `2026-08-11_fee_basis_band` and
+`2026-08-22_opening_price_band` were built to do.
 
-⚑ **WHY IT WAS GREEN FOR FOUR DAYS.** `accepted_fare` shipped 2026-08-22 and was **NULL on all 280 live
-missions** — so `settledFare()` always fell through to recomputing the curve, landed on the same number as
-SQL, and the check passed. The S68 seed stamps it exactly where the app stamps it, and the disagreement
-appeared at once. **The old data was hiding it.** (S67's "zero rows is not proof of a bug" has a twin: *zero
-rows is not proof of correctness either.*)
+**What was actually happening.** `write-test` builds each case by spreading `tmpl` — a REAL mission read out
+of the database — and then overriding the columns it cares about. It overrode `pdp_start` per case and
+**never overrode `accepted_fare`.** On 2026-08-26 the reseed put `accepted_fare = 81,06` on that template, so
+all 27 cases carried a frozen fare of 81,06 whatever their own price said. `settledFare()` returned 81,06,
+the probe passed it as the basis, and SQL correctly clamped it back up to each case's own opening price.
 
-**What to establish first, before changing any code:**
-1. Which side is right — the modal's quote (`accepted_fare`, what the Business was shown) or the RPC's charge
-   (the live curve)? Doc 06 §9 says *"the fare freezes at acceptance"*, which argues for the frozen one.
-2. Is this the **§ H2 residual already on record** — *"the fee basis can still be understated down to
-   `pdp_start`"* — surfacing, or something new?
-3. ⚑ The A3 and A5 cases are **correct**, so the mechanism works. Find what differs about A1/A2/A4 (they are
-   the cases whose `pickup_at` is moved to simulate the lead time — suspect the curve moving between the
-   probe's read and the RPC's computation).
+Every one of the 12 disagreeing cases is a case whose `pdp_start` is **above** 81,06 — 85,50 · 91,11 ·
+123,45 · 199,99 — and every agreeing case is one whose price is below it, where the clamp has nothing to do.
+The app was right in all 20.
 
-**Evidence it is not a regression:** `diff-sql-vs-lib` **1 921 checks · ALL AGREE** over the 350 real
-missions · `curve-live` 8/8 · `accepted-fare` 20/20 · `migrations-2026-08-10` 63/63 ·
-`migrations-2026-08-11` 23/23. Nothing S68 changed touches the money path.
+⚑ **AND "GREEN FOR FOUR DAYS" WAS THE SAME BUG WEARING THE OPPOSITE FACE.** Before the reseed the template's
+`accepted_fare` was NULL, so every case inherited NULL and `settledFare()` recomputed from that case's own
+curve — the right answer, reached by accident. **Inheriting the right answer is not testing for it.** The
+probe now sets `accepted_fare: c.fare` explicitly and asserts `settledFare() === c.fare` before every RPC
+call, with an error that says *"a money column has been inherited from the template mission — fix the probe,
+not the app."*
 
-⚑ **Do NOT make the probe green by relaxing the assertion.** One PAGE-READ assertion in it WAS relaxed this
-session, correctly and for a different reason (it compared a commission-inclusive number to a
-commission-exclusive one and had also been passing for the wrong reason). These 24 are not that.
+⚑ **THE FOUNDER CALLED IT.** Told there was a money defect, they pushed back: *"we went through money already
+and tested so many ways and it's hard to understand why we didn't see it earlier. Are you sure about that
+issues? check again."* They were right, and the reason they were right is the project's own written rule:
+**if a probe shows mass mismatches, suspect the probe's expectations before the code** (S63, where a probe
+reported 480 mismatches in 673 checks against a codebase that agreed completely).
+
+**One real residual it did surface** — small, theoretical, now in BACKLOG § H2: `accept_mission` clamps
+`p_fare` with the **stored** floor `least(coalesce(pdp_start, ceiling×0.5), ceiling)`, while the cancel
+functions clamp with `mission_opening_price()`, which is SPEED-WIN-aware (`greatest(…, ceiling×0.70)`). On a
+SPEED WIN trip whose `pdp_start` is under 70 % of the Ceiling the two floors differ. Unreachable through the
+app — the accept server action computes the number with `openingPrice()` — but a hand-made RPC call could
+store an `accepted_fare` below the basis the cancel would later clamp to, and the charge would then exceed
+the quote. Same family as the other § H2 residuals; nothing waits on it.
 
 #### 1 · THE TEST DATASET — ✅ DONE (2026-08-26, S68, [[d94]])
 The database was **bleached** (3 210 rows) and rebuilt as **three months of trading**: 4 hotels · 6 desks ·
@@ -373,7 +381,7 @@ about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 683 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 921 · ALL AGREE
-    node --experimental-strip-types .local/probe/write-test.ts          # 170 · ⚑ 24 PROBLEMS — see job 0
+    node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE (the 24 were the probe — [[d97]])
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
     node --experimental-strip-types .local/probe/accepted-fare.ts       #  20 · ALL AGREE
     node --experimental-strip-types .local/probe/reclaim-live.mts       #  20 · D86 end to end

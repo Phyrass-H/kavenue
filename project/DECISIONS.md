@@ -2344,3 +2344,49 @@ distance failed. See [[d92]] for the neighbouring lesson: what a console SAYS is
 computes.
 
 ---
+
+### D97 — A probe that inherits its fixture inherits its answer (2026-08-26, S69)
+
+**The claim:** *"the price the cancellation box quotes and the price we actually charge don't always match"* —
+24 problems in `write-test.ts`, written up as the first job of the next session, in the CHANGELOG, and in the
+founder-facing test page.
+
+**It was false.** `write-test` is now **170 checks · ALL AGREE**. No code changed in the app and no migration
+was written. The defect was in the probe.
+
+**The founder is the reason it was caught.** Told there was a money bug, they didn't accept it: *"we went
+through money already and tested so many ways and it's hard to understand why we didn't see it earlier. Are
+you sure about that issues? check again and if you do again confirm then we'll do the migration."* That is
+the correct instinct, and it is already written down in this repo — S63: **if a probe shows mass mismatches,
+suspect the probe's expectations before the code.** A probe reported 480 mismatches in 673 checks that time,
+against a codebase where SQL and TypeScript agreed completely. Nobody applied that rule here until asked to.
+
+**The mechanism.** `write-test` builds each test mission by spreading `tmpl` — a real mission read out of the
+live database — and then overriding what it cares about. It overrides `pdp_start` per case. It **never
+overrode `accepted_fare`**. The 2026-08-26 reseed put `accepted_fare = 81,06` on the template row, so all 27
+cases carried a frozen fare of 81,06 regardless of their own price. `settledFare()` returned 81,06, the probe
+handed it to the RPC as the basis, and `business_cancel_mission` correctly clamped it up to each case's own
+opening price.
+
+Every disagreeing case had a `pdp_start` above 81,06; every agreeing case had one below it. The app was right
+in all twenty.
+
+⚑ **AND THE FOUR GREEN DAYS BEFORE IT WERE THE SAME BUG, INVERTED.** Before the reseed the template's
+`accepted_fare` was NULL, so every case inherited NULL and `settledFare()` recomputed from that case's own
+curve — the right answer, arrived at by accident. **A fixture that hands you the right answer is not a test.**
+S68 wrote *"zero rows is not proof of correctness either"* about this same probe and drew the wrong
+conclusion from it: the old data wasn't hiding a defect, it was hiding a defect **in the probe**.
+
+**Also wrong, and worth naming because it was stated with confidence to the founder:** the claim that
+`business_cancel_mission` *"recomputes the live PDP curve"*. It does not, and never has. It takes the
+caller's `p_fare_snapshot` and clamps it into `[mission_opening_price(m), ceiling]`. The explanation was
+reverse-engineered from the probe's output instead of read out of the SQL — which is how a wrong number
+became a wrong mechanism became a proposed migration.
+
+**What changed.** The probe sets `accepted_fare: c.fare` explicitly, and asserts `settledFare() === c.fare`
+before every RPC call — failing with *"a money column has been inherited from the template mission … fix the
+probe, not the app."* **Any probe that spreads a real row must pin every column its assertions depend on**,
+because the columns it forgets are supplied by whatever the database happens to hold that week. See
+[[d96]] for the neighbouring lesson from the same session: seeded data decides what the tests can see.
+
+---

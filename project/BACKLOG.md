@@ -183,6 +183,18 @@ accountant? ⚠️ Keep the **agent/intermediary** framing in the copy: Kavenue 
     no-show missions and `mission_cancellation` / `mission_release` are both **empty** — every cancellation ever
     exercised was removed when the DB was restored to baseline. Recomputing historical fees is not an option;
     the write test is the only way.
+- ⚙️ **TWO FLOORS THAT SHOULD BE ONE (found 2026-08-26, S69, while disproving a reported money defect —
+  [[d97]]).** `accept_mission` clamps the incoming `p_fare` with the **stored** floor
+  `least(coalesce(pdp_start, ceiling × 0.5), ceiling)`; `business_cancel_mission` and
+  `driver_cancel_mission` clamp their fee basis with `mission_opening_price()`, which is SPEED-WIN-aware
+  (`greatest(…, ceiling × 0.70)`). On a SPEED WIN trip whose `pdp_start` sits below 70 % of the Ceiling the
+  two disagree, so a stored `accepted_fare` can legally be **below** the floor a later cancellation clamps
+  to — and the charge would then exceed the quote the Business was shown.
+  ⚑ **Unreachable through the app**: the accept server action computes `p_fare` with `openingPrice()`, the
+  same SPEED-WIN-aware function, so it never sends a number below that floor. It needs a hand-made PostgREST
+  call, which is the same threat model as the other residuals here. Fix is one line — point
+  `accept_mission`'s clamp at `mission_opening_price(v_mission)` — but it is a money RPC, so it wants its own
+  migration and a `write-test` case with `speed_win = true`, which the probe has never had.
 - ⚙️ **CI on PRs** — GitHub Actions running `tsc` + lint + tests (+ build) on every PR. None today. **Now the top
   remaining § H2 item**: the suite exists and Claude sessions push straight to `main`, so nothing runs it but memory.
 - ⚙️ **Generated DB types** — replace hand-written `lib/database.types.ts` with `supabase gen types`

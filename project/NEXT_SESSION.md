@@ -371,19 +371,6 @@ GDPR consent capture + account deletion are still absent — **founder-owned, do
 
 ---
 
-## ⚑ IF `handoff-check` SAYS `local main != origin/main` — READ THIS FIRST
-
-S69 closed during a **GitHub Actions `major_outage`** (2026-08-26, confirmed on githubstatus.com). Its final
-commit is pushed to the branch **`s69-close`** and cannot reach `main` until Actions runs a check on it —
-which is the ruleset working, not a fault. To finish it:
-
-    gh run list --branch s69-close        # wait for `success`
-    git push origin main                  # same SHA, now checked -> accepted
-    git push origin --delete s69-close
-
-⚑ **Do not weaken the ruleset to get round it**, and do not re-do the work — it is committed, and everything
-in this file already describes the post-S69 state. If `main` already matches, delete this block.
-
 ## ⚑ 0 · VERIFY BEFORE YOU BUILD — THIS IS A GATE, NOT A SUGGESTION
 
 A handoff is a *claim about the repo*, and claims decay — fastest when the session writing them is also the
@@ -451,7 +438,12 @@ about that point — **fix the file before you build on it.** Then:
   a run that completes as **`startup_failure`** with GitHub emailing *"CI: No jobs were run"*, and a re-run
   that sits **`queued`** for half an hour. `gh workflow list` says `active`, the YAML is untouched since S58,
   and `gh api .../actions/permissions` says enabled — **check `githubstatus.com` before debugging any of it.**
-  S69's last commits waited on branch **`s69-probe-truth`** until it cleared. ⚑ **Do not weaken the ruleset to
+  ⚑ **The one command that settles it in five seconds**, since `gh` will not tell you:
+
+      curl -s https://www.githubstatus.com/api/v2/components.json | grep -A2 '"Actions"'
+
+  It went down TWICE on 2026-08-26 and read `major_outage` both times. S69's commits waited on branches
+  (`s69-probe-truth`, `s69-close`) until it cleared, then went to `main` on the same SHAs. ⚑ **Do not weaken the ruleset to
   get round it** — "no commit lands unchecked" is exactly the rule an outage tests.
 
 - ⚑ **A MOCKUP APPROVED ON FIVE ROWS IS NOT APPROVED ON FORTY.** Day bands were signed off on a preview

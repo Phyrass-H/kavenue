@@ -15,7 +15,9 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { readActivitySnapshot } from "@/lib/admin-activity";
+import { readActivitySnapshot, readHomeNumbers } from "@/lib/admin-activity";
+import { monthsNote, type HomeNumbers } from "@/lib/admin-numbers";
+import { formatMonth } from "@/lib/format";
 import { findings, quietChecks, CHECKS, type Finding, type FindingId } from "@/lib/activity-findings";
 
 export const dynamic = "force-dynamic";
@@ -166,13 +168,117 @@ function summarise(id: FindingId, n: number): string {
   }
 }
 
+
+
+/**
+ * A headline total, to the euro. `formatMoney` keeps cents because an invoice
+ * line must reconcile to the cent — a three-month total does not, and "29 536,71 €"
+ * spends four characters saying nothing. Cents stay everywhere money is owed.
+ */
+const wholeEuros = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+
+/**
+ * The numbers band — four figures and the months, above the findings.
+ *
+ * ⚑ QUIETER THAN A FINDING, ON PURPOSE. It carries no dot, no colour and no
+ * link. A number is a background fact; a finding interrupts you.
+ *
+ * ⚑ EVERY FIGURE SHOWS WHAT IT IS OUT OF. A bare "84 %" is the half-truth this
+ * console keeps refusing — see the small-N rule in lib/admin-numbers.
+ */
+function Band({ n, now }: { n: HomeNumbers; now: Date }) {
+  // Nothing has ever been posted: say so in words rather than printing four
+  // zeroes, which read as a broken screen rather than an empty one.
+  if (n.settled === 0 && n.completed === 0) {
+    return (
+      <section className="adm-sect">
+        <h2 className="adm-sect__h">Kavenue so far</h2>
+        <p className="adm-quiet">No trip has been posted yet.</p>
+      </section>
+    );
+  }
+
+  const note = monthsNote(n.months, now);
+  const busiest = Math.max(1, ...n.months.map((m) => m.trips));
+
+  return (
+    <section className="adm-sect adm-band">
+      <div className="adm-band__head">
+        <h2 className="adm-sect__h">Kavenue so far</h2>
+      </div>
+
+      <div className="adm-nums">
+        <div className="adm-n">
+          <div className="adm-n__v">
+            {n.fillRate == null ? `${n.filled} of ${n.settled}` : `${Math.round(n.fillRate)} %`}
+          </div>
+          <div className="adm-n__l">found a Driver</div>
+          <div className="adm-n__s">
+            {n.fillRate == null
+              ? "too few to give a rate yet"
+              : `${n.filled} of ${n.settled} trips`}
+          </div>
+        </div>
+
+        <div className="adm-n">
+          <div className="adm-n__v">{wholeEuros.format(n.businessesPaid)}</div>
+          <div className="adm-n__l">hotels paid</div>
+          <div className="adm-n__s">{n.completed} trips run</div>
+        </div>
+
+        <div className="adm-n">
+          <div className="adm-n__v">{wholeEuros.format(n.driversBanked)}</div>
+          <div className="adm-n__l">Drivers banked</div>
+          <div className="adm-n__s">what landed in their bank</div>
+        </div>
+
+        <div className="adm-n">
+          <div className="adm-n__v">{wholeEuros.format(n.kavenueKept)}</div>
+          <div className="adm-n__l">Kavenue kept</div>
+          <div className="adm-n__s">
+            {/* ⚑ Names its denominator, like every other figure here. "19,6 %"
+                alone invites the reader to supply the wrong one — the fee is a
+                share of what the Business paid, not of the Course. */}
+            {n.takeRate == null
+              ? "HT, both sides"
+              : `${n.takeRate.toFixed(1).replace(".", ",")} % of what hotels paid`}
+          </div>
+        </div>
+      </div>
+
+      <div className="adm-months">
+        {n.months.map((m) => (
+          <div key={m.key} className="adm-m">
+            <div
+              className={`adm-m__bar${m.partial ? " adm-m__bar--part" : ""}`}
+              style={{ height: `${Math.max(3, Math.round((m.trips / busiest) * 46))}px` }}
+            />
+            <span className="adm-m__n">{m.trips}</span>
+            <span className="adm-m__l">{formatMonth(m.key).split(" ")[0]}</span>
+          </div>
+        ))}
+        {note && <p className="adm-months__say">{note}</p>}
+      </div>
+    </section>
+  );
+}
+
 export default async function AdminPage({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q = "" } = await searchParams;
-  const [found, snapshot] = await Promise.all([search(q), readActivitySnapshot()]);
+  const now = new Date();
+  const [found, snapshot, numbers] = await Promise.all([
+    search(q),
+    readActivitySnapshot(now),
+    readHomeNumbers(now),
+  ]);
   const { hits, more } = found;
   const fired = findings(snapshot);
   const quiet = quietChecks(snapshot, fired);
@@ -221,6 +327,8 @@ export default async function AdminPage({
           )}
         </section>
       )}
+
+      <Band n={numbers} now={now} />
 
       <section className="adm-sect">
         <h2 className="adm-sect__h">Worth a look</h2>

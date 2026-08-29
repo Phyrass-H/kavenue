@@ -4887,3 +4887,69 @@ accepted-fare 20 · reclaim-live 20/0 · event-registry-live 16/0 · migrations-
 **The Activity console — and the very next thing is the DESIGN PREVIEW** ([[d25]] loop), which Claude had just
 offered when the session ran out of context. Read `project/What-Admin-Can-See.html` first. Build the *"why
 can't this Driver take this trip?"* answer first within it.
+
+---
+
+## Session 70 — 2026-08-29 · the founder opens the console, and asks for numbers ([[d98]])
+
+**The session was supposed to be § 2 — the founder driving the console — and it started that way.** They
+signed in, looked at `/admin`, and the first reaction was not a bug report: *"I like the idea of worth a look
+but the main page looks so empty, isn't there something we can do as a nice but useful UI on home page? Like
+main numbers of Kavenue or something?"*
+
+### What shipped
+`lib/admin-numbers.ts` (new, pure + tested) · `readHomeNumbers` in `lib/admin-activity.ts` · a `Band`
+component in `app/admin/page.tsx` · `.adm-band` / `.adm-nums` / `.adm-months` in `app/globals.css` ·
+`tests/admin-numbers.test.ts`. **683 → 700 tests.** Typecheck clean, no console errors, desktop + mobile
+verified in the browser.
+
+Four figures — **86 % found a Driver · 29 537 € hotels paid · 22 602 € Drivers banked · 5 779 € Kavenue
+kept** — over a bar per month. The reasoning, the roll-up distinction and the small-N rule are all in
+[[d98]]; what follows is only what a future session would otherwise have to rediscover.
+
+### ⚑ The founder's standing correction, which is bigger than this screen
+Claude twice argued a proposed number *"says nothing yet"* on 350 seeded trips — that "best city" was vanity
+because all 350 trips leave 4 hotels. The founder shut it down:
+
+> *"when I ask a question about anything it is not related to NOW but how we dev the expérience for the
+> future when traffic will be huge."*
+
+**Saved to memory as `design-for-scale-not-todays-data`.** The seeded dataset is scaffolding for building
+screens; it is never the subject of the question. The legitimate critique is still available — a number that
+duplicates a per-row finding, or that cannot be computed from stored columns — but "today's N is small" is
+not one. The answer to a scale question is the **small-N rule**, not a refusal.
+
+### ⚑ Two process failures, both Claude's, both worth not repeating
+1. **A second design was shown without flagging it as a change** — quiet text lines replacing the approved
+   4-up grid — and *the content changed at the same time*. The founder caught it in three words: *"you changed
+   the design?"* Two simultaneous changes cannot be reacted to. **The shipped band is the FIRST preview**, the
+   one actually approved. Show one change at a time.
+2. **The first Workflow run burned 3½ hours and returned nothing.** Four agents ignored the brief, went
+   grepping the repo — one read all 1 210 lines of `NEXT_SESSION.md` — then stalled on all six retries. The
+   rerun took **6 minutes** with two changes: *"ANSWER FROM THIS BRIEF ALONE. Do NOT call any tools"*, and no
+   rigid output schema. ⚑ **A subagent with repo access will explore instead of answering unless told not to.**
+
+### ⚑ Numbers checked, not assumed
+The design pass *guessed* trips were taken at "74 % of Ceiling". The real median is **61 %** over 30 days,
+**53 %** over the whole dataset. It was computed before anything was drawn. Same discipline caught the
+mockup labelling `25 684 €` as "booked" — that is the **Course**, which neither party is ever shown.
+
+### Open, and NOT decided
+The founder dismissed the layout question mid-flight (quiet lines · big figures · a mix) and then asked for
+the first preview to ship, so **the layout question is answered by what shipped, not by their pick.** Still
+unbuilt and explicitly proposed:
+- **The city strip** — `Cannes 46 of 49 · Nice 37 of 39 · Monaco 17 of 22 · Antibes 10 of 15`. The founder
+  asked for "best city by bookings"; the argued answer is bookings as the **sort**, fill rate as the **paired
+  column**, riding inside the fill-rate line rather than taking its own slot. `zone` is populated on all 350.
+- **Two lines the design pass argued for and Claude would defend**: *"taken at 61 % of Ceiling"* (whether
+  liquidity is earned or bought — fill rate alone hides paying top of the curve for every match) and *"fell
+  through after accepting"* (whether "accepted" means anything).
+- **A fake-data mode for testing the UI** — the founder asked, then parked it: *"ok leave it for now"*.
+  ⚑ The answer, if it comes back: **fake the SNAPSHOT, never the screen.** `readActivitySnapshot()` returns a
+  plain object and `findings()` is pure, so one dev-only substitution renders the REAL page with invented
+  data. A separate `/admin/preview` route would be an eighth instance of "code nothing reaches" (D86–D92).
+  Only the home page has that seam today; the three list pages fetch inline and would each need it extracted.
+
+### ⚑ The debt that was flagged and accepted
+`readHomeNumbers` reads every mission row on every home-page load. Fine at 350, wrong at 40 000 — it becomes
+a SQL view or an RPC, which is a migration the founder runs. The band's shape does not change when it does.

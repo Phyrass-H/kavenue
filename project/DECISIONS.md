@@ -2437,3 +2437,67 @@ missed `m.accepted_fare = 90`; `/accepted_fare\s*[:=]/` matched `after!.accepted
 that merely READS the column. Each version was "verified" by running it and seeing green. **A check is not
 verified until you have watched it go red**, so it is now proven in both directions and in both pin styles.
 
+
+---
+
+### D98 — A number earns a place on the home screen only when no row can say it (2026-08-29, S70)
+
+**The founder asked for it.** Testing the console for the first time, their reaction to `/admin` was that it
+*"looks so empty — isn't there something we can do as a nice but useful UI on home page? Like main numbers of
+Kavenue or something?"*
+
+**The tension this had to resolve.** S69 had just *removed* the roll-up counts from two headings, and the
+founder has rejected roll-ups **twice**. So the first job was to say why this is not the third time.
+
+> **A roll-up is a count standing in front of rows that already say it.** The trips list prints `Unfilled` on
+> the row, so `48 unfilled` at the top is the same fact said worse. Every figure in the band has **no per-row
+> equivalent**: no mission row knows the fill rate, and none of them knows what Kavenue kept. That is the
+> whole test for adding one, and it is written at the top of `lib/admin-numbers.ts`.
+
+Second rule, from the same argument: **the band must stay quieter than the findings.** A number is a
+background fact; a finding interrupts you. It carries no dot, no colour and no link. If it ever out-shouts
+*"nobody can take Valberg → Marseille Airport"*, the screen has been broken.
+
+**⚑ AND THE RULE THAT MADE IT WORTH BUILDING — the founder's, stated as a correction.** Claude kept arguing
+that a given number *"says nothing yet"* on 350 seeded trips. The founder cut that off:
+
+> *"when I ask a question about anything it is not related to NOW but how we dev the expérience for the
+> future when traffic will be huge."*
+
+That is a standing instruction, not a remark about this screen. It turns "is this number interesting today?"
+into the wrong question, and replaces it with **"does this number degrade honestly until it is?"** The answer
+is one rule, and it is the reason the same code works at 350 trips and at 40 000:
+
+> **Every figure is "a of b". What gets suppressed on a thin sample is the PERCENTAGE or the MEDIAN — never
+> the count itself.** A percentage renders at 20 settled trips or more; a median at 12 filled or more. The
+> window is never widened to manufacture a sample, because that makes two mornings incomparable — the *rate*
+> is suppressed instead.
+
+That is what stops one seeded trip in the Haut-Var posing as *"0 % filled"*. It renders `0 of 1`.
+
+**Three smaller calls, each one a thing that would otherwise have shipped as a lie:**
+- **A still-pooled future trip is out of the fill-rate denominator.** It has not failed to find a Driver — it
+  is still looking. Counting it makes every fresh morning look broken. This is why the screen says **294 of
+  342**, not 294 of 350.
+- **The month we are inside is drawn hatched and says so in words** — *"145 this month already with 2 days
+  still to run — the whole of last month was 129."* 145 over 27 days against 129 over 31 is not growth, and
+  a clean bar would have claimed it was.
+- **Every money figure names its denominator.** `19,6 % of what hotels paid`, never a bare `19,6 %`.
+
+**⚑ THE COURSE IS NOT A NUMBER ANYONE IS SHOWN.** The first mockup labelled `25 684 €` as "booked". That is
+the Course — the internal basis. The real pair is what the Business paid (`× 1,15`) and what the Driver
+banked (`× 0,88`), and both are on screen. Money is summed through `splitFor` from the **rates frozen on each
+trip**, never today's card, or history rewrites itself the day pricing changes.
+
+**Flagged debt, accepted:** `readHomeNumbers` reads every mission on every home-page load. Correct and fast at
+350; at tens of thousands it becomes a SQL view or an RPC the founder runs. The band's shape does not change
+when that day comes — only where the arithmetic happens.
+
+**⚑ A PROCESS NOTE WORTH MORE THAN THE FEATURE.** Claude showed a second, completely different design
+(quiet text lines) without flagging it as a change, and the founder caught it: *"you changed the design?"*
+Two things had moved at once — layout and content — which makes it impossible to react to either. **Show one
+change at a time, and say when you are changing something already shown.** The shipped band is the *first*
+preview, the one that was actually approved.
+
+Tests: `tests/admin-numbers.test.ts`, 17 checks, all on the honesty rules rather than the arithmetic — those
+are what a later session would quietly delete to make a screen look better. 683 → **700**.

@@ -19,6 +19,12 @@ import { FEATURES } from "@/lib/activity-findings";
 import { tripLabel } from "@/lib/activity-findings";
 import { tallyActivity, type Activity, type HeldMission } from "@/lib/admin-list";
 import type { MissionEventRow } from "@/lib/mission-events";
+import {
+  homeNumbers,
+  HOME_NUMBER_COLS,
+  type HomeNumbers,
+  type NumbersRow,
+} from "@/lib/admin-numbers";
 import type { DriverRow, VehicleRow, MissionRow } from "@/lib/database.types";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -242,4 +248,25 @@ export async function readMissionEvents(db: Db, missionId: string): Promise<Miss
     .eq("mission_id", missionId)
     .order("seq");
   return (data ?? []) as unknown as MissionEventRow[];
+}
+
+/**
+ * The home page's numbers band. Every mission, but only the nine columns the
+ * band needs — see lib/admin-numbers.
+ *
+ * ⚑ PAGED, because PostgREST caps a plain `.select()` at 1000 rows and a silent
+ * cap does not look like an error, it looks like an answer (S66).
+ *
+ * ⚑ FLAGGED DEBT, and the founder has it: this reads every mission on every
+ * home-page load. Correct and fast at 350; at tens of thousands it becomes a SQL
+ * view or an RPC that returns the aggregates, which is a migration the founder
+ * runs. Nothing about the band's shape changes when that day comes — only where
+ * the arithmetic happens.
+ */
+export async function readHomeNumbers(now = new Date()): Promise<HomeNumbers> {
+  const db = await createClient();
+  const rows = await readAll<NumbersRow>((from, to) =>
+    db.from("mission").select(HOME_NUMBER_COLS).range(from, to),
+  );
+  return homeNumbers(rows, now);
 }

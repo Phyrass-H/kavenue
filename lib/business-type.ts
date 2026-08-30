@@ -56,6 +56,36 @@ export function businessTypeLabel(type: BusinessType): string {
   return LABELS[type];
 }
 
+/**
+ * The same thing in a table cell.
+ *
+ * ⚑ IT EXISTS BECAUSE "Hotel & accommodation" WRAPPED TO TWO LINES in the
+ * Businesses list and made its row taller than the ones around it — the S69
+ * lesson about `.adm-pill`, arriving again in a different column. A full label
+ * belongs where it is the subject (a breakdown row, a picker); a short one
+ * belongs where it is a tag beside a name.
+ *
+ * ⚑ AND IT IS A SECOND TYPE-KEYED MAP, not a truncation. `"Travel agency & tour
+ * operator".split(" & ")[0]` would read fine here and turn "Concierge & private
+ * services" into something that means a different job. Adding a value to
+ * BUSINESS_TYPES fails to compile until it has both.
+ */
+const SHORT: Record<BusinessType, string> = {
+  hotel: "Hotel",
+  restaurant: "Restaurant",
+  event_venue: "Events",
+  travel_agency: "Travel agency",
+  concierge: "Concierge",
+  vtc_company: "VTC",
+  health: "Health",
+  corporate: "Corporate",
+  other: "Other",
+};
+
+export function businessTypeShort(type: BusinessType): string {
+  return SHORT[type];
+}
+
 /** The column is a bare `text`, so every read narrows rather than trusting. */
 export function isBusinessType(value: string | null | undefined): value is BusinessType {
   return !!value && (BUSINESS_TYPES as readonly string[]).includes(value);

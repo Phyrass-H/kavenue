@@ -5,6 +5,43 @@
 
 ---
 
+## 30 August 2026 — the Businesses screen stops being a list
+
+You asked what happens at 25 000 businesses. The screen no longer answers by scrolling.
+
+**The breakdown is now the navigation.** Four numbers at the top — how many businesses, how many posted this
+month, how many have never posted once, and how many trips the typical one runs. Then two tables, each row a
+filter you click into:
+
+- **By type** — which trades book the most, sorted by trips, so "which types make more missions" is the first
+  thing the table tells you.
+- **Where they are** — région opening into towns. Today: Provence-Alpes-Côte d'Azur 311 trips at 85 % filled,
+  with Cannes 156, Nice 112, Antibes 43 underneath.
+
+The list of businesses comes last, and only ever appears filtered. Search still reaches one directly. So
+25 000 rows never render anywhere.
+
+**And the counting moved into the database.** The old screen loaded every business and every trip and counted
+them in the browser. That was slow, and worse than slow: the database hands back **at most 1 000 rows** to
+that kind of request and says nothing about the rest — so past a thousand trips the "nobody took" column would
+have quietly been counting a fraction of them. Now the database does the counting.
+
+**Three things it refuses to do:**
+
+- **No percentage on a thin sample.** A business with one unfilled trip reads `0 of 1`, never "0 % filled" —
+  the same threshold your home screen already uses, shared rather than copied so the two can't drift apart.
+- **A one-row table is not a breakdown.** All four businesses are hotels today, so "By type" is simply not on
+  the screen. It appears the day a restaurant signs up.
+- ⚑ **Monaco is "Outside France", not "unknown".** The Métropole has a town and no région, because the French
+  numbering doesn't cover Monaco. That's not a gap to tidy up — it's what a real part of your market looks
+  like, and the screen is built so a town without a région keeps its place instead of disappearing.
+
+The Businesses list also now answers the question the Drivers list already answered: **are they still
+booking?** `156 trips · last 30 Aug`, or `never posted a trip`. A business that stopped in June used to look
+identical to your busiest one.
+
+Tests: 733 → **750**.
+
 ## 30 August 2026 — a Business now has to say what it is, and the register fills the form in
 
 Two rules you gave, both shipped.

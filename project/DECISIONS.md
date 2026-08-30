@@ -2605,3 +2605,62 @@ places: **Corsica is 2A/2B and has not been "20" since 1976**, and the overseas 
 > right on screen.
 
 Tests: 700 → **733** — `business-type` (13), `business-readiness` (11), `company-register` (9).
+
+### D100 — At 25 000 Businesses the list stops being the screen (2026-08-30, S71)
+
+**The founder's question, which is really a design brief:**
+
+> *"you have listed the hotels but what if we have 25 000 businesses are you going to make an infinite list?
+> No! So please when you work on the Activity Console think always as huge numbers and how we can access all
+> easy and easy to have main numbers."*
+
+**The answer: the breakdown IS the navigation.** Four headline numbers, then *by type* and *where they are*
+(région opening into cities), each row a filter. The list comes last and **only ever appears filtered**;
+search reaches one Business directly. So 25 000 rows never render anywhere, and the two questions the founder
+actually asked — *which types make more missions*, and *where* — are answered by the screen's own structure
+rather than by scrolling.
+
+**⚑ AND THE ARITHMETIC MOVED INTO SQL, WHICH IS THE HALF THAT ACTUALLY SCALES.** The old screen read every
+`business` and every `mission` and counted them in JavaScript. Two things were wrong with that and only one
+was speed: **PostgREST caps an unpaged select at 1 000 rows and says nothing** — measured on this database,
+`mission_event` returned 1 000 of 2 503 with no error. Past a thousand trips the "nobody took" column would
+have been counting a fraction of them, silently. `admin_business_overview()` and `admin_business_page()`
+aggregate server-side; `total_count` rides along on every list row so a cap can never be quiet.
+
+**⚑ SECURITY INVOKER, AND IT MUST STAY THAT WAY.** RLS already grants `app_role()='admin'` read on both
+tables. `security definer` would hand every signed-in Dispatcher the whole marketplace's numbers.
+
+**⚑ COUNTS TRAVEL, RATES ARE RENDERED.** No percentage is computed in SQL. Every row returns `settled` and
+`filled` and the app decides whether the sample earns a rate, at the **same `MIN_FOR_RATE` the home band uses,
+imported rather than copied** — a duplicated `20` is a rule that drifts the first time one of them is tuned.
+Dividing in SQL would print "0 %" against a Business with one unfilled trip. [[d98]].
+
+**Three refusals, each one tested:**
+- **A one-row table is not a breakdown.** All four Businesses are hotels, so *by type* stays off the screen
+  entirely until a restaurant signs up. Not an empty state — an absent one.
+- **A null key is a row, never a gap.** A Business with no type on file, or a city with no région, keeps its
+  place and is named. The founder's rule: a dashboard says *"3 of 9 located"*, it never quietly counts only
+  what it can find.
+- ⚑ **MONACO IS "OUTSIDE FRANCE", NOT "UNKNOWN".** The Métropole Monte-Carlo has a city and no région because
+  INSEE codes do not exist for it. That is not missing data to be cleaned up later — it is the shape a real
+  slice of this market has, and `nestCities` is written so a city whose région is null keeps its own group
+  instead of being dropped. Calling it "unknown" is what would tempt a later session to "fix" Monaco into 06.
+
+**And the question this screen never used to ask.** The fleet list tells you, per Driver, whether they are
+actually working; the Businesses list said nothing of the kind, so a Business that stopped booking in June and
+one that booked this morning were the same row with different numbers. It now carries the same fact —
+`156 trips · last 30 Aug`, or `never posted a trip`.
+
+**⚑ A LIST ROW IS NOT A BREAKDOWN ROW**, learned on the live render. "Hotel & accommodation" wrapped to two
+lines in a 118px column and made its row taller than its neighbours — the S69 `.adm-pill` lesson arriving in a
+different column. There are now two type-keyed label maps, full and short, and the short one **shortens by
+naming, never by truncating**: `"Concierge & private services".split(" & ")[0]` reads fine and means a
+different job.
+
+**Flagged debt, accepted:** the seeded Businesses' `city`/`departement`/`region` were backfilled by
+`.local/seed/backfill-business-places.mts` from the addresses already on their rows. Only a sign-up through
+the register fills them for real, so every Business enrolled before 2026-08-30 has them null until it is
+edited.
+
+Tests: 733 → **750** — `tests/admin-businesses.test.ts` (20), all of them on the honesty rules rather than the
+arithmetic, because those are what a later session would quietly delete to make a screen look fuller.

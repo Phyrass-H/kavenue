@@ -5014,14 +5014,48 @@ ran success"**) · rewrites of `app/onboarding-business/{page,actions}.tsx` · t
   added by hand in Row **and** Insert, or `tsc` reports `Type 'string | null' is not assignable to type 'never'`
   — which reads like a broken generic and is only a missing key.
 
+### Then, same session — the Businesses screen at 25 000 ([[d100]])
+The founder's next item, taken straight after: *"what if we have 25 000 businesses are you going to make an
+infinite list? No!"*
+
+`docs/migrations/2026-08-30_admin_business_rollup.sql` (**applied same session, "176 lines ran success"**) —
+`admin_business_overview()` + `admin_business_page()`, both **security invoker** · `lib/admin-businesses.ts`
+(new, pure, tested) · a rewritten `app/admin/businesses/page.tsx` · `.adm-row--bd` / `.adm-bd__*` ·
+`.local/seed/backfill-business-places.mts`. **733 → 750 tests.**
+
+| | |
+|---|---|
+| **the shape** | four numbers → *by type* → *where they are* (région ▸ city) → the list, only ever filtered. Each breakdown row is a filter |
+| ⚑ **the arithmetic** | moved into SQL. The old page read EVERY business and EVERY mission and counted in JS — and PostgREST caps an unpaged select at **1 000 rows** silently |
+| **`total_count`** | rides along on every list row, so the page note cannot lie about what it is hiding |
+| ⚑ **counts travel, rates are rendered** | no percentage is computed in SQL; `MIN_FOR_RATE` is **imported** from `admin-numbers`, never copied |
+| ⚑ **Monaco** | city, no région. `nestCities` keeps a null-région city in its own "Outside France" group rather than dropping it |
+| **verified live** | 4 businesses · PACA 311 trips 85 % · Cannes 156 / Nice 112 / Antibes 43 · Monaco 46 under Outside France. Cross-checks the home band (294 of 349) |
+
+### ⚑ More traps, from this half
+- ⚑ **A LIST ROW IS NOT A BREAKDOWN ROW.** "Hotel & accommodation" wrapped to two lines in a 118px column and
+  made its row taller than its neighbours — the S69 `.adm-pill` lesson in a different column. Two type-keyed
+  label maps now, full and short, and the short one **shortens by naming, never by truncating**.
+- ⚑ **`window.innerWidth` IS 0 WHILE THE BROWSER PANE IS HIDDEN**, so every `max-width` media query matches
+  and a desktop layout reads as mobile. Two "missing column" scares came from this. Pin a width with
+  `resize_window` before judging a responsive layout.
+- ⚑ **`querySelectorAll(...).textContent` IGNORES `display: none`.** A check that a column was hidden passed
+  by reading text that was still in the DOM. Read `getComputedStyle(el).display`.
+- ⚑ **A NEW RPC MUST BE DECLARED IN THE HAND-WRITTEN `Functions` BLOCK** of `lib/database.types.ts`, or
+  `db.rpc("...")` fails to compile with a wall of union-mismatch noise that looks nothing like "unknown
+  function name".
+- ⚑ **THE PAGE MUST REFUSE WHEN ITS RPC IS ABSENT.** Between writing the screen and the founder pasting the
+  SQL, `admin_business_overview` did not exist. Four zeroes would have read as "you have no Businesses"; it
+  says which migration to run and prints PostgREST's own message. Watched go red before the paste, green after.
+
 ### Still open at the close
 - **The design lock** (§ 3) — proposed, not approved: five of seven screens ratified, five changes named, the
   biggest being that **six console reads stop at 1 000 rows silently** (measured: an unpaged select returned
   1 000 of 2 503). Artifact `8cac11c8-73a4-4411-9b07-0adc30e0cd0d`.
-- **The founder's own queue, in their order:** the Businesses screen at 25 000 (breakdown by type / région /
-  city instead of a list — mockup shown and approved in principle) · the same for Drivers · cars, classes and
-  categories in the console · **men and women** (⚑ **no gender column exists on `driver` — that needs a
-  migration and a question about how it is asked**) · improve the main page.
+- **The founder's own queue, in their order:** ~~the Businesses screen at 25 000~~ **done, [[d100]]** · the
+  same treatment for Drivers · cars, classes and categories in the console · **men and women** (⚑ **no gender
+  column exists on `driver` — that needs a migration AND a question about how it is asked, which is a more
+  sensitive one than the rest of the list**) · improve the main page.
 - ⚑ **The `post_blocked` event is NOT written.** Proposed and not built: `mission_event` requires a
   `mission_id` and none exists yet, so it needs a `business_event` table. This is the first step of the booking
   funnel the founder asked for in S66, and the only part of the gate that cannot be recovered later.

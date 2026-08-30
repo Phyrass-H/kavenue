@@ -115,6 +115,47 @@ export interface Waypoint {
   lng?: number | null;
 }
 
+/** One row of a breakdown returned by admin_business_overview(). Counts only —
+ *  the percentage is rendered by lib/admin-businesses, never computed in SQL, so
+ *  a thin sample cannot claim a rate. */
+export interface AdminBusinessRollupRow {
+  key: string | null;
+  /** For a city: the region it sits in, or null outside France. */
+  parent: string | null;
+  businesses: number;
+  trips: number;
+  settled: number;
+  filled: number;
+}
+
+export interface AdminBusinessOverview {
+  businesses: number;
+  posted_this_month: number;
+  never_posted: number;
+  /** Median trips among Businesses that have posted at all; null when none have. */
+  median_trips: number | null;
+  posting_businesses: number;
+  by_type: AdminBusinessRollupRow[];
+  by_region: AdminBusinessRollupRow[];
+  by_city: AdminBusinessRollupRow[];
+}
+
+/** ⚑ `count(*)` and `max()` come back from PostgREST as numbers, but bigint is
+ *  serialised as a JS number only up to 2^53 — fine for a marketplace, and the
+ *  page still coerces with Number() so a string would not silently render NaN. */
+export interface AdminBusinessPageRow {
+  id: string;
+  name: string;
+  business_type: string | null;
+  city: string | null;
+  region: string | null;
+  trips: number;
+  unfilled: number;
+  last_posted: string | null;
+  /** The unpaged total, riding along so the page note can never lie. */
+  total_count: number;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -1006,6 +1047,24 @@ export interface Database {
       app_role: { Args: Record<PropertyKey, never>; Returns: UserRole };
       current_driver_id: { Args: Record<PropertyKey, never>; Returns: string };
       current_business_id: { Args: Record<PropertyKey, never>; Returns: string };
+      // S71 — the Businesses screen's arithmetic, done in SQL so 25 000 rows
+      // never cross the wire. Both SECURITY INVOKER: RLS decides what the caller
+      // may count, and only an admin may count everything.
+      // docs/migrations/2026-08-30_admin_business_rollup.sql
+      admin_business_overview: {
+        Args: Record<PropertyKey, never>;
+        Returns: AdminBusinessOverview;
+      };
+      admin_business_page: {
+        Args: {
+          p_type?: string | null;
+          p_region?: string | null;
+          p_city?: string | null;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: AdminBusinessPageRow[];
+      };
     };
     Enums: {
       user_role: UserRole;

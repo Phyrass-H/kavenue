@@ -3946,3 +3946,27 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 .cf-hit__name { display: block; font-size: 14.5px; }
 .cf-hit__where { display: block; font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
 .cf-note { margin: -2px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55; }
+
+/* ── the Businesses breakdown ────────────────────────────────────────────── */
+/* ⚑ FIXED WIDTHS, like .adm-row--4 and for the same reason: every row is its own
+   grid, so `auto` columns do not line up down the page — with four cells the
+   numbers column jumped fifty pixels a row (S69). */
+.adm-row--bd { grid-template-columns: minmax(0, 1fr) 104px 104px 84px; }
+.adm-row--bd > :not(.adm-row__name) { text-align: right; }
+/* The header is not a link and must not look like one. */
+.adm-bd__head {
+  border-top: 0; padding-bottom: 4px;
+  font-size: 12px; color: var(--text-faint); letter-spacing: 0.02em;
+}
+.adm-bd__head .adm-row__side, .adm-bd__head .adm-row__kind { font-size: 12px; }
+/* A city sits under its region. The rule, not a bullet: it is a level, not a list. */
+.adm-bd__sub {
+  padding-left: 16px; color: var(--text-muted);
+  border-left: 2px solid var(--border); margin-left: 2px;
+}
+@media (max-width: 640px) {
+  .adm-row--bd { grid-template-columns: minmax(0, 1fr) auto auto; }
+  /* Three numbers do not fit a phone; the fill rate is the one that survives,
+     because "how many" is on the row you tap through to. */
+  .adm-row--bd .adm-row__side:nth-of-type(2) { display: none; }
+}

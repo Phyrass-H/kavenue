@@ -216,10 +216,10 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**38 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**41 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 815 passing
+    npx tsc --noEmit && npx vitest run          # expect 821 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
@@ -232,11 +232,50 @@ about that point — **fix the file before you build on it.** Then:
     npx tsx .local/probe/eligibility-live.mts                            #  33 · ⚑ tsx, NOT node
     npx tsx .local/probe/dataset-audit.mts                               #  30 · 0 failed ([[d108]])
     npx tsx .local/probe/accept-floor.mts                                #   6 · the § H2 residual
+    npx tsx .local/probe/column-leak.mts                                 #   S72 · expect 0 LEAK(S) OPEN
     npx tsx .local/probe/sweep-orphans.mts                               #    after any live-probe session
 
 **If a probe fails, that is the job** — not whatever is queued above.
 ⚑ **RUN THE LIVE PROBES ONE AT A TIME** — several assert a mission-count baseline and see each other's rows.
 ⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
+
+---
+
+## ⚑ TRAPS LEARNED IN S72
+
+- ⚑ **THIS REPO'S WORKTREES DO NOT HAVE `.local`, `node_modules` OR `.env.local`** — all three are ignored and
+  live only in the main checkout. Symlink them in (`ln -sfn ../../../.local .local`, etc.), then add `.local`
+  and `node_modules` to `.git/info/exclude`: `.gitignore` matches `.local/` (a DIRECTORY) and will not match a
+  symlink, so `handoff-check` reports "git is clean" as STALE for your own scaffolding.
+- ⚑ **A COLUMN PRIVILEGE IS PER POSTGRES ROLE. A DRIVER AND A DISPATCHER ARE THE SAME ROLE** (`authenticated`).
+  So `revoke select (x) on t from authenticated` hides `x` from BOTH audiences and can never express "this side
+  but not that one". That needs a view. See [[d109]].
+- ⚑ **A SECURITY DEFINER FUNCTION'S COMPOSITE RETURN IGNORES COLUMN PRIVILEGES.** `accept_mission`,
+  `business_cancel_mission` and a dozen more are `returns mission`, so the whole row crosses regardless of what
+  is revoked. **Still open** — see below.
+- ⚑ **A `security_invoker = false` VIEW SEES NOTHING AS THE SERVICE ROLE** when its WHERE is written in
+  `app_role()` / `current_*_id()` — all NULL there. It returns ZERO ROWS rather than an error, which is the most
+  misleading answer a query can give. `mission_read` is granted to `authenticated` only, and the drift probe
+  reads it as the BUSINESS for exactly this reason.
+- ⚑ **HIDING A NUMBER THE UI COMPUTES FROM MEANS MOVING THE COMPUTATION.** `currentFare()` climbs TO the
+  Ceiling, so masking the Ceiling breaks the Pool card. `lib/pool-fares.ts` computes it server-side from ids the
+  caller's own RLS read returned. `PoolMissionRow` types the masked columns as `null` so the compiler refuses.
+- ⚑ **`ratesOf` REQUIRED ALL THREE RATES**, which quietly means "no commission charged" the moment one is
+  masked — a Business would have been shown 190,00 € where it owes 218,50 €. Use `businessRatesOf` /
+  `driverRatesOf`; they return narrowed `BusinessSplit` / `DriverSplit`, so reading the wrong half is a compile
+  error. `ratesOf` / `splitFor` are for ADMIN and the service role only.
+- ⚑ **THE MIGRATION ORDER IS REVERSED FROM THE USUAL ONE.** Normally a new column breaks the write path until
+  the migration lands; here `..._2_close.sql` breaks the READ path until the app half is deployed. Part 1
+  (the view) is additive and can go in any time; part 2 waits for the deploy.
+- ⚑ **A REGEX OVER A COLUMN LIST MISSES THE LAST COLUMN** — it has no trailing comma. The drift check reported
+  `vehicle_id` missing from a view that contained it. Which is also the check doing its job: it was watched
+  going red on a real near-miss and again on a planted one, then green.
+
+### 🔴 STILL OPEN FROM S72 — named, not hidden
+**The SECURITY DEFINER RPCs return whole `mission` rows.** `business_cancel_mission`, `respond_to_amendment`,
+`reclaim_mission` and ~14 more hand a Business `commission_driver_rate` on any trip it touches. Closing it means
+redefining each function's return type — a job of its own, and deliberately not in the same paste as the walls.
+`.local/probe/column-leak.mts` § 5 measures it, so it will keep saying `LEAK OPEN` until it is done.
 
 ---
 

@@ -218,6 +218,35 @@ export interface Database {
         Update: { auth_user_id?: string; role?: UserRole; created_at?: string };
         Relationships: [];
       };
+      // S71 — things that happen to a Business ACCOUNT rather than to a trip.
+      // Best-effort (source='app'): it may prove an event happened, never that
+      // one did not. Trip events live in mission_event, trigger-guaranteed.
+      business_event: {
+        Row: {
+          id: string;
+          seq: number;
+          business_id: string;
+          dispatcher_id: string | null;
+          event_type: string;
+          occurred_at: string;
+          actor_auth_user_id: string | null;
+          source: string;
+          payload: Json;
+        };
+        Insert: {
+          id?: string;
+          seq?: number;
+          business_id: string;
+          dispatcher_id?: string | null;
+          event_type: string;
+          occurred_at?: string;
+          actor_auth_user_id?: string | null;
+          source?: string;
+          payload?: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["business_event"]["Insert"]>;
+        Relationships: [];
+      };
       business: {
         Row: {
           id: string;

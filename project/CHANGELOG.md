@@ -5,6 +5,48 @@
 
 ---
 
+## 30 August 2026 — the three fixes, and the home page tells the truth about next month
+
+**1 · The 1 000-row problem is closed.** Six places in the console asked the database for "everything" and
+would have got the first thousand rows with no warning. Nothing you can see changed; what changes is the day
+you get busy. The worst of them decided which cancelled trips have no record of who cancelled them — read
+short, it would have started **naming trips that do have a record**, with nothing on screen to hint it was
+wrong. Also fixed: the fleet the matcher works from, the check for whether a driver is already busy, and the
+one behind "nobody can take this trip".
+
+**2 · A blocked post now leaves a record.** When a business is stopped from posting because its file is
+incomplete, that moment is written down — with which requirement was missing. You can now ask how many hit
+that wall and how many gave up there. It couldn't have been added later: trips and money leave rows behind, a
+moment nobody wrote down is gone.
+
+**3 · The home page had a lie on it, and I found it this morning.** It said:
+
+> *"5 trips last month, down from 147 the month before."*
+
+**September hasn't happened.** The chart is built on pickup dates, so five trips *booked* for September raised
+a September bar — and the code only ever marked the *current* month as incomplete, so September looked
+finished. It wasn't slightly wrong, it was backwards: it reported a collapse during your best month.
+
+It now reads: *"147 this month already with 1 day still to run — the whole of last month was 129. 5 trips are
+already booked ahead."* And the chart has three kinds of bar instead of two — solid for a finished month,
+hatched for the one you're in, and an **outline** for a month that hasn't happened, because those are bookings,
+not trips that ran.
+
+**Two new figures under the numbers**, as one quiet line rather than two more cards:
+
+- **"Drivers took them at 61 % of the Ceiling, typically."** The single number that says whether your pricing
+  curve is working — and nothing anywhere else shows it.
+- **"30 of the 294 a Driver took fell through afterwards."** The failure your fill rate can't see: from the
+  hotel's chair, that trip *was* filled.
+
+⚑ **And one thing I decided not to build.** You asked in S70 for a city strip on the home page — Cannes 46 of
+49, Nice 37 of 39. Back then it made sense. But `/admin/businesses` now has régions opening into cities with
+exactly those numbers, one click away. Your own rule is that a number earns the home page only when no row can
+say it, and this one now fails that test. Building it would have been a second copy of a screen you already
+have.
+
+Tests: 798 → **811**.
+
 ## 30 August 2026 — the console can go back to day one
 
 You said the analyses shouldn't only cover the last few months. They don't. **Every console screen now opens

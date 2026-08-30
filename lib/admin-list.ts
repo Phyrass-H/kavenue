@@ -236,3 +236,33 @@ export function activitySays(a: Activity | undefined): ActivitySays {
     idle: false,
   };
 }
+
+/**
+ * Read EVERY row of a query that may exceed PostgREST's page, one page at a time.
+ *
+ * ⚑ AN UNBOUNDED `.select()` RETURNS AT MOST 1 000 ROWS AND REPORTS NO ERROR.
+ * Measured against this database on 2026-08-30: `mission_event` came back with
+ * 1 000 of 2 503 rows and no indication that anything was missing. That is fine
+ * for a LIST — a list is paged and says what it is hiding (`pageNote`). It is
+ * not fine for anything that FEEDS A CALCULATION, because a truncated input does
+ * not produce a shorter answer, it produces a wrong one: the set of recorded
+ * cancellations, read short, turns trips that DO carry a record into trips that
+ * appear not to.
+ *
+ * ⚑ SO THE RULE IS: paged when the rows are counted or compared, `.range()` when
+ * they are rendered. Never an unbounded select behind a number.
+ */
+export async function readAll<T>(
+  run: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data } = await run(from, from + PAGE - 1);
+    if (!data?.length) break;
+    out.push(...data);
+    // A short page is the last page — asking for another would be a wasted trip.
+    if (data.length < PAGE) break;
+  }
+  return out;
+}

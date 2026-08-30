@@ -10,8 +10,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTripList } from "@/components/admin-trip-list";
-import { pageWindow, pageNote } from "@/lib/admin-list";
-import type { MissionStatus } from "@/lib/database.types";
+import { pageWindow, pageNote, readAll } from "@/lib/admin-list";
+import type { MissionRow, MissionStatus } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
 
@@ -44,19 +44,35 @@ export default async function AdminTripsPage({
     .select("*", { count: "exact" })
     .order("pickup_at", { ascending: false });
   if (status) query = query.eq("status", status as MissionStatus);
-  if (flagged) query = query.eq("status", "cancelled");
-  const { data: trips, count } = await (flagged ? query : query.range(win.from, win.to));
-
-  let rows = trips ?? [];
-  let total = count ?? 0;
+  // ⚑ THE FLAGGED VIEW CANNOT BE PAGED IN SQL — it is filtered in JS against
+  // `mission_cancellation` — so BOTH of its reads have to be paged by hand. Left
+  // unbounded they stop at 1 000 rows in silence, and this view is the PROOF
+  // behind a finding: a short read of the records would list trips that DO carry
+  // a record as trips that don't. Naming innocent rows is worse than naming none.
+  let rows: MissionRow[];
+  let total: number;
   if (flagged) {
-    // The finding says N cancelled trips have no record; this is where a reader
-    // goes to see which ones.
-    const { data: records } = await db.from("mission_cancellation").select("mission_id");
-    const recorded = new Set((records ?? []).map((r) => r.mission_id));
-    rows = rows.filter((t) => !recorded.has(t.id));
-    total = rows.length;
-    rows = rows.slice(win.from, win.to + 1);
+    const [cancelled, records] = await Promise.all([
+      readAll<MissionRow>((from, to) =>
+        db
+          .from("mission")
+          .select("*")
+          .eq("status", "cancelled")
+          .order("pickup_at", { ascending: false })
+          .range(from, to),
+      ),
+      readAll<{ mission_id: string }>((from, to) =>
+        db.from("mission_cancellation").select("mission_id").range(from, to),
+      ),
+    ]);
+    const recorded = new Set(records.map((r) => r.mission_id));
+    const missing = cancelled.filter((t) => !recorded.has(t.id));
+    total = missing.length;
+    rows = missing.slice(win.from, win.to + 1);
+  } else {
+    const res = await query.range(win.from, win.to);
+    rows = res.data ?? [];
+    total = res.count ?? 0;
   }
 
   const href = (p: number) => {

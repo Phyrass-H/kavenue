@@ -2816,3 +2816,98 @@ activity, which changes with the period. The counts were identical all along. S6
 third time: *if a probe reports mass mismatches, suspect its expectations first.*
 
 Tests: `tests/admin-period.test.ts` (11). 786 → **798**.
+
+### D104 — An unbounded read behind a number is a lie waiting for row 1 001 (2026-08-30, S71)
+
+**Measured, not assumed:** an unbounded `.select()` on this database returned **1 000 of 2 510** rows and
+reported no error. `handoff-check` now proves that live rather than asserting it, because the whole risk is
+that it looks like nothing is wrong.
+
+**The rule: paged when the rows are COUNTED OR COMPARED, `.range()` when they are RENDERED.** A truncated list
+is survivable — it is paged and `pageNote` says what it is hiding. A truncated *input to a calculation* is not,
+because it does not produce a shorter answer, it produces a **wrong** one.
+
+**⚑ THE WORST OF THE SIX, AND THE REASON THIS WAS DONE BEFORE THE FUN WORK.** `mission_cancellation` is read to
+decide which cancelled trips carry no record. Read short, `recorded` is missing entries — so trips that **do**
+say who cancelled them get reported as trips that don't. The finding would not merely under-count: it would
+**name innocent rows**, with nothing on screen to suggest it was lying. It was read that way in two places.
+
+Also paged: the fleet (`driver` + `vehicle` — the matcher's whole input), the live-commitments read behind the
+±90-minute clash rule (truncated, it reports a Driver FREE when they are busy), the pooled read behind *"nobody
+can take this trip"*, and the passed-around lookup — where `.in()` bounds the QUERY but not the RESPONSE.
+
+`readAll` moved to `lib/admin-list.ts` beside `pageWindow`/`pageNote`, since it is the third paging helper.
+
+**Left unpaged on purpose:** dispatchers-per-Business and vehicles-per-Driver. Both are bounded by one
+account's size, both are rendered rather than counted, and neither will see a thousand rows.
+
+---
+
+### D105 — A month that has not happened is not "last month" (2026-08-30, S71)
+
+The home screen said, on 30 August 2026:
+
+> *"5 trips last month, down from 147 the month before."*
+
+**September had not happened.** The bars are keyed on `pickup_at`, so five trips BOOKED for September raised a
+September bar — and `partial` only ever marked the *current* month, so September looked like a finished one and
+`monthsNote` compared against it. The sentence was not slightly off; it was **inverted**, reporting a collapse
+where there was growth.
+
+`MonthCount` now carries `future`, the comparison ignores months that have not happened, and the bar has
+**three states, not two**: solid for a finished month, hatched for the one we are inside, and an **outline** for
+one that has not happened — those are bookings on the books, not trips that ran. The note ends with *"5 trips
+are already booked ahead"*, which is the only honest thing to say about a future month, and on a booking
+marketplace is worth saying.
+
+**Two figures added to the band as a quiet sentence, not as two more cards** — the band was signed off at four
+figures and six would crowd it ([[d98]]); these are secondary, and S69's calibration was *"it's overwhelming"*,
+fixed by fewer words rather than less information:
+- ***"Drivers took them at 61 % of the Ceiling, typically"*** — the one number that says whether the curve is
+  working, and no row shows it. A median, so one 199 € trip taken at the Ceiling cannot move it.
+- ***"30 of the 294 a Driver took fell through afterwards"*** — the Driver-side failure the fill rate cannot
+  see: from the Business's chair that trip WAS filled. ⚑ Always "a of b", because alone the reader supplies
+  "of all trips" and gets a much kinder number.
+
+**⚑ AND THE CITY STRIP WAS REFUSED, having been proposed in S70 by the same person writing this.** When it was
+proposed, `/admin/businesses` did not exist. It now carries régions opening into cities with exactly those
+figures, one click away — so by [[d98]]'s own test (*a count earns the home page only when no row can say it*)
+the strip now fails. Building it would have been a roll-up of a screen that already exists.
+
+**⚑ AND A GUARD AGAINST AN IMPOSSIBLE STATE WAS CAUGHT BY THE COMPILER.** The ratio first filtered
+`ceiling != null`. `mission.ceiling` is `numeric NOT NULL` — a branch nothing can reach, which is the D86–D92
+family exactly. What CAN happen is zero, and dividing by it is the real hazard.
+
+---
+
+### D106 — The refusal leaves a record, because the moment cannot be recovered (2026-08-30, S71)
+
+When a Business is turned away from posting ([[d99]]), nothing recorded it. They saw what was missing, fixed it
+or left, and the moment was gone — so nobody could ever ask *how many hit that wall, and how many gave up
+there*, which is the only way to know whether the gate costs customers.
+
+**⚑ AND IT CANNOT BE ADDED RETROACTIVELY.** Trips and money leave rows behind; you can count them a year later.
+A moment nobody wrote down is simply gone. That is why it shipped in the same session as the gate.
+
+**A new table, not a widened one.** `mission_event` exists to record what happens to a TRIP and requires a
+`mission_id` ([[d87]]). A blocked post has no mission — that is the entire event. `business_event` mirrors its
+shape and its service-role write path, and carries the same honesty: `source='app'`, best effort, **may prove
+something happened, never that it did not**.
+
+**⚑ `trip_posted` IS DELIBERATELY ABSENT.** The success side of the funnel is already recorded, guaranteed, by
+the `mission_event` trigger as `pooled`. A copy here would be a second source of truth for one fact, and the
+two would disagree the first time either missed a write.
+
+**⚑ AND IT PASSES THE FOUNDER'S OWN BROWSING TEST.** They cut `pool_impression` and `mission_viewed` in S66:
+*"a driver that looks around the pool is just browsing and brings no value."* A refusal is not browsing — it is
+something that HAPPENED TO someone, with a consequence: they could not post.
+
+**Awaited, never fired and forgotten.** `redirect()` throws to unwind the request, so a floating promise after
+it would be cut off mid-flight — losing the event exactly when someone is being blocked repeatedly.
+
+**Verified end to end**, and then deleted: a refusal was provoked on a real Business, the row landed with
+`payload {"missing":["/dispatch/settings?s=billing"]}` naming the exact requirement, the mission count stayed
+at 357 — and the manufactured row was then removed, because an audit log carrying an invented entry is worse
+than an empty one.
+
+Tests: 798 → **811**.

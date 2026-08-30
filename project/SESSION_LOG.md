@@ -5114,6 +5114,38 @@ first two got the census wrong: `2026-08-30_admin_rollup_periods.sql`, then
   Business with no trips as a zero row; the same condition in the `where` turns it into an inner join and the
   Business disappears — a quiet month made to look busy.
 
+### Then — the three the founder queued, in their order ([[d104]], [[d105]], [[d106]])
+*"fix the first issue then carry on the 2 other things then tell me when all is clean."*
+
+`lib/business-events-server.ts` · `docs/migrations/2026-08-30_business_event.sql` (**applied same session**) ·
+`readAll` moved to `lib/admin-list.ts` · six reads paged · `MonthCount.future` · `curveNote` ·
+`.adm-m__bar--ahead`. **798 → 811 tests**, handoff-check 36 → **38**.
+
+| | |
+|---|---|
+| ⚑ **the 1 000-row cliff** | **proved live in the gate**: an unbounded select returned 1 000 of 2 510 and no error. Paged when rows are COUNTED, `.range()` when RENDERED |
+| ⚑ **the worst one** | `mission_cancellation`, read in two places. Short, it would report trips that DO carry a record as trips that don't — **naming innocent rows** |
+| **`post_blocked`** | new `business_event` table. `trip_posted` deliberately absent — `mission_event`'s trigger already records `pooled`, guaranteed |
+| ⚑ **the home page lied** | *"5 trips last month, down from 147"* on 30 August, describing **September**. Not slightly wrong — inverted |
+| **refused** | the S70 city strip. `/admin/businesses` now carries régions ▸ cities, so by [[d98]]'s own test it no longer earns the home page |
+
+### ⚑ Traps from this half
+- ⚑ **A BAR CHART KEYED ON `pickup_at` HAS A FUTURE.** `partial` marked only the CURRENT month, so a month
+  AFTER it looked finished and the sentence compared against it. Three states now: solid / hatched / outline.
+- ⚑ **A GUARD AGAINST AN IMPOSSIBLE STATE IS THE D86 FAMILY.** The Ceiling ratio filtered `ceiling != null`;
+  the column is `numeric NOT NULL`. **The compiler caught it** when a test tried to pass null. Zero is the
+  value that can actually occur, and dividing by it is the real hazard.
+- ⚑ **A RAW `fetch` POST DOES NOT INVOKE A NEXT SERVER ACTION** — it needs the `Next-Action` header and returns
+  404. To exercise a server action, append a real submit button carrying the intent and click it.
+- ⚑ **A REGEX THAT EDITS AN IMPORT BLOCK WILL EAT IT.** `re.sub` on `import { … }` produced
+  `type NumbersRow,\n, curveNote…` and vitest died in esbuild with no line number. Edit import lists by exact
+  string, never by pattern.
+- ⚑ **A NEW REQUIRED FIELD ON A SHARED FIXTURE TYPE IS A FEATURE.** Adding `future` to `MonthCount` broke five
+  existing test fixtures at compile time — every one a place that had to state its intent. That is the guard
+  working, not friction.
+- ⚑ **AN AUDIT LOG WITH A MANUFACTURED ROW IS WORSE THAN AN EMPTY ONE.** The `post_blocked` proof row was
+  deleted after verifying. It recorded a refusal that a session provoked, not one a Business met.
+
 ### Still open at the close
 - **The design lock** (§ 3) — proposed, not approved: five of seven screens ratified, five changes named, the
   biggest being that **six console reads stop at 1 000 rows silently** (measured: an unpaged select returned
@@ -5123,11 +5155,8 @@ first two got the census wrong: `2026-08-30_admin_rollup_periods.sql`, then
   drive" + "The cars themselves"** · ~~men and women~~ **done, [[d101]]** · **improve the main page — the only
   one left**, and the S70 leftovers belong to it: the city strip, *"taken at 61 % of Ceiling"*, and *"fell
   through after accepting"*.
-- **The 1 000-row fix and `post_blocked`** — the founder agreed to both and set the order: periods (done),
-  then the row fix, then `post_blocked`, then the main page. ⚑ The remaining unpaged reads are in
-  `lib/admin-activity.ts` (drivers, vehicles, pooled missions, `mission_cancellation` ×2). The
-  `mission_cancellation` ones are the dangerous pair: past 1 000 records the *"cancelled trips with no
-  record"* finding starts naming trips that DO have one.
+- ~~The 1 000-row fix, `post_blocked`, the main page~~ — **all three done** ([[d104]]–[[d106]]). The founder's
+  whole S71 queue is now closed.
 - ⚑ **Range on the period bar is not built** — needs the `date-cal` popover, the one part that cannot be a
   plain link.
 - ⚑ **The `post_blocked` event is NOT written.** Proposed and not built: `mission_event` requires a

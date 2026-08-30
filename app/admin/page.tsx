@@ -16,7 +16,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { readActivitySnapshot, readHomeNumbers } from "@/lib/admin-activity";
-import { monthsNote, type HomeNumbers } from "@/lib/admin-numbers";
+import { curveNote, monthsNote, type HomeNumbers } from "@/lib/admin-numbers";
 import { formatMonth } from "@/lib/format";
 import { findings, quietChecks, CHECKS, type Finding, type FindingId } from "@/lib/activity-findings";
 
@@ -250,11 +250,24 @@ function Band({ n, now }: { n: HomeNumbers; now: Date }) {
         </div>
       </div>
 
+      {/* ⚑ A quiet line, not two more cards. Both halves are secondary — worth
+          knowing, not worth shouting — and each disappears on its own when its
+          sample is too thin to carry the claim. */}
+      {curveNote(n) && <p className="adm-quiet adm-band__note">{curveNote(n)}</p>}
+
       <div className="adm-months">
         {n.months.map((m) => (
           <div key={m.key} className="adm-m">
+            {/* ⚑ THREE STATES, NOT TWO. A finished month is solid; the one we
+                are inside is hatched, because it cannot be compared to a whole
+                one; and a month that HAS NOT HAPPENED is an outline — those are
+                bookings on the books, not trips that ran. Drawing the third like
+                the first is what let the sentence underneath call September
+                "last month" on the 30th of August. */}
             <div
-              className={`adm-m__bar${m.partial ? " adm-m__bar--part" : ""}`}
+              className={`adm-m__bar${
+                m.future ? " adm-m__bar--ahead" : m.partial ? " adm-m__bar--part" : ""
+              }`}
               style={{ height: `${Math.max(3, Math.round((m.trips / busiest) * 46))}px` }}
             />
             <span className="adm-m__n">{m.trips}</span>

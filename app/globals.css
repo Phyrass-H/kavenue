@@ -4039,3 +4039,13 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 
 /* A census row: a name and a headcount, no activity columns. */
 .adm-row--census { grid-template-columns: minmax(0, 1fr) auto; }
+
+/* A month that has not happened: booked, not run. An outline, so it can never be
+   mistaken for a bar the marketplace actually delivered. */
+.adm-m__bar--ahead {
+  background: transparent;
+  border: 1px dashed var(--border-strong);
+}
+
+/* The band's secondary sentence — under the four figures, above the months. */
+.adm-band__note { margin-top: 14px; max-width: 62ch; }

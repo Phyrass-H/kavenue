@@ -4,10 +4,12 @@
 // trip, and the month we are still inside.
 import { describe, it, expect } from "vitest";
 import {
+  curveNote,
   homeNumbers,
   monthsNote,
   MIN_FOR_RATE,
   MIN_FOR_MEDIAN,
+  type HomeNumbers,
   type NumbersRow,
 } from "@/lib/admin-numbers";
 
@@ -19,6 +21,9 @@ function row(over: Partial<NumbersRow> = {}): NumbersRow {
     pickup_at: "2026-08-02T08:00:00.000Z",
     accepted_at: "2026-08-01T12:00:00.000Z",
     accepted_fare: 100,
+    // Taken at exactly its Ceiling by default, so a test that cares about the
+    // ratio has to say so — no fixture ever implies a discount by accident.
+    ceiling: 100,
     commission_business_rate: 0.125,
     commission_driver_rate: 0.1,
     commission_vat_rate: 0.2,
@@ -139,8 +144,8 @@ describe("the months", () => {
   it("⚑ never calls a part-month growth — it names the days still to run", () => {
     const note = monthsNote(
       [
-        { key: "2026-07", trips: 129, partial: false },
-        { key: "2026-08", trips: 145, partial: true },
+        { key: "2026-07", trips: 129, partial: false, future: false },
+        { key: "2026-08", trips: 145, partial: true, future: false },
       ],
       NOW,
     );
@@ -152,8 +157,8 @@ describe("the months", () => {
   it("compares plainly once the month is complete", () => {
     const note = monthsNote(
       [
-        { key: "2026-06", trips: 71, partial: false },
-        { key: "2026-07", trips: 129, partial: false },
+        { key: "2026-06", trips: 71, partial: false, future: false },
+        { key: "2026-07", trips: 129, partial: false, future: false },
       ],
       NOW,
     );
@@ -161,7 +166,61 @@ describe("the months", () => {
   });
 
   it("says nothing at all with a single month — there is no comparison to make", () => {
-    expect(monthsNote([{ key: "2026-08", trips: 4, partial: true }], NOW)).toBeNull();
+    expect(monthsNote([{ key: "2026-08", trips: 4, partial: true, future: false }], NOW)).toBeNull();
+  });
+
+  // ⚑ THE BUG THIS CLOSES, VERBATIM FROM THE LIVE HOME SCREEN ON 30 AUGUST 2026:
+  //   "5 trips last month, down from 147 the month before."
+  // September had not happened. The bars are keyed on `pickup_at`, so trips
+  // BOOKED for September raised a September bar, and `partial` only ever marked
+  // the current month — leaving the future looking like a finished past.
+  it("⚑ never describes a month that has not happened as 'last month'", () => {
+    const note = monthsNote(
+      [
+        { key: "2026-07", trips: 129, partial: false, future: false },
+        { key: "2026-08", trips: 147, partial: true, future: false },
+        { key: "2026-09", trips: 5, partial: false, future: true },
+      ],
+      NOW,
+    );
+    expect(note).not.toContain("last month, down from 147");
+    expect(note).toContain("147 this month already");
+    expect(note).toContain("the whole of last month was 129");
+  });
+
+  it("says what is booked ahead instead of pretending it is history", () => {
+    const note = monthsNote(
+      [
+        { key: "2026-07", trips: 129, partial: false, future: false },
+        { key: "2026-08", trips: 147, partial: true, future: false },
+        { key: "2026-09", trips: 5, partial: false, future: true },
+      ],
+      NOW,
+    );
+    expect(note).toContain("5 trips are already booked ahead");
+  });
+
+  it("says 'trip is' for a single one booked ahead", () => {
+    const note = monthsNote(
+      [
+        { key: "2026-08", trips: 147, partial: true, future: false },
+        { key: "2026-09", trips: 1, partial: false, future: true },
+      ],
+      NOW,
+    );
+    expect(note).toContain("1 trip is already booked ahead");
+  });
+
+  it("stays silent when the only months are in the future and there is nothing booked", () => {
+    expect(monthsNote([{ key: "2026-09", trips: 0, partial: false, future: true }], NOW)).toBeNull();
+  });
+
+  it("still speaks when the ONLY thing to say is what is booked ahead", () => {
+    // One future month and nothing else: there is no comparison to make, but
+    // "3 trips are already booked ahead" is true and worth saying.
+    expect(monthsNote([{ key: "2026-09", trips: 3, partial: false, future: true }], NOW)).toBe(
+      "3 trips are already booked ahead.",
+    );
   });
 });
 
@@ -174,5 +233,71 @@ describe("an empty database", () => {
     expect(n.takeRate).toBeNull();
     expect(n.medianHoursToFill).toBeNull();
     expect(n.months).toEqual([]);
+  });
+});
+
+describe("the curve note — what a Driver actually took the trip for", () => {
+  const n = (over: Partial<HomeNumbers>): HomeNumbers =>
+    ({
+      settled: 349, filled: 294, fillRate: 84, completed: 264,
+      businessesPaid: 0, driversBanked: 0, kavenueKept: 0, takeRate: null,
+      medianHoursToFill: null, months: [],
+      takenAtPctOfCeiling: 61, fellThrough: 4, fellThroughRate: 1.4,
+      ...over,
+    }) as HomeNumbers;
+
+  it("says both halves when both have a sample", () => {
+    const note = curveNote(n({}));
+    expect(note).toContain("61 % of the Ceiling");
+    expect(note).toContain("4 of the 294 a Driver took fell through");
+  });
+
+  it("⚑ always names the denominator of the fall-through", () => {
+    // Alone, "4 fell through" invites the reader to supply "of all trips". The
+    // real denominator is the much smaller set a Driver had already taken.
+    expect(curveNote(n({}))).toContain("of the 294 a Driver took");
+  });
+
+  it("drops the Ceiling half on a sample too thin for a median", () => {
+    const note = curveNote(n({ takenAtPctOfCeiling: null }));
+    expect(note).not.toContain("Ceiling");
+    expect(note).toContain("fell through");
+  });
+
+  it("says nothing about fall-through when none has happened", () => {
+    // ⚑ Not "0 fell through" — a marketplace where nothing has gone wrong should
+    // be silent about it, not congratulate itself on the home screen.
+    const note = curveNote(n({ fellThrough: 0 }));
+    expect(note).not.toContain("fell through");
+    expect(note).toContain("Ceiling");
+  });
+
+  it("goes silent entirely when neither half can be said", () => {
+    expect(curveNote(n({ takenAtPctOfCeiling: null, fellThrough: 0 }))).toBeNull();
+  });
+});
+
+describe("takenAtPctOfCeiling", () => {
+  it("ignores a trip with no fare, rather than treating it as 100 %", () => {
+    // ⚑ A trip this question cannot be asked about. Counting it would be an
+    // invention wearing a median's clothes. [[d88]].
+    const rows = Array.from({ length: 20 }, (_, i) =>
+      row({ accepted_fare: i < 15 ? 60 : null }),
+    );
+    expect(homeNumbers(rows, NOW).takenAtPctOfCeiling).toBe(60);
+  });
+
+  it("never divides by a zero Ceiling", () => {
+    // ⚑ `ceiling` is NOT NULL in the schema, so zero is the only unusable value
+    // that can actually occur — and 60/0 is Infinity, which would render as a
+    // percentage nobody could explain.
+    const rows = Array.from({ length: 20 }, (_, i) =>
+      row({ accepted_fare: 60, ceiling: i < 15 ? 100 : 0 }),
+    );
+    expect(homeNumbers(rows, NOW).takenAtPctOfCeiling).toBe(60);
+  });
+
+  it("refuses a median on a thin sample", () => {
+    expect(homeNumbers(many(1, { accepted_fare: 60 }), NOW).takenAtPctOfCeiling).toBeNull();
   });
 });

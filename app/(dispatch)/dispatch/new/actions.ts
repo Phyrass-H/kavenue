@@ -8,6 +8,7 @@ import { COMMISSION_RATE_COLS, courseFromBusinessTotal, ratesFromRow } from "@/l
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppContext } from "@/lib/app-context";
 import { businessReadiness } from "@/lib/business-readiness";
+import { recordBusinessEvent } from "@/lib/business-events-server";
 import { isValidLatLng } from "@/lib/geo";
 import { parisLocalToUtc } from "@/lib/time";
 import { routeMetrics } from "@/lib/directions";
@@ -83,8 +84,28 @@ export async function createMission(formData: FormData) {
   // going live needs a complete file. Blocking the draft too would mean losing
   // their work to a missing phone number, which is how you teach someone not to
   // come back.
-  if (!asDraft && !businessReadiness(ctx.business).canPost) {
-    redirect(backTo("profile_incomplete"));
+  if (!asDraft) {
+    const ready = businessReadiness(ctx.business);
+    if (!ready.canPost) {
+      // ⚑ THE ONLY PART OF THIS GATE THAT CANNOT BE RECOVERED LATER. Trips and
+      // money leave rows behind; a Business that hit the wall and walked away
+      // leaves nothing at all unless it is written down now. This is the first
+      // step of the booking funnel the founder asked for in S66.
+      //
+      // ⚑ AWAITED, NOT FIRED AND FORGOTTEN. `redirect()` throws to unwind the
+      // request — a floating promise after it would be cut off mid-flight, and
+      // the event would go missing exactly when someone is repeatedly blocked.
+      await recordBusinessEvent({
+        businessId: ctx.business.id,
+        type: "post_blocked",
+        dispatcherId: ctx.dispatcher.id,
+        actorAuthUserId: ctx.user.id,
+        // What was missing, so the funnel can say WHICH requirement costs the
+        // most — not merely that a wall exists.
+        payload: { missing: ready.blockers.map((g) => g.href) },
+      });
+      redirect(backTo("profile_incomplete"));
+    }
   }
 
   const categoryRaw = String(formData.get("category") ?? "");

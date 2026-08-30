@@ -25,24 +25,10 @@ import {
   type HomeNumbers,
   type NumbersRow,
 } from "@/lib/admin-numbers";
+import { readAll } from "@/lib/admin-list";
 import type { DriverRow, VehicleRow, MissionRow } from "@/lib/database.types";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
-
-/** Read every row of a table that may exceed PostgREST's 1000-row page. */
-async function readAll<T>(
-  run: (from: number, to: number) => PromiseLike<{ data: T[] | null }>,
-): Promise<T[]> {
-  const PAGE = 1000;
-  const out: T[] = [];
-  for (let from = 0; ; from += PAGE) {
-    const { data } = await run(from, from + PAGE - 1);
-    if (!data?.length) break;
-    out.push(...data);
-    if (data.length < PAGE) break;
-  }
-  return out;
-}
 
 export interface DriverWithCar {
   driver: DriverRow;
@@ -51,16 +37,24 @@ export interface DriverWithCar {
 
 /** Every Driver with the car they declared — the fleet, as the rules see it. */
 export async function readFleet(db: Db): Promise<DriverWithCar[]> {
-  const [{ data: drivers }, { data: vehicles }] = await Promise.all([
-    db.from("driver").select("*").order("first_name"),
-    db.from("vehicle").select("*"),
+  // ⚑ PAGED. PostgREST returns at most 1 000 rows to an unbounded select and
+  // says nothing about the rest — measured on this database on 2026-08-30,
+  // `mission_event` came back 1 000 of 2 503 with no error. At 1 001 Drivers the
+  // fleet would silently lose everyone after the thousandth, and the console's
+  // flagship answer — "why can't this Driver take this trip?" — would be missing
+  // Drivers it never mentions.
+  const [drivers, vehicles] = await Promise.all([
+    readAll<DriverRow>((from, to) =>
+      db.from("driver").select("*").order("first_name").range(from, to),
+    ),
+    readAll<VehicleRow>((from, to) => db.from("vehicle").select("*").range(from, to)),
   ]);
-  return (drivers ?? []).map((driver) => ({
+  return drivers.map((driver) => ({
     driver,
     // A Driver may hold several cars; the Pool and accept_mission both look for
     // ANY matching one, so the console shows the active one it would match on.
-    vehicle: (vehicles ?? []).find((v) => v.driver_id === driver.id && v.is_active) ??
-      (vehicles ?? []).find((v) => v.driver_id === driver.id) ??
+    vehicle: vehicles.find((v) => v.driver_id === driver.id && v.is_active) ??
+      vehicles.find((v) => v.driver_id === driver.id) ??
       null,
   }));
 }
@@ -85,13 +79,20 @@ export async function readDriverActivity(db: Db): Promise<Map<string, Activity>>
 
 /** The other live trips a Driver holds — the ±90 minute clash check's input. */
 export async function readCommitments(db: Db): Promise<Map<string, string[]>> {
-  const { data } = await db
-    .from("mission")
-    .select("driver_id, pickup_at")
-    .in("status", ["accepted", "confirmed", "en_route", "arrived", "on_board"])
-    .not("driver_id", "is", null);
+  // ⚑ PAGED. This feeds the ±90-minute clash rule in the matcher — the check
+  // that says whether a Driver is already busy. Truncated at 1 000, it would
+  // report a Driver as FREE when they are not, and the console's flagship
+  // sentence would be confidently wrong rather than merely incomplete.
+  const data = await readAll<{ driver_id: string | null; pickup_at: string }>((from, to) =>
+    db
+      .from("mission")
+      .select("driver_id, pickup_at")
+      .in("status", ["accepted", "confirmed", "en_route", "arrived", "on_board"])
+      .not("driver_id", "is", null)
+      .range(from, to),
+  );
   const byDriver = new Map<string, string[]>();
-  for (const m of data ?? []) {
+  for (const m of data) {
     if (!m.driver_id) continue;
     byDriver.set(m.driver_id, [...(byDriver.get(m.driver_id) ?? []), m.pickup_at]);
   }
@@ -137,14 +138,30 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
   const [fleet, commitments, pooledRes, cancelledRes] = await Promise.all([
     readFleet(db),
     readCommitments(db),
-    db.from("mission").select("*").eq("status", "pooled").gt("pickup_at", nowIso).order("pickup_at"),
-    db
-      .from("mission")
-      .select("id, pickup_label, dropoff_label, cancelled_at")
-      .eq("status", "cancelled"),
+    // ⚑ Both paged. The pooled read decides "nobody can take this trip", and the
+    // cancelled read is one half of "cancelled trips that don't say who
+    // cancelled them" — a finding, not a list, so a truncated read does not
+    // shorten it, it makes it WRONG.
+    readAll<MissionRow>((from, to) =>
+      db
+        .from("mission")
+        .select("*")
+        .eq("status", "pooled")
+        .gt("pickup_at", nowIso)
+        .order("pickup_at")
+        .range(from, to),
+    ),
+    readAll<{ id: string; pickup_label: string | null; dropoff_label: string | null; cancelled_at: string | null }>(
+      (from, to) =>
+        db
+          .from("mission")
+          .select("id, pickup_label, dropoff_label, cancelled_at")
+          .eq("status", "cancelled")
+          .range(from, to),
+    ),
   ]);
 
-  const pooled = (pooledRes.data ?? []).map((mission) => {
+  const pooled = pooledRes.map((mission) => {
     const matched = matchFleet(mission, fleet, commitments, now);
     const takers = matched.filter((m) => m.eligibility.verdict === "can_take");
     return {
@@ -159,9 +176,16 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
   // Which cancelled trips carry no `mission_cancellation` row. The table holds
   // who cancelled, when, why and what it cost; the 23 that predate it can never
   // be filled in, so this number only ever shrinks.
-  const { data: records } = await db.from("mission_cancellation").select("mission_id");
-  const recorded = new Set((records ?? []).map((r) => r.mission_id));
-  const cancelledWithoutRecord = (cancelledRes.data ?? []).filter((m) => !recorded.has(m.id));
+  // ⚑ THE MOST DANGEROUS READ IN THE FILE, AND THE REASON THIS PASS EXISTS.
+  // Truncated at 1 000, `recorded` would be MISSING records — so trips that DO
+  // say who cancelled them would be reported as trips that don't. The finding
+  // would not merely under-count; it would name innocent rows, and there would
+  // be nothing on screen to suggest it was lying.
+  const records = await readAll<{ mission_id: string }>((from, to) =>
+    db.from("mission_cancellation").select("mission_id").range(from, to),
+  );
+  const recorded = new Set(records.map((r) => r.mission_id));
+  const cancelledWithoutRecord = cancelledRes.filter((m) => !recorded.has(m.id));
 
   // Trips handed back more than once. `repooled` is a trigger event, so this is
   // observed, not inferred.
@@ -171,10 +195,20 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
   const tally = new Map<string, number>();
   for (const r of repools) if (r.mission_id) tally.set(r.mission_id, (tally.get(r.mission_id) ?? 0) + 1);
   const repeatIds = [...tally.entries()].filter(([, n]) => n >= 2).map(([id]) => id);
-  const { data: repeatRows } = repeatIds.length
-    ? await db.from("mission").select("id, pickup_label, dropoff_label").in("id", repeatIds)
-    : { data: [] };
-  const passedAround = (repeatRows ?? []).map((m) => ({
+  // ⚑ Paged too. `.in()` bounds the QUERY, not the RESPONSE — PostgREST still
+  // caps what comes back at 1 000, so on a marketplace with more than a thousand
+  // passed-around trips the finding would quietly name only some of them.
+  const repeatRows = repeatIds.length
+    ? await readAll<{ id: string; pickup_label: string | null; dropoff_label: string | null }>(
+        (from, to) =>
+          db
+            .from("mission")
+            .select("id, pickup_label, dropoff_label")
+            .in("id", repeatIds)
+            .range(from, to),
+      )
+    : [];
+  const passedAround = repeatRows.map((m) => ({
     id: m.id,
     label: tripLabel(m),
     times: tally.get(m.id) ?? 0,

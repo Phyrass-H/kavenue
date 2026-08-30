@@ -26,7 +26,7 @@ export default async function CompanySettingsPage({
     <>
       <SettingsHeader
         title="Your company"
-        sub="You drive as a company, and you invoice as one. This is who we pay."
+        sub="You drive as a company, and you invoice as one. This is who we pay — and what your Waybill shows at a check."
       />
       <SaveNotice ok={ok} error={error} messages={NOTICE} />
 
@@ -51,6 +51,38 @@ export default async function CompanySettingsPage({
               placeholder="812 456 789 00014"
             />
             <span className="dhint">14 digits, from your Kbis or SIRENE notice.</span>
+          </label>
+          <label className="field">
+            <span>Registered address</span>
+            <input
+              type="text"
+              name="registered_address"
+              defaultValue={driver.registered_address ?? ""}
+              placeholder="12 rue Barla, 06300 Nice"
+            />
+            <span className="dhint">The address on your Kbis — not where you wait for work.</span>
+          </label>
+          <label className="field">
+            <span>REVTC number</span>
+            <input
+              type="text"
+              name="revtc_number"
+              defaultValue={driver.revtc_number ?? ""}
+              placeholder="EVTC 006 210 045"
+            />
+            <span className="dhint">
+              The number on your registration certificate — the number itself, not the scan.
+            </span>
+          </label>
+          <label className="field">
+            <span>Professional card number</span>
+            <input
+              type="text"
+              name="pro_card_number"
+              defaultValue={driver.pro_card_number ?? ""}
+              placeholder="06 24 01 8837"
+            />
+            <span className="dhint">The number on the card in your windscreen.</span>
           </label>
           <label className="field" style={{ marginBottom: 0 }}>
             <span>VAT number</span>

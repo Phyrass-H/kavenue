@@ -181,6 +181,28 @@ D86 · D87 · D88 · D90 · two in D91 · D92 · and now:
 > "passed". **All three looked like results. A check is only evidence once you have watched it fail on
 > purpose.**
 
+### ⚑ BOOKED IN S72 — THE HOLD SHIPS WITH ITS EVENTS, OR NOT AT ALL
+`docs/06` §7's **30-second hold is NOT BUILT** — it is step 4 of that doc's own build order, logged
+"not done, on purpose" in S64. ⚑ **The founder believed it was already live** (S72). That belief is exactly
+how a feature ships bare.
+
+**The rule, now enforced by `handoff-check` assertion 39:** a hold ends by commit — which leaves a
+`confirmed` row behind — or by lapse, and **a lapse leaves nothing**: no status transition, so no trigger,
+and nothing runs at T+30 s to witness it. So the hold's events (`hold_started`, `hold_lapsed`) go in the
+**same commit as the feature**, never a session later. Every lapse before that is lost for good.
+
+The guard is silent while the hold does not exist and goes red the moment it does without its events. It
+checks the accept path **and** `docs/migrations/` for hold *identifiers* (never the word — "hold" is
+ordinary English and the spec is full of it), **plus the live DB column**, since the founder applies
+migrations by hand hours before the repo mentions them. Both halves are load-bearing: the vocabulary in
+`lib/mission-events.ts` **and** the `mission_event_type` registry row. ⚑ Verified by planting a hold
+migration and watching it go STALE — twice, once with the vocabulary missing and once with the vocabulary
+present but the registry empty.
+
+⚑ **This is the ONLY measurement on the board that cannot be collected backwards.** Presence, conversion
+and time-to-accept can all start counting whenever someone gets to them. That asymmetry is why this was
+booked before the Waybill rather than queued behind it.
+
 ### 🔒 STILL DECIDED, do not re-open
 Everything in the S66 table below, plus:
 - **`vtc_company` is a Business type**, not a Driver. An operator with more trips than cars is a customer.
@@ -216,7 +238,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**38 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**39 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 815 passing

@@ -49,8 +49,32 @@ export function driverReadiness(
   if (!vehicle?.make || !vehicle?.model || !vehicle?.plate) {
     gaps.push({ label: "Finish your vehicle details", href: "/settings/vehicle", tone: "block" });
   }
+  // S72 — the exploitant mentions of the arrêté du 6 août 2025. Without them Kavenue
+  // cannot issue the Waybill (lib/waybill.ts), so a Driver stopped at a check has nothing
+  // to show. That is a blocker in substance even though this module still only SHOWS.
+  // ⚑ SIRET was a warning until S72; it carries mention 3° (the SIREN is its first nine
+  //   digits), so it is now a blocker for the same reason as the other two.
   if (!driver.siret) {
-    gaps.push({ label: "Add your SIRET", href: "/settings/company", tone: "warn" });
+    gaps.push({ label: "Add your SIRET", href: "/settings/company", tone: "block" });
+  }
+  if (!driver.registered_address) {
+    gaps.push({
+      label: "Add your registered address",
+      href: "/settings/company",
+      tone: "block",
+    });
+  }
+  if (!driver.revtc_number) {
+    gaps.push({ label: "Add your REVTC number", href: "/settings/company", tone: "block" });
+  }
+  // Not one of the seven — the card itself is on the windscreen. It prints on the Waybill
+  // because a controller cross-checks it, so its absence is a deadline, not a wall.
+  if (!driver.pro_card_number) {
+    gaps.push({
+      label: "Add your professional card number",
+      href: "/settings/company",
+      tone: "warn",
+    });
   }
 
   for (const doc of docs) {
@@ -72,7 +96,7 @@ export function driverReadiness(
   gaps.sort((a, b) => (a.tone === b.tone ? 0 : a.tone === "block" ? -1 : 1));
 
   // Every check above is one step; the bar fills as they're cleared.
-  const total = 5 + docs.length;
+  const total = 8 + docs.length;
   const done = total - gaps.length;
   const blockers = gaps.filter((g) => g.tone === "block").length;
   const warnings = gaps.length - blockers;

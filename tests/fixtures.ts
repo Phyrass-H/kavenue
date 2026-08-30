@@ -95,6 +95,7 @@ export function mission(over: Partial<MissionRow> = {}): MissionRow {
     waiting_minutes: null,
     waiting_rate: null,
     waiting_fee: null,
+    vehicle_id: null,
     ...over,
   };
 }

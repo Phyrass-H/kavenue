@@ -5146,6 +5146,18 @@ first two got the census wrong: `2026-08-30_admin_rollup_periods.sql`, then
 - ⚑ **AN AUDIT LOG WITH A MANUFACTURED ROW IS WORSE THAN AN EMPTY ONE.** The `post_blocked` proof row was
   deleted after verifying. It recorded a refusal that a session provoked, not one a Business met.
 
+### Finally — Range, and the last red check ([[d107]], [[d108]])
+`components/admin-range-tab.tsx` (the bar's only client island) · `.adm-per__pop` · `AdminPeriod` gains
+`fromDay`/`toDay`/`today` · `dataset-audit`'s provenance check rewritten. **811 → 815 tests.**
+
+- ⚑ **A RANGE HAS NO ANCHOR**, and `qs()` carried only `period` + `anchor` — so a drill-down from a range
+  silently widened to all time while the label still said eleven days. Found by reading the generated href.
+- ⚑ **`dataset-audit` HAD BEEN RED SINCE BEFORE THE SESSION STARTED** and it was measuring elapsed time: its
+  provenance check asked "created in the last 6 hours?" as a proxy for "posted for real". Now asks whether any
+  MANUFACTURED trip carries a `db_trigger` event — a predicate that does not decay. **30 · 0.**
+- ⚑ **AND VERIFYING IT WAS A FALSE GREEN FIRST**: the planted violation was rejected (`audience` is an array),
+  so the check passed because the SETUP failed. The plant now asserts its own insert.
+
 ### Still open at the close
 - **The design lock** (§ 3) — proposed, not approved: five of seven screens ratified, five changes named, the
   biggest being that **six console reads stop at 1 000 rows silently** (measured: an unpaged select returned

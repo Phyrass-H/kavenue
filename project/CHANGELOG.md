@@ -5,6 +5,34 @@
 
 ---
 
+## 30 August 2026 — pick any two dates, and the last red check goes green
+
+**Range is in.** The sixth tab on the period bar opens the same calendar your Dispatch History and Driver
+Earnings already use — pick two days and every number on the screen is about that span. Verified live: 10–20
+August reads *"55 trips posted in 10 August – 20 August · 11 days"*, and the towns underneath add up to it.
+
+Four shortcuts inside it — last 7 days, last 30, this month, last 90.
+
+⚑ **A bug I found in my own work while testing it.** Clicking a town while looking at a range dropped the
+range: every other period is "a month" or "a week" and can be written as one word, but "10–20 August" is a
+pair of dates, and my link only carried the word. The screen would still have said eleven days while showing
+you all time. Fixed and pinned by a test.
+
+**And the one check that was still red is now green — it was measuring the clock, not your data.** It asked
+"was this trip created in the last 6 hours?" as a stand-in for "was it real or manufactured". A trip posted
+for real is real forever, but stops being *recent* after six hours — so it went red at 23, then 37, purely
+because the day went on. It had been red since this morning, before I touched anything.
+
+It now asks the question it was always meant to ask: does any manufactured trip carry the database's own
+guarantee, pretending to have been witnessed? **342 manufactured trips, none of them pretending. 30 checks, 0
+failed.**
+
+⚑ And my first attempt to prove that check works was itself a false green — the row I planted to break it was
+rejected by the database, so the check passed because my *setup* had failed. That's the third time in one day
+the same shape appeared. A check is only evidence once you've watched it fail on purpose.
+
+Tests: 811 → **815**.
+
 ## 30 August 2026 — the three fixes, and the home page tells the truth about next month
 
 **1 · The 1 000-row problem is closed.** Six places in the console asked the database for "everything" and

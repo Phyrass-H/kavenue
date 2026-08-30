@@ -2911,3 +2911,58 @@ at 357 — and the manufactured row was then removed, because an audit log carry
 than an empty one.
 
 Tests: 798 → **811**.
+
+### D107 — Range is the app's calendar, and a span carries its own ends (2026-08-30, S71)
+
+The sixth tab on the console's period bar is the only one that cannot be a link: a hand-picked span has to be
+chosen before there is a URL to link to. So it is the one client island on the bar — the other five stay
+server-rendered links, because the period lives in the URL and is therefore shareable, bookmarkable and
+survives a reload.
+
+**⚑ THE APP'S OWN CALENDAR, THE THIRD CALLER.** `components/date-cal.tsx` was extracted in S52 so Dispatch
+History and the Driver's Earnings pick a range with the same control ([[d64]]–[[d66]]); the rule then was that
+it gets built once. Why it is not `<input type="date">` is documented there — the native picker cannot express
+a range at all.
+
+**⚑ A RANGE HAS NO ANCHOR, AND THAT BROKE A DRILL-DOWN.** Every other granularity is an anchor plus a name;
+"10–20 August" is a pair of ends. `qs()` carried `period` and `anchor`, so clicking a city while looking at a
+range produced `?city=CANNES&period=range` with no span — silently widening the answer while the screen still
+said eleven days. Found by reading the generated href, not by a test; now pinned by one.
+
+**No "All time" preset inside the picker.** All time is its own tab and the default; offering it again inside
+the range picker would make it a span with two ends, which is exactly what all time is not.
+
+**⚑ AND `.ecal` POSITIONS ITSELF ABSOLUTELY ACROSS ITS PARENT** — correct for the Driver's full-width Earnings
+block, and a two-character-wide ribbon when the parent is a toolbar tab. Dispatch History already solved this
+with `.dxh-cal`: the wrapper sets the width, the calendar sits inside it in normal flow. Copying half the
+pattern rendered a calendar one column wide.
+
+---
+
+### D108 — A check whose premise is "recently" reports the clock, not the data (2026-08-30, S71)
+
+`dataset-audit`'s provenance check asked *"was this trip created in the last 6 hours?"* as a proxy for *"was it
+posted for real rather than manufactured"*. **The proxy decays by design.** A trip genuinely posted through the
+app is real forever, but stops being recent after six hours — so the check went red at 23 stray, then 37,
+purely because the day went on. Re-running `seed-live.mts` did not clear it, because the older live trips
+survive alongside the new ones.
+
+**It was reporting the clock.** And it had been red all session — including at the opening gate, before
+anything was touched — which is the worst kind of failing check: one a future session inherits, cannot
+reproduce a cause for, and eventually learns to ignore.
+
+**The question the section actually asks is its own heading: does anything pretend to be observed?** A
+manufactured trip carries `source='seed'` events; a genuinely posted one carries `db_trigger` events the
+database wrote itself. So the real failure is a trip holding **both** — a manufactured trip wearing the
+database's guarantee ([[d94]]). That predicate does not decay, and it is the thing that would actually make the
+console lie about what it witnessed. **30 · 0 failed.**
+
+**⚑ AND THE FIRST ATTEMPT TO VERIFY IT WAS ITSELF A FALSE GREEN.** Planting a violation failed —
+`mission_event.audience` is an array and the insert was rejected — so the check passed because the SETUP had
+failed, not because the check worked. The same shape as the gender guard reporting `0 of 0` earlier the same
+day. The planting script now asserts its own insert before the check is run, and the check was then watched
+going red with one planted row and green again after removing it.
+
+> **Three times in one session, in three different disguises:** a guard reading `data ?? []` over a failed
+> query, a probe comparing sorted rows with `JSON.stringify`, and a red check that was measuring elapsed time.
+> All three looked like results. **A check is only evidence once you have seen it fail on purpose.**

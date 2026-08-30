@@ -103,14 +103,22 @@ function BreakdownHead() {
 // at July must stay in July — otherwise the drill-down silently answers a wider
 // question than the one on screen, and the number the reader lands on is right
 // for a period they did not ask for.
-function qs(f: Filter, when: { period: string | null; anchor: string | null }): string {
+function qs(f: Filter, when: { period: string | null; anchor: string | null; from?: string; to?: string }): string {
   const p = new URLSearchParams();
   if (f.type) p.set("type", f.type);
   if (f.region) p.set("region", f.region);
   if (f.city) p.set("city", f.city);
   if (when.period) {
     p.set("period", when.period);
-    if (when.anchor) p.set("anchor", when.anchor);
+    // ⚑ A RANGE HAS NO ANCHOR — it is a pair of ends, and carrying only the
+    // period name would drop the span. Clicking a row while looking at
+    // "10–20 August" would then answer for all time and look identical.
+    if (when.period === "range") {
+      if (when.from) p.set("from", when.from);
+      if (when.to) p.set("to", when.to);
+    } else if (when.anchor) {
+      p.set("anchor", when.anchor);
+    }
   }
   const s = p.toString();
   return s ? `/admin/businesses?${s}` : "/admin/businesses";
@@ -126,15 +134,19 @@ export default async function AdminBusinessesPage({
     page?: string;
     period?: string;
     anchor?: string;
+    from?: string;
+    to?: string;
   }>;
 }) {
-  const { type, region, city, page, period, anchor } = await searchParams;
+  const { type, region, city, page, period, anchor, from, to } = await searchParams;
   const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
 
   const filtered = Boolean(type || region || city);
   // All time unless the URL says otherwise — the default every screen opens with.
-  const when = parseAdminPeriod({ period, anchor });
+  const when = parseAdminPeriod({ period, anchor, from, to });
+  // What every link on the page must carry to stay in the same period.
+  const carry = { period: when.period, anchor: when.anchor, from, to };
 
   const [overviewRes, listRes] = await Promise.all([
     db.rpc("admin_business_overview", { p_from: when.fromIso, p_to: when.toIso }),
@@ -229,7 +241,7 @@ export default async function AdminBusinessesPage({
               key={row.key ?? "none"}
               label={typeKeyLabel(row.key)}
               row={row}
-              href={qs({ type: row.key ?? undefined }, when)}
+              href={qs({ type: row.key ?? undefined }, carry)}
             />
           ))}
         </section>
@@ -244,7 +256,7 @@ export default async function AdminBusinessesPage({
               <BreakdownRow
                 label={group.label}
                 row={group}
-                href={qs({ region: group.key ?? undefined }, when)}
+                href={qs({ region: group.key ?? undefined }, carry)}
               />
               {/* Cities sit under their région rather than in a table of their
                   own: at 25 000 Businesses "Nice" means nothing until you know
@@ -254,7 +266,7 @@ export default async function AdminBusinessesPage({
                   key={c.key ?? "none"}
                   label={c.label}
                   row={c}
-                  href={qs({ city: c.key ?? undefined }, when)}
+                  href={qs({ city: c.key ?? undefined }, carry)}
                   indent
                 />
               ))}
@@ -278,7 +290,7 @@ export default async function AdminBusinessesPage({
             ]
               .filter(Boolean)
               .join(" · ")}{" "}
-            — <Link href={qs({}, when)}>clear</Link>
+            — <Link href={qs({}, carry)}>clear</Link>
           </p>
         )}
         {rows.length === 0 ? (
@@ -320,7 +332,7 @@ export default async function AdminBusinessesPage({
           const n = pageNote(Number(total), win, PER_PAGE);
           if (!n) return null;
           const href = (p: number) => {
-            const base = qs({ type, region, city }, when);
+            const base = qs({ type, region, city }, carry);
             const sep = base.includes("?") ? "&" : "?";
             return p === 0 ? base : `${base}${sep}page=${p}`;
           };

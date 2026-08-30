@@ -117,3 +117,50 @@ describe("periodHref", () => {
     );
   });
 });
+
+describe("a hand-picked range carries its own ends", () => {
+  it("⚑ writes from/to into the URL, never an anchor", () => {
+    // A range cannot be expressed as an anchor plus a name — "16 June to 31
+    // July" has no granularity. A link that carried only `period=range` would
+    // silently widen back to a default span, and the reader would never know.
+    const href = periodHref(
+      "/admin/businesses",
+      { period: "range", anchor: null, from: "2026-08-10", to: "2026-08-20" },
+      { city: "NICE" },
+    );
+    expect(href).toContain("period=range");
+    expect(href).toContain("from=2026-08-10");
+    expect(href).toContain("to=2026-08-20");
+    expect(href).toContain("city=NICE");
+    expect(href).not.toContain("anchor=");
+  });
+
+  it("still writes an anchor for the granularities that have one", () => {
+    const href = periodHref(
+      "/admin/drivers",
+      { period: "month", anchor: "2026-07-15", from: "x", to: "y" },
+      {},
+    );
+    expect(href).toContain("anchor=2026-07-15");
+    expect(href).not.toContain("from=");
+  });
+
+  it("reads a range back off the URL with both ends", () => {
+    const p = parseAdminPeriod(
+      { period: "range", from: "2026-08-10", to: "2026-08-20" },
+      NOW,
+    );
+    expect(p.period).toBe("range");
+    expect(p.fromDay).toBe("2026-08-10");
+    expect(p.toDay).toBe("2026-08-20");
+    expect(p.prev).toBeNull();
+    expect(p.next).toBeNull();
+  });
+
+  it("exposes today as a Paris day, for the calendar to mark", () => {
+    // ⚑ Paris, not the viewer's clock — every other date on the console is a
+    // Paris day, and a calendar marking "today" from the browser would disagree
+    // with the screen around it for two hours every night.
+    expect(parseAdminPeriod({}, NOW).today).toBe("2026-08-30");
+  });
+});

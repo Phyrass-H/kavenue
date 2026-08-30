@@ -41,11 +41,12 @@ START BY READING — **just these four**; they get you fully up to date without 
 - **This file** (`project/NEXT_SESSION.md`) — the current state + what's next (the resume point).
 - `project/CHANGELOG.md` — plain-language history, the **recent entries** (the big picture, fast). Older entries live in
   `project/CHANGELOG_ARCHIVE.md` — read it only if you need the deep history.
-- `project/SESSION_LOG.md` — skim the **newest entry (Session 66)** for recent technical detail; S65 behind it
+- `project/SESSION_LOG.md` — skim the **newest entry (Session 71)** for recent technical detail; S65 behind it
   is the growth limit + the event log. Older sessions (1–33) are in `project/SESSION_LOG_ARCHIVE.md` — don't
   open it unless you need deep history.
-- `project/DECISIONS.md` — **read D86, D87 and D88** (the newest three). They are this session's decisions and
-  the reasoning behind the next job; the "🔒 DECIDED IN S66" table below is only their summary.
+- `project/DECISIONS.md` — **read D99 – D108** (S71's ten). They are the reasoning behind everything the
+  Activity Console now does, and three of them ([[d102]], [[d105]], [[d108]]) are the traps that cost the most
+  time. The tables below are only their summary.
 
 READ ON DEMAND — open these **only when the task actually touches that area** (this is the big context saver,
 and it loses nothing — the docs are all still here, just read when relevant):
@@ -109,253 +110,170 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ---
 
-## WHERE WE ARE (2026-08-29, end of S70)
+## WHERE WE ARE (2026-08-30, end of S71)
 
-### ✅ Shipped in S70 — FOUR NUMBERS ON THE ADMIN HOME ([[d98]])
-The session was meant to be § 2 (the founder driving the console) and started that way. Their first reaction
-was not a bug report: *"the main page looks so empty, isn't there something we can do as a nice but useful UI
-on home page? Like main numbers of Kavenue or something?"*
+`main` = **`ec32cfb` plus the S71 close commits** — `git log --oneline -8` for the rest. Each was CI-green on a
+branch before the push. **700 → 815 tests. handoff-check 32 → 38.**
 
+### ⚑ THE GATE IS FULLY GREEN FOR THE FIRST TIME IN A WHILE
+Every probe passes, including `dataset-audit` (30 · 0), which had been red since before this session started —
+see [[d108]]. Run the § 0 gate anyway; that is the point of it.
+
+### ✅ Shipped in S71 — the founder's whole list, in their order
 | | |
 |---|---|
-| **shipped** | `lib/admin-numbers.ts` (new, pure, tested) · `readHomeNumbers` · a `Band` component in `app/admin/page.tsx` · `.adm-band`/`.adm-nums`/`.adm-months` |
-| **the four** | **86 % found a Driver · 29 537 € hotels paid · 22 602 € Drivers banked · 5 779 € Kavenue kept**, over a bar per month |
-| **tests** | 683 → **700** |
-| ⚑ **the founder's standing correction** | *"when I ask a question about anything it is not related to NOW but how we dev the expérience for the future when traffic will be huge."* The seeded dataset is scaffolding, never the subject. Answer a scale question with a **small-N rule**, not a refusal. In memory as `design-for-scale-not-todays-data` |
+| **the vocabulary** | *"stop saying hotels"*. Gone from the console; **`CLAUDE.md` hard rule #1 now forbids it** |
+| **business types** | nine, incl. `vtc_company` — an operator posting overflow is a customer. `lib/business-type.ts` |
+| **the enrollment gate** | type + reception phone + billing email before a trip goes live. Bites at POST, never sign-up; a draft is never blocked ([[d99]]) |
+| **the French register** | sign-up fills itself from `recherche-entreprises.api.gouv.fr` — free, keyless, France-only. Reads the ESTABLISHMENT, not the head office |
+| **Businesses at 25 000** | breakdown IS the navigation; arithmetic in SQL ([[d100]]) |
+| **Drivers, cars, classes** | the twin ([[d102]]) |
+| **gender** | optional, four values, decides nothing — and a probe enforces that ([[d101]]) |
+| **periods** | All time by default, from day one. Months sum exactly to the whole ([[d103]]) |
+| **the 1 000-row cliff** | six reads paged; the gate proves the cap live ([[d104]]) |
+| **`post_blocked`** | `business_event`, the funnel's first step ([[d106]]) |
+| **the main page** | the September lie fixed, two new figures ([[d105]]) |
+| **Range** | the app's own calendar, third caller ([[d107]]) |
 
-⚑ **STILL OPEN from S70, and explicitly proposed** — the **city strip** (`Cannes 46 of 49 · Nice 37 of 39 …`,
-bookings as the sort, fill rate as the paired column), two lines the design pass argued for (*"taken at 61 %
-of Ceiling"* and *"fell through after accepting"*), and a **fake-data mode** the founder parked with *"ok
-leave it for now"*. ⚑ If that last one returns: **fake the SNAPSHOT, never the screen** — `readActivitySnapshot()`
-returns a plain object and `findings()` is pure, so one dev-only substitution renders the REAL page. A
-separate `/admin/preview` route would be an eighth instance of "code nothing reaches" (D86–D92).
+### 🔴 WAITING ON THE FOUNDER — nothing below is blocked on Claude
+These are decisions, not tasks. **Ask, do not assume.**
 
-### S69 — the console's UI pass and the false money alarm
-`main` = **the S69 commits, `64a68f1` first** (`git log --oneline -5` for the rest — a handoff that
-names the tip SHA is stale the moment it is committed). Each was CI-green on a branch before the push. **NO migration in S68 or S69** — RLS
-already grants `app_role()='admin'` read on everything, so the whole console is app-side.
+1. **THE DESIGN LOCK — three changes still unapproved.** The written decision for all seven console screens,
+   published as an Artifact (`8cac11c8-73a4-4411-9b07-0adc30e0cd0d`). Five of its seven screens were ratified
+   as they stand; two of its five proposed changes got built during S71 anyway. **The three left:**
+   - **Move "Worth a look" ABOVE the numbers on `/admin`.** The stylesheet already says a finding must never
+     be out-shouted by the band — and then renders the band first. A number is the same at 9am and 5pm.
+   - **Trip rows should say WHICH money they show.** Every row on every list prints the **Ceiling** — the most
+     the Business would ever pay — unlabelled, even on a finished trip, where the true number is what it went
+     for. Proposed: `Ceiling 120 €` while looking, `Went for 74 €` once taken, nothing on a cancelled row.
+   - **(the third, the 1 000-row fix, is DONE — [[d104]].)** So it is really two.
+2. **`Marc Fontaine`'s gender is `man` in the database** because S71 set it to prove the breakdown renders.
+   Founder was told twice and has not said either way. **Clear it or keep it.**
+3. **The booking funnel's other three events** — `started` / `abandoned` on the booking form (`posted` already
+   exists as `mission_event.pooled`, trigger-guaranteed — do NOT duplicate it). Needs client instrumentation,
+   and needs the founder to agree it is not the browsing they cut in S66.
+4. **The "last seen" tracker** — one write per person per day, for DAU/MAU. Asked for in S66, never built.
+   ⚑ Records THAT they came, never what they looked at — that distinction is what made it acceptable.
 
-### ✅ Shipped in S69 — THE CONSOLE'S UI PASS
-The founder picked § 2's second half and skipped the first: *"I don't drive i'm not ready, you said 6 UI
-problems you can start with that?"* **All six are done**, plus the one they found themselves.
+### 🎯 IF THE FOUNDER HAS NO PREFERENCE, the honest next jobs
+- **§ 4 THE BOOKING VOUCHER** — real Drivers get stopped by police. ⚑ The founder does not remember the "7
+  mandatory fields" and asked to **START FRESH — do not lead with the arrêté**. Ask for their list first, then
+  reconcile with `docs/01_Legal_VAT_Compliance.md:28`. `booking_voucher` is an empty table no code touches.
+- **§ 5 THE EMBARRASSING DETAILS** — the Driver's **photo and languages are shown to nobody** while two
+  shipped strings promise otherwise · `manifest.webmanifest` ships `"icons": []` · no welcome banner, no FAQ ·
+  `field_of_activity` and `business_type` still both exist (the app now only writes the second).
+- **§ 6 THE ANALYTICS PAGE** — last, deliberately. It needs the trackers above to say anything new; the
+  console already answers most of what it would.
 
-| | |
-|---|---|
-| **the hotel page** | a hotel's own name is off its own rows — `→ Nice Airport, T2`, or `← Nice Airport, T1` when the trip comes BACK. ⚑ Matched on **coordinates**, never the name; `SAME_PLACE_KM = 0.25`. Classifies all 350 live trips: 348 leave · 1 returns · 1 neither |
-| **the roll-ups** | gone from both headings. The rows already say `Unfilled` |
-| **the picker** | `components/admin-driver-picker.tsx`, the console's first client component. Find box at 8 Drivers and up. ⚑ Alphabetical, **not** tinted by verdict — the sentence above it already names who matched |
-| **bands** | **day** on `/admin/trips`, **month** on a hotel's and a Driver's page — see the trap. `lib/admin-list.ts` |
-| **pagination** | replaces **four** silent caps — the three lists and the search box, which now says *"Showing the first 8 of each kind — 185 trips match"*. `pageNote()` returns **null** when everything fits, so the console stays silent by construction |
-| **the fleet list** | `83 trips · last 25 Aug`, or `never taken a trip`. ⚑ **Three states, not two** — `held 8, none finished` exists and nobody is in it today |
-| **[[d96]] · the bases** | the founder's catch: *"why would a driver be based at the Negresco?"* `BASES` is now a map of **towns**, separate from `PLACES`. 13 live rows moved by `.local/seed/rebase-drivers.mts`, which **refuses to write** if any move would strand a past trip (0 of 294) |
-| **two live-screen defects** | `quoteKm()` — a refusal that read *"60 km … up to 60 km"*; and `migrations-2026-08-11` **B4**, red since the bleach for an unrelated reason |
-| **tests** | 647 → **683** (+36) |
+### ⚑ THE PATTERN, NOW ELEVEN — and S71 added the sharpest three
+D86 · D87 · D88 · D90 · two in D91 · D92 · and now:
+- ⚑ **[[d102]] — COPYING A SCREEN COPIES ITS ASSUMPTIONS.** "Filled" means *a Driver was found*, which is the
+  Business's question. Every trip a DRIVER holds was accepted by that same Driver, so the copied column would
+  have read ~100 % on every row forever, looking like a measurement.
+- ⚑ **[[d105]] — A CHART KEYED ON `pickup_at` HAS A FUTURE.** The home screen said *"5 trips last month, down
+  from 147"* on 30 August, describing **September**. Not slightly wrong — inverted.
+- ⚑ **[[d108]] — A CHECK WHOSE PREMISE IS "RECENTLY" REPORTS THE CLOCK.** Red since before the session began,
+  for no reason but elapsed time.
 
-### ⚑ WHAT THE CONSOLE SAYS TODAY — unchanged, all three still true
-Karim Nasri is now **60,4 km** from Valberg (was 60,8 from Belles-Rives) on a 60 km radius, so *"nobody can
-take Valberg → Marseille Airport"* still holds. Amine Belkacem and Clara Vidal are still unverified and can
-still accept work ([[d92]]). Two trips have still been passed around.
+> **And the meta-lesson, which arrived three times in one day wearing three disguises:** a guard reading
+> `data ?? []` over a FAILED query went green; a probe comparing sorted rows with `JSON.stringify` reported
+> four failures that were not real; and a planted violation was rejected by the database, so the check
+> "passed". **All three looked like results. A check is only evidence once you have watched it fail on
+> purpose.**
 
-### ✅ Shipped in S68 — THE ACTIVITY CONSOLE
-| | |
-|---|---|
-| **the console** | `admin.kavenue.fr` — search a Driver / hotel / trip · one trip's story in order · one Driver · one hotel. Runs as the signed-in admin through the ordinary server client, **never the service role** |
-| **the flagship** | *"Why can't this Driver take this trip?"* — pick any Driver against any trip, get one sentence back. Answering that used to mean querying the DB by hand |
-| **D92** | ⚑ **Two fields recorded about every Driver decide nothing** — `operational_zones` and `verified`. Reported, not omitted; guarded by grep in two probes |
-| **D93** | ⚑ **Refused ≠ never shown.** Six rules refuse (`accept_mission`), three only hide (the Pool query). Different problems, different fixes |
-| **tests** | 555 → **647** (+92) across `eligibility` · `activity-findings` · `mission-story` |
-| **browse** | `/admin/{drivers,businesses,trips}` + nav. The state is on the ROW — *"no base — Pool empty"*, *"3 nobody took"* — never a count at the top |
-| **the founder's own check** | *"nobody has ever used the release request"* — true, all time. ⚑ Read from the **domain table**, never the log (the log is 2 days old; `mission_release` goes back to the beginning) |
-| **probe** | `.local/probe/eligibility-live.mts` — 33 checks. ⚑ **`npx tsx`, not node** |
-| **the fleet** | ⚑ SUPERSEDED by the bleach — the whole database was rebuilt, see below |
-| **D94 · the bleach + 3 months** | 3 210 rows deleted · 4 hotels · 11 Drivers · **348 trips** over 3 months, each one WALKED through real status transitions. The seeded log says `source='seed'`, never `db_trigger` |
-| **D95 · past tense** | A settled trip asks *"who could have taken this?"* instead of refusing everyone eleven times |
+### 🔒 STILL DECIDED, do not re-open
+Everything in the S66 table below, plus:
+- **`vtc_company` is a Business type**, not a Driver. An operator with more trips than cars is a customer.
+- **Bank details are NOT in the posting gate.** `PAYMENT_GATE_ON = false` with a test asserting it. Stripe is
+  not wired; gating on it would stop every Business posting. One line the day Stripe lands.
+- **The S70 city strip was REFUSED** — `/admin/businesses` now carries régions ▸ cities, so by [[d98]]'s own
+  test it no longer earns the home page.
+- **No CHECK constraint on `business_type` or `driver.gender`** — the app narrows, `handoff-check` detects.
+- **Breakdown COUNTS are a census; TRIPS are activity** ([[d103]]). Do not make a count follow the period.
 
-### ⚑ WHAT THE CONSOLE SAYS TODAY — three findings, all true, all deliberate
-⚑ **Everything the console found on the OLD fleet is gone with it** — Marc Dubois, the six baseless Drivers,
-the two unservable Eco trips. That whole database was bleached on 2026-08-26. **Do not go looking for them.**
-Against the new dataset it reports:
-1. **Nobody in the fleet can take Valberg → Marseille Airport** — First-class van, and the only one (Karim
-   Nasri) is 61 km away on a 60 km radius. ⚑ **Seeded on purpose**, so the check has something to find.
-2. **Amine Belkacem and Clara Vidal aren't verified, and can accept work anyway** — [[d92]], still true, still
-   not a bug to fix quietly.
-3. **Two trips have been taken and given back more than once** — Cannes → Valberg (three times, over nine
-   days) and Nice → Saint-Tropez (twice). ⚑ Also seeded on purpose; the founder named this check themselves.
+### 🅥 PARKED — do not raise unprompted
+- **§ AH · the check-in loophole** (founder raised it, wants it later). Four options written up, none chosen.
+- **§ V** (lower-class opt-in) → V3+. **The stranded Classe V is NOT a bug to fix.**
+- **§ AF** aggregate demand sensing — unmeasurable at 13 Drivers.
+- **`pickup-marketplace.vercel.app` is still live** under La Poste's trademark. Founder's call, § AD.
+- Notifications / payments / real auth / flight tracking — the founder's standing phase rule.
 
-Quiet, and correctly so: every shipped feature has now been used at least once, every Driver has a base, every
-cancelled trip carries its record, and nothing is orphaned in the log.
+### 🧹 BEFORE REAL LAUNCH
+`.local/seed/bleach.mts --confirm` — ran 2026-08-26, removed 3 210 rows. ⚑ Read its KEEP list before running
+it again; that list is the whole safety of the thing. ⚑ It deletes the accounts 15 live probes sign in as —
+run `seed-probe-accounts.mts` straight after. ⚑ **And `.local/seed/backfill-business-places.mts`**, which is
+the only thing that gives the seeded Businesses a city/région.
 
-### ⚑ THE PATTERN — now SEVEN
-D86 (a gate on a status nothing reaches) · D87 (event types nothing wrote) · D88 (a check skipped when data
-was missing) · D90 (a role with no branch) · two in D91 the **compiler** caught · **and now D92: two fields
-consulted by nothing.**
+### 📋 V1 COMPLETENESS
+**38 KEEP features in Doc 02: 27 built · 8 partial · 3 missing.** Nothing on the critical path is unbuilt.
+GDPR consent capture + account deletion are still absent — **founder-owned, do not gate on it**.
 
-> **Where a value must cover every case, make the compiler the check.** `PHRASES` in `lib/mission-story.ts`
-> refused to compile until `close_answered` had a sentence — in the first minute of writing it.
-> And still: **a missing value is a REFUSAL, never a skip** (D88); **"zero rows" is not proof of a bug** (S67)
-> — D92 was found by `grep -rn`, not by an empty query.
+---
 
-### 🎯 NEXT SESSION (S71) — THE FOUNDER'S OWN WORDS, given at the close of S70
+## ⚑ 0 · VERIFY BEFORE YOU BUILD — THIS IS A GATE, NOT A SUGGESTION
 
-> *"It will be checking and testing the Activity Console UI/UX and lock design and infos priority."*
+A handoff is a *claim about the repo*, and claims decay. Run this first:
 
-**Three jobs, and the third is the one that outlives the session:**
-1. **They drive the console.** Still has not happened end to end — S69 did the UI pass instead, S70 got one
-   screen in before the numbers request. `project/Test-The-Console.html` is written for them and published as
-   an Artifact (`f237b890-8f21-4344-9ce9-7fe8f689cd30`). ⚑ **Point them at it; do not re-explain it in chat.**
-2. **UI/UX fixes as they find them.** Their list, not a pre-emptive one.
-3. ⚑ **LOCK THE DESIGN AND THE INFORMATION PRIORITY.** This is the deliverable. For each of the five screens
-   (`/admin`, trips, one trip, drivers, one driver, hotels, one hotel): **what is the one thing this screen
-   is for, what earns a place on it, and in what order.** Write it down as a decision, not as a chat
-   answer — the console has now been redesigned three sessions running because that was never fixed.
+    node --experimental-strip-types .local/probe/handoff-check.ts
 
-⚑ **THE MATERIAL TO HAVE OPEN FOR JOB 3** — `project/DESIGN_BRIEF.md` (brand, navy `#25344C`, constraints) ·
-[[d98]] (the roll-up distinction and the small-N rule) · [[d92]]/[[d93]] (why a console must name what
-decides nothing) · the founder's two standing rules, which are already the backbone of an answer: **the state
-goes on the row, never in a count at the top**, and **design for the traffic to come, not today's 350 rows**.
+**38 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+about that point — **fix the file before you build on it.** Then:
 
-⚑ **ASK FIRST, AND SHOW ONE CHANGE AT A TIME.** S69 was handed "test the console, then the UI pass" and the
-founder took the second half only. S70 showed a second design without flagging it AND changed the content in
-the same breath — *"you changed the design?"*. A handoff records what was planned, not what they want today.
+    npx tsc --noEmit && npx vitest run          # expect 815 passing
+    node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
+    node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
+    node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
+    node --experimental-strip-types .local/probe/accepted-fare.ts       #  20 · ALL AGREE
+    node --experimental-strip-types .local/probe/reclaim-live.mts       #  20 · D86 end to end
+    node --experimental-strip-types .local/probe/event-registry-live.mts #  16 · D87 registry
+    node --experimental-strip-types .local/probe/migrations-2026-08-10.ts   # 63 · 0 failed
+    node --experimental-strip-types .local/probe/migrations-2026-08-11.ts   # 23 · 0 failed
+    node .local/probe/google-places-live.mjs                             #   8 · D89 address box
+    npx tsx .local/probe/eligibility-live.mts                            #  33 · ⚑ tsx, NOT node
+    npx tsx .local/probe/dataset-audit.mts                               #  30 · 0 failed ([[d108]])
+    npx tsx .local/probe/accept-floor.mts                                #   6 · the § H2 residual
+    npx tsx .local/probe/sweep-orphans.mts                               #    after any live-probe session
 
-⚑ **§ 0 IS CLOSED — there is no known defect in the repo.** Every probe is green. Do not open the session by
-re-investigating the cancellation fee; read [[d97]] instead, which is the more useful lesson anyway.
+**If a probe fails, that is the job** — not whatever is queued above.
+⚑ **RUN THE LIVE PROBES ONE AT A TIME** — several assert a mission-count baseline and see each other's rows.
+⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
 
-#### 0 · ✅ THE "QUOTE VS CHARGE" DEFECT WAS THE PROBE, NOT THE APP — **CLOSED 2026-08-26 (S69), [[d97]]**
+---
 
-**`write-test.ts` is 170 checks · ALL AGREE · 0 problems. No migration was needed and none was written.**
+## ⚑ TRAPS LEARNED IN S71
 
-⚑ **DO NOT REOPEN THIS. There was never a money bug**, and the next session must not spend a morning
-proving that again. What follows is the whole story, because the way it was wrong is worth more than the
-finding was.
-
-**What S68's handoff claimed:** 24 problems, *"the modal quotes the frozen `accepted_fare`, the RPC
-recomputes the live PDP curve."* **Both halves of that sentence were wrong.**
-`business_cancel_mission` does not recompute anything — it takes the caller's `p_fare_snapshot` and clamps it
-into `[mission_opening_price(m), ceiling]`, which is exactly what `2026-08-11_fee_basis_band` and
-`2026-08-22_opening_price_band` were built to do.
-
-**What was actually happening.** `write-test` builds each case by spreading `tmpl` — a REAL mission read out
-of the database — and then overriding the columns it cares about. It overrode `pdp_start` per case and
-**never overrode `accepted_fare`.** On 2026-08-26 the reseed put `accepted_fare = 81,06` on that template, so
-all 27 cases carried a frozen fare of 81,06 whatever their own price said. `settledFare()` returned 81,06,
-the probe passed it as the basis, and SQL correctly clamped it back up to each case's own opening price.
-
-Every one of the 12 disagreeing cases is a case whose `pdp_start` is **above** 81,06 — 85,50 · 91,11 ·
-123,45 · 199,99 — and every agreeing case is one whose price is below it, where the clamp has nothing to do.
-The app was right in all 20.
-
-⚑ **AND "GREEN FOR FOUR DAYS" WAS THE SAME BUG WEARING THE OPPOSITE FACE.** Before the reseed the template's
-`accepted_fare` was NULL, so every case inherited NULL and `settledFare()` recomputed from that case's own
-curve — the right answer, reached by accident. **Inheriting the right answer is not testing for it.** The
-probe now sets `accepted_fare: c.fare` explicitly and asserts `settledFare() === c.fare` before every RPC
-call, with an error that says *"a money column has been inherited from the template mission — fix the probe,
-not the app."*
-
-⚑ **THE FOUNDER CALLED IT.** Told there was a money defect, they pushed back: *"we went through money already
-and tested so many ways and it's hard to understand why we didn't see it earlier. Are you sure about that
-issues? check again."* They were right, and the reason they were right is the project's own written rule:
-**if a probe shows mass mismatches, suspect the probe's expectations before the code** (S63, where a probe
-reported 480 mismatches in 673 checks against a codebase that agreed completely).
-
-**One real residual it did surface** — small, theoretical, now in BACKLOG § H2: `accept_mission` clamps
-`p_fare` with the **stored** floor `least(coalesce(pdp_start, ceiling×0.5), ceiling)`, while the cancel
-functions clamp with `mission_opening_price()`, which is SPEED-WIN-aware (`greatest(…, ceiling×0.70)`). On a
-SPEED WIN trip whose `pdp_start` is under 70 % of the Ceiling the two floors differ. Unreachable through the
-app — the accept server action computes the number with `openingPrice()` — but a hand-made RPC call could
-store an `accepted_fare` below the basis the cancel would later clamp to, and the charge would then exceed
-the quote. Same family as the other § H2 residuals; nothing waits on it.
-⚑ **PROVEN LIVE, not read off a migration:** `npx tsx .local/probe/accept-floor.mts` — 6 checks. Ceiling 100,
-`pdp_start` 30, SPEED WIN: the cancel floor reads 70 and `accept_mission(p_fare => 30)` stamps 30. Written
-that way deliberately, because reading instead of running is what produced the false alarm it came out of.
-
-#### 1 · THE TEST DATASET — ✅ DONE (2026-08-26, S68, [[d94]])
-The database was **bleached** (3 210 rows) and rebuilt as **three months of trading**: 4 hotels · 6 desks ·
-11 Drivers · **348 trips** from late May to today. May 10 · June 75 · July 137 · Aug 128. 84 % filled, 48
-unfilled, 30 cancellations, 12 no-shows, 106 with waiting charged, 2 passed around, 1 nobody can serve.
-
-- **Rebuild it:** `.local/seed/README.md` has the seven commands in order, and says why each exists.
-- ⚑ **The seeded log says `source='seed'`, not `db_trigger`** — see [[d94]]. Only the 7 live trips are
-  genuinely observed. **Never relabel them to make something green.**
-- ⚑ **`.local/probe/dataset-audit.mts` — 30 checks. Trust it, not the seed's own output**, which reported
-  success while three tables were silently empty.
-- ⚑ **The old seeders are superseded** — `seed-fleet.mjs`, `s64-curve.ts`, `s61-priced.ts`, `recover.mjs`.
-  Do not run them; they would put a second, contradictory demo set on top of this one.
-- ⚑ **`seed-probe-accounts.mts` exists because the bleach killed the accounts 15 live probes sign in as.**
-  If a probe ever dies at `Invalid login credentials`, that is the file to run.
-- ⚑ **The live trips age out.** When `handoff-check` says the Pool is empty, re-run `seed-live.mts`.
-
-#### 2 · ⚑ THE FOUNDER TESTS THE CONSOLE ← **STILL NOT DONE.** The UI pass shipped in S69 instead
-
-**They said so at the end of S68: *"I want to test the activity console and improve the UI."*** The dataset is
-built for exactly this. Open with the sign-in below, let them drive, and take notes — do not start editing
-until they have been round it once.
-
-⚑ **`project/Test-The-Console.html` is written FOR THE FOUNDER** — how to sign in, six things to try with what
-to look for in each, and the six UI problems below. Also published as an Artifact. Point them at it rather
-than re-explaining.
-
-**How they get in (local):**
-
-    npm run dev
-    open http://localhost:3000/api/dev-login?email=admin@kavenue.fr
-
-Then `/admin`. On production it is `admin.kavenue.fr`, same account. ⚑ **The seeded live trips age out** — if
-the Pool looks empty, re-run `.local/seed/seed-live.mts`.
-
-**What is worth them looking at, in order:**
-1. **`/admin`** — five sentences, or fewer. Each names its subject. Nothing when a check is quiet.
-2. **`/admin/trips` → the Cannes → Valberg one** — taken and given back three times over nine days. The whole
-   story in order, and *"5 of 11 Drivers matched this trip"*.
-3. **The matcher** — pick any Driver against any trip. On a live trip it says why they can't take it; on a
-   finished one, who could have.
-4. **`/admin/drivers`** — where each one works and how far they'll go, or *"no base — Pool empty"* in red.
-
-**✅ THE SIX UI ISSUES ARE ALL FIXED (S69) — do not re-raise them.** The hotel-page repetition · the two
-roll-up headings · the chip-wall picker · no grouping · the silent caps · the fleet list saying nothing about
-who works. See the S69 table at the top for what each became.
-
-**⚑ WHAT TO WATCH FOR WHEN THEY DRIVE IT:** their own list will not be this one. Take notes and do not
-pre-empt.
-
-**⚑ THE DESIGN CALIBRATION, learned the hard way this session:** the first preview was rejected in three words
-— *"it's overwhelming"*. What fixed it was **fewer words on screen at once**, not less information: one
-sentence per finding, the blocker instead of the checklist, a hoverable tag instead of a callout box. Hold
-anything new to that. And **the first live render is the design review** — a 23-name wall and a duplicated
-phrase both looked fine in the mockup and were obvious the second real data hit them.
-
-#### 3 · THE TWO TRACKERS — start them EARLY, they need weeks of data
-Both are things the founder explicitly asked for and neither exists:
-- **A "last seen" stamp** — one write per person per day. Answers *"how many Drivers actually opened the
-  app"* (DAU/MAU, the first number an investor asks for). ⚑ Records **that** they came, never **what they
-  looked at** — that distinction is what makes it acceptable after the founder cut browsing events.
-- **Three events on the booking form** — started / posted / abandoned. One per booking attempt, not per
-  scroll. This is a **funnel**, and it is the only way to answer *"how easy is it to create a trip"*.
-
-#### 4 · THE BOOKING VOUCHER
-Real Drivers get stopped by police. ⚑ **The founder does not remember the "7 mandatory fields" and asked to
-START FRESH — do not lead with the arrêté.** Their framing: *"a tiny button that displays all the info about
-the Driver, the Driver's company, who the mission is from, the passengers, the car and the mission, to show
-the police in a control."* **Ask them for their list first**, then reconcile with
-`docs/01_Legal_VAT_Compliance.md:28`. The table `booking_voucher` exists and no code touches it.
-
-#### 5 · THE EMBARRASSING DETAILS
-- The Driver's **photo and languages are collected and shown to nobody**, while two shipped strings promise
-  otherwise. Small fix, bad look. ⚑ The seeded Drivers all have `languages` set, so the gap is now visible.
-- `manifest.webmanifest` ships `"icons": []` — no app icon.
-- No welcome banner · no FAQ · no free edits while pooled (D39 says there should be).
-- `field_of_activity` and `business_type` are two columns that never talk. ⚑ **The DATA is no longer the
-  problem** — the seed sets both to `hotel` on all four. The two columns still exist and still don't know
-  about each other; one of them should win in code.
-- ⚑ **`booking_voucher` is still an empty table no code touches** (§ 4 above), and `payment` / `payout` /
-  `ledger_transaction` are all empty — no money has moved through Kavenue yet. Correct, not a gap.
-
-#### 6 · THE ANALYTICS PAGE — last, deliberately
-It needs data to say anything. **Free from what you already store:** counts of Drivers/Businesses/trips,
-growth month over month (May 71 · June 101 · July 85 · Aug 23), signups per week, trips by area/class/hotel,
-**GMV**, **take rate**, **retention by cohort**, **liquidity** (what share of posted trips get taken, and how
-fast — arguably the most important number a marketplace has). **Needs the trackers above:** MAU/DAU, time to
-post a trip, and where people abandon.
+- ⚑ **A WRITE IS NOT VERIFIED UNTIL YOU HAVE READ THE ROW BACK.** The first register sign-up stored
+  `region: "93"` and **`departement: null`**, silently — the register sends that field on `siege` and not on
+  `matching_etablissements`. Every field looked right on screen.
+- ⚑ **`vercel env pull` REDACTS EVERY VALUE TO `""`**, including non-secret ones. It looks like a broken
+  project. Read `NEXT_PUBLIC_*` out of the deployed JS bundle instead — that is what the browser actually runs.
+- ⚑ **`DEV_LOGIN_KEY` IS IN VERCEL ONLY, NOT `.env.local`** — the production dev-login URL cannot be built
+  from this machine.
+- ⚑ **THE FOUNDER'S OWN ACCOUNTS HAVE NO `profile` ROW.** `phyrass.h@gmail.com` and `mmoimeme389@gmail.com`
+  have no role, so `routeFor()` sends them to `/welcome` and every screen is empty. Exactly ONE account can see
+  the console: `admin@kavenue.fr`. ⚑ **They never said how they got in — this may recur.**
+- ⚑ **`lib/database.types.ts` IS HAND-WRITTEN.** New columns go in Row **and** Insert, new RPCs in the
+  `Functions` block — or `tsc` reports `not assignable to type 'never'`, which reads like a broken generic.
+- ⚑ **A NEW COLUMN BREAKS THE WRITE PATH UNTIL THE MIGRATION LANDS.** Say so out loud when handing one over.
+- ⚑ **`vehicle.category` AND `body_type` ARE POSTGRES ENUMS; `business_type` IS BARE TEXT.** Comparing an enum
+  to a text parameter raises `operator does not exist`. Cast once in the source CTE.
+- ⚑ **ADDING A PARAMETER CREATES AN OVERLOAD, IT DOES NOT REPLACE.** Drop the old signature explicitly or
+  PostgREST can resolve to the period-blind version.
+- ⚑ **APPLY A PERIOD TO THE JOIN, NEVER THE `where`** — in the `where` an outer join becomes an inner one and
+  a Business with no trips vanishes, making a quiet month look busy.
+- ⚑ **`.ecal` POSITIONS ITSELF ACROSS ITS PARENT.** In a toolbar tab it renders as a ribbon one column wide.
+  Copy `.dxh-cal`: the wrapper sets the width, the calendar sits inside in normal flow.
+- ⚑ **A RAW `fetch` POST DOES NOT INVOKE A NEXT SERVER ACTION** (404 — it needs the `Next-Action` header).
+  Append a real submit button carrying the intent and click it.
+- ⚑ **A `ref` CLICK FROM THE BROWSER TOOL DOES NOT ALWAYS LAND** at a scaled viewport. Twice it silently did
+  nothing and looked like a broken control. Verify with `element.click()` before concluding the UI is wrong.
+- ⚑ **`window.innerWidth` IS 0 WHILE THE BROWSER PANE IS HIDDEN**, so every `max-width` media query matches and
+  a desktop layout reads as mobile. Pin a width with `resize_window` before judging a responsive layout.
+- ⚑ **`querySelectorAll(...).textContent` IGNORES `display:none`** — read `getComputedStyle(el).display`.
+- ⚑ **A REGEX THAT EDITS AN IMPORT BLOCK WILL EAT IT.** vitest then dies inside esbuild with no line number.
+  Edit import lists by exact string.
+- ⚑ **AN AUDIT LOG WITH A MANUFACTURED ROW IS WORSE THAN AN EMPTY ONE.** The `post_blocked` proof row was
+  deleted after verifying.
 
 ---
 

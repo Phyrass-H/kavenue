@@ -13,6 +13,23 @@
 // disagreed with the others about what "July" means.
 import { isPeriod, parseAnchor, periodRange, type Period } from "@/lib/earnings";
 
+/**
+ * Today, as a Paris day key.
+ *
+ * ⚑ PARIS, NOT THE BROWSER'S ZONE AND NOT UTC. Every other date on this console
+ * is a Paris day — the month bands, the period boundaries, `daysRemainingIn`. A
+ * calendar that marked "today" from the viewer's clock would disagree with the
+ * screen around it for two hours every night.
+ */
+function parisDay(now: Date): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Paris",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+}
+
 /** What the console is showing, and what it says it is showing. */
 export interface AdminPeriod {
   /** Null = all time, which is the default and always one click away. */
@@ -21,6 +38,15 @@ export interface AdminPeriod {
   /** Inclusive start / exclusive end as ISO instants — null when all time. */
   fromIso: string | null;
   toIso: string | null;
+  /**
+   * The same span as inclusive Paris day keys, which is what the calendar bands
+   * and what a `range` URL carries. Empty strings on All time — the calendar
+   * reads them as "nothing selected", not as a zero-length span.
+   */
+  fromDay: string;
+  toDay: string;
+  /** Today in Paris, so the calendar can mark it without asking the browser. */
+  today: string;
   /** "All time" or "July 2026" — always rendered, never implied. */
   label: string;
   /** Anchors for the ‹ › steps. Null when there is nothing to step through. */
@@ -52,6 +78,9 @@ export function parseAdminPeriod(sp: PeriodParams, now: Date = new Date()): Admi
       anchor: null,
       fromIso: null,
       toIso: null,
+      fromDay: "",
+      toDay: "",
+      today: parisDay(now),
       label: "All time",
       prev: null,
       next: null,
@@ -71,6 +100,9 @@ export function parseAdminPeriod(sp: PeriodParams, now: Date = new Date()): Admi
     anchor: sp.anchor ?? null,
     fromIso: r.from.toISOString(),
     toIso: r.to.toISOString(),
+    fromDay: r.fromDay,
+    toDay: r.toDay,
+    today: parisDay(now),
     label: r.label,
     // A hand-picked span has no natural neighbour to step to — the same reason
     // the ‹ › arrows hide on the Earnings screen in `range` mode.
@@ -116,14 +148,21 @@ export function periodTabLabel(p: Period | null): string {
  */
 export function periodHref(
   base: string,
-  p: { period?: Period | null; anchor?: string | null },
+  p: { period?: Period | null; anchor?: string | null; from?: string; to?: string },
   keep: Record<string, string | undefined>,
 ): string {
   const q = new URLSearchParams();
   for (const [k, v] of Object.entries(keep)) if (v) q.set(k, v);
   if (p.period) {
     q.set("period", p.period);
-    if (p.anchor) q.set("anchor", p.anchor);
+    // ⚑ A hand-picked span carries its OWN ends, because no anchor can express
+    // "16 June to 31 July". Every other granularity is an anchor plus a name.
+    if (p.period === "range") {
+      if (p.from) q.set("from", p.from);
+      if (p.to) q.set("to", p.to);
+    } else if (p.anchor) {
+      q.set("anchor", p.anchor);
+    }
   }
   const s = q.toString();
   return s ? `${base}?${s}` : base;

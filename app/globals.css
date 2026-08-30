@@ -4049,3 +4049,32 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 
 /* The band's secondary sentence — under the four figures, above the months. */
 .adm-band__note { margin-top: 14px; max-width: 62ch; }
+
+/* The Range tab's popover. Anchored to the tab, above the numbers it filters. */
+.adm-per__range { position: relative; display: inline-flex; }
+.adm-per__range.is-busy { opacity: 0.6; pointer-events: none; }
+/* The tab itself is a <button>, so it needs the link tabs' resets to match them. */
+.adm-per__range .adm-per__t {
+  border: 0; background: transparent; cursor: pointer; font: inherit;
+  font-size: 13px; line-height: inherit;
+}
+/* ⚑ THE WRAPPER SETS THE WIDTH AND THE CALENDAR SITS INSIDE IT IN NORMAL FLOW —
+   copied from `.dxh-cal`, and not optional. `.ecal` positions ITSELF absolutely
+   with `left: 0; right: 0`, which spans its parent: correct for the Driver's
+   full-width Earnings block, and a two-character-wide column when the parent is
+   a toolbar tab. The first version omitted this and the calendar rendered as a
+   thin ribbon down the page. */
+.adm-per__pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 40; width: 300px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 12px; padding: 11px; box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+}
+.adm-per__pop .ecal {
+  position: static; width: auto; border: none; padding: 0;
+  box-shadow: none; border-radius: 0; background: none;
+}
+@media (max-width: 560px) {
+  /* Anchored right on a phone: the tabs wrap, so a left-anchored popover on a
+     tab that has landed at the end of a row hangs off the screen. */
+  .adm-per__pop { left: auto; right: 0; }
+}

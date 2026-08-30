@@ -16,6 +16,7 @@
 // up trusting a number for the wrong set.
 import Link from "next/link";
 import { ADMIN_PERIODS, periodHref, periodTabLabel, type AdminPeriod } from "@/lib/admin-period";
+import { AdminRangeTab } from "@/components/admin-range-tab";
 
 export function AdminPeriodBar({
   now,
@@ -31,6 +32,8 @@ export function AdminPeriodBar({
   return (
     <div className="adm-per">
       <div className="adm-per__tabs">
+        {/* Five plain links. The sixth is a client island, because a
+            hand-picked span has to be chosen before there is a URL to link to. */}
         {ADMIN_PERIODS.filter((p) => p !== "range").map((p) => (
           <Link
             key={p ?? "all"}
@@ -40,6 +43,14 @@ export function AdminPeriodBar({
             {periodTabLabel(p)}
           </Link>
         ))}
+        <AdminRangeTab
+          base={base}
+          isOn={now.period === "range"}
+          fromDay={now.fromDay}
+          toDay={now.toDay}
+          today={now.today}
+          keep={keep}
+        />
       </div>
 
       <div className="adm-per__now">

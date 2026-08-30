@@ -44,12 +44,20 @@ interface Filter {
 
 // ⚑ Every link carries the period — clicking "Mercedes" while looking at July
 // must stay in July, or the drill-down answers a wider question than the screen.
-function qs(f: Filter, when: { period: string | null; anchor: string | null }): string {
+function qs(f: Filter, when: { period: string | null; anchor: string | null; from?: string; to?: string }): string {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(f)) if (v) p.set(k, v);
   if (when.period) {
     p.set("period", when.period);
-    if (when.anchor) p.set("anchor", when.anchor);
+    // ⚑ A RANGE HAS NO ANCHOR — it is a pair of ends, and carrying only the
+    // period name would drop the span. Clicking a row while looking at
+    // "10–20 August" would then answer for all time and look identical.
+    if (when.period === "range") {
+      if (when.from) p.set("from", when.from);
+      if (when.to) p.set("to", when.to);
+    } else if (when.anchor) {
+      p.set("anchor", when.anchor);
+    }
   }
   const s = p.toString();
   return s ? `/admin/drivers?${s}` : "/admin/drivers";
@@ -127,13 +135,17 @@ export default async function AdminDriversPage({
     page?: string;
     period?: string;
     anchor?: string;
+    from?: string;
+    to?: string;
   }>;
 }) {
-  const { category, body, make, gender, page, period, anchor } = await searchParams;
+  const { category, body, make, gender, page, period, anchor, from, to } = await searchParams;
   const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
   const filtered = Boolean(category || body || make || gender);
-  const when = parseAdminPeriod({ period, anchor });
+  const when = parseAdminPeriod({ period, anchor, from, to });
+  // What every link on the page must carry to stay in the same period.
+  const carry = { period: when.period, anchor: when.anchor, from, to };
 
   const [overviewRes, listRes] = await Promise.all([
     db.rpc("admin_driver_overview", { p_from: when.fromIso, p_to: when.toIso }),
@@ -226,7 +238,7 @@ export default async function AdminDriversPage({
               key={`${row.key}-${row.parent}`}
               label={classKeyLabel(row.key, row.parent)}
               row={row}
-              href={qs({ category: row.key ?? undefined, body: row.parent ?? undefined }, when)}
+              href={qs({ category: row.key ?? undefined, body: row.parent ?? undefined }, carry)}
             />
           ))}
         </section>
@@ -241,7 +253,7 @@ export default async function AdminDriversPage({
               key={row.key ?? "none"}
               label={makeKeyLabel(row.key)}
               row={row}
-              href={qs({ make: row.key ?? undefined }, when)}
+              href={qs({ make: row.key ?? undefined }, carry)}
             />
           ))}
         </section>
@@ -267,7 +279,7 @@ export default async function AdminDriversPage({
                   key={row.key ?? "none"}
                   label={genderKeyLabel(row.key)}
                   n={row.drivers}
-                  href={qs({ gender: row.key ?? undefined }, when)}
+                  href={qs({ gender: row.key ?? undefined }, carry)}
                 />
               ))}
             </>
@@ -292,7 +304,7 @@ export default async function AdminDriversPage({
             ]
               .filter(Boolean)
               .join(" · ")}{" "}
-            — <Link href={qs({}, when)}>clear</Link>
+            — <Link href={qs({}, carry)}>clear</Link>
           </p>
         )}
         {rows.length === 0 ? (
@@ -328,7 +340,7 @@ export default async function AdminDriversPage({
           const n = pageNote(Number(total), win, PER_PAGE);
           if (!n) return null;
           const href = (p: number) => {
-            const base = qs({ category, body, make, gender }, when);
+            const base = qs({ category, body, make, gender }, carry);
             const sep = base.includes("?") ? "&" : "?";
             return p === 0 ? base : `${base}${sep}page=${p}`;
           };

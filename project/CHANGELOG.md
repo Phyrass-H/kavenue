@@ -5,6 +5,28 @@
 
 ---
 
+## 29 August 2026 — the admin home now opens with four numbers
+
+You said `/admin` looked empty. It now starts with **how Kavenue is doing**, above the things worth a look:
+
+- **86 % found a Driver** — 294 of 342 trips.
+- **29 537 € hotels paid** and **22 602 € Drivers banked** — the two real ends of the money.
+- **5 779 € Kavenue kept**, and it says what that is a share of.
+- **A small bar per month**, with a sentence underneath: *"145 this month already with 2 days still to run —
+  the whole of last month was 129."*
+
+Three deliberate refusals in there, because a dashboard's job is to be trusted before it is to look full:
+
+- **A trip still sitting in the Pool is not counted as a failure.** It hasn't failed to find a Driver, it's
+  still looking. That's why it says 294 of 342 rather than 294 of 350.
+- **This month is drawn hatched, not solid.** 145 trips over 27 days against 129 over a whole month isn't
+  growth, and a clean bar would have pretended it was.
+- **Nothing shows a percentage off a handful.** One trip nobody took reads *"0 of 1"*, never *"0 % filled"* —
+  and that rule is what lets the same screen work when there are forty thousand trips instead of three hundred.
+
+⚠️ The money is real arithmetic on **seeded** trips. Nothing has actually moved yet.
+
+
 ## 26 August 2026 — you were right to make me check, and it went further than one probe
 
 - **What the migration would have done, since you asked.** My "fix" was to stop the database lifting a
@@ -1584,24 +1606,3 @@ writes.
 To be clear about how serious this was: **there's no sign it ever actually happened to you.** Posting already
 insists on picking addresses from the suggestions, so this only bites if the map provider itself goes down. It
 was a trap waiting rather than a leak running.
-
-## The admin home now opens with four numbers (2026-08-29)
-
-You said `/admin` looked empty. It now starts with **how Kavenue is doing**, above the things worth a look:
-
-- **86 % found a Driver** — 294 of 342 trips.
-- **29 537 € hotels paid** and **22 602 € Drivers banked** — the two real ends of the money.
-- **5 779 € Kavenue kept**, and it says what that is a share of.
-- **A small bar per month**, with a sentence underneath: *"145 this month already with 2 days still to run —
-  the whole of last month was 129."*
-
-Three deliberate refusals in there, because a dashboard's job is to be trusted before it is to look full:
-
-- **A trip still sitting in the Pool is not counted as a failure.** It hasn't failed to find a Driver, it's
-  still looking. That's why it says 294 of 342 rather than 294 of 350.
-- **This month is drawn hatched, not solid.** 145 trips over 27 days against 129 over a whole month isn't
-  growth, and a clean bar would have pretended it was.
-- **Nothing shows a percentage off a handful.** One trip nobody took reads *"0 of 1"*, never *"0 % filled"* —
-  and that rule is what lets the same screen work when there are forty thousand trips instead of three hundred.
-
-⚠️ The money is real arithmetic on **seeded** trips. Nothing has actually moved yet.

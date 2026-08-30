@@ -109,8 +109,28 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ---
 
-## WHERE WE ARE (2026-08-26, end of S69)
+## WHERE WE ARE (2026-08-29, end of S70)
 
+### ✅ Shipped in S70 — FOUR NUMBERS ON THE ADMIN HOME ([[d98]])
+The session was meant to be § 2 (the founder driving the console) and started that way. Their first reaction
+was not a bug report: *"the main page looks so empty, isn't there something we can do as a nice but useful UI
+on home page? Like main numbers of Kavenue or something?"*
+
+| | |
+|---|---|
+| **shipped** | `lib/admin-numbers.ts` (new, pure, tested) · `readHomeNumbers` · a `Band` component in `app/admin/page.tsx` · `.adm-band`/`.adm-nums`/`.adm-months` |
+| **the four** | **86 % found a Driver · 29 537 € hotels paid · 22 602 € Drivers banked · 5 779 € Kavenue kept**, over a bar per month |
+| **tests** | 683 → **700** |
+| ⚑ **the founder's standing correction** | *"when I ask a question about anything it is not related to NOW but how we dev the expérience for the future when traffic will be huge."* The seeded dataset is scaffolding, never the subject. Answer a scale question with a **small-N rule**, not a refusal. In memory as `design-for-scale-not-todays-data` |
+
+⚑ **STILL OPEN from S70, and explicitly proposed** — the **city strip** (`Cannes 46 of 49 · Nice 37 of 39 …`,
+bookings as the sort, fill rate as the paired column), two lines the design pass argued for (*"taken at 61 %
+of Ceiling"* and *"fell through after accepting"*), and a **fake-data mode** the founder parked with *"ok
+leave it for now"*. ⚑ If that last one returns: **fake the SNAPSHOT, never the screen** — `readActivitySnapshot()`
+returns a plain object and `findings()` is pure, so one dev-only substitution renders the REAL page. A
+separate `/admin/preview` route would be an eighth instance of "code nothing reaches" (D86–D92).
+
+### S69 — the console's UI pass and the false money alarm
 `main` = **the S69 commits, `64a68f1` first** (`git log --oneline -5` for the rest — a handoff that
 names the tip SHA is stale the moment it is committed). Each was CI-green on a branch before the push. **NO migration in S68 or S69** — RLS
 already grants `app_role()='admin'` read on everything, so the whole console is app-side.
@@ -175,20 +195,31 @@ consulted by nothing.**
 > And still: **a missing value is a REFUSAL, never a skip** (D88); **"zero rows" is not proof of a bug** (S67)
 > — D92 was found by `grep -rn`, not by an empty query.
 
-### 🎯 NEXT SESSION — the console, and then a choice
+### 🎯 NEXT SESSION (S71) — THE FOUNDER'S OWN WORDS, given at the close of S70
+
+> *"It will be checking and testing the Activity Console UI/UX and lock design and infos priority."*
+
+**Three jobs, and the third is the one that outlives the session:**
+1. **They drive the console.** Still has not happened end to end — S69 did the UI pass instead, S70 got one
+   screen in before the numbers request. `project/Test-The-Console.html` is written for them and published as
+   an Artifact (`f237b890-8f21-4344-9ce9-7fe8f689cd30`). ⚑ **Point them at it; do not re-explain it in chat.**
+2. **UI/UX fixes as they find them.** Their list, not a pre-emptive one.
+3. ⚑ **LOCK THE DESIGN AND THE INFORMATION PRIORITY.** This is the deliverable. For each of the five screens
+   (`/admin`, trips, one trip, drivers, one driver, hotels, one hotel): **what is the one thing this screen
+   is for, what earns a place on it, and in what order.** Write it down as a decision, not as a chat
+   answer — the console has now been redesigned three sessions running because that was never fixed.
+
+⚑ **THE MATERIAL TO HAVE OPEN FOR JOB 3** — `project/DESIGN_BRIEF.md` (brand, navy `#25344C`, constraints) ·
+[[d98]] (the roll-up distinction and the small-N rule) · [[d92]]/[[d93]] (why a console must name what
+decides nothing) · the founder's two standing rules, which are already the backbone of an answer: **the state
+goes on the row, never in a count at the top**, and **design for the traffic to come, not today's 350 rows**.
+
+⚑ **ASK FIRST, AND SHOW ONE CHANGE AT A TIME.** S69 was handed "test the console, then the UI pass" and the
+founder took the second half only. S70 showed a second design without flagging it AND changed the content in
+the same breath — *"you changed the design?"*. A handoff records what was planned, not what they want today.
 
 ⚑ **§ 0 IS CLOSED — there is no known defect in the repo.** Every probe is green. Do not open the session by
 re-investigating the cancellation fee; read [[d97]] instead, which is the more useful lesson anyway.
-
-1. **§ 2, the founder driving the console.** S69 did the UI pass they asked for *instead of* the testing —
-   *"I don't drive i'm not ready"* — so the session where they actually sit in front of it has not happened.
-   `project/Test-The-Console.html` is rewritten for the post-S69 screens and republished as an Artifact
-   (`f237b890-8f21-4344-9ce9-7fe8f689cd30`). ⚑ **Point them at it; don't re-explain it in chat.**
-2. **Then their pick from § 3–§ 6** — the two trackers (they need weeks of data, so early is worth it), the
-   booking voucher, the embarrassing details, or the analytics page. Ask; don't choose for them.
-
-⚑ **ASK FIRST — S69 is the proof.** The queued job was "they test the console, then the UI pass" and they
-took the second half only. A handoff records what was planned, not what the founder wants today.
 
 #### 0 · ✅ THE "QUOTE VS CHARGE" DEFECT WAS THE PROBE, NOT THE APP — **CLOSED 2026-08-26 (S69), [[d97]]**
 
@@ -382,7 +413,7 @@ T−60 take-back was "STILL parked" hours after shipping it.** Run this first:
 **32 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 683 passing
+    npx tsc --noEmit && npx vitest run          # expect 700 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 921 · ALL AGREE
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE (the 24 were the probe — [[d97]])
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE

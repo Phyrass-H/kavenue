@@ -16,7 +16,7 @@
 //     helper, so the two screens can never disagree about the same filter.
 import { isExpired } from "@/lib/dispatch-status";
 import { settledFare } from "@/lib/pdp";
-import { businessCost, carriesCommission, commissionSplit, splitFor } from "@/lib/commission";
+import { businessCost, carriesCommission, commissionSplit, businessSplitFor } from "@/lib/commission";
 import { formatMoney, serviceClassLabel, shortPlaceLabel } from "@/lib/format";
 import type { HistoryRow } from "@/lib/history-filter";
 import type { MissionRow } from "@/lib/database.types";
@@ -194,7 +194,7 @@ export function spendTotals(rows: HistoryRow[]): SpendTotals {
     // The invoice lines, accumulated per row so each triple reconciles before
     // it is summed — docs/06 §3. `rowCost` is the same money, one number.
     const costBase = (r.fare ?? 0) + waiting;
-    const split = carriesCommission(m) ? splitFor(m, costBase) : commissionSplit(costBase, null);
+    const split = carriesCommission(m) ? businessSplitFor(m, costBase) : commissionSplit(costBase, null);
     t.transport += split.course;
     t.serviceFee += split.businessFeeHt;
     t.serviceFeeVat += split.businessFeeVat;

@@ -40,7 +40,7 @@ export default async function AdminTripsPage({
   const flagged = flag === "no-cancellation-record";
 
   let query = db
-    .from("mission")
+    .from("mission_read")
     .select("*", { count: "exact" })
     .order("pickup_at", { ascending: false });
   if (status) query = query.eq("status", status as MissionStatus);
@@ -55,7 +55,7 @@ export default async function AdminTripsPage({
     const [cancelled, records] = await Promise.all([
       readAll<MissionRow>((from, to) =>
         db
-          .from("mission")
+          .from("mission_read")
           .select("*")
           .eq("status", "cancelled")
           .order("pickup_at", { ascending: false })

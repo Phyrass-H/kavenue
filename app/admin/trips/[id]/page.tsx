@@ -53,7 +53,7 @@ export default async function AdminTripPage({
   const { driver: askedFor } = await searchParams;
   const db = await createClient();
 
-  const { data: mission } = await db.from("mission").select("*").eq("id", id).maybeSingle();
+  const { data: mission } = await db.from("mission_read").select("*").eq("id", id).maybeSingle();
   if (!mission) notFound();
 
   const [{ data: business }, fleet, commitments, events] = await Promise.all([

@@ -13,7 +13,7 @@ import {
   type HistoryRow,
 } from "@/lib/history-filter";
 import { minutesToAccept, rowCost } from "@/lib/spend";
-import { businessCost, splitFor } from "@/lib/commission";
+import { businessCost, businessSplitFor } from "@/lib/commission";
 import { currentSpan, LENS_LABEL, parseSpendQuery, type Lens } from "@/lib/spend-filter";
 import type { MissionRow } from "@/lib/database.types";
 
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
   const supabase = await createClient();
   const [{ data }, { data: desks }] = await Promise.all([
     supabase
-      .from("mission")
+      .from("mission_read")
       .select("*")
       .eq("business_id", ctx.business.id)
       .neq("status", "draft")
@@ -182,9 +182,9 @@ export async function GET(req: NextRequest) {
     const bucket = bucketOf(m);
     const cost = rowCost(r);
     // The same triple the row and Spend show, so the file decomposes exactly the way
-    // the screen does (docs/06 §3). splitFor, not commissionSplit, so a Driver-cancelled
+    // the screen does (docs/06 §3). businessSplitFor, not commissionSplit, so a Driver-cancelled
     // trip carries no fee — the same rule businessCost encodes.
-    const split = splitFor(m, (r.fare ?? 0) + waiting);
+    const split = businessSplitFor(m, (r.fare ?? 0) + waiting);
     total += cost;
     const took = minutesToAccept(m);
     const note = m.no_show

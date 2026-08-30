@@ -126,7 +126,7 @@ export default async function DispatchSpend({
   const nowIso = new Date().toISOString();
   const [{ data: all, error }, { data: desks }] = await Promise.all([
     supabase
-      .from("mission")
+      .from("mission_read")
       .select("*")
       .eq("business_id", ctx.business.id)
       .neq("status", "draft")

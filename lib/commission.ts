@@ -46,6 +46,16 @@ export type CommissionRateRow = {
 export const COMMISSION_RATE_COLS =
   "id,effective_from,business_rate_ht,driver_rate_ht,fee_vat_rate,transport_vat_rate";
 
+/**
+ * The same card WITHOUT the Driver-side rate — the only shape a browser session
+ * may ask for since 2026-08-30. `driver_rate_ht` is revoked from `authenticated`
+ * (money_column_walls part 2): a Dispatcher pricing a trip needs its own rate
+ * and the fee VAT, and nothing else. `createMission` snapshots the Driver's rate
+ * onto the mission using the service role.
+ */
+export const COMMISSION_RATE_BUSINESS_COLS =
+  "id,effective_from,business_rate_ht,fee_vat_rate,transport_vat_rate";
+
 /** The columns snapshot onto `mission`. Select these anywhere money is shown. */
 export const COMMISSION_COLS =
   "commission_business_rate,commission_driver_rate,commission_vat_rate,transport_vat_rate";
@@ -84,6 +94,18 @@ export type Split = {
    */
   charged: boolean;
 };
+
+/** A `Split` with the Driver's half removed. What a Dispatcher session gets. */
+export type BusinessSplit = Pick<
+  Split,
+  "course" | "businessTotal" | "businessFeeHt" | "businessFeeVat" | "charged"
+>;
+
+/** A `Split` with the Business's half removed. What a Driver session gets. */
+export type DriverSplit = Pick<
+  Split,
+  "course" | "driverNet" | "driverFeeHt" | "driverFeeVat" | "charged"
+>;
 
 // ── EXACT DECIMAL — why the arithmetic below is BigInt and not float ────────
 // Postgres computes `course × (1 + b × (1 + v))` in exact decimal and rounds
@@ -136,6 +158,13 @@ function num(v: number | string | null | undefined): number | null {
  * the writer can produce (they are written in one statement), so it is treated
  * as no commission rather than half-charged — the direction that can only ever
  * under-bill, never invent a charge.
+ *
+ * ⚑ ONLY ADMIN SESSIONS CAN STILL SATISFY THIS. Since the money-column walls
+ * (2026-08-30), `mission_read` masks each side's rate from the other, so a
+ * Dispatcher's row carries NULL in `commission_driver_rate` and a Driver's
+ * carries NULL in `commission_business_rate`. On a browser session use
+ * `businessRatesOf` / `driverRatesOf` below; this one is for admin and for the
+ * service role, where both are present.
  */
 export function ratesOf(m: CommissionSnapshot | null | undefined): Rates | null {
   if (!m) return null;
@@ -144,6 +173,55 @@ export function ratesOf(m: CommissionSnapshot | null | undefined): Rates | null 
   const feeVat = num(m.commission_vat_rate);
   if (businessHt == null || driverHt == null || feeVat == null) return null;
   return { businessHt, driverHt, feeVat };
+}
+
+// ── ONE SIDE AT A TIME — docs/06 §3, "the Business never sees the Driver-side
+// rate" ─────────────────────────────────────────────────────────────────────
+// Before the walls, `ratesOf` demanded all three rates for the good reason that
+// the writer always writes all three. That is still true of the TABLE; it is no
+// longer true of what a session is allowed to READ. Left as it was, a masked
+// counterpart would make `ratesOf` return null, `charged` go false, and the
+// Business's three-line invoice quietly collapse into one amount equal to the
+// Course — a wrong number, arrived at silently. So each side asks for its own.
+//
+// ⚑ THE ABSENT SIDE IS SUBSTITUTED WITH 0, WHICH MAKES THE OTHER HALF OF THE
+//   SPLIT MEANINGLESS — `driverNet` out of a business split would read as the
+//   whole Course. That is why these return the NARROWED `BusinessSplit` /
+//   `DriverSplit` and not a `Split`: the halves you may not read are not
+//   reachable, and the compiler says so rather than a comment.
+
+/** What a Dispatcher session may know: its own rate and the fee VAT. */
+export function businessRatesOf(m: CommissionSnapshot | null | undefined): Rates | null {
+  if (!m) return null;
+  const businessHt = num(m.commission_business_rate);
+  const feeVat = num(m.commission_vat_rate);
+  if (businessHt == null || feeVat == null) return null;
+  return { businessHt, driverHt: 0, feeVat };
+}
+
+/** What a Driver session may know: its own rate and the fee VAT. */
+export function driverRatesOf(m: CommissionSnapshot | null | undefined): Rates | null {
+  if (!m) return null;
+  const driverHt = num(m.commission_driver_rate);
+  const feeVat = num(m.commission_vat_rate);
+  if (driverHt == null || feeVat == null) return null;
+  return { businessHt: 0, driverHt, feeVat };
+}
+
+/**
+ * A rate card row as the BUSINESS half of a split — its own rate and the fee
+ * VAT, with the Driver's substituted as 0. Feed it only to `businessTotal` /
+ * `courseFromBusinessTotal` / `.businessTotal`; see the note on
+ * `businessRatesOf` for why the other half is not a number you may read.
+ */
+export function businessRatesFromRow(
+  row: Omit<CommissionRateRow, "driver_rate_ht"> | null | undefined,
+): Rates | null {
+  if (!row) return null;
+  const businessHt = num(row.business_rate_ht);
+  const feeVat = num(row.fee_vat_rate);
+  if (businessHt == null || feeVat == null) return null;
+  return { businessHt, driverHt: 0, feeVat };
 }
 
 /** A rate row as the rates a split needs. Null in, null out. */
@@ -214,14 +292,39 @@ export function commissionSplit(course: number, rates: Rates | null): Split {
   };
 }
 
-/** The whole split for a mission, given the course a caller already computed. */
+/**
+ * The whole split for a mission, given the course a caller already computed.
+ *
+ * ⚑ BOTH SIDES. Only an admin session or the service role can read both rates —
+ * everywhere else, use `businessSplitFor` / `driverSplitFor`.
+ */
 export function splitFor(m: CommissionSnapshot | null | undefined, course: number): Split {
   return commissionSplit(course, ratesOf(m));
 }
 
+/** The Business's half of the split. Its Driver half is not computed. */
+export function businessSplitFor(
+  m: CommissionSnapshot | null | undefined,
+  course: number,
+): BusinessSplit {
+  const { course: c, businessTotal, businessFeeHt, businessFeeVat, charged } =
+    commissionSplit(course, businessRatesOf(m));
+  return { course: c, businessTotal, businessFeeHt, businessFeeVat, charged };
+}
+
+/** The Driver's half of the split. Its Business half is not computed. */
+export function driverSplitFor(
+  m: CommissionSnapshot | null | undefined,
+  course: number,
+): DriverSplit {
+  const { course: c, driverNet, driverFeeHt, driverFeeVat, charged } =
+    commissionSplit(course, driverRatesOf(m));
+  return { course: c, driverNet, driverFeeHt, driverFeeVat, charged };
+}
+
 /** What the Business pays, all in. The only fare number a Business ever sees. */
 export function businessTotal(m: CommissionSnapshot | null | undefined, course: number): number {
-  return splitFor(m, course).businessTotal;
+  return businessSplitFor(m, course).businessTotal;
 }
 
 /**
@@ -255,7 +358,7 @@ export function businessCost(
 
 /** What the Driver banks. The only fare number a Driver ever sees. */
 export function driverNet(m: CommissionSnapshot | null | undefined, course: number): number {
-  return splitFor(m, course).driverNet;
+  return driverSplitFor(m, course).driverNet;
 }
 
 /**
@@ -319,7 +422,10 @@ export function transportVat(course: number, rate: number | string | null | unde
  * on the commission. Equal to `driverNet` for a Driver under franchise en base,
  * who neither charges nor reclaims.
  */
-export function driverKeeps(split: Split, transportVatRate: number | string | null | undefined): number {
+export function driverKeeps(
+  split: DriverSplit,
+  transportVatRate: number | string | null | undefined,
+): number {
   const collected = transportVat(split.course, transportVatRate);
   if (collected <= 0) return split.driverNet;
   return euros(cents(split.driverNet) - cents(collected) + cents(split.driverFeeVat));

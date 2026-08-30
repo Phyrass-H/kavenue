@@ -1014,7 +1014,25 @@ export interface Database {
         Relationships: [];
       };
     };
-    Views: { [_ in never]: never };
+    Views: {
+      // ── THE ONLY DOOR ONTO `mission` FOR A BROWSER SESSION ────────────────
+      // docs/migrations/2026-08-30_money_column_walls_1_view.sql. Same rows as
+      // the two mission SELECT policies put together; each side's money masked
+      // from the other, decided per caller by `app_role()`.
+      //
+      // ⚑ THE ROW TYPE IS `mission`'s ROW ON PURPOSE, NOT A NARROWER ONE. What
+      //   a Dispatcher gets back really is a MissionRow — every column present,
+      //   `commission_driver_rate` simply NULL, which that field already allows
+      //   (it is NULL on every pre-commission trip too). The ONE shape that is
+      //   not a MissionRow is a Driver's view of a trip they do not hold, where
+      //   `ceiling` comes back null against a `number` type. That shape has its
+      //   own type — `PoolMissionRow` below — and the two read sites that can
+      //   produce it say so with a cast. Everything else is honest as written.
+      mission_read: {
+        Row: Database["public"]["Tables"]["mission"]["Row"];
+        Relationships: [];
+      };
+    };
     Functions: {
       // Kavenue's price for a trip (docs/06 §4), from the rate_card table. The
       // authority: the server calls this with its OWN road distance so a browser
@@ -1192,6 +1210,18 @@ export interface Database {
 
 // ---------- Convenience row aliases ----------
 export type MissionRow = Database["public"]["Tables"]["mission"]["Row"];
+
+/**
+ * A pooled trip as a DRIVER sees it — the Business's own numbers masked out by
+ * `mission_read`. Nothing here can be fed to `currentFare()` / `settledFare()`,
+ * and that is the point: the compiler refuses it, so the price has to come from
+ * `lib/pool-fares.ts` where the Ceiling never leaves the server.
+ */
+export type PoolMissionRow = Omit<MissionRow, "ceiling" | "pdp_start" | "base_fare"> & {
+  ceiling: null;
+  pdp_start: null;
+  base_fare: null;
+};
 export type MissionAmendmentRow = Database["public"]["Tables"]["mission_amendment"]["Row"];
 export type MissionInfoChangeRow = Database["public"]["Tables"]["mission_info_change"]["Row"];
 export type MissionCancellationRow = Database["public"]["Tables"]["mission_cancellation"]["Row"];

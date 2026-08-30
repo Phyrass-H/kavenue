@@ -94,7 +94,7 @@ export default async function RideHistoryPage({
     { data: myReleases },
   ] = await Promise.all([
     supabase
-      .from("mission")
+      .from("mission_read")
       .select("*")
       .eq("driver_id", driver.id)
       .in("status", missionStatuses)

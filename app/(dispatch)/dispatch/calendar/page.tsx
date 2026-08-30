@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppContext } from "@/lib/app-context";
 import { serviceClassLabel, formatTime } from "@/lib/format";
 import { settledFare } from "@/lib/pdp";
-import { commissionSplit, ratesOf } from "@/lib/commission";
+import { commissionSplit, businessRatesOf } from "@/lib/commission";
 import { missionTone, parisDayKey } from "@/lib/dispatch-status";
 import { parseWaypoints } from "@/lib/waypoints";
 import { DispatchCalendar, type CalEntry, type CalendarData } from "@/components/dispatch-calendar";
@@ -41,7 +41,7 @@ export default async function DispatchCalendarPage({
 
   const supabase = await createClient();
   const { data: missions } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("business_id", ctx.business.id)
     .neq("status", "draft")
@@ -84,8 +84,8 @@ export default async function DispatchCalendarPage({
       // ALL IN — converted here, at the one place these two figures are built,
       // so the calendar component never has to know commission exists. Both are
       // Course-basis in the row; a Business is only shown its own side (docs/06 §1).
-      fare: commissionSplit(settledFare(m), ratesOf(m)).businessTotal,
-      ceiling: commissionSplit(Number(m.ceiling ?? 0), ratesOf(m)).businessTotal,
+      fare: commissionSplit(settledFare(m), businessRatesOf(m)).businessTotal,
+      ceiling: commissionSplit(Number(m.ceiling ?? 0), businessRatesOf(m)).businessTotal,
       from: m.pickup_address,
       to: m.dropoff_address ?? "—",
       stops: parseWaypoints(m.waypoints).map((w) => w.address),

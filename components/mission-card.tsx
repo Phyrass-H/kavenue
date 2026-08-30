@@ -17,9 +17,7 @@ import {
   Moon,
   type LucideIcon,
 } from "lucide-react";
-import type { MissionRow } from "@/lib/database.types";
-import { currentFare } from "@/lib/pdp";
-import { driverNet } from "@/lib/commission";
+import type { PoolMissionRow } from "@/lib/database.types";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
 import {
@@ -36,11 +34,24 @@ import { parseDriverFlags, parseLanguages } from "@/lib/driver-service";
 // Deeper detail lives on tap (/missions/[id]). Service requests are capped at 3
 // (highest-priority first) with a "+N"; the drop-off is absent for an at-disposal
 // (hourly) mission, which shows a duration instead of a route on the facts line.
-export function MissionCard({ mission }: { mission: MissionRow }) {
-  // ⚑ NET. The number on this card is what the Driver banks — docs/06 §1 and
-  // the founder's ruling that the Pool price IS the Driver's price. The
-  // commission comes off here, once, and no Driver screen ever shows the gross.
-  const fare = driverNet(mission, currentFare(mission));
+export function MissionCard({
+  mission,
+  fare,
+}: {
+  mission: PoolMissionRow;
+  /**
+   * ⚑ NET, AND COMPUTED ON THE SERVER. What the Driver banks — docs/06 §1 and
+   * the founder's ruling that the Pool price IS the Driver's price. It arrives
+   * as a prop rather than being worked out here because `currentFare()` needs
+   * the Ceiling, and `mission_read` masks the Ceiling from a Driver on a trip
+   * they do not hold. `lib/pool-fares.ts` does the arithmetic where the
+   * Business's maximum cannot reach a Driver's token.
+   *
+   * null = the price could not be read. Rendered as "—", never as 0, which
+   * would read as a real and terrible offer.
+   */
+  fare: number | null;
+}) {
   const when = formatPoolWhen(mission.pickup_at);
   const isHourly = mission.mission_type === "hourly";
 
@@ -89,7 +100,7 @@ export function MissionCard({ mission }: { mission: MissionRow }) {
   return (
     <Link href={`/missions/${mission.id}`} className="pcard">
       <div className="pcard__head">
-        <span className="pcard__fare">{formatMoney(fare)}</span>
+        <span className="pcard__fare">{fare == null ? "—" : formatMoney(fare)}</span>
         <span className="pcard__when">
           <span className={when.today ? "pcard__day pcard__day--today" : "pcard__day"}>
             {when.day}

@@ -20,7 +20,7 @@ import { loadDriverWalks, latestPerMission } from "@/lib/side-tables";
 import { parseChangeItems } from "@/lib/info-changes";
 import { parseWaypoints } from "@/lib/waypoints";
 import { releaseDeclineReasonLabel } from "@/lib/releases";
-import { commissionSplit, ratesOf } from "@/lib/commission";
+import { commissionSplit, businessRatesOf } from "@/lib/commission";
 import {
   parseFromSnapshot,
   routeDiff,
@@ -47,8 +47,8 @@ function buildBrief(a: MissionAmendmentRow, m: MissionRow): AmendmentBrief {
     id: a.id,
     status: a.status,
     summary: changeSummary(diff),
-    fareOld: from.fare == null ? null : commissionSplit(from.fare, ratesOf(m)).businessTotal,
-    fareNew: commissionSplit(Number(a.new_fare), ratesOf(m)).businessTotal,
+    fareOld: from.fare == null ? null : commissionSplit(from.fare, businessRatesOf(m)).businessTotal,
+    fareNew: commissionSplit(Number(a.new_fare), businessRatesOf(m)).businessTotal,
     declineReason: declineReasonLabel(a.decline_reason),
     at: a.responded_at ?? a.created_at,
   };
@@ -153,7 +153,7 @@ export default async function DispatchSchedule({
   await sweepExpiredMissions(supabase);
 
   const { data: missions, error } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("business_id", ctx.business.id)
     .neq("status", "draft") // drafts live on their own page, not the schedule

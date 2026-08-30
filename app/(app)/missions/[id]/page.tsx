@@ -16,8 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDriverContext } from "@/lib/driver";
 import { recordMissionEvent } from "@/lib/mission-events-server";
-import { currentFare } from "@/lib/pdp";
-import { driverNet } from "@/lib/commission";
+import { poolFareNet } from "@/lib/pool-fares";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
 import {
@@ -67,7 +66,7 @@ export default async function MissionDetailPage({
   const supabase = await createClient();
 
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("id", id)
     .maybeSingle();
@@ -176,7 +175,7 @@ export default async function MissionDetailPage({
         .maybeSingle(),
       // The Driver's other live trips — used only for the amendment slot heads-up.
       supabase
-        .from("mission")
+        .from("mission_read")
         .select("*")
         .eq("driver_id", driver.id)
         .in("status", ACTIVE_STATUSES)
@@ -243,8 +242,13 @@ export default async function MissionDetailPage({
     (!mission.required_body_type || mission.required_body_type === myVehicle.body_type) &&
     (!mission.luggage_only || !!driver?.accepts_luggage_runs);
   const isHourly = mission.mission_type === "hourly";
-  // NET, like the Pool card it opens from — what the Driver banks (docs/06 §1).
-  const fare = driverNet(mission, currentFare(mission));
+  // NET, like the Pool card it opens from — what the Driver banks (docs/06 §1),
+  // and computed SERVER-SIDE for the same reason as the card: below this line
+  // the trip is one the Driver does NOT hold, so `mission_read` has masked its
+  // Ceiling and `currentFare()` has nothing to climb to. The id came from the
+  // RLS read at the top of this function. "—" when the price cannot be read; a
+  // 0 would look like a real offer.
+  const fare = await poolFareNet(mission.id);
   const when = formatPoolWhen(mission.pickup_at);
   const waypoints = parseWaypoints(mission.waypoints);
   const distanceKm = tripDistanceKm(
@@ -279,7 +283,7 @@ export default async function MissionDetailPage({
 
       <div className="dcard">
         <div className="pcard__head">
-          <span className="pcard__fare">{formatMoney(fare)}</span>
+          <span className="pcard__fare">{fare == null ? "—" : formatMoney(fare)}</span>
           <span className="pcard__when">
             <span className={when.today ? "pcard__day pcard__day--today" : "pcard__day"}>
               {when.day}

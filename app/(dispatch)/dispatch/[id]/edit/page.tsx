@@ -15,7 +15,7 @@ import { parseWaypoints } from "@/lib/waypoints";
 import { SERVICE_TIERS, type ServiceTier } from "@/lib/vehicle-catalog";
 import { canEditInfo, isExpired, missionTone, TONE_BG, TONE_COLOR } from "@/lib/dispatch-status";
 import { settledFare } from "@/lib/pdp";
-import { commissionSplit, ratesOf } from "@/lib/commission";
+import { commissionSplit, businessRatesOf } from "@/lib/commission";
 import { addressLine, formatDateTime, formatMoney, serviceClassLabel } from "@/lib/format";
 import { EditMissionForm } from "./edit-form";
 
@@ -43,7 +43,7 @@ export default async function EditMissionPage({
   const supabase = await createClient();
   // RLS scopes reads to this Business; the extra .eq is defence-in-depth.
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("id", id)
     .eq("business_id", ctx.business.id)
@@ -133,8 +133,8 @@ export default async function EditMissionPage({
           {/* ALL IN, both of them — the stored fare and Ceiling are Course-basis
               and this header sits beside figures that already convert. */}
           <span>
-            Fare <b>{formatMoney(commissionSplit(settledFare(mission), ratesOf(mission)).businessTotal)}</b> ·
-            ceiling {formatMoney(commissionSplit(Number(mission.ceiling), ratesOf(mission)).businessTotal)}
+            Fare <b>{formatMoney(commissionSplit(settledFare(mission), businessRatesOf(mission)).businessTotal)}</b> ·
+            ceiling {formatMoney(commissionSplit(Number(mission.ceiling), businessRatesOf(mission)).businessTotal)}
           </span>
           <span>
             {serviceClassLabel(mission.category, mission.required_body_type)}

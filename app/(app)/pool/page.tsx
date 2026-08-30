@@ -1,10 +1,12 @@
 import type { ReactNode } from "react";
+import type { PoolMissionRow } from "@/lib/database.types";
 import Link from "next/link";
 import { MapPin, Radar, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDriverContext } from "@/lib/driver";
 import { sweepExpiredMissions } from "@/lib/expiry";
 import { MissionCard } from "@/components/mission-card";
+import { poolFaresNet } from "@/lib/pool-fares";
 import { serviceClassLabel } from "@/lib/format";
 import { withinRadius } from "@/lib/geo";
 import { carMatches } from "@/lib/vehicle-catalog";
@@ -101,7 +103,7 @@ export default async function PoolPage({
   // the whole Pool, but a dead trip isn't a filtered-out trip — `accept_mission`
   // would refuse it, so listing it would be a lie.
   let query = supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("status", "pooled")
     .gt("pickup_at", new Date().toISOString());
@@ -109,9 +111,18 @@ export default async function PoolPage({
   const { data: all, error } = await query.order("pickup_at", { ascending: true });
 
   const radius = driver.service_radius_km ?? 50;
+  // ⚑ THE CEILING IS NOT IN THESE ROWS. `mission_read` masks it for a Driver on
+  // a trip they do not hold (docs/06 §6 — a Driver who knows the top of the
+  // curve knows exactly what waiting is worth). Prices come from `poolFaresNet`
+  // below instead, computed server-side from the ids this RLS read just
+  // returned. The cast is what makes the compiler enforce it: `currentFare()`
+  // will not take a PoolMissionRow.
+  // `as unknown` because the generated Row type still promises a Ceiling: the
+  // view's SQL is what actually withholds it, and TypeScript cannot see SQL.
+  const pooled = (all ?? []) as unknown as PoolMissionRow[];
   const missions = seeAll
-    ? all ?? []
-    : (all ?? []).filter((m) => {
+    ? pooled
+    : pooled.filter((m) => {
         const inRange =
           withinRadius(driver.base_lat!, driver.base_lng!, radius, m.pickup_lat, m.pickup_lng) ||
           withinRadius(driver.base_lat!, driver.base_lng!, radius, m.dropoff_lat, m.dropoff_lng);
@@ -132,6 +143,12 @@ export default async function PoolPage({
         }
         return true;
       });
+
+  // What each of these banks, net of commission — the only form a Driver is shown
+  // (docs/06 §1). Keyed by the ids the query above already returned, so the
+  // service role fills in prices for rows this session has already proved it may
+  // see; it never decides which rows those are. See lib/pool-fares.ts.
+  const fares = await poolFaresNet(missions.map((m) => m.id));
 
   return (
     <>
@@ -204,7 +221,7 @@ export default async function PoolPage({
       )}
 
       {missions.map((m) => (
-        <MissionCard key={m.id} mission={m} />
+        <MissionCard key={m.id} mission={m} fare={fares.get(m.id) ?? null} />
       ))}
     </>
   );

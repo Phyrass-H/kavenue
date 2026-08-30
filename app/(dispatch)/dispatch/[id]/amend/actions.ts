@@ -8,7 +8,7 @@ import { isValidLatLng } from "@/lib/geo";
 import { routeMetrics } from "@/lib/directions";
 import { parseWaypoints, parseWaypointsField, unlocatedStops } from "@/lib/waypoints";
 import { settledFare } from "@/lib/pdp";
-import { commissionSplit, courseFromBusinessTotal, ratesOf } from "@/lib/commission";
+import { commissionSplit, courseFromBusinessTotal, businessRatesOf } from "@/lib/commission";
 import { buildFromSnapshot } from "@/lib/amendments";
 import { recordMissionEvent } from "@/lib/mission-events-server";
 import type { MissionStatus } from "@/lib/database.types";
@@ -41,7 +41,7 @@ export async function proposeMissionAmendment(missionId: string, formData: FormD
   const supabase = await createClient();
   // Load the trip AS AGREED (RLS scopes to this Business; the extra eq is defence).
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("id", id)
     .eq("business_id", ctx.business.id)
@@ -133,7 +133,7 @@ export async function proposeMissionAmendment(missionId: string, formData: FormD
   // createMission calls, never a number the browser sent. The mission's OWN
   // snapshot rates convert it back to the Course, never the live ones: this trip's
   // invoice is already stamped and a rate change tomorrow must not re-price it.
-  const rates = ratesOf(mission);
+  const rates = businessRatesOf(mission);
   const priceAt = (km: number | null) =>
     km == null || !Number.isFinite(km) || km <= 0
       ? Promise.resolve({ data: null })

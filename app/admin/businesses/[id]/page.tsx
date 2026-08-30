@@ -39,7 +39,7 @@ export default async function AdminBusinessPage({
   const [{ data: staff }, { data: trips, count }] = await Promise.all([
     db.from("dispatcher").select("*").eq("business_id", id).order("created_at"),
     db
-      .from("mission")
+      .from("mission_read")
       .select("*", { count: "exact" })
       .eq("business_id", id)
       .order("pickup_at", { ascending: false })

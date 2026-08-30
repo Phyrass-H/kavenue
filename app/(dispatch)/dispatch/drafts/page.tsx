@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getAppContext } from "@/lib/app-context";
-import { commissionSplit, ratesOf } from "@/lib/commission";
+import { commissionSplit, businessRatesOf } from "@/lib/commission";
 import { categoryLabel, formatDateTime, formatMoney } from "@/lib/format";
 import { DraftActions } from "@/components/draft-actions";
 
@@ -13,7 +13,7 @@ export default async function DispatchDrafts() {
 
   const supabase = await createClient();
   const { data: drafts } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("business_id", ctx.business.id)
     .eq("status", "draft")
@@ -58,7 +58,7 @@ export default async function DispatchDrafts() {
                 commission has NULL rates and passes through unconverted, which
                 is right — it was never going to carry a fee. */}
             <div className="muted small" style={{ marginTop: 6 }}>
-              Ceiling {formatMoney(commissionSplit(Number(m.ceiling), ratesOf(m)).businessTotal)}
+              Ceiling {formatMoney(commissionSplit(Number(m.ceiling), businessRatesOf(m)).businessTotal)}
             </div>
             <DraftActions missionId={m.id} editHref={`/dispatch/new?draft=${m.id}`} />
           </div>

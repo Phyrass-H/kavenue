@@ -197,7 +197,7 @@ export default async function RidesPage() {
   const supabase = await createClient();
   const [{ data: missions, error }, { count: pastCount }] = await Promise.all([
     supabase
-      .from("mission")
+      .from("mission_read")
       .select("*")
       .eq("driver_id", driver.id)
       .in("status", ACTIVE_STATUSES)

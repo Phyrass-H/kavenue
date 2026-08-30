@@ -71,7 +71,7 @@ async function loadPeriod(driverId: string, from: Date, to: Date, withRows = fal
   const supabase = await createClient();
   const [{ data: missions }, { data: cancels }] = await Promise.all([
     supabase
-      .from("mission")
+      .from("mission_read")
       .select("*")
       .eq("driver_id", driverId)
       .in("status", MONEY_STATUSES)

@@ -6,7 +6,7 @@ import { getAppContext } from "@/lib/app-context";
 import { parseWaypoints } from "@/lib/waypoints";
 import { routeMetrics } from "@/lib/directions";
 import { settledFare } from "@/lib/pdp";
-import { commissionSplit, ratesOf } from "@/lib/commission";
+import { commissionSplit, businessRatesOf } from "@/lib/commission";
 import { RATE_CARD_COLS, type RateCardRow } from "@/lib/rate-card";
 import { missionTone, TONE_BG, TONE_COLOR } from "@/lib/dispatch-status";
 import {
@@ -55,7 +55,7 @@ export default async function AmendMissionPage({
 
   const supabase = await createClient();
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select("*")
     .eq("id", id)
     .eq("business_id", ctx.business.id)
@@ -84,7 +84,7 @@ export default async function AmendMissionPage({
   // types and reads its own side of the price (docs/06 §1). `proposeAmendment`
   // converts it back with `courseFromBusinessTotal` before it writes, exactly as
   // `createMission` does with the Ceiling — the column keeps storing the fare.
-  const fare = commissionSplit(settledFare(mission), ratesOf(mission)).businessTotal;
+  const fare = commissionSplit(settledFare(mission), businessRatesOf(mission)).businessTotal;
 
   // Kavenue prices the change, so the form needs the card to show what the new
   // route is worth as it is edited. The SERVER re-prices authoritatively on submit

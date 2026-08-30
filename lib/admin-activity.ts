@@ -144,7 +144,7 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
     // shorten it, it makes it WRONG.
     readAll<MissionRow>((from, to) =>
       db
-        .from("mission")
+        .from("mission_read")
         .select("*")
         .eq("status", "pooled")
         .gt("pickup_at", nowIso)
@@ -300,7 +300,7 @@ export async function readMissionEvents(db: Db, missionId: string): Promise<Miss
 export async function readHomeNumbers(now = new Date()): Promise<HomeNumbers> {
   const db = await createClient();
   const rows = await readAll<NumbersRow>((from, to) =>
-    db.from("mission").select(HOME_NUMBER_COLS).range(from, to),
+    db.from("mission_read").select(HOME_NUMBER_COLS).range(from, to),
   );
   return homeNumbers(rows, now);
 }

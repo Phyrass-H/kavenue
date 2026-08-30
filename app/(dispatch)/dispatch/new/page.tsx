@@ -6,8 +6,8 @@ import { businessReadiness } from "@/lib/business-readiness";
 import { parseGuestContacts, type GuestContact } from "@/lib/passengers";
 import { RATE_CARD_COLS, type RateCardRow } from "@/lib/rate-card";
 import {
-  COMMISSION_RATE_COLS,
-  ratesFromRow,
+  COMMISSION_RATE_BUSINESS_COLS,
+  businessRatesFromRow,
   type CommissionRateRow,
   type Rates,
 } from "@/lib/commission";
@@ -55,7 +55,7 @@ export default async function NewMissionPage({
   // mission is written and snapshots them onto the row — this copy only displays.
   //
   // ⚑ A FAILED READ IS NOT "NO COMMISSION" — and this is the one read where the
-  // difference costs money. Both come back as `null` from ratesFromRow, and they
+  // difference costs money. Both come back as `null` from businessRatesFromRow, and they
   // mean opposite things: no generation in force is a real state (the whole
   // pre-2026-08-17 archive), where the Course IS the all-in and nothing converts;
   // a query that fell over means we simply do not know the rate. Guess the second
@@ -68,7 +68,7 @@ export default async function NewMissionPage({
     const supabase = await createClient();
     const { data, error } = await supabase
       .from("commission_rate")
-      .select(COMMISSION_RATE_COLS)
+      .select(COMMISSION_RATE_BUSINESS_COLS)
       .lte("effective_from", new Date().toISOString())
       .order("effective_from", { ascending: false })
       .limit(1)
@@ -77,7 +77,10 @@ export default async function NewMissionPage({
       commissionRatesUnavailable = true;
       return null;
     }
-    return ratesFromRow(data as CommissionRateRow | null);
+    // ⚑ BUSINESS-SIDE ONLY. `driver_rate_ht` is not readable by a Dispatcher
+    // session any more, and asking for it would turn this into the failed read
+    // the comment above spends twenty lines warning about.
+    return businessRatesFromRow(data as Omit<CommissionRateRow, "driver_rate_ht"> | null);
   })();
 
   // Resume a saved draft (gated to this Business by RLS). Only draft rows.
@@ -86,7 +89,7 @@ export default async function NewMissionPage({
   if (draft && business) {
     const supabase = await createClient();
     const { data } = await supabase
-      .from("mission")
+      .from("mission_read")
       .select("*")
       .eq("id", draft)
       .eq("status", "draft")

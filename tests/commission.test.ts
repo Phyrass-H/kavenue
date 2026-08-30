@@ -18,6 +18,11 @@ import {
   driverNet,
   businessTotal,
   ratesOf,
+  businessRatesOf,
+  driverRatesOf,
+  businessRatesFromRow,
+  businessSplitFor,
+  driverSplitFor,
   splitFor,
   transportVat,
   type CommissionRateRow,
@@ -155,6 +160,71 @@ describe("a mission priced before commission existed", () => {
   it("treats a half-written snapshot as no commission, never as half a fee", () => {
     expect(ratesOf({ ...snapshot, commission_vat_rate: null })).toBeNull();
     expect(splitFor({ ...snapshot, commission_driver_rate: null }, 100).charged).toBe(false);
+  });
+});
+
+describe("a snapshot with the OTHER side masked — the money-column walls", () => {
+  // 2026-08-30: `mission_read` shows a Dispatcher its own rate and NULL where the
+  // Driver's is, and the mirror for a Driver. Nothing about the money may change
+  // because of it — the whole risk of the walls was a silent one, since `ratesOf`
+  // demanded all three and would have quietly reported "no commission charged".
+  const asBusinessSees = { ...snapshot, commission_driver_rate: null };
+  const asDriverSees = { ...snapshot, commission_business_rate: null };
+
+  it("still bills the Business exactly what an unmasked row does", () => {
+    expect(businessTotal(asBusinessSees, 190)).toBe(businessTotal(snapshot, 190));
+    expect(businessTotal(asBusinessSees, 190)).toBe(218.5); // docs/06 §3's own example
+    const s = businessSplitFor(asBusinessSees, 190);
+    expect(s.charged).toBe(true);
+    expect(s.businessFeeHt).toBe(23.75);
+    expect(s.businessFeeVat).toBe(4.75);
+    expect(s.course + s.businessFeeHt + s.businessFeeVat).toBe(s.businessTotal);
+  });
+
+  it("still pays the Driver exactly what an unmasked row does", () => {
+    expect(driverNet(asDriverSees, 190)).toBe(driverNet(snapshot, 190));
+    const s = driverSplitFor(asDriverSees, 190);
+    expect(s.charged).toBe(true);
+    expect(s.driverNet + s.driverFeeHt + s.driverFeeVat).toBe(s.course);
+  });
+
+  it("⚑ is the case the OLD ratesOf would have got wrong", () => {
+    // The regression this whole describe exists to hold: left on `ratesOf`, a
+    // masked row reads as a trip that was never charged a fee, and the Business
+    // is shown the Course as its total — 190,00 where it owes 218,50.
+    expect(ratesOf(asBusinessSees)).toBeNull();
+    expect(splitFor(asBusinessSees, 190).businessTotal).toBe(190);
+    expect(businessTotal(asBusinessSees, 190)).toBe(218.5);
+  });
+
+  it("still reports NO commission when the side that IS visible is null", () => {
+    // Masking is not the same as a pre-commission trip, and the per-side readers
+    // must not turn one into the other.
+    expect(businessRatesOf({ ...snapshot, commission_business_rate: null })).toBeNull();
+    expect(driverRatesOf({ ...snapshot, commission_driver_rate: null })).toBeNull();
+    expect(businessRatesOf({ ...snapshot, commission_vat_rate: null })).toBeNull();
+    expect(driverRatesOf({ ...snapshot, commission_vat_rate: null })).toBeNull();
+    expect(businessSplitFor({ ...snapshot, commission_business_rate: null }, 190).charged).toBe(false);
+  });
+
+  it("does not let one side's helper answer for the other", () => {
+    // businessRatesOf substitutes 0 for the Driver's rate, which would read as a
+    // Driver banking the whole Course. The narrowed return types are what stop
+    // that number ever being rendered; this pins the substitution itself.
+    expect(businessRatesOf(snapshot)).toEqual({ businessHt: 0.125, driverHt: 0, feeVat: 0.2 });
+    expect(driverRatesOf(snapshot)).toEqual({ businessHt: 0, driverHt: 0.1, feeVat: 0.2 });
+  });
+
+  it("reads a rate card with driver_rate_ht revoked", () => {
+    // The mission form's own read since the walls — the column is not selectable
+    // by a Dispatcher session at all, so the row simply arrives without it.
+    const card = {
+      id: "x", effective_from: "2026-08-17T00:00:00Z",
+      business_rate_ht: 0.125, fee_vat_rate: 0.2, transport_vat_rate: 0.1,
+    };
+    expect(businessRatesFromRow(card)).toEqual({ businessHt: 0.125, driverHt: 0, feeVat: 0.2 });
+    expect(commissionSplit(190, businessRatesFromRow(card)).businessTotal).toBe(218.5);
+    expect(businessRatesFromRow(null)).toBeNull();
   });
 });
 

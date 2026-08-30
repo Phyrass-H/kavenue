@@ -34,7 +34,7 @@ export default async function AdminDriverPage({
   const [{ data: vehicles }, { data: trips, count }] = await Promise.all([
     db.from("vehicle").select("*").eq("driver_id", id),
     db
-      .from("mission")
+      .from("mission_read")
       .select("*", { count: "exact" })
       .eq("driver_id", id)
       .order("pickup_at", { ascending: false })

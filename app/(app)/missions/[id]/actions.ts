@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
-import { currentFare } from "@/lib/pdp";
+import { courseForAccept } from "@/lib/pool-fares";
 import { recordMissionEvent } from "@/lib/mission-events-server";
 import { getDriverContext } from "@/lib/driver";
 
@@ -27,15 +27,16 @@ export async function acceptMission(missionId: string): Promise<AcceptResult> {
   // and every reader still falls back to recomputing the curve, which is what
   // the whole archive does. Losing the trip to another Driver over a slow select
   // would be the worse outcome.
-  const { data: m } = await supabase
-    .from("mission")
-    .select("id, ceiling, pdp_start, speed_win, pickup_at, created_at, pooled_at")
-    .eq("id", missionId)
-    .maybeSingle();
+  // ⚑ READ WITH THE SERVICE ROLE, because the Ceiling this needs is exactly what
+  // `mission_read` withholds from a Driver browsing the Pool. Handing a
+  // browser-supplied id to the service role is safe HERE and only here: the
+  // number never goes back to the browser, and `accept_mission` re-clamps it
+  // into [floor, ceiling] and enforces every eligibility rule itself.
+  const course = await courseForAccept(missionId);
 
   const { error } = await supabase.rpc("accept_mission", {
     p_mission_id: missionId,
-    p_fare: m ? currentFare(m) : null,
+    p_fare: course,
   });
 
   if (error) {

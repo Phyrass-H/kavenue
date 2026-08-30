@@ -297,7 +297,15 @@ export async function createMission(formData: FormData) {
   // snapshot onto the row, so re-rating later can never rewrite this trip's
   // invoice. `transport_vat_rate` stays NULL: it is the assigned Driver's
   // status, and nobody has accepted yet.
-  const { data: rateRow, error: rateErr } = await supabase
+  //
+  // ⚑ SERVICE ROLE, not `supabase`. Since the money-column walls (2026-08-30) a
+  // Dispatcher session cannot read `driver_rate_ht` — but this row has to carry
+  // BOTH rates, because docs/06 §9 says settlement reads the snapshot and never
+  // joins back to the live card. The rate card is one global row, not this
+  // Business's data, so there is nothing here for RLS to scope; the Business's
+  // own half of the same read stays on the user session over in
+  // dispatch/new/page.tsx.
+  const { data: rateRow, error: rateErr } = await createAdminClient()
     .from("commission_rate")
     .select(COMMISSION_RATE_COLS)
     .lte("effective_from", new Date().toISOString())

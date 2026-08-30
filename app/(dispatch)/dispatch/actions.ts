@@ -34,7 +34,7 @@ export async function businessDeclareNoShow(missionId: string): Promise<ActionRe
 
   const supabase = await createClient();
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select(FARE_COLS)
     .eq("id", missionId)
     .eq("business_id", ctx.business.id)
@@ -67,7 +67,7 @@ export async function businessCancelMission(
 
   const supabase = await createClient();
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select(FARE_COLS)
     .eq("id", missionId)
     .eq("business_id", ctx.business.id)
@@ -106,7 +106,7 @@ export async function proposeRelease(
 
   const supabase = await createClient();
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select(FARE_COLS)
     .eq("id", missionId)
     .eq("business_id", ctx.business.id)

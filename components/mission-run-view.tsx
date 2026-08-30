@@ -25,8 +25,8 @@ import {
 import {
   driverKeeps,
   driverNet,
-  ratesOf,
-  splitFor,
+  driverRatesOf,
+  driverSplitFor,
   transportVat,
 } from "@/lib/commission";
 import type { MissionRow, MissionStatus, PreferredGps } from "@/lib/database.types";
@@ -166,7 +166,7 @@ export function MissionRunView({
 
   // The Driver's own money detail (docs/06 §1, §3) — over the same gross figure
   // the footer shows, so the breakdown and the total can never disagree.
-  const payment = splitFor(m, grossToDriver(m));
+  const payment = driverSplitFor(m, grossToDriver(m));
   // ⚑ `payment.course` is grossToDriver — the fare AND the settled waiting, or on a
   // cancelled trip the compensation. Rendering it under a "Fare" label made the table
   // say something untrue on any trip that waited: a 100 € trip with 15 € of waiting
@@ -528,7 +528,7 @@ export function MissionRunView({
           <NoShowControl
             missionId={m.id}
             fare={settledFare(m)}
-            rates={ratesOf(m)}
+            rates={driverRatesOf(m)}
             category={m.category}
             guestDueIso={guestDueAt(m).toISOString()}
             availableAtIso={noShowAvailableAt(m, arrivedAtIso).toISOString()}

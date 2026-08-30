@@ -437,7 +437,7 @@ export async function driverCancelMission(
 
   const supabase = await createClient();
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select(FARE_COLS)
     .eq("id", missionId)
     .maybeSingle();
@@ -523,7 +523,7 @@ export async function markNoShow(missionId: string): Promise<StatusResult> {
 
   const supabase = await createClient();
   const { data: mission } = await supabase
-    .from("mission")
+    .from("mission_read")
     .select(FARE_COLS)
     .eq("id", missionId)
     .maybeSingle();

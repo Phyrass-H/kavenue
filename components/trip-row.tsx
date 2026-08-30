@@ -6,7 +6,7 @@ import { closeRelease } from "@/app/(dispatch)/dispatch/actions";
 import { settledFare } from "@/lib/pdp";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
-import { businessCost, carriesCommission, ratesOf, splitFor } from "@/lib/commission";
+import { businessCost, carriesCommission, businessRatesOf, businessSplitFor } from "@/lib/commission";
 import {
   addressLine,
   formatDateTime,
@@ -368,8 +368,8 @@ export function TripRow({
   // the trip. A Business is only ever shown the all-in figure, so every amount
   // on this row goes through the snapshot rates first. A mission with no
   // snapshot renders exactly as it did before commission shipped.
-  const fareSplit = splitFor(mission, settledFare(mission));
-  const ceilingSplit = splitFor(mission, Number(mission.ceiling));
+  const fareSplit = businessSplitFor(mission, settledFare(mission));
+  const ceilingSplit = businessSplitFor(mission, Number(mission.ceiling));
   // Only once a Driver holds it: while the price is still climbing, "saved" is
   // a claim about a number that is still moving.
   // ⚑ WHAT THE ROW'S OWN AMOUNT IS MADE OF, in Course space — `historyFare`'s
@@ -393,7 +393,7 @@ export function TripRow({
   const paidSplit =
     billedGross == null || !carriesCommission(mission)
       ? null
-      : splitFor(mission, billedGross);
+      : businessSplitFor(mission, billedGross);
 
   const savedAgainstMax = mission.accepted_at
     ? Math.round((ceilingSplit.businessTotal - fareSplit.businessTotal) * 100) / 100
@@ -647,7 +647,7 @@ export function TripRow({
             missionId={mission.id}
             driverName={driver?.name ?? ""}
             fare={settledFare(mission)}
-            rates={ratesOf(mission)}
+            rates={businessRatesOf(mission)}
             category={mission.category}
             waitingFromIso={waitingAt(mission).from.toISOString()}
             waitingUntilIso={waitingAt(mission).until.toISOString()}
@@ -669,7 +669,7 @@ export function TripRow({
                 <BusinessCancel
                   missionId={mission.id}
                   fare={settledFare(mission)}
-                  rates={ratesOf(mission)}
+                  rates={businessRatesOf(mission)}
                   category={mission.category}
                   pickupAtIso={mission.pickup_at}
                   hasDriver={!!mission.driver_id}

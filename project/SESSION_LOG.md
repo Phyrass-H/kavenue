@@ -5079,6 +5079,41 @@ session**) · `lib/gender.ts` · `lib/admin-drivers.ts` · `lib/admin-rollup.ts`
 - ⚑ **`.local/seed` DATA WRITTEN TO DEMONSTRATE A FEATURE MUST BE DECLARED.** Marc Fontaine's gender is `man`
   because a session set it to prove the breakdown renders. It is in the changelog, not just here.
 
+### Then — periods, from day one ([[d103]])
+The founder's brief: *"the database has to give 100 % of all time infos, that is why we need to break it into
+periods — the analyses are not only in the last few months but from day one."*
+
+`lib/admin-period.ts` · `components/admin-period-bar.tsx` · `.adm-per*` · **three** migrations, because the
+first two got the census wrong: `2026-08-30_admin_rollup_periods.sql`, then
+`_driver_rollup_period_counts.sql` (**superseded within the hour**), then
+`_rollup_counts_are_a_census.sql`. **786 → 798 tests.**
+
+| | |
+|---|---|
+| **All time is the default** | every screen opens there. No window, no cap, no sampling anywhere in the rollups |
+| **the picker is the app's own** | `Period`/`periodRange` from `lib/earnings.ts` — the model behind History and Earnings ([[d64]]). Range NOT built: it needs the `date-cal` popover |
+| ⚑ **the proof** | **the months sum to all time** — 10+75+137+135 = 357 trips, and 6+59+117+112 = 294 taken. Half-open `>= from, < to` |
+| ⚑ **census vs activity** | a breakdown COUNT never moves with the period; TRIPS do. Got this backwards once — see below |
+| **verified** | 20 order-insensitive checks across May / July / September, plus both screens in the browser |
+
+### ⚑ Traps from this half
+- ⚑ **"INERT ON ALL TIME" WAS FALSE, AND I WROTE IT IN A MIGRATION COMMENT.** `filter (where taken > 0)` on a
+  breakdown count removes the never-worked from EVERY period, all time included — because zero trips ever is
+  zero trips always. `Business · Sedan` read 6 drivers, then 4, on the default view. **A justification written
+  into a comment is not a proof; it was disproved by the next screenshot.**
+- ⚑ **DROPPING A QUIET ROW IS A SILENT OMISSION.** *"Three Eco cars and none of them worked in May"* is the
+  row worth seeing in May. Rows are never dropped now; a quiet one shows its census, `0`, and **`—`** rather
+  than `0 of 0`.
+- ⚑ **A CENSUS AND AN ACTIVITY NUMBER MUST NOT SHARE A TABLE ROW SHAPE.** Scoping gender nearly printed
+  *"Not asked — 9"* under *"1 of 13 answered"*. It now has its own `CensusRow` — a name and a headcount, no
+  trips, no rate.
+- ⚑ **`JSON.stringify` IS ORDER-SENSITIVE AND BREAKDOWN ROWS ARE SORTED BY ACTIVITY.** The verification
+  reported 4 failures; the counts were identical and only the array order differed. S63's rule for the third
+  time: **suspect the probe's expectations before the code.**
+- ⚑ **APPLY A PERIOD TO THE JOIN, NEVER THE `where`.** `left join mission … and created_at >= p_from` keeps a
+  Business with no trips as a zero row; the same condition in the `where` turns it into an inner join and the
+  Business disappears — a quiet month made to look busy.
+
 ### Still open at the close
 - **The design lock** (§ 3) — proposed, not approved: five of seven screens ratified, five changes named, the
   biggest being that **six console reads stop at 1 000 rows silently** (measured: an unpaged select returned
@@ -5088,6 +5123,13 @@ session**) · `lib/gender.ts` · `lib/admin-drivers.ts` · `lib/admin-rollup.ts`
   drive" + "The cars themselves"** · ~~men and women~~ **done, [[d101]]** · **improve the main page — the only
   one left**, and the S70 leftovers belong to it: the city strip, *"taken at 61 % of Ceiling"*, and *"fell
   through after accepting"*.
+- **The 1 000-row fix and `post_blocked`** — the founder agreed to both and set the order: periods (done),
+  then the row fix, then `post_blocked`, then the main page. ⚑ The remaining unpaged reads are in
+  `lib/admin-activity.ts` (drivers, vehicles, pooled missions, `mission_cancellation` ×2). The
+  `mission_cancellation` ones are the dangerous pair: past 1 000 records the *"cancelled trips with no
+  record"* finding starts naming trips that DO have one.
+- ⚑ **Range on the period bar is not built** — needs the `date-cal` popover, the one part that cannot be a
+  plain link.
 - ⚑ **The `post_blocked` event is NOT written.** Proposed and not built: `mission_event` requires a
   `mission_id` and none exists yet, so it needs a `business_event` table. This is the first step of the booking
   funnel the founder asked for in S66, and the only part of the gate that cannot be recovered later.

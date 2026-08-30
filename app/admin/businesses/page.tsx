@@ -20,6 +20,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { pageWindow, pageNote } from "@/lib/admin-list";
+import { parseAdminPeriod, inPeriod } from "@/lib/admin-period";
+import { AdminPeriodBar } from "@/components/admin-period-bar";
 import { formatShortDay } from "@/lib/format";
 import {
   cityKeyLabel,
@@ -52,7 +54,15 @@ function Rate({ row }: { row: RollupRow }) {
   const rate = fillRate(row);
   return (
     <span className="adm-row__kind">
-      {rate == null ? `${row.filled} of ${row.settled}` : `${Math.round(rate)} %`}
+      {/* ⚑ "0 of 0" is true and says nothing. A région that booked nothing in the
+          chosen period has no fill rate to suppress, only an absence to report —
+          and since rows are no longer dropped for being quiet, this is now the
+          normal way an inactive month looks. */}
+      {row.settled === 0
+        ? "—"
+        : rate == null
+          ? `${row.filled} of ${row.settled}`
+          : `${Math.round(rate)} %`}
     </span>
   );
 }
@@ -89,11 +99,19 @@ function BreakdownHead() {
   );
 }
 
-function qs(f: Filter): string {
+// ⚑ EVERY LINK ON THE SCREEN CARRIES THE PERIOD. Clicking "Nice" while looking
+// at July must stay in July — otherwise the drill-down silently answers a wider
+// question than the one on screen, and the number the reader lands on is right
+// for a period they did not ask for.
+function qs(f: Filter, when: { period: string | null; anchor: string | null }): string {
   const p = new URLSearchParams();
   if (f.type) p.set("type", f.type);
   if (f.region) p.set("region", f.region);
   if (f.city) p.set("city", f.city);
+  if (when.period) {
+    p.set("period", when.period);
+    if (when.anchor) p.set("anchor", when.anchor);
+  }
   const s = p.toString();
   return s ? `/admin/businesses?${s}` : "/admin/businesses";
 }
@@ -101,22 +119,33 @@ function qs(f: Filter): string {
 export default async function AdminBusinessesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ type?: string; region?: string; city?: string; page?: string }>;
+  searchParams: Promise<{
+    type?: string;
+    region?: string;
+    city?: string;
+    page?: string;
+    period?: string;
+    anchor?: string;
+  }>;
 }) {
-  const { type, region, city, page } = await searchParams;
+  const { type, region, city, page, period, anchor } = await searchParams;
   const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
 
   const filtered = Boolean(type || region || city);
+  // All time unless the URL says otherwise — the default every screen opens with.
+  const when = parseAdminPeriod({ period, anchor });
 
   const [overviewRes, listRes] = await Promise.all([
-    db.rpc("admin_business_overview"),
+    db.rpc("admin_business_overview", { p_from: when.fromIso, p_to: when.toIso }),
     db.rpc("admin_business_page", {
       p_type: type ?? null,
       p_region: region ?? null,
       p_city: city ?? null,
       p_limit: PER_PAGE,
       p_offset: win.from,
+      p_from: when.fromIso,
+      p_to: when.toIso,
     }),
   ]);
 
@@ -158,20 +187,30 @@ export default async function AdminBusinessesPage({
         </div>
       </header>
 
+      <AdminPeriodBar now={when} base="/admin/businesses" keep={{ type, region, city }} />
+
       {/* The four numbers. Quieter than a finding, same as the home band. */}
       <section className="adm-sect adm-band">
         <div className="adm-nums">
+          {/* ⚑ TWO OF THESE FOUR DO NOT FOLLOW THE PERIOD, and each says so.
+              "businesses" is how many exist today — looking at May must not make
+              the ones who signed up since disappear. "never posted once" means
+              never EVER; scoped to July it would mean "didn't post in July",
+              which is a different fact that jumps around as you step months. */}
           <div className="adm-n">
             <div className="adm-n__v">{count.format(o.businesses)}</div>
             <div className="adm-n__l">businesses</div>
+            <div className="adm-n__s">on the platform today</div>
           </div>
           <div className="adm-n">
-            <div className="adm-n__v">{count.format(o.posted_this_month)}</div>
-            <div className="adm-n__l">posted this month</div>
+            <div className="adm-n__v">{count.format(o.trips)}</div>
+            <div className="adm-n__l">trips posted</div>
+            <div className="adm-n__s">{inPeriod(when)}</div>
           </div>
           <div className="adm-n">
             <div className="adm-n__v">{count.format(o.never_posted)}</div>
             <div className="adm-n__l">never posted once</div>
+            <div className="adm-n__s">all time</div>
           </div>
           <div className="adm-n">
             <div className="adm-n__v">{medianValue(o)}</div>
@@ -190,7 +229,7 @@ export default async function AdminBusinessesPage({
               key={row.key ?? "none"}
               label={typeKeyLabel(row.key)}
               row={row}
-              href={qs({ type: row.key ?? undefined })}
+              href={qs({ type: row.key ?? undefined }, when)}
             />
           ))}
         </section>
@@ -205,7 +244,7 @@ export default async function AdminBusinessesPage({
               <BreakdownRow
                 label={group.label}
                 row={group}
-                href={qs({ region: group.key ?? undefined })}
+                href={qs({ region: group.key ?? undefined }, when)}
               />
               {/* Cities sit under their région rather than in a table of their
                   own: at 25 000 Businesses "Nice" means nothing until you know
@@ -215,7 +254,7 @@ export default async function AdminBusinessesPage({
                   key={c.key ?? "none"}
                   label={c.label}
                   row={c}
-                  href={qs({ city: c.key ?? undefined })}
+                  href={qs({ city: c.key ?? undefined }, when)}
                   indent
                 />
               ))}
@@ -239,7 +278,7 @@ export default async function AdminBusinessesPage({
             ]
               .filter(Boolean)
               .join(" · ")}{" "}
-            — <Link href="/admin/businesses">clear</Link>
+            — <Link href={qs({}, when)}>clear</Link>
           </p>
         )}
         {rows.length === 0 ? (
@@ -281,7 +320,7 @@ export default async function AdminBusinessesPage({
           const n = pageNote(Number(total), win, PER_PAGE);
           if (!n) return null;
           const href = (p: number) => {
-            const base = qs({ type, region, city });
+            const base = qs({ type, region, city }, when);
             const sep = base.includes("?") ? "&" : "?";
             return p === 0 ? base : `${base}${sep}page=${p}`;
           };

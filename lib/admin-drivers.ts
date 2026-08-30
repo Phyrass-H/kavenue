@@ -44,7 +44,7 @@ export function finishRate(row: Pick<DriverRollupRow, "taken" | "finished">): nu
 
 export interface DriverOverview {
   drivers: number;
-  took_this_month: number;
+  taken: number;
   never_took: number;
   without_base: number;
   median_trips: number | null;

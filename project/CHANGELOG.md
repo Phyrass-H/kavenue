@@ -5,6 +5,43 @@
 
 ---
 
+## 30 August 2026 — the console can go back to day one
+
+You said the analyses shouldn't only cover the last few months. They don't. **Every console screen now opens
+on "All time" and stays there unless you ask otherwise** — there's no hidden window, no "last 90 days", no
+sampling anywhere.
+
+Above the numbers there's now a bar: **All time · Year · Month · Week · Day**, with ‹ › arrows to step through
+them. It's the same picker your Dispatch History and Driver Earnings already use, so it behaves exactly the
+way you're used to. The forward arrow disappears once you reach the month you're in — there's nothing after
+now, and a dead arrow only invites the click that proves it's dead.
+
+**The check that says the periods are right:** the months add up to the whole. May 10 + June 75 + July 137 +
+August 135 = **357**, and All time says 357. For drivers, 6 + 59 + 117 + 112 = **294**, and All time says 294.
+Nothing counted twice at midnight on the 1st, nothing lost.
+
+**Two numbers deliberately don't move when you change period**, and each says so on its own face:
+
+- **"4 businesses · on the platform today"** — looking at May shouldn't make businesses who joined since
+  disappear.
+- **"0 never posted once · all time"** — never posted *ever*. Scoped to July it would mean "didn't post in
+  July", which is a different fact that jumps around as you step months.
+
+**And the same holds inside the tables.** How many drivers own a Mercedes doesn't change because you looked at
+May — that's a fact about your fleet. What changes is how many trips they did. So May now reads
+**"Eco · Sedan — 3 drivers, 0 trips"**: you had three Eco cars and none of them worked that month. That row
+used to vanish entirely, which is exactly the kind of silence this console is supposed to refuse.
+
+⚑ **I got this wrong once and reverted it within the hour.** I'd made the driver counts follow the period,
+which quietly deleted the three drivers who've never worked from your fleet composition — on every view,
+including All time. "Business · Sedan" showed 4 drivers when you have 6. Caught by reading the screen, not by
+a test.
+
+One thing I didn't build: **Range** (a hand-picked from→to). It needs the calendar popover, and a half-built
+tab is worse than no tab. Say the word and it's quick.
+
+Tests: 786 → **798**.
+
 ## 30 August 2026 — Drivers get the same treatment, and a gender field
 
 **The Drivers screen is now the Businesses screen's twin.** Four numbers, then breakdowns you click into, then

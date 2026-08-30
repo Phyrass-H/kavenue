@@ -13,6 +13,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { pageWindow, pageNote } from "@/lib/admin-list";
+import { parseAdminPeriod, inPeriod } from "@/lib/admin-period";
+import { AdminPeriodBar } from "@/components/admin-period-bar";
 import { worthBreakingDown } from "@/lib/admin-rollup";
 import {
   classKeyLabel,
@@ -40,11 +42,37 @@ interface Filter {
   gender?: string;
 }
 
-function qs(f: Filter): string {
+// ⚑ Every link carries the period — clicking "Mercedes" while looking at July
+// must stay in July, or the drill-down answers a wider question than the screen.
+function qs(f: Filter, when: { period: string | null; anchor: string | null }): string {
   const p = new URLSearchParams();
   for (const [k, v] of Object.entries(f)) if (v) p.set(k, v);
+  if (when.period) {
+    p.set("period", when.period);
+    if (when.anchor) p.set("anchor", when.anchor);
+  }
   const s = p.toString();
   return s ? `/admin/drivers?${s}` : "/admin/drivers";
+}
+
+/**
+ * A census row — the label and how many people, and nothing else.
+ *
+ * ⚑ GENDER IS NOT AN ACTIVITY MEASURE, so it does not get the trips-and-finished
+ * columns. Giving it them nearly shipped a contradiction: with a period chosen
+ * the count would have been "the Drivers who drove", reading "Not asked — 9"
+ * directly under a note saying "1 of 13 answered". Two numbers about the same
+ * thirteen people, disagreeing a line apart.
+ */
+function CensusRow({ label, n, href }: { label: string; n: number; href: string }) {
+  return (
+    <Link href={href} className="adm-row adm-row--census">
+      <span className="adm-row__name">{label}</span>
+      <span className="adm-row__kind">
+        {count.format(n)} {n === 1 ? "Driver" : "Drivers"}
+      </span>
+    </Link>
+  );
 }
 
 function BreakdownHead() {
@@ -97,15 +125,18 @@ export default async function AdminDriversPage({
     make?: string;
     gender?: string;
     page?: string;
+    period?: string;
+    anchor?: string;
   }>;
 }) {
-  const { category, body, make, gender, page } = await searchParams;
+  const { category, body, make, gender, page, period, anchor } = await searchParams;
   const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
   const filtered = Boolean(category || body || make || gender);
+  const when = parseAdminPeriod({ period, anchor });
 
   const [overviewRes, listRes] = await Promise.all([
-    db.rpc("admin_driver_overview"),
+    db.rpc("admin_driver_overview", { p_from: when.fromIso, p_to: when.toIso }),
     db.rpc("admin_driver_page", {
       p_category: category ?? null,
       p_body: body ?? null,
@@ -113,6 +144,8 @@ export default async function AdminDriversPage({
       p_gender: gender ?? null,
       p_limit: PER_PAGE,
       p_offset: win.from,
+      p_from: when.fromIso,
+      p_to: when.toIso,
     }),
   ]);
 
@@ -155,19 +188,26 @@ export default async function AdminDriversPage({
         </div>
       </header>
 
+      <AdminPeriodBar now={when} base="/admin/drivers" keep={{ category, body, make, gender }} />
+
       <section className="adm-sect adm-band">
         <div className="adm-nums">
+          {/* ⚑ Two of these do not follow the period, and say so — see the
+              Businesses screen for the reasoning. */}
           <div className="adm-n">
             <div className="adm-n__v">{count.format(o.drivers)}</div>
             <div className="adm-n__l">drivers</div>
+            <div className="adm-n__s">on the platform today</div>
           </div>
           <div className="adm-n">
-            <div className="adm-n__v">{count.format(o.took_this_month)}</div>
-            <div className="adm-n__l">took a trip this month</div>
+            <div className="adm-n__v">{count.format(o.taken)}</div>
+            <div className="adm-n__l">trips taken</div>
+            <div className="adm-n__s">{inPeriod(when)}</div>
           </div>
           <div className="adm-n">
             <div className="adm-n__v">{count.format(o.never_took)}</div>
             <div className="adm-n__l">never taken a trip</div>
+            <div className="adm-n__s">all time</div>
           </div>
           <div className="adm-n">
             <div className="adm-n__v">{medianValue(o)}</div>
@@ -186,7 +226,7 @@ export default async function AdminDriversPage({
               key={`${row.key}-${row.parent}`}
               label={classKeyLabel(row.key, row.parent)}
               row={row}
-              href={qs({ category: row.key ?? undefined, body: row.parent ?? undefined })}
+              href={qs({ category: row.key ?? undefined, body: row.parent ?? undefined }, when)}
             />
           ))}
         </section>
@@ -201,7 +241,7 @@ export default async function AdminDriversPage({
               key={row.key ?? "none"}
               label={makeKeyLabel(row.key)}
               row={row}
-              href={qs({ make: row.key ?? undefined })}
+              href={qs({ make: row.key ?? undefined }, when)}
             />
           ))}
         </section>
@@ -222,13 +262,12 @@ export default async function AdminDriversPage({
           {genderNote && <p className="adm-quiet">{genderNote}.</p>}
           {worthBreakingDown(o.by_gender) ? (
             <>
-              <BreakdownHead />
               {o.by_gender.map((row) => (
-                <BreakdownRow
+                <CensusRow
                   key={row.key ?? "none"}
                   label={genderKeyLabel(row.key)}
-                  row={row}
-                  href={qs({ gender: row.key ?? undefined })}
+                  n={row.drivers}
+                  href={qs({ gender: row.key ?? undefined }, when)}
                 />
               ))}
             </>
@@ -253,7 +292,7 @@ export default async function AdminDriversPage({
             ]
               .filter(Boolean)
               .join(" · ")}{" "}
-            — <Link href="/admin/drivers">clear</Link>
+            — <Link href={qs({}, when)}>clear</Link>
           </p>
         )}
         {rows.length === 0 ? (
@@ -289,7 +328,7 @@ export default async function AdminDriversPage({
           const n = pageNote(Number(total), win, PER_PAGE);
           if (!n) return null;
           const href = (p: number) => {
-            const base = qs({ category, body, make, gender });
+            const base = qs({ category, body, make, gender }, when);
             const sep = base.includes("?") ? "&" : "?";
             return p === 0 ? base : `${base}${sep}page=${p}`;
           };

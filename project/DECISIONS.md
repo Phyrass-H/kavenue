@@ -2750,3 +2750,69 @@ a two-state version renders "8 trips" and hides exactly the person worth phoning
 rewrite cannot quietly drop it.
 
 Tests: `tests/admin-drivers.test.ts` (21). 753 → **786**.
+
+### D103 — A period narrows an answer that is already complete; the census under it never moves (2026-08-30, S71)
+
+**The founder's brief, which is really an architecture:**
+
+> *"The database has to give 100 % of all time infos — that is why we need to break it into periods. The
+> analyses are not only in the last few months but from day one."*
+
+So **All time is the default and every console screen opens there.** A period narrows; it never stands in for
+the whole. There is no window anywhere in the rollups — no "last 90 days", no sampling, no cap.
+
+The picker is the app's own — `Period`, `periodRange` and the ‹ › stepping come from `lib/earnings.ts`, the
+model behind Dispatch History and the Driver's Earnings ([[d64]]). A console that invented its own "last 30
+days" would be a fourth spelling of the same idea, and the one that disagreed about what "July" means.
+
+**⚑ THE PROOF THAT THE BOUNDARIES ARE RIGHT: THE MONTHS SUM TO ALL TIME.** 10 + 75 + 137 + 135 = **357**
+trips, and all time says 357. Drivers: 6 + 59 + 117 + 112 = **294**, and all time says 294. Nothing
+double-counted at midnight, nothing lost. That is what `>= from` and `< to` buys, and it is why the tests pin
+the half-open boundary rather than the label.
+
+## The rule this session had to discover twice
+
+**A breakdown row carries two different kinds of number:**
+
+| | |
+|---|---|
+| **the count** | a **census** — how many Businesses are in this région, how many Drivers own this class. It describes the market and the fleet, and **it does not move with the period**. |
+| **the trips** | **activity** — what happened inside the period. |
+
+**⚑ AND GETTING THAT WRONG WAS SHIPPED AND REVERTED WITHIN THE HOUR.** An intermediate migration made the
+Driver counts period-scoped, on the reasoning that a count beside a period-scoped number should follow it. The
+comment justifying it claimed the filter would be "inert on All time". **It is not**: a Driver who has never
+worked has `taken = 0` in *every* period, all time included, so `filter (where taken > 0)` silently removed
+them from the fleet. `Business · Sedan` fell from 6 drivers to 4 on the default view, and *"do I have enough
+vans?"* — the one question that screen exists to answer — started answering wrong.
+
+**⚑ AND NO ROW IS DROPPED FOR BEING QUIET.** The same intermediate version hid breakdown rows with no activity
+in the period. But *"you had three Eco cars and none of them worked in May"* is precisely the row worth seeing
+in May, and on All time it could have deleted an entire class whose owners had never driven. A quiet row now
+renders its census, `0` trips, and **`—`** rather than `0 of 0` — which is true and says nothing.
+
+**⚑ GENDER IS A CENSUS AND GETS ITS OWN ROW SHAPE, WITH NO TRIPS AT ALL.** Scoping it nearly printed
+*"Not asked — 9"* directly beneath *"1 of 13 answered"*: two numbers about the same thirteen people
+contradicting each other a line apart. It answers *who is the fleet*, not *what did the fleet do*, so it shows
+a name and a headcount and nothing else ([[d101]]).
+
+**Flagged, accepted, not hidden:** inside a period a reader can divide trips by the census count and get a
+per-head average that is too low, because some of those people did not work that month. The columns are headed
+**drivers** and **trips taken** — never "trips each" — and the honest figure has its own card, a median over
+the ones who actually worked.
+
+**Two smaller calls:**
+- **The period is applied to the JOIN, not the `where`.** `left join mission … and created_at >= p_from` keeps
+  a Business with no trips in July as a row showing zero. In the `where` it becomes an inner join and that
+  Business vanishes — the silent way a quiet month starts looking like a busy one.
+- **Every link on the screen carries the period.** Clicking "Nice" while looking at July stays in July;
+  otherwise the drill-down answers a wider question than the screen it came from.
+- **Range is not built.** All time · Year · Month · Week · Day, with steppers. A hand-picked span needs the
+  `date-cal` popover — the one part that cannot be plain links — and a half-built tab is worse than none.
+
+**⚑ AND THE PROBE WAS WRONG BEFORE THE CODE WAS**, again. The verification reported four failures comparing
+census objects with `JSON.stringify`, which is order-sensitive — and the rows are legitimately sorted by
+activity, which changes with the period. The counts were identical all along. S63's rule, holding for the
+third time: *if a probe reports mass mismatches, suspect its expectations first.*
+
+Tests: `tests/admin-period.test.ts` (11). 786 → **798**.

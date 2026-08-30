@@ -176,3 +176,12 @@ describe("typeKeyShort", () => {
     expect(typeKeyShort("chateau")).toBe("chateau");
   });
 });
+
+describe("a row with no settled trips in the period", () => {
+  it("has no fill rate to suppress, only an absence", () => {
+    // ⚑ Since breakdown rows are no longer dropped for being quiet, an inactive
+    // région in a chosen month is the NORMAL case, not an edge one. The screen
+    // renders "—"; this pins that fillRate still refuses rather than dividing.
+    expect(fillRate({ settled: 0, filled: 0 })).toBeNull();
+  });
+});

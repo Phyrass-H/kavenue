@@ -129,8 +129,13 @@ export interface AdminBusinessRollupRow {
 }
 
 export interface AdminBusinessOverview {
+  /** ⚑ NOT period-scoped: how many exist today. Looking at May must not make
+   *  Businesses that have since signed up disappear from the count. */
   businesses: number;
-  posted_this_month: number;
+  /** Trips posted inside the chosen period — all time when none is chosen. */
+  trips: number;
+  /** ⚑ NOT period-scoped either: never posted EVER. Inside July it would mean
+   *  "did not post in July", which jumps around as you step through months. */
   never_posted: number;
   /** Median trips among Businesses that have posted at all; null when none have. */
   median_trips: number | null;
@@ -169,8 +174,11 @@ export interface AdminDriverRollupRow {
 }
 
 export interface AdminDriverOverview {
+  /** ⚑ NOT period-scoped: how many Drivers exist today. */
   drivers: number;
-  took_this_month: number;
+  /** Trips taken inside the chosen period — all time when none is chosen. */
+  taken: number;
+  /** ⚑ NOT period-scoped: never took one EVER. */
   never_took: number;
   without_base: number;
   median_trips: number | null;
@@ -1101,8 +1109,9 @@ export interface Database {
       // never cross the wire. Both SECURITY INVOKER: RLS decides what the caller
       // may count, and only an admin may count everything.
       // docs/migrations/2026-08-30_admin_business_rollup.sql
+      // ⚑ NULL period = all time, which is the default every screen opens with.
       admin_business_overview: {
-        Args: Record<PropertyKey, never>;
+        Args: { p_from?: string | null; p_to?: string | null };
         Returns: AdminBusinessOverview;
       };
       admin_business_page: {
@@ -1112,13 +1121,15 @@ export interface Database {
           p_city?: string | null;
           p_limit?: number;
           p_offset?: number;
+          p_from?: string | null;
+          p_to?: string | null;
         };
         Returns: AdminBusinessPageRow[];
       };
       // S71 — the Drivers screen's twin. ⚑ admin_driver_overview reads
       // driver.gender, so 2026-08-30_driver_gender.sql must be applied first.
       admin_driver_overview: {
-        Args: Record<PropertyKey, never>;
+        Args: { p_from?: string | null; p_to?: string | null };
         Returns: AdminDriverOverview;
       };
       admin_driver_page: {
@@ -1129,6 +1140,8 @@ export interface Database {
           p_gender?: string | null;
           p_limit?: number;
           p_offset?: number;
+          p_from?: string | null;
+          p_to?: string | null;
         };
         Returns: AdminDriverPageRow[];
       };

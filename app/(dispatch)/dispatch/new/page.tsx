@@ -1,6 +1,8 @@
+import Link from "next/link";
 import { MissionForm } from "./mission-form";
 import { createClient } from "@/lib/supabase/server";
 import { getAppContext } from "@/lib/app-context";
+import { businessReadiness } from "@/lib/business-readiness";
 import { parseGuestContacts, type GuestContact } from "@/lib/passengers";
 import { RATE_CARD_COLS, type RateCardRow } from "@/lib/rate-card";
 import {
@@ -101,8 +103,29 @@ export default async function NewMissionPage({
     }
   }
 
+  // ⚑ THE GATE, SAID BEFORE THEY START RATHER THAN AFTER THEY FINISH. The block
+  // is enforced in createMission (a form post need not have seen this); what
+  // this does is stop someone filling a whole trip in and being turned away at
+  // the end. One line per missing thing, each saying why it matters and linking
+  // to where it is fixed — never a count, and never "profile incomplete".
+  const readiness = business ? businessReadiness(business) : null;
+
   return (
     <div>
+      {readiness && !readiness.canPost && (
+        <div className="notice warn" style={{ marginBottom: 16, maxWidth: 620 }}>
+          <strong>{readiness.headline}.</strong> You can build the trip and save
+          it as a draft now — posting it live needs these:
+          <ul style={{ margin: "10px 0 0", paddingLeft: 18 }}>
+            {readiness.blockers.map((gap) => (
+              <li key={gap.href} style={{ marginTop: 6 }}>
+                <Link href={gap.href}>{gap.label}</Link>
+                <span className="muted"> — {gap.why}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p className="muted" style={{ marginTop: 0, marginBottom: 16, maxWidth: 620 }}>
         Review it before it goes live. Posts into the matching Driver Pool —
         Kavenue prices the trip and you can change the ceiling.

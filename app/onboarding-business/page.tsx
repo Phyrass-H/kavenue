@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAppContext, routeFor } from "@/lib/app-context";
+import { CompanyFinder } from "@/components/company-finder";
 import { createBusinessProfile } from "./actions";
 
 export default async function BusinessOnboardingPage({
@@ -24,7 +25,8 @@ export default async function BusinessOnboardingPage({
 
       {error === "missing" && (
         <div className="notice error">
-          Please fill in your business name and your contact name.
+          Please fill in your business name, what kind of business you are, and
+          your contact name.
         </div>
       )}
       {error === "db" && (
@@ -34,18 +36,13 @@ export default async function BusinessOnboardingPage({
       )}
 
       <form action={createBusinessProfile} className="card">
-        <label className="field">
-          <span>Business name</span>
-          <input type="text" name="business_name" required placeholder="Hôtel …" />
-        </label>
-        <label className="field">
-          <span>Field of activity</span>
-          <input
-            type="text"
-            name="field_of_activity"
-            placeholder="Hotel, concierge, event agency…"
-          />
-        </label>
+        {/* ⚑ THE NAME AND THE TYPE ARE ONE BLOCK, because the register lookup
+            fills the second from the first. The type used to be a free-text box
+            writing `field_of_activity`, while the real category list sat in
+            Settings writing a different column — so a Business that enrolled and
+            never opened Settings had no category at all, and no breakdown by
+            trade was possible for anyone who actually signed up. */}
+        <CompanyFinder />
         <label className="field">
           <span>Your name (Dispatcher contact)</span>
           <input type="text" name="name" required />

@@ -1,5 +1,10 @@
-// The hotels. One row each, with the number that actually stings: how many of
-// their trips nobody took.
+// The Businesses. One row each, with the number that actually stings: how many
+// of their trips nobody took.
+//
+// ⚑ "BUSINESSES", NEVER "HOTELS" (founder, S71): *"the vocabulary is Businesses
+// and then categories by type of business"*. Hotels are the first vertical, not
+// the shape of the market — a restaurant, a clinic and a VTC operator with more
+// trips than cars all belong on this screen.
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,7 +21,7 @@ export default async function AdminBusinessesPage() {
     <main className="adm-main">
       <header className="adm-head">
         <div className="adm-head__main">
-          <h1>Hotels</h1>
+          <h1>Businesses</h1>
           <p className="adm-head__meta">Who books, and how often Kavenue found them a Driver.</p>
         </div>
       </header>

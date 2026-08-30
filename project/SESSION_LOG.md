@@ -4953,3 +4953,75 @@ unbuilt and explicitly proposed:
 ### ⚑ The debt that was flagged and accepted
 `readHomeNumbers` reads every mission row on every home-page load. Fine at 350, wrong at 40 000 — it becomes
 a SQL view or an RPC, which is a migration the founder runs. The band's shape does not change when it does.
+
+---
+
+## Session 71 — 2026-08-30 · "stop saying hotels", and a Business that must say what it is ([[d99]])
+
+**The session was scoped as the design lock** (§ 3 of the S70 handoff — write down what each console screen is
+for and in what order). That got as far as a written proposal, published as an Artifact, and then the founder
+redirected: *"first I'd like to correct some visuals UI/UX ok?"* — and the first thing they reported was that
+**production was empty.**
+
+### The false alarm that wasn't the app (30 minutes, worth the write-up)
+*"I'm not at localhost I am online, but everything is empty."* Ruled out, in order, with evidence rather than
+theory:
+- **Not the deploy** — `vercel ls kavenue --prod` said Ready, built 3h earlier.
+- **Not a second database.** The production anon key was extracted from the shipped JS bundle
+  (`curl` the login page, walk its `/_next/static/chunks/*.js`) and compared: `sb_publishable_eIVIfVy…` on both.
+  ⚑ **`vercel env pull` is useless for this — it redacts every value to `""`**, including the non-secret URL.
+  The bundle is the honest source, because it is what the browser actually runs.
+- **Not RLS behaving differently** — `app_role()` reads `profile` by `auth.uid()`, the same table the layout's
+  own guard reads, so the two cannot disagree.
+
+The answer: **the founder's own accounts have no `profile` row at all.** `phyrass.h@gmail.com` and
+`mmoimeme389@gmail.com` are in `auth.users` with no role, and `routeFor()` sends a profile-less user to
+`/welcome`. Exactly one account in the whole database can see the console — `admin@kavenue.fr`. Offered two
+fixes (one-line `insert into profile … 'admin'`, or dev-login on prod with `DEV_LOGIN_KEY`, which is in Vercel
+but **not** in `.env.local`). ⚑ **The founder never said which they used — they came back with "I have
+everything now", so the profile question is still open and may recur.**
+
+### What shipped — [[d99]]
+`lib/business-type.ts` · `lib/business-readiness.ts` · `lib/company-register.ts` (all new, pure, tested) ·
+`components/company-finder.tsx` · `app/api/company-search/route.ts` ·
+`docs/migrations/2026-08-30_business_type_and_register.sql` (**applied by the founder same session, "87 lines
+ran success"**) · rewrites of `app/onboarding-business/{page,actions}.tsx` · the gate in
+`app/(dispatch)/dispatch/new/actions.ts` + its notice on the page · settings de-duplicated onto the shared list
+· `.cf-*` in `app/globals.css` · two new `handoff-check` assertions. **700 → 733 tests.**
+
+| | |
+|---|---|
+| **the list** | nine values, additive to the old five so nothing is stranded. `vtc_company` is the founder's own — an operator posting overflow is a customer, not a Driver |
+| **the gate** | type + reception phone + billing email. Bites at **post**, never at sign-up; a **draft is never blocked**; enforced server-side in `createMission` |
+| ⚑ **the payment slot** | `PAYMENT_GATE_ON = false`, with a test asserting it. The founder asked for bank details; Stripe isn't wired, so gating on it would stop every Business posting |
+| **the register** | `recherche-entreprises.api.gouv.fr` — free, keyless, France-only. Reads `matching_etablissements`, **not** `siege` |
+| ⚑ **the head-office trap** | Accor · Groupe Barrière · GL Events all return **70.10Z, "sièges sociaux"**. An unknown code maps to **null**, which means *ask them* — never `corporate` |
+
+### ⚑ Traps learned
+- ⚑ **A WRITE IS NOT VERIFIED UNTIL YOU HAVE READ THE ROW BACK.** The first real sign-up stored
+  `region: "93"` and **`departement: null`**, silently. The register sends `departement` on `siege` and not on
+  `matching_etablissements`. Every field looked right on screen; the column would have been empty for every
+  Business forever. Now derived from the postcode — ⚑ **Corsica is 2A/2B, not "20"** (since 1976), and the DOM
+  are three digits.
+- ⚑ **`vercel env pull` REDACTS EVERYTHING TO `""`.** It looks like a broken project. Read `NEXT_PUBLIC_*`
+  out of the deployed bundle instead.
+- ⚑ **THE HANDOFF SAID `.env.local` HAS WHAT PROD HAS. IT DOES NOT** — `DEV_LOGIN_KEY` is in Vercel only, so
+  the prod dev-login URL cannot be built from this machine.
+- ⚑ **A NEW COLUMN BREAKS THE WRITE PATH UNTIL THE MIGRATION LANDS.** Between writing the insert and the
+  founder pasting the SQL, sign-up was broken. Say so out loud when handing over a migration that a live path
+  now depends on.
+- ⚑ **`lib/database.types.ts` IS HAND-WRITTEN** (BACKLOG: replace with `supabase gen types`). New columns are
+  added by hand in Row **and** Insert, or `tsc` reports `Type 'string | null' is not assignable to type 'never'`
+  — which reads like a broken generic and is only a missing key.
+
+### Still open at the close
+- **The design lock** (§ 3) — proposed, not approved: five of seven screens ratified, five changes named, the
+  biggest being that **six console reads stop at 1 000 rows silently** (measured: an unpaged select returned
+  1 000 of 2 503). Artifact `8cac11c8-73a4-4411-9b07-0adc30e0cd0d`.
+- **The founder's own queue, in their order:** the Businesses screen at 25 000 (breakdown by type / région /
+  city instead of a list — mockup shown and approved in principle) · the same for Drivers · cars, classes and
+  categories in the console · **men and women** (⚑ **no gender column exists on `driver` — that needs a
+  migration and a question about how it is asked**) · improve the main page.
+- ⚑ **The `post_blocked` event is NOT written.** Proposed and not built: `mission_event` requires a
+  `mission_id` and none exists yet, so it needs a `business_event` table. This is the first step of the booking
+  funnel the founder asked for in S66, and the only part of the gate that cannot be recovered later.

@@ -12,6 +12,7 @@ import {
 import { getAppContext } from "@/lib/app-context";
 import { getLatestDocuments } from "@/lib/documents";
 import { BUSINESS_DOC_TYPES } from "@/lib/account";
+import { businessTypeOptions } from "@/lib/business-type";
 import { DocumentSection } from "@/components/document-section";
 import { AvatarEditor } from "@/components/avatar-editor";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
@@ -33,14 +34,6 @@ const NOTICE: Record<string, string> = {
   filesize: "That logo is too large (max 10 MB).",
   filetype: "Please use a PNG, JPG or WebP image.",
 };
-
-const BUSINESS_TYPE_OPTIONS: [string, string][] = [
-  ["hotel", "Hotel"],
-  ["concierge", "Concierge"],
-  ["travel_agency", "Travel agency"],
-  ["event_venue", "Event venue"],
-  ["other", "Other"],
-];
 
 function SectionHead({
   title,
@@ -102,9 +95,9 @@ export default async function BusinessSettingsPage({
                 <span>Business type</span>
                 <select name="business_type" defaultValue={business.business_type ?? ""}>
                   <option value="">Select…</option>
-                  {BUSINESS_TYPE_OPTIONS.map(([v, l]) => (
-                    <option key={v} value={v}>
-                      {l}
+                  {businessTypeOptions().map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
                     </option>
                   ))}
                 </select>

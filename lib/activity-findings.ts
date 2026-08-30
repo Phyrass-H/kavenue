@@ -126,7 +126,7 @@ export const FEATURES: Record<TrackedFeature, { table: string; name: string; sen
     table: "mission_release",
     name: "The release request",
     sentence:
-      "No Driver has ever asked a hotel to let them out of a trip — the release request has never been used once.",
+      "No Driver has ever asked a Business to let them out of a trip — the release request has never been used once.",
   },
   driver_documents: {
     table: "document",

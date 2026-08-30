@@ -48,7 +48,11 @@ export async function GET() {
 
     const { data: business, error: bizErr } = await admin
       .from("business")
-      .insert({ name: SEED_BUSINESS, field_of_activity: "Hotel" })
+      // ⚑ `business_type`, not the old free-typed `field_of_activity`. A seed
+      // that writes the superseded column manufactures exactly the population
+      // the S71 gate exists to catch — a Business with no category — and it
+      // would be the only one nobody could explain.
+      .insert({ name: SEED_BUSINESS, business_type: "hotel", reception_phone: "+33 4 93 00 00 00" })
       .select("id")
       .single();
     if (bizErr || !business)

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isBusinessType } from "@/lib/business-type";
 
 // Creates the Business + Dispatcher seat + profile(role=dispatcher) for the
 // logged-in user. Service-role because profile/dispatcher/business have no
@@ -15,11 +16,29 @@ export async function createBusinessProfile(formData: FormData) {
   if (!user) redirect("/login");
 
   const businessName = String(formData.get("business_name") ?? "").trim();
-  const field = String(formData.get("field_of_activity") ?? "").trim();
   const contactName = String(formData.get("name") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
 
-  if (!businessName || !contactName) {
+  // ⚑ THE TYPE IS PICKED HERE NOW, NOT TYPED, AND NOT IN SETTINGS. Sign-up is
+  // the only screen every Business is guaranteed to see; the picker used to live
+  // in Settings, which many never open, so enrolled Businesses had no category at
+  // all. The old free-text `field_of_activity` is no longer written — see
+  // docs/migrations/2026-08-30_business_type_and_register.sql.
+  const typeRaw = String(formData.get("business_type") ?? "").trim();
+  const businessType = isBusinessType(typeRaw) ? typeRaw : null;
+
+  // Filled by the register lookup when it found the company; absent when they
+  // typed everything by hand, which is the normal path in Monaco.
+  const nafCode = String(formData.get("naf_code") ?? "").trim() || null;
+  const siret = String(formData.get("siret") ?? "").trim() || null;
+  const legalName = String(formData.get("legal_name") ?? "").trim() || null;
+  const city = String(formData.get("city") ?? "").trim() || null;
+  const departement = String(formData.get("departement") ?? "").trim() || null;
+  const region = String(formData.get("region") ?? "").trim() || null;
+
+  // ⚑ A REFUSAL, NOT A SKIP. An unrecognised type is not saved as null and
+  // quietly forgiven — the form comes back and asks again. [[d88]].
+  if (!businessName || !contactName || !businessType) {
     redirect("/onboarding-business?error=missing");
   }
 
@@ -51,7 +70,19 @@ export async function createBusinessProfile(formData: FormData) {
 
   const { data: business, error: bizErr } = await admin
     .from("business")
-    .insert({ name: businessName, field_of_activity: field || null })
+    .insert({
+      name: businessName,
+      business_type: businessType,
+      // The official code is stored raw beside the answer, so a mapping changed
+      // later is a re-map rather than a re-survey. Kept even when it disagrees
+      // with what they picked — the disagreement is the interesting part.
+      naf_code: nafCode,
+      siret,
+      legal_name: legalName,
+      city,
+      departement,
+      region,
+    })
     .select("id")
     .single();
   if (bizErr || !business) redirect("/onboarding-business?error=db");

@@ -3926,3 +3926,23 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 /* Manufactured by the seed — a different claim from "approx", and it must not
    read as a milder version of it. */
 .adm-approx--seed { color: var(--tone-warn-fg); border-bottom-color: var(--tone-warn-fg); }
+
+/* ── the company register lookup on sign-up ──────────────────────────────── */
+/* ⚑ Quiet by construction: a plain list under the box, no dropdown chrome, no
+   shadow. It is a suggestion someone is free to ignore, and it should look
+   like one — not like the form arguing with them. */
+.cf-list {
+  list-style: none; margin: -4px 0 0; padding: 0;
+  border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  background: var(--surface);
+}
+.cf-hit {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  padding: 9px 12px; border: 0; border-top: 1px solid var(--border-soft, var(--border));
+  background: transparent; font: inherit; color: var(--text);
+}
+.cf-list li:first-child .cf-hit { border-top: 0; }
+.cf-hit:hover, .cf-hit:focus-visible { background: var(--surface-2); outline: none; }
+.cf-hit__name { display: block; font-size: 14.5px; }
+.cf-hit__where { display: block; font-size: 12.5px; color: var(--text-muted); margin-top: 1px; }
+.cf-note { margin: -2px 0 0; font-size: 13px; color: var(--text-muted); line-height: 1.55; }

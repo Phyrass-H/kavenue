@@ -25,6 +25,11 @@ touches it; don't read them all at startup (see `project/NEXT_SESSION.md` for th
 ## Hard rules (never break)
 1. **Glossary — use these exact terms, always:** Business, Dispatcher, Driver, Guest,
    Pool, PDP, Ceiling, SPEED WIN. **Never** "client" or "principal".
+   ⚑ **And never "hotel" as a synonym for Business** (founder, S71 — [[d99]]):
+   *"the vocabulary is Businesses and then categories by type of business."* Hotels are
+   the first vertical, not the shape of the market; the nine types live in
+   `lib/business-type.ts`, and one of them is a VTC operator posting its own overflow.
+   Say "hotel" only when you mean a Business whose type IS `hotel`.
 2. **Kavenue is an AGENT / intermediary, never the principal.** This is a legal/VAT
    position (Doc 01). Never frame Kavenue as the transport operator or reseller.
 3. **Kavenue ≠ PickUp Go.** They are different things; do not conflate.

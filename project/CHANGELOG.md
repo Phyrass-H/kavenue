@@ -5,6 +5,54 @@
 
 ---
 
+## 30 August 2026 — a Business now has to say what it is, and the register fills the form in
+
+Two rules you gave, both shipped.
+
+**Kavenue is no longer "hotels".** The word was in the admin nav, the page headings and the search box, and it
+was wrong: Kavenue is open to every kind of business. There is now one list of business types, used in the same
+words everywhere:
+
+> Hotel & accommodation · Restaurant & bar · Events & venues · Travel agency & tour operator ·
+> Concierge & private services · **VTC or taxi company** · Health & clinics · Corporate · Other
+
+The VTC one is there because you asked for it — an operator with more trips than cars, posting its overflow,
+is a customer and not a Driver, and it will show up as its own line in every breakdown.
+
+**A Business cannot post a trip with an incomplete file.** Three things are now required before a trip can go
+live: what kind of business they are, a reception phone, and a billing email. Each one breaks something real if
+it is missing — the Driver is handed that phone number when they accept, and the invoice goes to that email.
+
+- **The block lands at "post", not at sign-up.** Signing up still takes thirty seconds. The requirement arrives
+  when they have a reason to care about it.
+- **A draft is never blocked.** They can build the whole trip and save it; only going live needs a complete file.
+- **It says what is missing and why, one line each**, with a link straight to the box — never "profile
+  incomplete".
+- ⚑ **Bank details are NOT in the gate yet, deliberately.** You asked for them and you are right about where
+  this ends up — but Stripe isn't wired, so there is no form behind that field. Shipping it today would be a
+  locked door with no key, and every Business would stop posting. The requirement is written down in the code
+  with a switch beside it; the day Stripe lands it is one line.
+
+**And sign-up now fills itself in from the French company register.** Type "hotel carlton cannes" and it finds
+the company: SIRET, legal name, address, town, département, région, and the official activity code — which
+picks the business type for you.
+
+- It is the **state's own free service** (`recherche-entreprises.api.gouv.fr`). No account, no key, no bill.
+- ⚑ **It reads the building, not the head office.** Searching a group returns the head office's own activity —
+  Accor, Groupe Barrière and GL Events all come back as "head office activities", not as hotels. Kavenue's
+  customer is one hotel, so the lookup reads the establishment.
+- ⚑ **It never decides anything on its own.** The type it suggests lands in a picker that is on screen and
+  editable, and the raw official code is stored beside whatever was finally chosen. Change the categories in a
+  year and it is a re-map, not a survey of every Business on the platform.
+- ⚑ **And it is never required.** The register is France only — Monaco is not in it, and one of your four
+  Businesses is the Métropole Monte-Carlo. Typing it in by hand is the normal path, not the fallback.
+
+One defect was found by doing it for real rather than reading the response: the **département came back empty**
+on every sign-up, silently, because the register sends that field on the head office and not on the building.
+It now comes from the postcode — including Corsica, which is 2A and 2B and has not been "20" since 1976.
+
+Tests: 700 → **733**.
+
 ## 29 August 2026 — the admin home now opens with four numbers
 
 You said `/admin` looked empty. It now starts with **how Kavenue is doing**, above the things worth a look:

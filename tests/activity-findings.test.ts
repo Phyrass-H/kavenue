@@ -226,7 +226,7 @@ describe("a feature nobody has ever used", () => {
     expect(f).toHaveLength(1);
     expect(f[0].id).toBe("feature_never_used");
     expect(f[0].sentence).toBe(
-      "No Driver has ever asked a hotel to let them out of a trip — the release request has never been used once.",
+      "No Driver has ever asked a Business to let them out of a trip — the release request has never been used once.",
     );
   });
 

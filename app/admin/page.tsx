@@ -37,7 +37,7 @@ interface SearchResult {
 /** Each kind is capped, and the cap is STATED — see `more` below. */
 const PER_KIND = 8;
 
-/** Name, hotel or reference. Deliberately narrow — three tables, no ranking. */
+/** Name, Business or reference. Deliberately narrow — three tables, no ranking. */
 async function search(term: string): Promise<SearchResult> {
   const q = term.trim();
   if (q.length < 2) return { hits: [], more: [] };
@@ -74,7 +74,7 @@ async function search(term: string): Promise<SearchResult> {
       ...(businesses.data ?? []).map((b) => ({
         href: `/admin/businesses/${b.id}`,
         name: b.name,
-        kind: "Hotel",
+        kind: "Business",
       })),
       ...(missions.data ?? []).map((m) => ({
         href: `/admin/trips/${m.id}`,
@@ -87,7 +87,7 @@ async function search(term: string): Promise<SearchResult> {
     ],
     more: [
       ...hidden(drivers.count, drivers.data?.length ?? 0, "Driver", "Drivers"),
-      ...hidden(businesses.count, businesses.data?.length ?? 0, "hotel", "hotels"),
+      ...hidden(businesses.count, businesses.data?.length ?? 0, "Business", "Businesses"),
       ...hidden(missions.count, missions.data?.length ?? 0, "trip", "trips"),
     ],
   };
@@ -226,7 +226,7 @@ function Band({ n, now }: { n: HomeNumbers; now: Date }) {
 
         <div className="adm-n">
           <div className="adm-n__v">{wholeEuros.format(n.businessesPaid)}</div>
-          <div className="adm-n__l">hotels paid</div>
+          <div className="adm-n__l">Businesses paid</div>
           <div className="adm-n__s">{n.completed} trips run</div>
         </div>
 
@@ -245,7 +245,7 @@ function Band({ n, now }: { n: HomeNumbers; now: Date }) {
                 share of what the Business paid, not of the Course. */}
             {n.takeRate == null
               ? "HT, both sides"
-              : `${n.takeRate.toFixed(1).replace(".", ",")} % of what hotels paid`}
+              : `${n.takeRate.toFixed(1).replace(".", ",")} % of what Businesses paid`}
           </div>
         </div>
       </div>
@@ -297,7 +297,7 @@ export default async function AdminPage({
           name="q"
           defaultValue={q}
           placeholder="Marc Fontaine · Carlton Cannes · a trip reference"
-          aria-label="Search a Driver, a hotel or a trip"
+          aria-label="Search a Driver, a Business or a trip"
         />
       </form>
 

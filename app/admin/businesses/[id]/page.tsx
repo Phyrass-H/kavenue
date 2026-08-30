@@ -69,7 +69,7 @@ export default async function AdminBusinessPage({
       <section className="adm-sect">
         <h2 className="adm-sect__h">Who books for them</h2>
         {!staff?.length ? (
-          <p className="adm-none">Nobody is set up to book for this hotel.</p>
+          <p className="adm-none">Nobody is set up to book for this Business.</p>
         ) : (
           staff.map((s) => (
             <div key={s.id} className="adm-row">

@@ -149,6 +149,14 @@ export interface Database {
           default_booking_notes: string | null; // legacy (Guest-instructions field removed)
           // Billing (storable now; Stripe deferred).
           billing_email: string | null;
+          // The French register (2026-08-30 migration). Filled by the sign-up
+          // lookup against recherche-entreprises.api.gouv.fr; ALL nullable and
+          // staying that way — Monaco is not in the register, and one of the four
+          // Businesses on the platform is the Metropole Monte-Carlo.
+          naf_code: string | null; // raw NAF/APE, e.g. 55.10Z — the fact behind business_type
+          city: string | null; // INSEE commune label, e.g. NICE
+          departement: string | null; // INSEE code, e.g. 06
+          region: string | null; // INSEE code, e.g. 93
           created_at: string;
         };
         Insert: {
@@ -171,6 +179,10 @@ export interface Database {
           default_vehicle_category?: string | null;
           default_booking_notes?: string | null;
           billing_email?: string | null;
+          naf_code?: string | null;
+          city?: string | null;
+          departement?: string | null;
+          region?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["business"]["Insert"]>;

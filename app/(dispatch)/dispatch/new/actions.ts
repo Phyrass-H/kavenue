@@ -7,6 +7,7 @@ import { isNightPickup } from "@/lib/rate-card";
 import { COMMISSION_RATE_COLS, courseFromBusinessTotal, ratesFromRow } from "@/lib/commission";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppContext } from "@/lib/app-context";
+import { businessReadiness } from "@/lib/business-readiness";
 import { isValidLatLng } from "@/lib/geo";
 import { parisLocalToUtc } from "@/lib/time";
 import { routeMetrics } from "@/lib/directions";
@@ -72,6 +73,19 @@ export async function createMission(formData: FormData) {
     missionId
       ? `/dispatch/new?draft=${missionId}&error=${err}`
       : `/dispatch/new?error=${err}`;
+
+  // ⚑ THE PROFILE GATE (founder, S71): a Business with an incomplete file may
+  // not put a trip in the Pool. Enforced HERE, server-side, because the page's
+  // own notice is a courtesy and a form post is not obliged to have seen it —
+  // the same defence-in-depth reasoning as the `intent` guard just above.
+  //
+  // ⚑ A DRAFT IS NEVER BLOCKED. They can build the entire trip and save it; only
+  // going live needs a complete file. Blocking the draft too would mean losing
+  // their work to a missing phone number, which is how you teach someone not to
+  // come back.
+  if (!asDraft && !businessReadiness(ctx.business).canPost) {
+    redirect(backTo("profile_incomplete"));
+  }
 
   const categoryRaw = String(formData.get("category") ?? "");
   const category = CATEGORIES.includes(categoryRaw as VehicleCategory)

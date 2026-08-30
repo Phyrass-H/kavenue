@@ -102,7 +102,7 @@ export default async function AdminTripPage({
             {business ? (
               <Link href={`/admin/businesses/${business.id}`}>{business.name}</Link>
             ) : (
-              "An unknown hotel"
+              "An unknown Business"
             )}
             {" · "}
             {serviceClassLabel(mission.category, mission.required_body_type)}

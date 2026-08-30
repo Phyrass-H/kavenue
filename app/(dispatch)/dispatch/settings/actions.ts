@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { isBusinessType } from "@/lib/business-type";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidLatLng } from "@/lib/geo";
 
@@ -10,7 +11,6 @@ import { isValidLatLng } from "@/lib/geo";
 // seat (and its business) under their session. Each section saves independently;
 // the section key is echoed back in the redirect so the settings UI re-opens it.
 
-const BUSINESS_TYPES = ["hotel", "concierge", "travel_agency", "event_venue", "other"];
 const VEHICLE_CATEGORIES = ["eco", "business", "luxury"];
 
 function clean(v: FormDataEntryValue | null): string {
@@ -51,7 +51,7 @@ export async function updateCompany(formData: FormData) {
     .from("business")
     .update({
       name,
-      business_type: BUSINESS_TYPES.includes(typeRaw) ? typeRaw : null,
+      business_type: isBusinessType(typeRaw) ? typeRaw : null,
       legal_name: clean(formData.get("legal_name")) || null,
       siret: clean(formData.get("siret")) || null,
       vat_number: clean(formData.get("vat_number")) || null,

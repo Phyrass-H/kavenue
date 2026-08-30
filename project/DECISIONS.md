@@ -2501,3 +2501,107 @@ preview, the one that was actually approved.
 
 Tests: `tests/admin-numbers.test.ts`, 17 checks, all on the honesty rules rather than the arithmetic — those
 are what a later session would quietly delete to make a screen look better. 683 → **700**.
+
+### D99 — A Business says what it is before it may post, and the state register says it for them (2026-08-30, S71)
+
+**The founder's two sentences, given in one message:**
+
+> *"First you really have to stop say hotels! The vocabulary is Businesses and then categories by type of
+> business."*
+
+> *"A business cannot post mission without filling the business type on top of other things I believe like bank
+> infos and contact infos."*
+
+And, a message later, the one that decided the shape of the list:
+
+> *"Kavenue is open for all type of businesses including actual drivers who have too much trips and want to
+> post them."*
+
+**⚑ THE FIELD EXISTED TWICE AND NEITHER COPY WORKED.** Sign-up asked *"Field of activity"* as a free-text box
+and wrote `field_of_activity`. Settings offered a five-item picker and wrote `business_type` — a different
+column, from a list that lived inside a page component. The two never met. So a Business that enrolled and
+never opened Settings had a sentence and no category, which means **"which types make more missions" was
+unanswerable for every real sign-up**. It looked healthy only because the S68 seed wrote both columns on all
+four hotels. `business_type` wins; `field_of_activity` is no longer written and stays as a read-only fallback,
+because it is the only record of what pre-S71 Businesses said about themselves.
+
+**The list is nine, and `vtc_company` is the founder's own addition.** A VTC operator with more trips than cars
+is a Business here, not a Driver — a customer who knows the trade and knows the prices. It is its own type from
+the first row so that segment can never hide inside "other".
+
+**⚑ THE VALUES ARE ADDITIVE, NEVER RENAMED.** `event_venue` reads worse than `events` and stays: renaming a
+stored value strands every row carrying it, for a label the UI supplies anyway.
+
+**⚑ NO CHECK CONSTRAINT, AND THAT IS A TRADE, NOT AN OVERSIGHT.** The list is still moving, and a constraint
+would make each change a migration the founder has to paste by hand. The app narrows on both read and write,
+and `handoff-check` now refuses to pass if a value outside the nine ever reaches the column. Detection without
+the friction — and the assertion was verified by writing `chateau` into the Negresco's row and watching it go
+red, then green again.
+
+## The gate
+
+Three requirements before a trip may go live: the type, a reception phone, a billing email. **The test for
+adding a fourth is that something operational breaks without it** — the Driver is handed that phone number on
+acceptance, and Kavenue's invoice goes to that email. SIRET is deliberately not on the list: it is a legal
+question, it is founder-owned, and no trip fails for want of it.
+
+- **The block bites at "post", never at sign-up.** A longer enrolment form is how a marketplace loses the
+  enrolment; the requirement arrives when the Business has a reason to care about it.
+- **A draft is never blocked.** They can build the entire trip and save it. Losing someone's work to a missing
+  phone number is how you teach them not to come back.
+- **Enforced server-side in `createMission`**, because the page's notice is a courtesy and a form post is not
+  obliged to have seen it — the same defence-in-depth as the `intent` guard beside it.
+
+**⚑ AND IT IS AN APP RULE, NOT A DATABASE RULE.** `business_type` is nullable and no SQL enforces any of this;
+a post straight through PostgREST is not stopped. That is the correct beta position and it must stay a KNOWN
+one, so `handoff-check` states it out loud rather than leaving it to be discovered — same family as [[d92]].
+
+**⚑ THE BANK DETAILS ARE DECLARED AND SWITCHED OFF.** The founder asked for them. They are right about the
+destination and it could not ship: Stripe is not wired — their own standing phase rule — so there is no form
+behind the field, and gating on it would have stopped every Business on the platform posting. `PAYMENT_GATE_ON
+= false` sits in `lib/business-readiness.ts` with the reasoning beside it. It is not a TODO in a comment; it is
+the switch, where the switch belongs, with a test asserting it is off.
+
+## The register
+
+The founder asked whether a clean list of business types exists online. It does, and it is better than a list:
+**NAF/APE**, the official French nomenclature, which every registered business already carries — handed over
+by `recherche-entreprises.api.gouv.fr`, the state's own open search, with no key, no account and no bill.
+
+**⚑ WHY THIS IS NOT THE DEFERRED "API PHASE".** What is deferred is notifications, payments, real auth, flight
+tracking and analytics: services with accounts, keys, bills and failure modes that reach the customer. This is
+a public read with no credential, and nothing depends on it — every field it fills can be typed by hand.
+
+**⚑ IT READS THE ESTABLISHMENT, NOT THE LEGAL UNIT.** Measured live on 2026-08-30, searching a group returns
+the head office's own code: Accor, Groupe Barrière and GL Events all return **70.10Z, "activités des sièges
+sociaux"**. Kavenue's customer is a building. On establishments the codes are right and were read off the
+register rather than remembered — Carlton Cannes and the Negresco 55.10Z, Buffalo Grill 56.10A, Voyageurs du
+Monde 79.11Z, VTC Marcel 49.32Z, Clinique Saint-George 86.10Z, Majordome Services 96.09Z.
+
+**⚑ A SUGGESTION, NEVER A SILENT CLASSIFICATION**, and two things make that true:
+- the **raw code is stored beside the answer**, so a mapping fixed in a year is a re-map over stored codes, not
+  a re-survey of 25 000 Businesses;
+- the picker is **on screen, pre-filled and editable** — a person confirms it, and an already-answered picker is
+  never overruled by a code.
+
+So an unrecognised code returns **null, and null means "ask them"** — never `corporate`, never `other`. [[d88]]
+applied to a classifier: a missing value is a refusal, not a skip. Defaulting 70.10Z would have filed three
+hotel groups under the wrong trade with nobody able to see it.
+
+**⚑ AND THE REGISTER IS FRANCE ONLY.** Monaco is not in it, and one of the four Businesses on the platform
+today is the Métropole Monte-Carlo. Every register column is nullable and always will be: **the manual path is
+not a fallback for failure, it is the normal path for a slice of the Côte d'Azur market.**
+
+## The defect the end-to-end found, which reading the response would not have
+
+The first real sign-up wrote `region: "93"` and **`departement: null`** — silently, no error. The register sends
+`departement` on `siege` and **not** on `matching_etablissements`, and Kavenue reads the establishment on
+purpose. Nothing would have failed; the Businesses screen would simply have had a column empty for every
+Business, forever. It is now derived from the postcode, with the two exceptions that would otherwise invent
+places: **Corsica is 2A/2B and has not been "20" since 1976**, and the overseas départements are three digits.
+
+> This is the S69 lesson arriving from the other side. That one said a check is not verified until you have
+> watched it go red. This one: **a write is not verified until you have read the row back.** Every field looked
+> right on screen.
+
+Tests: 700 → **733** — `business-type` (13), `business-readiness` (11), `company-register` (9).

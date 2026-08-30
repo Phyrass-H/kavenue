@@ -2664,3 +2664,89 @@ edited.
 
 Tests: 733 → **750** — `tests/admin-businesses.test.ts` (20), all of them on the honesty rules rather than the
 arithmetic, because those are what a later session would quietly delete to make a screen look fuller.
+
+### D101 — A Driver's gender is asked once, decides nothing, and the console says how many were asked (2026-08-30, S71)
+
+**The founder's words:**
+
+> *"in the profil driver when they complete their profile with photos and everything add a gender field just a
+> toggle, you can also add other if you wish for those who are indecisive."*
+
+**⚑ THE VALUE IS THEIRS; THE WORD "INDECISIVE" IS NOT, AND THAT IS THE ONLY PART WORTH ARGUING ABOUT.** Someone
+picking the third option is not undecided — they are non-binary, or they would rather the question were not
+asked. So there are **four** values, and the fourth is not a synonym for the third:
+
+| stored | means |
+|---|---|
+| `woman` · `man` · `other` | they answered |
+| `undisclosed` | asked, and declined — *"Rather not say"* |
+| `null` | **nobody ever asked**, which was true of all 13 Drivers the day it shipped |
+
+Collapsing the last two makes *"Drivers are refusing this question"* indistinguishable from *"we shipped it
+yesterday"*, and those call for opposite responses. It is also what makes the control usable: with radios there
+is no way to un-pick, so without a fourth option a Driver who taps one by accident is stuck with it.
+
+**⚑ IT DECIDES NOTHING, AND A PROBE ENFORCES THAT.** No Pool query, no eligibility rule and no Business
+preference reads it. `handoff-check` fails if `gender` is read anywhere outside the files that collect or
+display it, asking *"does the new reader DECIDE something?"* — because the day a Pool query reads it, Kavenue
+is sorting people by gender, which is a different product and a different legal position. The guard caught its
+own author within the hour, on the two Drivers-screen files added the same afternoon.
+
+The field says so to the Driver too: *"Optional. It never affects which trips you see or who can book you."*
+Someone handing over something optional deserves to know it cannot cost them work.
+
+**⚑ AND THE BREAKDOWN CARRIES ITS DENOMINATOR — `1 of 13 answered`.** Never quietly dividing by the ones who
+replied. This is the founder's own standing rule, given about Driver geography: *"I don't care"* that only 3 of
+9 are located, but a dashboard has to **say** 3 of 9.
+
+**One exception to a rule written the same day, and the reason for it.** [[d100]] says a one-row table is not a
+breakdown and stays off the screen. The gender section deliberately does NOT follow it. There, one row means
+*"all four are hotels"* — a fact about the market. Here it means *"Not asked × 13"* — a fact about the
+**rollout**, and hiding it would show a founder who asked for this feature a screen with no trace of it. So the
+heading and the denominator always render; only the table waits for something to compare.
+
+**Radios, not a client component.** `/settings/profile` is server-rendered and posts a plain form; a segmented
+control built from buttons would need state and a `"use client"` boundary for one optional field. Native radios
+styled as segments behave identically, keep keyboard arrows, and work with JS off. On a 375 px phone the four
+wrap to two rows of two rather than shrinking the type.
+
+Tests: `tests/gender.test.ts` (12). No CHECK constraint, same bargain as [[d99]] — the app narrows, the probe
+detects.
+
+### D102 — Copying a screen copies its assumptions: "filled" means nothing on the Drivers side (2026-08-30, S71)
+
+The Drivers screen is the Businesses screen's twin ([[d100]]) — four numbers, breakdowns that ARE the
+navigation, a list that only ever appears filtered. `fillRate` and *"one row is not a breakdown"* moved into
+`lib/admin-rollup.ts` so the two cannot drift apart about when a percentage is honest; copying them is exactly
+what D100 argues against.
+
+**⚑ BUT THE MEASURE ITSELF DOES NOT TRANSFER, AND IT NEARLY SHIPPED THAT WAY.** On the Businesses screen
+`filled` means *a Driver was found* — the question a Business has. **Every trip a Driver holds was accepted by
+that same Driver**, so the identical column would have read ~100 % on every row, forever, looking like a real
+measurement. It was caught while checking column types for an unrelated error, not by a test.
+
+The Driver-side question is different: of the trips they took, how many did they actually **finish**? A Driver
+who takes 20 and completes 12 is precisely who a founder wants to see, and the copied column would have hidden
+them behind "100 %". So the pair is `taken` / `finished`, and `finishRate()` is a four-line adapter onto the
+shared threshold — the pair being counted differs between the screens, the rule about when a percentage is
+honest does not.
+
+> **The lesson, which arrived twice in one afternoon.** The first was a `departement` that came back null
+> because the register sends that field on the head office and not on the establishment ([[d99]]). Both are the
+> same shape: **a thing that works in one context, reused in another where its assumption is false, failing
+> silently and looking right.** Neither would have been caught by a passing test; both were caught by reading
+> the actual output.
+
+**Two smaller calls:**
+- **`vehicle.category` is a Postgres enum, `business_type` is bare text.** The Businesses rollup compared text
+  to text and worked; the Drivers one raised `operator does not exist: vehicle_category = text`. Fixed with a
+  single cast in the `car` CTE rather than four scattered `::text` for a later reader to miss.
+- **A row with no trips reads `—`, not `0 of 0`.** Literally true and says nothing: a Driver who has never
+  taken a trip has no finish rate to suppress, only an absence to report.
+
+**⚑ AND THE FLEET LIST'S THIRD STATE SURVIVED THE REWRITE**, which is the sort of thing a rewrite loses.
+*"held 8, none finished"* is a real Driver who is neither working nor idle; nobody is in that state today, and
+a two-state version renders "8 trips" and hides exactly the person worth phoning. It is now tested, so the next
+rewrite cannot quietly drop it.
+
+Tests: `tests/admin-drivers.test.ts` (21). 753 → **786**.

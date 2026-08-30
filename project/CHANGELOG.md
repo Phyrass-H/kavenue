@@ -5,6 +5,41 @@
 
 ---
 
+## 30 August 2026 — Drivers get the same treatment, and a gender field
+
+**The Drivers screen is now the Businesses screen's twin.** Four numbers, then breakdowns you click into, then
+the list. Against your real fleet:
+
+- **13 drivers · 10 took a trip this month · 3 never taken a trip · 21 trips each, typical.**
+- **What they drive** — Business · Sedan (6 drivers, 155 trips, 89 % finished), Eco · Sedan, First · Sedan,
+  First · Van, Business · Van. That's your classes and categories.
+- **The cars themselves** — Mercedes 6 drivers, then BMW, Volkswagen, Peugeot, Bentley, Audi, Skoda, Renault.
+- **Who they are** — the gender breakdown, with how many have answered above it.
+
+**And a gender field on the Driver's own profile**, beside the photo and the languages: **Woman · Man · Other ·
+Rather not say**. Four, not three, and here's why the fourth matters. "Other" is someone telling you who they
+are. "Rather not say" is someone declining the question. And a Driver nobody has asked yet is a third thing
+again — which is all 13 of them until they open that screen. Keeping those apart is the difference between
+"drivers are refusing this" and "we only shipped it yesterday".
+
+It's optional, and the screen says what it is *not* for: *"It never affects which trips you see or who can book
+you."* That's enforced, not just promised — a check now fails the build if anything outside the profile screen
+and the console ever reads it, so it can't quietly become something the Pool sorts on.
+
+⚑ **One number I nearly got wrong.** The Drivers breakdown first had a "filled %" column copied from the
+Businesses screen. On that screen it means *a driver was found*. But every trip a driver holds was accepted by
+that same driver — so it would have read **100 % on every row, forever**, looking like a real measurement. It
+now measures **finished**: of the trips they took, how many they completed. A driver who takes 20 and finishes
+12 is exactly who you want to see, and the old column would have hidden them.
+
+Small honesty detail you'll notice: Bentley reads **9 of 12** rather than "75 %", because twelve trips is too
+thin a sample to state as a percentage. Same rule as everywhere else.
+
+⚑ **I set one Driver's gender to test it** — Marc Fontaine, "Man" — so you can see the breakdown working. Say
+the word and I'll clear it.
+
+Tests: 753 → **786**.
+
 ## 30 August 2026 — the Businesses screen stops being a list
 
 You asked what happens at 25 000 businesses. The screen no longer answers by scrolling.

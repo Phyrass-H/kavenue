@@ -3970,3 +3970,31 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
      because "how many" is on the row you tap through to. */
   .adm-row--bd .adm-row__side:nth-of-type(2) { display: none; }
 }
+
+/* ── segmented control built from native radios ──────────────────────────── */
+/* ⚑ SAME LOOK AS `.seg`, NO CLIENT COMPONENT. The Driver's profile is server
+   rendered and posts a plain form; a button-based segmented control would need
+   state and a "use client" boundary for one optional field. These are real
+   radios — keyboard arrows work, and so does JS being off. */
+.seg--radio { border: 1px solid var(--border); flex-wrap: wrap; }
+.seg--radio .seg-btn {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 88px; padding: 9px 10px; user-select: none;
+}
+/* The input carries the state and the focus ring; the label carries the look. */
+.seg--radio input {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.seg--radio .seg-btn:has(input:checked) {
+  background: var(--surface); color: var(--accent); font-weight: 600;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
+}
+.seg--radio .seg-btn:has(input:focus-visible) {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+@media (max-width: 420px) {
+  /* Four segments do not fit a small phone in one row; wrapping to two keeps
+     every label readable instead of shrinking the type below 14px. */
+  .seg--radio .seg-btn { flex: 1 1 calc(50% - 4px); }
+}

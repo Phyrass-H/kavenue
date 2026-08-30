@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { isGender } from "@/lib/gender";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -49,6 +50,12 @@ export async function updateProfile(formData: FormData) {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  // ⚑ NARROWED, AND AN UNKNOWN VALUE IS DROPPED RATHER THAN STORED. Optional
+  // means a blank post leaves the column NULL — "never asked" — which is a
+  // different fact from `undisclosed`, the answer a Driver gives deliberately.
+  const genderRaw = String(formData.get("gender") ?? "").trim();
+  const gender = isGender(genderRaw) ? genderRaw : null;
+
   if (!first || !last) redirect("/settings/profile?error=missing");
 
   const admin = createAdminClient();
@@ -59,6 +66,7 @@ export async function updateProfile(formData: FormData) {
       last_name: last,
       phone: phone || null,
       languages,
+      gender,
     })
     .eq("id", driverId);
   if (error) redirect("/settings/profile?error=db");

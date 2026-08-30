@@ -3,6 +3,7 @@ import { Eye } from "lucide-react";
 import { getAppContext } from "@/lib/app-context";
 import { AvatarEditor } from "@/components/avatar-editor";
 import { LanguagePicker } from "@/components/language-picker";
+import { genderOptions } from "@/lib/gender";
 import { SettingsHeader, SaveNotice } from "@/components/settings-header";
 import { updateProfile } from "../actions";
 
@@ -63,6 +64,35 @@ export default async function ProfileSettingsPage({
               Hidden until you accept a mission — then the Business can call you.
             </span>
           </label>
+        </div>
+
+        <div className="dcard">
+          <p className="dcard__label">Gender</p>
+          {/* ⚑ RADIOS, NOT A CLIENT COMPONENT. This page is server-rendered and
+              posts a plain form; a segmented control built from buttons would
+              need state and a "use client" boundary for one field. Native radios
+              styled as segments behave identically and work with JS off. */}
+          <fieldset className="seg seg--full seg--radio">
+            <legend className="sr-only">Gender</legend>
+            {genderOptions().map((g) => (
+              <label key={g.value} className="seg-btn">
+                <input
+                  type="radio"
+                  name="gender"
+                  value={g.value}
+                  defaultChecked={driver.gender === g.value}
+                />
+                <span>{g.label}</span>
+              </label>
+            ))}
+          </fieldset>
+          <p className="dhint dhint--block">
+            {/* ⚑ It says what it is NOT used for. A Driver handing over
+                something optional deserves to know it cannot cost them work —
+                and it genuinely cannot: no Pool query and no rule reads it. */}
+            Optional. It never affects which trips you see or who can book you —
+            Kavenue uses it to understand the fleet.
+          </p>
         </div>
 
         <div className="dcard">

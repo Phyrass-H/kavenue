@@ -5048,14 +5048,46 @@ infinite list? No!"*
   SQL, `admin_business_overview` did not exist. Four zeroes would have read as "you have no Businesses"; it
   says which migration to run and prints PostgREST's own message. Watched go red before the paste, green after.
 
+### Then — the gender field and the Drivers screen ([[d101]], [[d102]])
+`docs/migrations/2026-08-30_driver_gender.sql` + `2026-08-30_admin_driver_rollup.sql` (**both applied same
+session**) · `lib/gender.ts` · `lib/admin-drivers.ts` · `lib/admin-rollup.ts` (the shared half, lifted out of
+`admin-businesses`) · a rewritten `app/admin/drivers/page.tsx` · the field on `app/(app)/settings/profile` ·
+`.seg--radio` · two more `handoff-check` assertions. **753 → 786 tests**, handoff-check 34 → **36**.
+
+| | |
+|---|---|
+| **four values** | `woman · man · other · undisclosed`, and NULL is a fourth state — never asked. The founder said "other … for those who are indecisive"; the value is theirs, the word is not |
+| ⚑ **it decides nothing** | and `handoff-check` fails on any new reader, asking *"does it DECIDE something?"*. It **caught its own author within the hour** on the two Drivers-screen files |
+| ⚑ **taken/finished, not settled/filled** | see [[d102]] — the copied column would have read ~100 % on every row forever |
+| **live** | 13 Drivers · Business·Sedan 6/155/89 % · Mercedes 6/168/90 % · Bentley **9 of 12**, not "75 %" · `1 of 13 answered` |
+
+### ⚑ Traps from this half
+- ⚑ **A GUARD THAT READS `data ?? []` GOES GREEN ON A MISSING COLUMN.** The first gender assertion reported
+  `0 of 0 Drivers` and PASSED, because the select errored, returned null, and an empty array satisfies every
+  filter. "Zero rows is not proof of correctness" (S68) applied to a probe. The error is now the assertion.
+- ⚑ **`vehicle.category` IS AN ENUM, `business_type` IS BARE TEXT.** The Businesses rollup compared text to
+  text and worked; the identical Drivers filter raised `operator does not exist: vehicle_category = text`.
+  One cast in the `car` CTE, not four scattered `::text`.
+- ⚑ **A RULE WRITTEN THE SAME DAY NEEDED AN EXCEPTION THE SAME DAY.** [[d100]]'s *"one row is not a breakdown"*
+  would have hidden the whole gender section — one row, `Not asked × 13`. But that row is a fact about the
+  ROLLOUT, not the market, and hiding it shows a founder who asked for the feature a screen with no trace of
+  it. Heading and denominator always render; only the table waits.
+- ⚑ **A `ref` CLICK ON A HIDDEN-INPUT LABEL DID NOT CHECK THE RADIO** and the save silently dropped the field.
+  A real `element.click()` did. **The control was fine; the automation was not** — and the only way to tell
+  was reading the row back and then testing the DOM directly. Do not conclude "broken UI" from a failed
+  scripted click.
+- ⚑ **`.local/seed` DATA WRITTEN TO DEMONSTRATE A FEATURE MUST BE DECLARED.** Marc Fontaine's gender is `man`
+  because a session set it to prove the breakdown renders. It is in the changelog, not just here.
+
 ### Still open at the close
 - **The design lock** (§ 3) — proposed, not approved: five of seven screens ratified, five changes named, the
   biggest being that **six console reads stop at 1 000 rows silently** (measured: an unpaged select returned
   1 000 of 2 503). Artifact `8cac11c8-73a4-4411-9b07-0adc30e0cd0d`.
-- **The founder's own queue, in their order:** ~~the Businesses screen at 25 000~~ **done, [[d100]]** · the
-  same treatment for Drivers · cars, classes and categories in the console · **men and women** (⚑ **no gender
-  column exists on `driver` — that needs a migration AND a question about how it is asked, which is a more
-  sensitive one than the rest of the list**) · improve the main page.
+- **The founder's own queue, in their order:** ~~the Businesses screen at 25 000~~ **done, [[d100]]** ·
+  ~~the same treatment for Drivers~~ **done, [[d102]]** · ~~cars, classes and categories~~ **done — "What they
+  drive" + "The cars themselves"** · ~~men and women~~ **done, [[d101]]** · **improve the main page — the only
+  one left**, and the S70 leftovers belong to it: the city strip, *"taken at 61 % of Ceiling"*, and *"fell
+  through after accepting"*.
 - ⚑ **The `post_blocked` event is NOT written.** Proposed and not built: `mission_event` requires a
   `mission_id` and none exists yet, so it needs a `business_event` table. This is the first step of the booking
   funnel the founder asked for in S66, and the only part of the gate that cannot be recovered later.

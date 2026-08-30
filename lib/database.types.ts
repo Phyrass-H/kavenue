@@ -156,6 +156,51 @@ export interface AdminBusinessPageRow {
   total_count: number;
 }
 
+export interface AdminDriverRollupRow {
+  key: string | null;
+  /** For a class row: the body type, so "Business · Sedan" is one line. */
+  parent: string | null;
+  drivers: number;
+  /** ⚑ taken/finished, not settled/filled — every trip a Driver holds was
+   *  accepted by that same Driver, so the Businesses pair would be ~100 %
+   *  on every row. The Driver-side question is whether the work gets done. */
+  taken: number;
+  finished: number;
+}
+
+export interface AdminDriverOverview {
+  drivers: number;
+  took_this_month: number;
+  never_took: number;
+  without_base: number;
+  median_trips: number | null;
+  working_drivers: number;
+  /** ⚑ The honest denominator: a NULL gender is "never asked", not an answer. */
+  gender_answered: number;
+  by_class: AdminDriverRollupRow[];
+  by_make: AdminDriverRollupRow[];
+  by_gender: AdminDriverRollupRow[];
+}
+
+export interface AdminDriverPageRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  gender: string | null;
+  verified: boolean;
+  base_label: string | null;
+  service_radius_km: number | null;
+  category: string | null;
+  body_type: string | null;
+  make: string | null;
+  model: string | null;
+  trips: number;
+  /** Accepted but not completed — the fleet list's third state (S69). */
+  held_unfinished: number;
+  last_took: string | null;
+  total_count: number;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -271,6 +316,10 @@ export interface Database {
           stripe_account_id: string | null;
           verified: boolean;
           reliability_marks: number; // O7 (D45): running count of cancel / no-confirm marks
+          // S71 — optional, self-declared, and consulted by NOTHING that decides
+          // anything. woman | man | other | undisclosed. NULL means never asked,
+          // which is a different fact from 'undisclosed' (asked, declined).
+          gender: string | null;
           // S48 — the Driver's company identity (they invoice as one). Payouts stay Stripe's job.
           company_name: string | null;
           siret: string | null;
@@ -296,6 +345,7 @@ export interface Database {
           stripe_account_id?: string | null;
           verified?: boolean;
           reliability_marks?: number;
+          gender?: string | null;
           company_name?: string | null;
           siret?: string | null;
           vat_number?: string | null;
@@ -1064,6 +1114,23 @@ export interface Database {
           p_offset?: number;
         };
         Returns: AdminBusinessPageRow[];
+      };
+      // S71 — the Drivers screen's twin. ⚑ admin_driver_overview reads
+      // driver.gender, so 2026-08-30_driver_gender.sql must be applied first.
+      admin_driver_overview: {
+        Args: Record<PropertyKey, never>;
+        Returns: AdminDriverOverview;
+      };
+      admin_driver_page: {
+        Args: {
+          p_category?: string | null;
+          p_body?: string | null;
+          p_make?: string | null;
+          p_gender?: string | null;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: AdminDriverPageRow[];
       };
     };
     Enums: {

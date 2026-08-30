@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { AdminTripList } from "@/components/admin-trip-list";
 import { pageWindow, pageNote } from "@/lib/admin-list";
 import { serviceClassLabel } from "@/lib/format";
+import { genderSays } from "@/lib/gender";
 
 const PER_PAGE = 40;
 
@@ -53,6 +54,12 @@ export default async function AdminDriverPage({
             {car ? serviceClassLabel(car.category, car.body_type) : "No car on file"}
             {car?.make && ` · ${car.make} ${car.model ?? ""}`}
             {driver.phone && ` · ${driver.phone}`}
+            {/* ⚑ SHOWN, INCLUDING WHEN IT IS EMPTY. "not asked" is a fact about
+                Kavenue, not about the Driver — printing nothing would make an
+                optional question look like one nobody answers. It decides
+                nothing, which is why it sits in the identity line and not in
+                "Can the Pool reach them?". */}
+            {` · ${genderSays(driver.gender)}`}
           </p>
         </div>
         <div className="adm-head__side">

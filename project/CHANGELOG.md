@@ -5,6 +5,42 @@
 
 ---
 
+## 30 August 2026 — neither side can read the other's money any more
+
+Kavenue's own rule says a Business never sees what the Driver is paid, or the rate we take from them. That was
+true of every screen — and only of the screens. **Anyone signed in could ask the database directly and get the
+other side's numbers back.** Not a theoretical hole: it was watched happening, on a real Business login and a
+real Driver login, before a line was changed.
+
+What was reachable:
+
+- **A Business could read the Driver's commission rate.** Together with the fare it is already shown, that is
+  Kavenue's full 22,5 % — instead of the 12,5 % plus VAT it is meant to see.
+- **A Driver could read the Ceiling on trips they had not taken** — the most a Business would ever pay. We
+  publish that the price stops climbing five hours before pickup; a Driver who also knew the top would know
+  exactly what waiting was worth, on every trip. That is the one thing the price curve exists to prevent.
+- **Both sides could read the live commission card**, so hiding the numbers on the trip alone would have
+  changed nothing — the same figures sat one query away in a table open to everyone.
+- **And the price card too**, which meant a Driver could simply *recalculate* the Ceiling from the distance.
+- **The payments ledger** was readable by the Business. That table is still empty and nothing writes to it
+  yet, which is exactly why now was the cheap moment: once Stripe starts filling it, this stops being free.
+
+Each side now reads a trip through its own door, and the other side's money is not behind it. Nothing changed
+on any screen — the same numbers, in the same places, for the people entitled to them.
+
+**One thing worth knowing:** hiding the Ceiling from Drivers meant the Pool price could no longer be worked out
+on their phone, because the Ceiling is what it counts up to. It is now worked out on Kavenue's server and only
+the finished number is sent. Same price, same curve; the Business's maximum simply never leaves the building.
+
+**Needs two migrations run, in order** — the first is safe to run at any time, the second only once this
+version is live.
+
+**Still open, and named rather than quietly left:** a handful of database commands (the ones behind cancelling
+and amending a trip) hand back the whole trip record, which still includes the Driver's rate. Closing that
+means rewriting each of them, and it is a job of its own.
+
+---
+
 ## 30 August 2026 — pick any two dates, and the last red check goes green
 
 **Range is in.** The sixth tab on the period bar opens the same calendar your Dispatch History and Driver

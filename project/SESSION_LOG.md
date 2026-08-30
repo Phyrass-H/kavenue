@@ -5,6 +5,69 @@
 
 ---
 
+## 2026-08-30 — Session 72 — THE RULE IN THE DOC WAS THE ONLY THING ENFORCING IT ([[d109]])
+
+**Gate first.** `handoff-check.ts` **39 checks**, one drift — `git is clean ?? .local` — and it was this
+session's own doing: the worktree needs `.local`, `node_modules` and `.env.local` symlinked in from the main
+checkout, and `.gitignore` matches `.local/` (a directory) not a symlink. Added both to
+`.git/info/exclude`; green after. `tsc` clean, vitest **815**.
+
+**The job.** `docs/06 §3` says *"The Business never sees `driver_net` or the Driver-side rate."* Three findings
+said RLS does not enforce it. All three were real; two more were underneath them.
+
+### Watched failing first — `.local/probe/column-leak.mts`
+One tagged pooled trip, one planted `ledger_transaction` row, three sessions, both deleted by recorded id
+(364 → 364 ✓). The file is the BEFORE **and** the AFTER: every check prints `LEAK OPEN` or `closed`.
+
+```
+business → mission.commission_driver_rate    = 0.1      driver → mission.ceiling (POOLED)   = 100
+business → ledger_transaction.driver_net     = 88       driver → mission.commission_business_rate = 0.125
+business → commission_rate.driver_rate_ht    = 0.1      driver → rate_card.ceiling_base     = 20
+business → business_cancel_mission() → rate  = 0.1      driver → mission_price() ceiling    = 108
+```
+
+### What decided the design
+- ⚑ **A COLUMN PRIVILEGE IS PER POSTGRES ROLE; ALL FIVE LEAKS ARE PER AUDIENCE.** Driver and Dispatcher are
+  both `authenticated`, so a revoke hides a column from BOTH — and the Business needs the Ceiling, the Driver
+  needs its own rate. The revoke option cannot express any of them. `revoke update (guest_ready_at)` is
+  precedent for a rule that binds *everyone*, which is the case a column ACL fits.
+- **So: `mission_read`**, one `security_invoker = false` view with the union of the two SELECT policies in its
+  WHERE and each side's money masked by `app_role()`. 23 browser-session reads moved onto it. Base table keeps
+  SELECT on its other 70 columns, so `FARE_COLS`, the `mission!inner(business_id)` embed, `insert().select("id")`
+  and every service-role read are untouched.
+
+### Two that would have made the rest theatre
+- ⚑ **`p_commission_rate_read` WAS `to authenticated using (true)`.** The live card was world-readable, so a
+  Business never needed the mission snapshot at all. Narrowed to dispatcher + admin, and `driver_rate_ht`
+  revoked within that — `createMission` now snapshots it with the service role, and the form reads a
+  business-only column list.
+- ⚑ **`p_rate_card_read` TOO — the Ceiling's back door.** `mission_price()` is SECURITY **INVOKER** (read, not
+  assumed), so the one policy shuts the table and the function together. Without it, masking `ceiling` is
+  decoration: §4 has the Business posting at Kavenue's recommended number most of the time.
+
+### Two consequences in the app half
+- ⚑ **`ratesOf` DEMANDED ALL THREE RATES.** A masked counterpart would have read as *"never charged a fee"* and
+  shown a Business **190,00 € where it owes 218,50 €** — silently. Split into `businessRatesOf` /
+  `driverRatesOf` returning narrowed `BusinessSplit` / `DriverSplit`, so the half you may not read is a
+  compile error rather than a comment. Six tests pin it, including the one the old code got wrong. **821.**
+- ⚑ **THE CEILING IS THE INPUT TO THE PRICE THE DRIVER IS SHOWN** — `currentFare()` climbs *to* it and the §6
+  curve is TypeScript-only. Founder chose server-computed fares over mirroring the curve in SQL.
+  `lib/pool-fares.ts` re-reads the ceilings **keyed by the ids the Driver's own RLS read returned**, so the
+  service role never decides which rows; `PoolMissionRow` types `ceiling` as `null` so the compiler refuses to
+  feed a pool row to `currentFare`.
+
+### Handed over
+`docs/migrations/2026-08-30_money_column_walls_1_view.sql` (additive, safe any time) and
+`..._2_close.sql` (**waits for this code to deploy** — it revokes `ceiling`, so the live build would 403 on
+every `select("*")`).
+
+### Still open, named not hidden
+⚑ **SECURITY DEFINER RPCs RETURN A WHOLE `mission`.** A definer function's composite return is not subject to
+column privileges, so `business_cancel_mission` and a dozen more still hand a Business `commission_driver_rate`.
+Closing it means redefining every money RPC's return type. The probe measures it.
+
+---
+
 ## 2026-08-26 — Session 69 — THE CONSOLE'S UI PASS, AND THE DRIVERS WHO LIVED IN HOTELS
 
 **Gate first.** `handoff-check.ts` **30/30** — *"The handoff still matches reality. Proceed."* — `tsc` clean,

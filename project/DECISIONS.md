@@ -2966,3 +2966,73 @@ going red with one planted row and green again after removing it.
 > **Three times in one session, in three different disguises:** a guard reading `data ?? []` over a failed
 > query, a probe comparing sorted rows with `JSON.stringify`, and a red check that was measuring elapsed time.
 > All three looked like results. **A check is only evidence once you have seen it fail on purpose.**
+
+---
+
+### D109 — A column privilege belongs to a Postgres ROLE; every one of these leaks belongs to an AUDIENCE (2026-08-30, S72)
+
+`docs/06 §3` ends with a design rule — *"The Business never sees `driver_net` or the Driver-side rate"* — and
+until today the only thing enforcing it was **which columns the UI chose to render**. RLS on `mission` is
+row-level. A signed-in Dispatcher could ask PostgREST for `commission_driver_rate` on its own trips and get
+`0.1`; with `accepted_fare`, which the same Business is legitimately shown as *"Transport"* on every expanded
+row, that is Kavenue's whole 22,5 % take in one subtraction instead of the 12,5 % + VAT it is meant to see.
+
+**Watched failing first, on real sessions, before anything was written** — `.local/probe/column-leak.mts`:
+
+```
+LEAK OPEN  business → mission.commission_driver_rate         = 0.1
+LEAK OPEN  business → ledger_transaction.driver_net          = 88
+LEAK OPEN  business → commission_rate.driver_rate_ht         = 0.1
+LEAK OPEN  driver   → mission.ceiling on a POOLED trip       = 100
+LEAK OPEN  driver   → mission.commission_business_rate       = 0.125
+LEAK OPEN  driver   → rate_card.ceiling_base                 = 20
+LEAK OPEN  driver   → mission_price() ceiling_price          = 108
+```
+
+**⚑ THE FACT THAT DECIDED THE WHOLE DESIGN.** A Driver and a Dispatcher are the **same Postgres role**,
+`authenticated`. Column privileges are granted per role. So `revoke select (ceiling)` hides the column from
+**both** audiences — and every leak above is asymmetric: the Business legitimately needs the Ceiling, the
+Driver legitimately needs its own commission rate. **A column ACL cannot express a single one of them.** The
+one precedent in this repo, `revoke update (guest_ready_at)`, is a rule that applies to *everyone*, which is
+exactly when a column ACL is the right tool.
+
+So: **one security-definer view, `mission_read`**, carrying the union of `p_mission_driver_read` and
+`p_mission_business_read` in its own WHERE and masking each side's money from the other by `app_role()`. Every
+browser-session read moves onto it; the service role and the entire write path are untouched, and the base
+table keeps SELECT on its other 70 columns so narrow reads, the `mission!inner(business_id)` embed and
+`INSERT … select("id")` never notice.
+
+**Three things this turned up that the finding did not mention, and any one of them would have made the rest
+theatre:**
+
+- ⚑ **THE LIVE RATE CARD WAS WORLD-READABLE.** `p_commission_rate_read` was `to authenticated using (true)`,
+  so a Business never needed `mission.commission_driver_rate` at all — `select driver_rate_ht from
+  commission_rate` returned 0,10 to anyone signed in. Masking the mission snapshot while the card stayed open
+  is closing a keyhole beside an open door.
+- ⚑ **AND SO WAS THE PRICE CARD**, which is the Ceiling's back door. `p_rate_card_read` was also
+  `using (true)`, and `mission_price()` is SECURITY **INVOKER** — so a Driver could recompute Kavenue's
+  recommended Ceiling from a pooled trip's own distance, and §4 has the Business posting at that number most
+  of the time. The single policy shuts the table and both functions together.
+- ⚑ **`ratesOf` DEMANDED ALL THREE RATES**, for the good reason that the writer writes all three in one
+  statement. True of the TABLE; no longer true of what a session may READ. Left alone, a masked counterpart
+  would have made `ratesOf` return null, `charged` go false, and the three-line invoice collapse into a single
+  amount **equal to the Course** — 190,00 € shown where 218,50 € is owed. Silently. Split per side, and the
+  per-side helpers return narrowed types (`BusinessSplit` / `DriverSplit`) so the half you may not read is not
+  reachable at all, rather than merely discouraged.
+
+**And the one that cost the design an argument.** The Ceiling is the *input* to the price the Driver is shown:
+`currentFare()` climbs **to** it, and `lib/pdp.ts` is deliberately *"the SINGLE place fare is computed"* —
+Postgres cannot evaluate the §6 curve. Three options were put up; the founder chose server-computed fares.
+`lib/pool-fares.ts` re-reads only the ceilings, keyed by **the ids the Driver's own RLS read just returned**,
+so the service role fills in prices for rows the caller has already proved it may see and never decides which
+rows those are. RLS stays the gate. Mirroring the curve in SQL was rejected for creating a second copy of the
+one place fare is computed, which would have to match bit-for-bit forever.
+
+**Left open on purpose, and measured so it cannot be forgotten:** a SECURITY DEFINER function's composite
+return is not subject to column privileges, so `business_cancel_mission` and a dozen more still hand a Business
+the whole `mission` row, `commission_driver_rate` included. Closing it means redefining every money RPC's
+return type — a separate job, and not one that belongs in the same paste.
+
+> **The shape to carry forward:** *a rule written in a doc and honoured by the UI is not enforced.* The wall
+> has to be somewhere the caller cannot go round — and the first question about any wall is which role it is
+> granted to, not which column it names.

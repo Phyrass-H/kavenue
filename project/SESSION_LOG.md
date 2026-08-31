@@ -170,6 +170,22 @@ business → business_cancel_mission() → rate  = 0.1      driver → mission_p
 `..._2_close.sql` (**waits for this code to deploy** — it revokes `ceiling`, so the live build would 403 on
 every `select("*")`).
 
+### The other S72 session, merged in
+`2e5bf7d` (the Waybill) landed on `main` while this branch was open. **The code merged clean** — only the four
+project docs collided, and only because both sessions wrote at the same anchor; both sides kept.
+
+- ⚑ **ONE REAL COLLISION, AND THE MERGE DID NOT FIND IT — THE STANDING ASSERTION DID.** The new
+  `missions/[id]/waybill/page.tsx` reads `mission` with `select("*")` on a browser session, which part 2 turns
+  into a 403. Pointed at `mission_read`; the document is unchanged, since its own guard means it only ever
+  renders a trip the Driver holds and the view withholds nothing there. **This is the whole argument for
+  putting the rule in `handoff-check` rather than in a comment.**
+- ⚑ **AND ONE THAT DID NOT BITE, THROUGH LUCK.** `2026-08-31b_mission_vehicle.sql` adds `mission.vehicle_id` —
+  exactly the "new column missing from the view" trap this session wrote down. It was already applied when
+  `mission_read`'s column list was built **from the live table rather than from the schema file**, so it is
+  covered. The drift probe says so out loud: 75 columns.
+
+Merged state: `tsc` clean · **837** tests · handoff **41** · `next build` green.
+
 ### Still open, named not hidden
 ⚑ **SECURITY DEFINER RPCs RETURN A WHOLE `mission`.** A definer function's composite return is not subject to
 column privileges, so `business_cancel_mission` and a dozen more still hand a Business `commission_driver_rate`.

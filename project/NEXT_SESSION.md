@@ -181,6 +181,18 @@ These are decisions, not tasks. **Ask, do not assume.**
    as they stand; two of its five proposed changes got built during S71 anyway. **The three left:**
    - **Move "Worth a look" ABOVE the numbers on `/admin`.** The stylesheet already says a finding must never
      be out-shouted by the band — and then renders the band first. A number is the same at 9am and 5pm.
+   - ⚑ **CHECKED IN S72 AND DECLINED FOR NOW — but it grew a second half.** The founder opened a completed
+     trip, saw `Accepted at 19,78 €` above `Transport 17,20 €`, and asked why. Both are correct; every number
+     was recomputed from the live row and the old and new commission paths agree to the cent. **The row and
+     the card are not just unlabelled — they are in DIFFERENT BASES and DIFFERENT SCOPES:** the row prints the
+     agreed fare *with Kavenue's fee inside and the waiting excluded*, the card builds up from the bare fare
+     *with the fee added at the bottom and the waiting included*. 19,78 + 7,59 = 27,37 either way.
+     ⚑ And `components/trip-row.tsx:369`'s own comment claims the table "can never total something other than
+     the figure at the top of the row" — **it still can, by exactly the waiting.** Half that fix landed and the
+     comment says both halves did. A proposed labelling (`Agreed 19,78 €` / `Billed 27,37 € · incl. waiting`)
+     was previewed and **declined — the founder is satisfied the money is right.** ⚑ Worth re-raising ONLY with
+     the argument that was made and not answered: *the founder understands it after four messages of
+     explanation; a Dispatcher at the hotel will never get that explanation.*
    - **Trip rows should say WHICH money they show.** Every row on every list prints the **Ceiling** — the most
      the Business would ever pay — unlabelled, even on a finished trip, where the true number is what it went
      for. Proposed: `Ceiling 120 €` while looking, `Went for 74 €` once taken, nothing on a cancelled row.

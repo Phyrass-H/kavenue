@@ -41,7 +41,7 @@ export async function businessDeclareNoShow(missionId: string): Promise<ActionRe
     .maybeSingle();
   if (!mission) return { ok: false, message: "This isn’t one of your trips." };
 
-  const { error } = await supabase.rpc("business_declare_no_show", {
+  const { error } = await supabase.rpc("business_declare_no_show_call", {
     p_mission_id: missionId,
     p_fare_snapshot: settledFare(mission),
   });
@@ -74,7 +74,7 @@ export async function businessCancelMission(
     .maybeSingle();
   if (!mission) return { ok: false, message: "This isn’t one of your trips." };
 
-  const { error } = await supabase.rpc("business_cancel_mission", {
+  const { error } = await supabase.rpc("business_cancel_mission_call", {
     p_mission_id: missionId,
     p_reason: reason?.trim() || null,
     p_fare_snapshot: settledFare(mission),
@@ -169,7 +169,7 @@ export async function reclaimMission(missionId: string): Promise<ActionResult> {
   if (!ctx.business) return { ok: false, message: "You’re not signed in as a Business." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("reclaim_mission", { p_mission_id: missionId });
+  const { error } = await supabase.rpc("reclaim_mission_call", { p_mission_id: missionId });
   if (error) {
     const msg = error.message?.trim();
     return {

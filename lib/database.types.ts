@@ -1097,6 +1097,15 @@ export interface Database {
         Args: { p_mission_id: string; p_fare?: number | null };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
       };
+      // ⚑ WHAT THE APP CALLS. `accept_mission` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      accept_mission_call: {
+        Args: { p_mission_id: string; p_fare?: number | null };
+        Returns: void;
+      };
       // Driver's consent to a proposed amendment (Phase-2 edit, D39). Atomic +
       // SECURITY DEFINER, like accept_mission. Accept applies the new route+fare;
       // decline leaves the mission untouched. rpc('respond_to_amendment', {...}).
@@ -1104,23 +1113,68 @@ export interface Database {
         Args: { p_amendment_id: string; p_accept: boolean; p_reason?: string | null };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
       };
+      // ⚑ WHAT THE APP CALLS. `respond_to_amendment` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      respond_to_amendment_call: {
+        Args: { p_amendment_id: string; p_accept: boolean; p_reason?: string | null };
+        Returns: void;
+      };
       // O7 cancellation spine (D45). SECURITY DEFINER + atomic, resolving the caller
       // via current_driver_id()/current_business_id(); each returns the mission Row.
       driver_cancel_mission: {
         Args: { p_mission_id: string; p_reason?: string | null; p_fare_snapshot: number };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
       };
+      // ⚑ WHAT THE APP CALLS. `driver_cancel_mission` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      driver_cancel_mission_call: {
+        Args: { p_mission_id: string; p_reason?: string | null; p_fare_snapshot: number };
+        Returns: void;
+      };
       business_cancel_mission: {
         Args: { p_mission_id: string; p_reason?: string | null; p_fare_snapshot: number };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
+      };
+      // ⚑ WHAT THE APP CALLS. `business_cancel_mission` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      business_cancel_mission_call: {
+        Args: { p_mission_id: string; p_reason?: string | null; p_fare_snapshot: number };
+        Returns: void;
       };
       reclaim_mission: {
         Args: { p_mission_id: string };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
       };
+      // ⚑ WHAT THE APP CALLS. `reclaim_mission` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      reclaim_mission_call: {
+        Args: { p_mission_id: string };
+        Returns: void;
+      };
       mark_no_show: {
         Args: { p_mission_id: string; p_fare_snapshot: number };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
+      };
+      // ⚑ WHAT THE APP CALLS. `mark_no_show` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      mark_no_show_call: {
+        Args: { p_mission_id: string; p_fare_snapshot: number };
+        Returns: void;
       };
       // D48: the Business's "stop waiting, the Guest isn't coming" — the same terminal
       // outcome as mark_no_show, declared from the other side. Gated to status='arrived'
@@ -1128,6 +1182,15 @@ export interface Database {
       business_declare_no_show: {
         Args: { p_mission_id: string; p_fare_snapshot: number };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
+      };
+      // ⚑ WHAT THE APP CALLS. `business_declare_no_show` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      business_declare_no_show_call: {
+        Args: { p_mission_id: string; p_fare_snapshot: number };
+        Returns: void;
       };
       // arrived → on_board, settling the waiting meter on the way (D48; founder
       // 2026-08-09). The FOURTH settlement door and the only one on a trip that
@@ -1137,6 +1200,15 @@ export interface Database {
       board_guest: {
         Args: { p_mission_id: string };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
+      };
+      // ⚑ WHAT THE APP CALLS. `board_guest` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      board_guest_call: {
+        Args: { p_mission_id: string };
+        Returns: void;
       };
       // Mutual-consent agreed release (O7, D45). All SECURITY DEFINER + atomic,
       // mirroring respond_to_amendment / driver_cancel_mission. propose_release
@@ -1154,6 +1226,15 @@ export interface Database {
       respond_to_release: {
         Args: { p_release_id: string; p_accept: boolean; p_reason?: string | null };
         Returns: Database["public"]["Tables"]["mission"]["Row"];
+      };
+      // ⚑ WHAT THE APP CALLS. `respond_to_release` itself is no longer executable by a
+      // browser role: a SECURITY DEFINER function's composite return ignores column
+      // privileges, so `returns mission` handed the other side's money straight back
+      // through the wall (2026-08-31g). The wrapper returns NOTHING — every call site
+      // only ever read `{ error }` — and errors still propagate unchanged.
+      respond_to_release_call: {
+        Args: { p_release_id: string; p_accept: boolean; p_reason?: string | null };
+        Returns: void;
       };
       close_release: {
         Args: { p_release_id: string };

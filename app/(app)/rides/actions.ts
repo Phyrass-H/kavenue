@@ -67,7 +67,7 @@ export async function respondToAmendment(
   if (!driver) return { ok: false, message: "You’re not signed in as a Driver." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("respond_to_amendment", {
+  const { error } = await supabase.rpc("respond_to_amendment_call", {
     p_amendment_id: amendmentId,
     p_accept: accept,
     p_reason: reason ?? null,
@@ -148,7 +148,7 @@ export async function advanceStatus(
   // which would put a fourth hand-written copy of the meter on the one path with no SQL
   // guard. The RPC writes its own status_event, so this returns before the admin block.
   if (requested === "on_board") {
-    const { error } = await supabase.rpc("board_guest", { p_mission_id: missionId });
+    const { error } = await supabase.rpc("board_guest_call", { p_mission_id: missionId });
     if (error) {
       const msg = error.message?.trim();
       return {
@@ -445,7 +445,7 @@ export async function driverCancelMission(
     return { ok: false, message: "This isn’t one of your missions." };
   }
 
-  const { error } = await supabase.rpc("driver_cancel_mission", {
+  const { error } = await supabase.rpc("driver_cancel_mission_call", {
     p_mission_id: missionId,
     p_reason: reason?.trim() || null,
     p_fare_snapshot: settledFare(mission),
@@ -478,7 +478,7 @@ export async function respondToRelease(
   if (!driver) return { ok: false, message: "You’re not signed in as a Driver." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("respond_to_release", {
+  const { error } = await supabase.rpc("respond_to_release_call", {
     p_release_id: releaseId,
     p_accept: accept,
     p_reason: reason?.trim() || null,
@@ -531,7 +531,7 @@ export async function markNoShow(missionId: string): Promise<StatusResult> {
     return { ok: false, message: "This isn’t one of your missions." };
   }
 
-  const { error } = await supabase.rpc("mark_no_show", {
+  const { error } = await supabase.rpc("mark_no_show_call", {
     p_mission_id: missionId,
     p_fare_snapshot: settledFare(mission),
   });

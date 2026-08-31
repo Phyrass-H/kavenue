@@ -34,7 +34,7 @@ export async function acceptMission(missionId: string): Promise<AcceptResult> {
   // into [floor, ceiling] and enforces every eligibility rule itself.
   const course = await courseForAccept(missionId);
 
-  const { error } = await supabase.rpc("accept_mission", {
+  const { error } = await supabase.rpc("accept_mission_call", {
     p_mission_id: missionId,
     p_fare: course,
   });

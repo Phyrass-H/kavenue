@@ -113,7 +113,7 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 ## WHERE WE ARE (2026-08-31, end of S72)
 
 `main` = **`5ee1a3c`** (`69f3742` is the last commit with CODE in it; this one is the handoff).
-Deployed and Ready on Vercel. **815 → 837 tests. handoff-check 38 → 45.**
+Deployed and Ready on Vercel. **815 → 842 tests. handoff-check 38 → 45.**
 **Two sessions ran S72 side by side** against the same `main` and the same database — the Waybill in one, the
 money walls in the other. Both landed; read § THE COLLISION below before assuming either is the whole story.
 
@@ -130,6 +130,15 @@ after — `.local/probe/column-leak.mts`, **0 LEAK(S) OPEN · 18 closed · 0 bro
 | both → the live `commission_rate` card | policy narrowed to dispatcher + admin; `driver_rate_ht` walled |
 | Driver → `rate_card` + `mission_price()` | ⚑ **the Ceiling's back door** — recomputable from distance. One policy shuts table and function together |
 | nine `returns mission` RPCs | EXECUTE revoked; nine `*_call` wrappers return `void` |
+
+**Also shipped, from the founder reading the money themselves:** the Business's bill is now grouped by **what
+each amount pays for** — each item carries its own fee and VAT, so the row's headline (the trip WITH its fee)
+appears in the table meant to explain it instead of being an orphan. One item renders exactly as §3's flat
+three lines always did, so 158 of 264 completed trips are unchanged on screen. ⚑ The last group absorbs the
+cent: per-item rounding disagrees with the pooled total on 21 of the 106 trips with waiting, and an invoice
+whose lines do not add up is wrong however defensible the arithmetic. `billGroups()` in `lib/commission.ts`;
+pinned over 4 000 combinations. ⚑ **Flagged, not decided:** §3 says three lines never collapsed, and grouping
+splits the fee across two — separable and reclaimable, but a change to the written invoice shape.
 
 **Six migrations, applied in order:** `..._walls_1_view` · `..._walls_2_close` · `31d ..._3_the_revoke_that_did_nothing`
 · `31e ..._4_the_same_no_op_again` · `31f guest_ready_at_the_revoke_made_real` · `31g rpc_returns_nothing`.
@@ -204,6 +213,50 @@ These are decisions, not tasks. **Ask, do not assume.**
    and needs the founder to agree it is not the browsing they cut in S66.
 4. **The "last seen" tracker** — one write per person per day, for DAU/MAU. Asked for in S66, never built.
    ⚑ Records THAT they came, never what they looked at — that distinction is what made it acceptable.
+
+### 🔴 ASKED FOR IN S72 — VAT PER GROUP, BEFORE THE EXTRAS ARRIVE
+The founder's own framing, 2026-08-31, immediately after the grouped bill shipped: *"I want to make sure that
+the VAT — by doing groups like we just did — has to be different for transfers, at disposal, waiting time. Is
+it 10 or 20 %? I want to make sure that once we have all the extras the code is ready to create groups like
+that."* They are right, and the code is **not** ready. Here is exactly why.
+
+**What the grouped bill shows today, and why it is safe.** Each group carries the fee and the VAT **on the
+fee** — `commission_vat_rate`, 20 %, which is VAT on *Kavenue's own service* and is the same on every group by
+definition. **No transport VAT appears on the Business side at all** (docs/06: a Business cannot reclaim VAT on
+passenger transport, so it is not actionable on screen). So grouping is correct as shipped. The problem starts
+the day the **invoice document** lands, because §3 puts the transport VAT rate on it.
+
+**⚑ THE STRUCTURAL FINDING: `mission.transport_vat_rate` IS ONE RATE PER MISSION, NOT PER ITEM.**
+- The live card holds a single `commission_rate.transport_vat_rate = 0.10`.
+- The mission column is written by a trigger when a Driver is attached
+  (`2026-08-17_transport_vat_snapshot`): `0.10` if they are VAT-registered, `0` under *franchise en base*,
+  NULL if nobody holds it yet. Live spread today: **294 rows at 0, 70 NULL** — not one at 0,10.
+- It is READ in exactly ONE place: `components/mission-run-view.tsx:179`, the Driver's "what you keep" note.
+
+⚑ **So that column answers "is this Driver VAT-registered?", NOT "what rate does this kind of supply carry?"**
+Two different questions in one column. A trip whose transfer is 10 % and whose waiting is 20 % cannot be
+expressed by it at all.
+
+**The shape that would work** — the rate belongs to the ITEM, and registration is a separate multiplier:
+
+    effective rate = (rate for THIS supply type) × (does this Driver charge VAT at all)
+
+so `billGroups()` grows a `vatRate` per group, and the card grows a rate per supply type instead of one number.
+
+**⚑ AND THE FIVE QUESTIONS ONLY THE FOUNDER CAN ANSWER — do not guess these, they are tax, not design:**
+1. **Transfer** (A → B passenger transport) — 10 %?
+2. **At disposal / mise à disposition with driver** — 10 %, or 20 % because it is a hire rather than a journey?
+   ⚑ `mission_type` is **100 % `transfer`** on all 364 live rows, so nothing has ever exercised this.
+3. **Waiting time** — does it follow the transport as an accessory supply, or is it a separate service at 20 %?
+4. **No-show** — a supply at all, or compensation?
+5. **Cancellation fee** — docs/06 §1 already calls the Driver's penalty an *indemnity*. An indemnity is
+   normally **outside the scope** of VAT, which on an invoice is **not the same as a 0 % line**.
+
+⚑ 4 and 5 matter more than they look: "outside scope" means **no VAT line at all**, and `billGroups` currently
+gives every group the same shape.
+
+**When it becomes urgent:** the day invoicing ships, or the day the first at-disposal trip is posted —
+whichever comes first. Not before. Nothing on screen today is wrong.
 
 ### 🎯 IF THE FOUNDER HAS NO PREFERENCE, the honest next jobs
 - **§ 4 THE BOOKING VOUCHER** — real Drivers get stopped by police. ⚑ The founder does not remember the "7
@@ -299,7 +352,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 **45 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 837 passing
+    npx tsc --noEmit && npx vitest run          # expect 842 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE

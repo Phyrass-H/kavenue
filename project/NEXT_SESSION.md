@@ -112,7 +112,8 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ## WHERE WE ARE (2026-08-31, end of S72)
 
-`main` = **`69f3742`**, deployed and Ready on Vercel. **815 → 837 tests. handoff-check 38 → 45.**
+`main` = **`5ee1a3c`** (`69f3742` is the last commit with CODE in it; this one is the handoff).
+Deployed and Ready on Vercel. **815 → 837 tests. handoff-check 38 → 45.**
 **Two sessions ran S72 side by side** against the same `main` and the same database — the Waybill in one, the
 money walls in the other. Both landed; read § THE COLLISION below before assuming either is the whole story.
 
@@ -130,7 +131,7 @@ after — `.local/probe/column-leak.mts`, **0 LEAK(S) OPEN · 18 closed · 0 bro
 | Driver → `rate_card` + `mission_price()` | ⚑ **the Ceiling's back door** — recomputable from distance. One policy shuts table and function together |
 | nine `returns mission` RPCs | EXECUTE revoked; nine `*_call` wrappers return `void` |
 
-**Seven migrations, applied in order:** `..._walls_1_view` · `..._walls_2_close` · `31d ..._3_the_revoke_that_did_nothing`
+**Six migrations, applied in order:** `..._walls_1_view` · `..._walls_2_close` · `31d ..._3_the_revoke_that_did_nothing`
 · `31e ..._4_the_same_no_op_again` · `31f guest_ready_at_the_revoke_made_real` · `31g rpc_returns_nothing`.
 
 ### ⚑⚑ THE RULE UNDERNEATH — the one thing to carry out of S72

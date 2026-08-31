@@ -110,6 +110,43 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ---
 
+## WHERE WE ARE (2026-08-31, end of S72)
+
+`main` = **`69f3742`**, deployed and Ready on Vercel. **815 → 837 tests. handoff-check 38 → 45.**
+**Two sessions ran S72 side by side** against the same `main` and the same database — the Waybill in one, the
+money walls in the other. Both landed; read § THE COLLISION below before assuming either is the whole story.
+
+### ✅ Shipped in S72 — the money walls
+`docs/06 §3` says *"The Business never sees `driver_net` or the Driver-side rate."* Until this session the only
+thing enforcing that was **which columns the UI chose to render**. Five doors, all watched open first and shut
+after — `.local/probe/column-leak.mts`, **0 LEAK(S) OPEN · 18 closed · 0 broken**.
+
+| door | how it is shut |
+|---|---|
+| Business → `mission.commission_driver_rate` | `mission_read`, one security-definer view masking by `app_role()` |
+| Driver → `mission.ceiling` on a POOLED trip | same view; the Pool price is computed server-side, `lib/pool-fares.ts` |
+| Business → `ledger_transaction.driver_net` | `p_ledger_read` narrowed to Driver + admin. Empty table, no writer — the cheap moment |
+| both → the live `commission_rate` card | policy narrowed to dispatcher + admin; `driver_rate_ht` walled |
+| Driver → `rate_card` + `mission_price()` | ⚑ **the Ceiling's back door** — recomputable from distance. One policy shuts table and function together |
+| nine `returns mission` RPCs | EXECUTE revoked; nine `*_call` wrappers return `void` |
+
+**Seven migrations, applied in order:** `..._walls_1_view` · `..._walls_2_close` · `31d ..._3_the_revoke_that_did_nothing`
+· `31e ..._4_the_same_no_op_again` · `31f guest_ready_at_the_revoke_made_real` · `31g rpc_returns_nothing`.
+
+### ⚑⚑ THE RULE UNDERNEATH — the one thing to carry out of S72
+**On this database a column-level `REVOKE` is ALWAYS a no-op.** Supabase ships
+`grant all on all tables in schema public to authenticated`, so a *table-level* grant already covers every
+column, and `revoke select (c) on t from authenticated` takes away a *column-level* grant that was never made.
+It is not an error. It is not a warning. **It succeeds and does nothing.**
+
+Walling a column means: `revoke <priv> on t from authenticated`, then `grant <priv> (the ones you keep) on t`.
+
+⚑ It cost **three** migrations to learn — parts 2, 3 and 4 — and every one of them *ran successfully*.
+⚑ And it had been wrong in this repo since **2026-07-19**: `revoke update (guest_ready_at)` was inert for six
+weeks while the file claimed two locks. Fixed in `31f`.
+⚑ **`handoff-check` now fails on the SHAPE, not the instance** — it reads every migration and flags any
+column-level revoke that no table-level revoke backs up. That is the assertion, not this paragraph.
+
 ## WHERE WE ARE (2026-08-30, end of S71)
 
 `main` = **`ec32cfb` plus the S71 close commits** — `git log --oneline -8` for the rest. Each was CI-green on a
@@ -246,7 +283,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**44 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**45 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 837 passing
@@ -263,7 +300,7 @@ about that point — **fix the file before you build on it.** Then:
     npx tsx .local/probe/dataset-audit.mts                               #  30 · 0 failed ([[d108]])
     npx tsx .local/probe/accept-floor.mts                                #   6 · the § H2 residual
     npx tsx .local/probe/column-leak.mts                                 #   S72 · expect 0 LEAK(S) OPEN
-    npx tsx .local/probe/sweep-orphans.mts                               #    after any live-probe session
+    npx tsx .local/probe/sweep-orphans.mts                               #  ⚑ after any live-probe session
 
 **If a probe fails, that is the job** — not whatever is queued above.
 ⚑ **RUN THE LIVE PROBES ONE AT A TIME** — several assert a mission-count baseline and see each other's rows.
@@ -271,7 +308,71 @@ about that point — **fix the file before you build on it.** Then:
 
 ---
 
-## ⚑ TRAPS LEARNED IN S72
+## ⚑ TRAPS LEARNED IN S72 — THE MONEY WALLS
+
+- ⚑⚑ **A COLUMN-LEVEL `REVOKE` IS ALWAYS A NO-OP HERE.** See § THE RULE UNDERNEATH above. Three migrations and
+  a six-week-old inert guard. **`handoff-check` assertion 45 now catches the shape** — watched red on a planted
+  `revoke select (driver_net) on ledger_transaction`, green with it gone.
+- ⚑ **A COLUMN PRIVILEGE IS PER POSTGRES ROLE. A DRIVER AND A DISPATCHER ARE THE SAME ROLE** (`authenticated`).
+  A revoke hides a column from BOTH audiences and can never say "this side but not that one". That needs a
+  view. [[d114]]
+- ⚑ **A SECURITY DEFINER FUNCTION'S COMPOSITE RETURN IGNORES COLUMN PRIVILEGES.** Nine `returns mission` RPCs
+  handed the other side's money back THROUGH the closed table. Closed by revoking EXECUTE and adding `*_call`
+  wrappers that return `void` — **the bodies were not touched**, because reproducing the cancel-fee bands and
+  the waiting meter to change a return type is how a correct system acquires a silent defect.
+- ⚑ **REVOKE EXECUTE BY LOOPING OVER `pg_proc`, NEVER BY A HAND-WRITTEN SIGNATURE LIST** — adding a parameter
+  creates an OVERLOAD, and PostgREST resolves by the arguments the CLIENT sends.
+- ⚑ **POSTGRES CHECKS COLUMN PRIVILEGES *BEFORE* ROW TRIGGERS FIRE.** That ordering is what proved
+  `revoke update (guest_ready_at)` was dead: the refusal came back as the TRIGGER's sentence, not
+  "permission denied". Use it to tell a real privilege from a guard standing in for one.
+- ⚑ **A `security_invoker = false` VIEW SEES NOTHING AS THE SERVICE ROLE** when its WHERE is written in
+  `app_role()` / `current_*_id()` — all NULL there. It returns ZERO ROWS rather than an error, the most
+  misleading answer a query can give. `mission_read` is granted to `authenticated` only.
+- ⚑ **HIDING A NUMBER THE UI COMPUTES FROM MEANS MOVING THE COMPUTATION.** `currentFare()` climbs TO the
+  Ceiling, so masking it breaks the Pool card. `lib/pool-fares.ts` computes it server-side from ids the
+  caller's own RLS read returned; `PoolMissionRow` types the masked columns `null` so the compiler refuses.
+- ⚑ **`ratesOf` REQUIRED ALL THREE RATES**, which silently means "no commission charged" the moment one is
+  masked — a Business would have seen **190,00 € where it owes 218,50 €**. Use `businessRatesOf` /
+  `driverRatesOf`; their narrowed return types make reading the wrong half a compile error. `ratesOf` /
+  `splitFor` are ADMIN and service-role only.
+- ⚑ **MASKING ONE DOOR IS THEATRE WHILE ANOTHER IS OPEN.** `commission_rate` AND `rate_card` were both
+  `to authenticated using (true)`, so the Driver rate and the Ceiling were both reachable without touching
+  `mission` at all. Ask what ELSE answers the same question before congratulating yourself on a wall.
+- ⚑ **THE MIGRATION ORDER IS REVERSED FROM THE USUAL ONE.** Normally a new column breaks the WRITE path until
+  the migration lands. A revoke breaks the READ path until the app half is DEPLOYED. `31g` in particular kills
+  nine buttons if it runs before the deploy.
+- ⚑ **THIS REPO'S WORKTREES HAVE NO `.local`, `node_modules` OR `.env.local`** — symlink them in from the main
+  checkout, then add `.local` and `node_modules` to `.git/info/exclude`: `.gitignore` matches `.local/` (a
+  DIRECTORY) and will not match a symlink, so the gate reports "git is clean" as STALE for your own scaffolding.
+- ⚑ **A REGEX OVER A COLUMN LIST MISSES THE LAST COLUMN** — it has no trailing comma.
+
+### ⚑ FOUR FALSE RESULTS IN ONE SESSION — the S71 meta-lesson, still the sharpest thing here
+Every one of these *looked* like an answer:
+1. **The migration that ran clean and changed nothing.** Only re-running the probe found it.
+2. **Four `BROKEN` lines that were the probe knocking on the OLD door**, on a database behaving exactly as
+   designed. A permanently-red check is one a future session learns to ignore ([[d108]]) — so they were moved
+   to the new door, and the old one got an assertion that it must now REFUSE.
+3. **`guest_ready_at` looked inert.** PostgREST returns **success with ZERO ROWS** when RLS matches nothing, so
+   "no error" proved nothing. Read the row back — and try it as the party the guard was written to stop
+   (the BUSINESS), not the one RLS refuses first.
+4. **A Driver-side RPC probe that scored `closed` on "Not your mission"** — a refusal for a reason unrelated to
+   the leak. The honest test used a trip the Driver actually held.
+
+> **A check is only evidence once you have watched it fail on purpose.** Four disguises in one day, on top of
+> S71's three.
+
+### ⚑ THE COLLISION — two sessions, one `main`, one database
+- Both appended a **D109** on the same day. Theirs landed first, so the walls decision is **[[d114]]**.
+- ⚑ **THE MERGE DID NOT FIND THE REAL COLLISION — THE STANDING ASSERTION DID.** Their new Waybill page read
+  `mission` with `select("*")`, which `31g`'s sibling would have 403'd. It now takes both fixes: the view
+  (enforcement) and named columns (it prints eight fields, so it asks for eight).
+- ⚑ **`.next` IS SHARED BETWEEN WORKTREES AND NOT SAFE TO DELETE UNDER A RUNNING SERVER.** Two concurrent
+  builds produce `Duplicate identifier` errors in code nobody wrote; clearing it breaks the other session's
+  dev server. **Set `autoPort: true` and take your own port** (`.claude/launch.json`, done) — Spend and
+  Calendar appeared to hang for twenty minutes on the shared one and were perfectly fine on a clean server.
+- ⚑ **A RED GATE THAT IS NOT YOURS IS WORTH NAMING, NOT "FIXING".**
+
+
 
 - ⚑ **THIS REPO'S WORKTREES DO NOT HAVE `.local`, `node_modules` OR `.env.local`** — all three are ignored and
   live only in the main checkout. Symlink them in (`ln -sfn ../../../.local .local`, etc.), then add `.local`
@@ -302,10 +403,11 @@ about that point — **fix the file before you build on it.** Then:
   going red on a real near-miss and again on a planted one, then green.
 
 ### 🔴 STILL OPEN FROM S72 — named, not hidden
-**The SECURITY DEFINER RPCs return whole `mission` rows.** `business_cancel_mission`, `respond_to_amendment`,
+**~~The SECURITY DEFINER RPCs return whole `mission` rows~~ — CLOSED (`31g`).** Kept as the shape: `business_cancel_mission`, `respond_to_amendment`,
 `reclaim_mission` and ~14 more hand a Business `commission_driver_rate` on any trip it touches. Closing it means
 redefining each function's return type — a job of its own, and deliberately not in the same paste as the walls.
-`.local/probe/column-leak.mts` § 5 measures it, so it will keep saying `LEAK OPEN` until it is done.
+`.local/probe/column-leak.mts` § 5 measures it. **Done in `31g`** — the entry stays as the shape to recognise:
+a definer function's return value is not covered by anything you do to the table it reads.
 
 ---
 

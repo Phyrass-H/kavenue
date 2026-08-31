@@ -7,6 +7,48 @@
 
 We're continuing Kavenue (B2B VTC booking marketplace).
 
+---
+
+## ⚑⚑ RULE ZERO — MAKE IT GO RED ON PURPOSE BEFORE YOU TRUST THE GREEN
+
+**Read this before the § 0 gate. It is the rule that catches the bugs the gate cannot.**
+
+A check that passes tells you one of two things, and you cannot tell which by looking:
+
+- the thing you built works, **or**
+- the check is asking the wrong question and would pass no matter what
+
+**It is a smoke alarm.** Silence might mean no fire, or a dead battery. The only way to know is to press the
+test button. So: **break the thing the check is meant to catch, watch it go red, read the message, then
+unbreak it.** Thirty seconds. Only after that does the green mean anything.
+
+Three steps, and step 2 is the whole point:
+
+1. break the exact thing the check exists to catch
+2. **watch it go red — AND READ WHAT IT SAYS.** It must name the right thing. A red for the wrong reason is
+   just a different lie
+3. unbreak it, watch it go green
+
+### ⚑ S72 HIT THIS FOUR TIMES IN ONE DAY. Every one was, technically, a green.
+1. **A migration that ran perfectly and changed nothing.** `revoke select (ceiling) on mission` returned
+   success — no error, no warning — and the column stayed readable. Three migrations in a row did this. Only
+   re-running the probe and reading the values found it.
+2. **A probe knocking on a door that had moved.** After the walls went up it printed four `BROKEN` lines, on a
+   database behaving exactly as designed. The code was right; the *check* was out of date.
+3. **A test that passed for a reason unrelated to what it tested.** *"The Driver can't read the Ceiling"* — true,
+   but only because the database said *"Not your mission"* first. The wall itself was never exercised. Nobody
+   had pressed the button, so nobody knew the alarm was unplugged.
+4. **A CI check that was green about the previous commit.** `gh run list --limit 1` returned the newest run,
+   which right after a push is often the one BEFORE yours — already passing. Pushed to `main` on the strength
+   of it; the ruleset refused, correctly.
+
+> ⚑ **The founder asked for this to be explained properly, with examples, in the next session** (2026-08-31) —
+> they are not a developer and want to be able to judge for themselves whether a green means anything. Do not
+> assume the four cases above are self-explanatory; walk through one end to end when asked.
+
+---
+
+
 **This is a local session on the Mac** — working directory `…/02_Cactus/Kavenue/Kavenue_project_dev`, with
 `.env.local` and `node_modules` in place. Don't spend a turn working out where you're running.
 

@@ -58,6 +58,48 @@ built**, though it was believed to be — cannot ship without recording what it 
 no trace behind, so unlike every other number we have discussed, it can only ever be collected going forward.
 A check now goes red the moment the hold appears in the code without it.
 
+## 31 August 2026 — the bill now groups each thing with its own fee
+
+You opened a completed trip, saw **19,78 €** at the top and **17,20 €** as the first line underneath, and asked
+why. Nothing was wrong with the money — but nothing on that screen connected the two numbers either. The 19,78 €
+could not be reached from the table below it by any addition, because the table pooled both service fees into
+one figure.
+
+**The bill is now grouped by what each amount pays for**, each group carrying its own fee:
+
+```
+Trip                       17,20 €
+  Service fee (12,5 %)      2,15 €
+  VAT on service fee        0,43 €
+                           19,78 €   ← the number at the top, where it belongs
+Waiting · 21 min            6,60 €
+  Service fee (12,5 %)      0,83 €
+  VAT on service fee        0,16 €
+                            7,59 €
+Total                      27,37 €
+```
+
+**A trip with nothing but the fare looks exactly as it did before** — one group needs no subtotal. That is 158
+of your 264 completed trips, unchanged.
+
+**And it will keep working as more things get billed.** A no-show, a cancellation fee, extra stops — each
+becomes its own group with its own fee, and the table never needs rethinking. The old flat shape would just
+have grown more unlabelled lines.
+
+**"Transport" is now "Trip."** At-disposal bookings will say "Mission" when they get their own treatment.
+
+**One thing that needed care.** Splitting the fee per item and rounding each separately lands a cent away from
+the real total on 21 of your 106 trips with waiting. The total you were billed does not move — the last group
+absorbs the cent, the same way the VAT line always has. An invoice whose lines don't add up is wrong however
+good the arithmetic behind it.
+
+**Booked for a future session:** whether VAT differs between a transfer, an at-disposal booking and waiting
+time — and whether a no-show or a cancellation carries VAT at all. Your question, and the right one: the code
+currently holds **one VAT rate per trip**, which cannot express a trip whose parts differ. Nothing is wrong
+today — no transport VAT reaches your screen, and every trip so far is a transfer.
+
+---
+
 ## 30 August 2026 — neither side can read the other's money any more
 
 Kavenue's own rule says a Business never sees what the Driver is paid, or the rate we take from them. That was

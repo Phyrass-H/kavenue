@@ -259,6 +259,29 @@ carrying it alone. ⚑ **Proved, not inferred: Postgres checks column privileges
 the refusal came back as the TRIGGER's sentence rather than "permission denied". That ordering is the whole
 evidence. Table UPDATE revoked, 74 of 75 columns granted back.
 
+### Then the founder read the money themselves, and found the last thing
+Opened a completed trip with 21 minutes of waiting: headline `19,78 €`, first table line `17,20 €`. Every number
+recomputed from the live row — correct, and identical on the old and new commission paths. But **19,78 was an
+ORPHAN**: not reachable from that table by any addition, because the flat §3 shape pools both fees into one
+figure while the headline is the trip WITH its own fee.
+
+- ⚑ **THE FOUNDER'S DIAGNOSIS BEAT MINE.** I was describing it as missing labels. They said: *"break it down by
+  type of payment — the trip plus the fee of the trip, and any extra the same way."* That is the fix, and it
+  makes 19,78 appear naturally as the trip's own subtotal. `billGroups()` in `lib/commission.ts`.
+- ⚑ **ONE GROUP RENDERS EXACTLY AS §3 ALWAYS DID** — the subtotal is drawn only when there is a second group to
+  distinguish it from. **158 of 264** completed trips are untouched on screen. That property is what makes this
+  a grouping rather than a redesign.
+- ⚑ **THE LAST GROUP ABSORBS THE CENT.** Per-item rounding disagrees with the pooled total on **21 of the 106**
+  live trips with waiting. The billed total does not move; the final group takes the remainder, mirroring the
+  rule the VAT line already follows. Pinned over 4 000 fare/waiting combinations.
+- **`Transport` → `Trip`**; `Mission` for at-disposal later.
+- ⚑ **FLAGGED, NOT DECIDED:** docs/06 §3 says three lines never collapsed. Grouping splits the fee across two
+  lines and its VAT likewise — separable and reclaimable, but a change to the written invoice shape. That is a
+  VAT question, not a design one.
+- **And the founder's next question is booked at the top of NEXT_SESSION:** VAT per group type. ⚑
+  `mission.transport_vat_rate` is ONE rate per mission, written by a trigger, answering *"is this Driver
+  VAT-registered?"* — not *"what rate does this supply carry?"*. Live: 294 rows at 0, 70 NULL, none at 0,10.
+
 ### Still open, named not hidden
 ⚑ **~~SECURITY DEFINER RPCs RETURN A WHOLE `mission`~~ — DONE, above.** Left here as the shape to remember: A definer function's composite return is not subject to
 column privileges, so `business_cancel_mission` and a dozen more still hand a Business `commission_driver_rate`.

@@ -1288,6 +1288,17 @@ textarea::placeholder {
 .dx-fee .dx-fee__tot {
   border-top: 1px solid var(--border); padding-top: 7px; margin-top: 1px; font-weight: 600;
 }
+/* One group per thing billed (founder, 2026-08-31). The fee and its VAT are
+   indented UNDER the amount they were taken from, so the eye reads "this trip,
+   and what it cost" rather than four amounts in a column with no relationship.
+   A single-group bill draws no subtotal at all — it is §3's flat table, and a
+   subtotal identical to the total below it would be noise. */
+.dx-fee .dx-fee__sub { color: var(--text-muted); font-size: 12.5px; }
+.dx-fee dt.dx-fee__sub { padding-left: 12px; }
+.dx-fee .dx-fee__grp {
+  border-bottom: 1px solid var(--border); padding-bottom: 7px; margin-bottom: 1px;
+}
+.dx-fee dd.dx-fee__grp { font-weight: 500; }
 /* A quiet line, not a green panel (founder, 2026-08-17): a filled panel made a
    one-line fact shout on every settled row. The green stays on the number
    itself, which is the part that is good news. */

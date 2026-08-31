@@ -361,6 +361,67 @@ export function driverNet(m: CommissionSnapshot | null | undefined, course: numb
   return driverSplitFor(m, course).driverNet;
 }
 
+// ── THE BILL, GROUPED BY WHAT EACH AMOUNT PAYS FOR ─────────────────────────
+// docs/06 §3 lists the invoice as three lines — Course, Frais de service, TVA.
+// That shape is exactly right while a trip is one charge. The moment a second
+// one exists (waiting today; a no-show, a cancellation fee, extra stops later)
+// the flat table pools every fee into one figure, and the number the row's own
+// headline shows — the trip WITH its fee, `businessTotal(fare)` — appears
+// nowhere in it. Founder, 2026-08-31, opening a trip with 21 minutes of
+// waiting: the headline said 19,78 € and the first line under it said 17,20 €,
+// and nothing on screen connected them.
+//
+// So the bill is built per ITEM, each carrying its own fee and VAT. One item
+// renders exactly as §3 always did; a second makes the grouping visible.
+//
+// ⚑ THE LAST GROUP ABSORBS THE CENT, and this is not decoration. Splitting the
+//   fee per item and rounding each independently disagrees with the pooled
+//   total on 21 of the 106 live trips that have waiting — by a cent, every
+//   time. An invoice whose lines do not add up to its total is wrong however
+//   defensible the arithmetic (the same rule the VAT line already follows), so
+//   the total stays exactly what it was and the final group takes the
+//   remainder. Verified against all 106 by tests/commission.test.ts.
+
+export type BillGroup = {
+  /** What this money paid for. */
+  label: string;
+  /** Course-side — the amount before Kavenue's fee. */
+  gross: number;
+  feeHt: number;
+  feeVat: number;
+  /** gross + feeHt + feeVat. What this item cost, all in. */
+  total: number;
+};
+
+/**
+ * The Business's bill, one group per thing billed, totalling EXACTLY `total`.
+ *
+ * `items` are Course-side amounts in the order they should appear. Pass one and
+ * you get one group, which renders as the flat §3 table it always was.
+ */
+export function billGroups(
+  m: CommissionSnapshot | null | undefined,
+  items: { label: string; gross: number }[],
+  total: number,
+): BillGroup[] {
+  const groups = items.map((it) => {
+    const s = businessSplitFor(m, it.gross);
+    return { label: it.label, gross: it.gross, feeHt: s.businessFeeHt, feeVat: s.businessFeeVat, total: s.businessTotal };
+  });
+  if (groups.length === 0) return groups;
+
+  // ⚑ The remainder lands on the LAST group's VAT, mirroring `commissionSplit`,
+  // where the VAT line is the remainder for exactly this reason.
+  const summed = groups.reduce((n, g) => n + Math.round(g.total * 100), 0);
+  const drift = Math.round(total * 100) - summed;
+  if (drift !== 0) {
+    const last = groups[groups.length - 1];
+    last.feeVat = Math.round(last.feeVat * 100 + drift) / 100;
+    last.total = Math.round(last.total * 100 + drift) / 100;
+  }
+  return groups;
+}
+
 /**
  * The Course behind an all-in figure the Business typed or Kavenue pre-filled.
  *

@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { Pencil, GitPullRequestArrow, Lock, Phone, Car, Clock, Star } from "lucide-react";
 import type { MissionRow, AmendmentStatus, ReleaseStatus } from "@/lib/database.types";
@@ -6,7 +7,9 @@ import { closeRelease } from "@/app/(dispatch)/dispatch/actions";
 import { settledFare } from "@/lib/pdp";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
-import { businessCost, carriesCommission, businessRatesOf, businessSplitFor } from "@/lib/commission";
+import { businessCost, carriesCommission, businessRatesOf, businessSplitFor,
+  billGroups,
+} from "@/lib/commission";
 import {
   addressLine,
   formatDateTime,
@@ -998,28 +1001,51 @@ export function TripRow({
           <div className="dx-panel">
             <div className="dx-panel__h">What you pay</div>
             <dl className="dx-fee">
-              {/* The first line names what the money is FOR, so it has to be the
-                  charge alone — waiting gets its own line when there is any.
-                  They are exact halves of `paidSplit.course`, so the table still
-                  adds up to the total. */}
-              <dt>{mission.status === "cancelled" ? "Cancellation fee" : "Transport"}</dt>
-              <dd>{formatMoney(paidSplit.course - waitingFee)}</dd>
-              {waitingFee > 0 && (
-                <>
-                  {/* Course-side rate, to match the Course-side amount beside
-                      it — 13 × 0,50 is exactly the 6,50 in the <dd>. */}
-                  <dt>
-                    Waiting
-                    {waitingMinutes > 0 &&
-                      ` · ${formatWaitingSpell(waitingMinutes, mission.waiting_rate)}`}
+              {/* ⚑ ONE GROUP PER THING BILLED, each carrying its own fee — so the
+                  headline above (the trip WITH its fee) appears in the table
+                  that is meant to explain it. On a trip with nothing but the
+                  fare there is ONE group, and this renders exactly as §3's flat
+                  three lines always did: the subtotal is only drawn when there
+                  is a second group for it to be distinguished from. */}
+              {billGroups(
+                mission,
+                [
+                  {
+                    label: mission.status === "cancelled" ? "Cancellation fee" : "Trip",
+                    gross: paidSplit.course - waitingFee,
+                  },
+                  // Course-side spell, to match the Course-side amount beside it
+                  // — 13 × 0,50 is exactly the 6,50 in the <dd>.
+                  ...(waitingFee > 0
+                    ? [{
+                        label: `Waiting${
+                          waitingMinutes > 0
+                            ? ` · ${formatWaitingSpell(waitingMinutes, mission.waiting_rate)}`
+                            : ""
+                        }`,
+                        gross: waitingFee,
+                      }]
+                    : []),
+                ],
+                paidSplit.businessTotal,
+              ).map((g, i, all) => (
+                <Fragment key={g.label}>
+                  <dt>{g.label}</dt>
+                  <dd>{formatMoney(g.gross)}</dd>
+                  <dt className="dx-fee__sub">
+                    Service fee ({formatRate(mission.commission_business_rate)})
                   </dt>
-                  <dd>{formatMoney(waitingFee)}</dd>
-                </>
-              )}
-              <dt>Service fee ({formatRate(mission.commission_business_rate)})</dt>
-              <dd>{formatMoney(paidSplit.businessFeeHt)}</dd>
-              <dt>VAT on service fee</dt>
-              <dd>{formatMoney(paidSplit.businessFeeVat)}</dd>
+                  <dd className="dx-fee__sub">{formatMoney(g.feeHt)}</dd>
+                  <dt className="dx-fee__sub">VAT on service fee</dt>
+                  <dd className="dx-fee__sub">{formatMoney(g.feeVat)}</dd>
+                  {all.length > 1 && (
+                    <>
+                      <dt className="dx-fee__grp" />
+                      <dd className="dx-fee__grp">{formatMoney(g.total)}</dd>
+                    </>
+                  )}
+                </Fragment>
+              ))}
               <dt className="dx-fee__tot">Total</dt>
               <dd className="dx-fee__tot">{formatMoney(paidSplit.businessTotal)}</dd>
             </dl>

@@ -22,6 +22,7 @@ import {
   driverRatesOf,
   businessRatesFromRow,
   businessSplitFor,
+  billGroups,
   driverSplitFor,
   splitFor,
   transportVat,
@@ -225,6 +226,61 @@ describe("a snapshot with the OTHER side masked — the money-column walls", () 
     expect(businessRatesFromRow(card)).toEqual({ businessHt: 0.125, driverHt: 0, feeVat: 0.2 });
     expect(commissionSplit(190, businessRatesFromRow(card)).businessTotal).toBe(218.5);
     expect(businessRatesFromRow(null)).toBeNull();
+  });
+});
+
+describe("the bill, grouped by what each amount pays for", () => {
+  // Founder, 2026-08-31: opened a trip with 21 minutes of waiting, saw the
+  // headline say 19,78 € above a table whose first line said 17,20 €, and asked
+  // where the difference went. It was nowhere — the flat table pools both fees
+  // into one figure, so the headline is not reachable from it by any addition.
+  const trip = { label: "Trip", gross: 17.2 };
+  const wait = { label: "Waiting", gross: 6.6 };
+
+  it("puts the row's own headline back in the table that explains it", () => {
+    const g = billGroups(snapshot, [trip, wait], 27.37);
+    expect(g[0].total).toBe(19.78); // ← the headline, businessTotal(17,20)
+    expect(g[1].total).toBe(7.59);
+    // ⚑ IN CENTS. `17.2 + 2.15 + 0.43` is 19.779999999999998 in binary float —
+    // the same reason every amount in this file is computed in integer cents.
+    // The screen never adds these; it prints each one already rounded.
+    expect(Math.round((g[0].gross + g[0].feeHt + g[0].feeVat) * 100)).toBe(1978);
+    expect(Math.round((g[0].total + g[1].total) * 100)).toBe(2737);
+  });
+
+  it("renders as §3's flat table when only one thing was billed", () => {
+    const g = billGroups(snapshot, [trip], businessTotal(snapshot, 17.2));
+    expect(g).toHaveLength(1);
+    expect(g[0].total).toBe(19.78);
+  });
+
+  it("⚑ totals EXACTLY the figure it was given, whatever the rounding does", () => {
+    // The reason the last group takes the remainder. Splitting the fee per item
+    // and rounding each independently disagrees with the pooled total by a cent
+    // on 21 of the 106 live trips that have waiting. An invoice whose lines do
+    // not add up to its total is wrong however defensible the arithmetic.
+    for (let cents = 1; cents <= 4000; cents++) {
+      const fare = cents / 100;
+      const w = Math.round(fare * 37) / 100; // an unrelated, awkward second item
+      const total = businessTotal(snapshot, fare + w);
+      const g = billGroups(snapshot, [{ label: "Trip", gross: fare }, { label: "Waiting", gross: w }], total);
+      const summed = g.reduce((n, x) => n + Math.round(x.total * 100), 0);
+      expect(summed).toBe(Math.round(total * 100));
+      for (const x of g) {
+        expect(Math.round((x.gross + x.feeHt + x.feeVat) * 100)).toBe(Math.round(x.total * 100));
+      }
+    }
+  });
+
+  it("charges nothing on a trip priced before commission existed", () => {
+    const g = billGroups({ commission_business_rate: null, commission_vat_rate: null }, [trip], 17.2);
+    expect(g[0].feeHt).toBe(0);
+    expect(g[0].feeVat).toBe(0);
+    expect(g[0].total).toBe(17.2);
+  });
+
+  it("copes with no items at all", () => {
+    expect(billGroups(snapshot, [], 0)).toEqual([]);
   });
 });
 

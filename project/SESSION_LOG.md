@@ -126,8 +126,13 @@ for the cross-side RLS leaks added assertions for a `mission_read` view that doe
 red-first, and still in flight. They belong to that task. This session's only response was to narrow the
 Waybill's own `select("*")` to the eight columns it uses, which took it off the leak list on its own merits.
 
-⚑ **Marc Fontaine's three new fields hold seeded values I typed to verify the path.** They are plausible, not
-real. Either clear them or backfill all 13 Drivers through the seeder — the founder's call.
+⚑ **CLEARED at the founder's instruction, and read back.** Four values were typed into Marc Fontaine's row to
+exercise the form — `company_name` as well as the three new columns, since it was null before this session too.
+`siret` and `vat_number` are untouched seed data. Live counts across all 13 Drivers afterwards: revtc 0,
+address 0, card 0. **No Driver on this database carries an invented REVTC number.**
+
+⚑ And the clearing is itself the last proof: with the row empty, `/missions/…/waybill` returns to the refusal
+naming 1°, 1° and 2°. The gate was watched working in both directions on real data, not only on fixtures.
 
 ### ⚑ TWO SESSIONS RAN ON 2026-08-30/31, AND THEY COLLIDED IN THREE PLACES
 The RLS-walls task was spawned from this session mid-work and ran in its own worktree

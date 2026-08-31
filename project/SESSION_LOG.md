@@ -236,8 +236,31 @@ project docs collided, and only because both sessions wrote at the same anchor; 
 
 Merged state: `tsc` clean · **837** tests · handoff **41** · `next build` green.
 
+### Then the founder asked for the two that were left
+**The RPC channel — closed.** ⚑ A SECURITY DEFINER function's composite return is **not subject to column
+privileges**, so nine `returns mission` functions handed the other side's money back THROUGH the closed table.
+Watched, both directions: `business_cancel_mission()` → `commission_driver_rate = 0.1`, `accept_mission()` →
+`ceiling = 100` **and** `commission_business_rate = 0.125`.
+
+- ⚑ **AND THE FIRST DRIVER-SIDE PROBE WAS A FALSE PASS.** It called `board_guest` on a POOLED trip, got
+  *"Not your mission"*, and scored `closed` — a refusal for a reason unrelated to the leak, which is [[d108]]
+  wearing a fifth disguise. `accept_mission` on a trip the Driver actually holds is the honest test.
+- **The nine bodies are not touched.** They hold the cancel-fee bands, the waiting meter, the Lock-in rule and
+  the atomic accept; reproducing money logic to change a return type is how a correct system acquires a silent
+  defect. EXECUTE is revoked from the browser roles and nine `*_call` wrappers return `void`.
+- ⚑ **THE REVOKE LOOPS OVER `pg_proc`**, because adding a parameter creates an OVERLOAD rather than replacing
+  one (the S71 trap) and PostgREST resolves by the arguments the CLIENT sends. A hand-written signature list
+  would have left whichever overload it forgot.
+- ⚑ **`void`, NOT A REDACTED ROW.** All nine call sites already read only `{ error }` — checked, all nine — so
+  nothing is lost, and unlike a redaction it cannot be reopened by a column added to `mission` next month.
+
+**`guest_ready_at` — the lock that was never on.** Its July `revoke update` was the same no-op; the trigger was
+carrying it alone. ⚑ **Proved, not inferred: Postgres checks column privileges BEFORE row triggers fire**, and
+the refusal came back as the TRIGGER's sentence rather than "permission denied". That ordering is the whole
+evidence. Table UPDATE revoked, 74 of 75 columns granted back.
+
 ### Still open, named not hidden
-⚑ **SECURITY DEFINER RPCs RETURN A WHOLE `mission`.** A definer function's composite return is not subject to
+⚑ **~~SECURITY DEFINER RPCs RETURN A WHOLE `mission`~~ — DONE, above.** Left here as the shape to remember: A definer function's composite return is not subject to
 column privileges, so `business_cancel_mission` and a dozen more still hand a Business `commission_driver_rate`.
 Closing it means redefining every money RPC's return type. The probe measures it.
 

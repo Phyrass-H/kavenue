@@ -199,6 +199,14 @@ migrations by hand hours before the repo mentions them. Both halves are load-bea
 migration and watching it go STALE — twice, once with the vocabulary missing and once with the vocabulary
 present but the registry empty.
 
+⚑ **S72 SHIPPED THE WAYBILL ON TOP OF THIS** — `docs/migrations/2026-08-31a/b/c`, all three applied. `c` is a
+`before update of driver_id` trigger and NOT a change to `accept_mission`, which stays untouched ([[d113]]);
+`handoff-check` asserts no migration ever writes `vehicle_id` from inside that RPC.
+
+⚑ **TWO `handoff-check` CLAIMS ARE RED AND BELONG TO THE PARALLEL RLS TASK** (`mission_read` view, spawned
+2026-08-30). They were written red-first and the view does not exist yet. Not S72's, not a regression — but do
+not build on top of them until that task lands.
+
 ⚑ **This is the ONLY measurement on the board that cannot be collected backwards.** Presence, conversion
 and time-to-accept can all start counting whenever someone gets to them. That asymmetry is why this was
 booked before the Waybill rather than queued behind it.
@@ -238,7 +246,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**41 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**44 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 837 passing
@@ -271,7 +279,7 @@ about that point — **fix the file before you build on it.** Then:
   symlink, so `handoff-check` reports "git is clean" as STALE for your own scaffolding.
 - ⚑ **A COLUMN PRIVILEGE IS PER POSTGRES ROLE. A DRIVER AND A DISPATCHER ARE THE SAME ROLE** (`authenticated`).
   So `revoke select (x) on t from authenticated` hides `x` from BOTH audiences and can never express "this side
-  but not that one". That needs a view. See [[d109]].
+  but not that one". That needs a view. See [[d114]].
 - ⚑ **A SECURITY DEFINER FUNCTION'S COMPOSITE RETURN IGNORES COLUMN PRIVILEGES.** `accept_mission`,
   `business_cancel_mission` and a dozen more are `returns mission`, so the whole row crosses regardless of what
   is revoked. **Still open** — see below.

@@ -90,11 +90,23 @@ the car. **The car picker is still not built**; the stamp records the car the Dr
 |---|---|
 | `2026-08-31a` | `driver.revtc_number` · `registered_address` · `pro_card_number`. **Applied.** |
 | `2026-08-31b` | `mission.vehicle_id`, no cascade. **Applied.** |
-| `2026-08-31c` | the stamp inside `accept_mission` — ⚑ **NOT WRITTEN YET**, awaiting the live `pg_get_functiondef` (README: transform the real body, never retype it) |
+| `2026-08-31c` | `mission_stamp_vehicle()` — a `before update of driver_id` trigger. **Applied.** ⚑ `accept_mission` untouched ([[d113]]) |
 | `lib/waybill.ts` | the seven mentions, the issue gate, `WAYBILL_PRICE` pinned by a test |
 | the screens | the document, the refusal, the small button top-right of a trip you hold |
 | `settings/company` | three fields; `driver-readiness` gained three gaps and promoted SIRET warn → block |
-| `tests/waybill.test.ts` | 16 tests. `handoff-check` 38 → 39. Suite 815 → 831. |
+| `tests/waybill.test.ts` | 16 tests. `handoff-check` 38 → 42 (this session's four). Suite 815 → 831. |
+
+### The approach that changed mid-session, and why it is in the log
+`2026-08-31c` was going to reproduce `accept_mission` with the stamp folded into its § B check. It shipped as a
+trigger instead, for a reason the first plan could not see: **accept is not the only way a trip changes hands**,
+and a re-pool would have left the previous Driver's car behind. Recorded because the first plan was written
+down, handed to the founder, and then withdrawn — the withdrawal is the useful part.
+
+⚑ **The probe was wrong before it was right, too.** Its first run reported checks 2 and 3 as `ok` while nothing
+had been stamped at all — both assert `vehicle_id is null`, which is trivially true on a database with no
+trigger. Two green lines confirming a feature precisely when it is absent. They now SKIP unless the stamp
+landed, and say why. The same fault as S71's three disguises, caught this time only because the probe was run
+BEFORE the migration on purpose.
 
 ### Verified live
 Columns present on the real DB (4/4). The three fields written **through the real form** and **read back** —
@@ -102,11 +114,22 @@ the S71 trap. The document renders with the real 25 August Negresco trip: seven 
 Classe E / AB-123-CD, Course 62,00 €. The blocked state renders correctly *before* the migration too, because
 absent columns read as missing.
 
+`.local/probe/vehicle-stamp.mts` — **4 checks, ALL AGREE**, including a REAL `accept_mission` call under the
+demo Driver's own JWT. That last one is the load-bearing check: everything before it drove the table directly,
+and a stamp that worked on a hand-written UPDATE but not through the RPC would leave every genuine trip
+unstamped while the probe still said "ALL AGREE". Gate probes re-run serially after the trigger landed:
+`eligibility-live` 43·0, `accept-floor` 6·0, `accepted-fare` 20, `reclaim-live` 20·0, `write-test` 170,
+`event-registry-live` 16·0. `handoff-check` **44**, tests **831**.
+
+⚑ **Two of `handoff-check`'s claims are RED and are not this session's.** The parallel session spawned mid-work
+for the cross-side RLS leaks added assertions for a `mission_read` view that does not exist yet — written
+red-first, and still in flight. They belong to that task. This session's only response was to narrow the
+Waybill's own `select("*")` to the eight columns it uses, which took it off the leak list on its own merits.
+
 ⚑ **Marc Fontaine's three new fields hold seeded values I typed to verify the path.** They are plausible, not
 real. Either clear them or backfill all 13 Drivers through the seeder — the founder's call.
 
 ### Not done
-- **`2026-08-31c`** — needs the live function body.
 - **The offline story.** There is no service worker in this repo, so the waybill is a server render: no signal,
   no document. A print stylesheet ships as the interim (save a PDF). Flagged, not solved.
 - The presence tracker (deferred to launch week, by agreement).
@@ -114,7 +137,7 @@ real. Either clear them or backfill all 13 Drivers through the seeder — the fo
   `commission_driver_rate`, `p_mission_driver_read` exposes `ceiling` on every pooled trip, and `p_ledger_read`
   exposes `driver_net`. The "each side sees only its own money" rule is UI convention with nothing under it.
 
-## 2026-08-30 — Session 72 — THE RULE IN THE DOC WAS THE ONLY THING ENFORCING IT ([[d109]])
+## 2026-08-30 — Session 72 — THE RULE IN THE DOC WAS THE ONLY THING ENFORCING IT ([[d114]])
 
 **Gate first.** `handoff-check.ts` **39 checks**, one drift — `git is clean ?? .local` — and it was this
 session's own doing: the worktree needs `.local`, `node_modules` and `.env.local` symlinked in from the main

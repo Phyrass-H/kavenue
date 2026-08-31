@@ -3054,13 +3054,35 @@ That call was right and its reason has not weakened — `accept_mission` is stil
 What changed is that a legal document now prints the car, so "the Driver's current car" stopped being a
 harmless approximation.
 
-⚑ **The car picker is still not built.** The stamp records the car the Driver was *already qualified on*, by
-turning the existing eligibility check into the stamp rather than adding one beside it — otherwise the RPC can
-qualify on car A and record car B. No UI, no signature change, no new parameter.
+⚑ **AND THE STAMP IS A TRIGGER, NOT A LINE IN `accept_mission`.** The first plan was three lines inside the
+RPC. Writing it out killed it, for a reason better than the one that started it. The starting reason was risk:
+Postgres cannot patch a function body, so changing one line means reproducing all 76 — the atomic first-wins
+UPDATE, the § B gate, the § P expiry, the ±90 min slot conflict, the docs/06 §9 fare clamp — and any drift
+between the live body and the file being copied is silently reverted. The better reason is correctness:
+**accept is not the only way a trip changes hands.** The three re-pool RPCs null `driver_id` and know nothing
+about this column, so an RPC-side stamp would leave the previous Driver's car on a re-pooled trip — a stale
+plate on a legal document, which is the exact failure the column exists to end. A `before update of driver_id`
+trigger catches accept, re-pool and release in one place, and clears the column when the trip has no Driver.
+
+⚑ The "it might qualify on car A and stamp car B" objection, which is what argued for the in-RPC version, does
+not survive contact with § B: it is an `exists` test, so it establishes that *a* qualifying car exists and
+never which one. The trigger repeats that predicate verbatim — `is_active` deliberately NOT in the `where`,
+only in the `order by`, because filtering on it would find no car where the RPC found one — and picks
+reproducibly.
+
+⚑ **The car picker is still not built.** The stamp records the car the Driver was *already qualified on*. No
+UI, no signature change, and `accept_mission` is untouched. `handoff-check` now asserts that no migration ever
+writes `vehicle_id` from inside `accept_mission`: two writers for one column is how they come to disagree.
 
 ---
 
-### D109 — A column privilege belongs to a Postgres ROLE; every one of these leaks belongs to an AUDIENCE (2026-08-30, S72)
+### D114 — A column privilege belongs to a Postgres ROLE; every one of these leaks belongs to an AUDIENCE (2026-08-30, S72)
+
+> ⚑ **Renumbered from D109 on 2026-08-31.** Two sessions ran in parallel that day and both appended a D109 —
+> the other one being the 30-second hold's events. That one landed first and is referenced from
+> `handoff-check` assertion 39, so this is the one that moved. Any `[[d109]]` in the walls' own files means
+> **this** decision and has been repointed to `[[d114]]`.
+
 
 `docs/06 §3` ends with a design rule — *"The Business never sees `driver_net` or the Driver-side rate"* — and
 until today the only thing enforcing it was **which columns the UI chose to render**. RLS on `mission` is

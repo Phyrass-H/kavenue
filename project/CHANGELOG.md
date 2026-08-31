@@ -39,6 +39,11 @@ out from whatever the Driver drives *today* — and four places in the code disa
 is. Invisible now, because all 13 Drivers have exactly one car. It would have bitten the first Driver to buy a
 second, by printing the wrong plate on a legal document. There is now a column for it.
 
+**The car fix is in and proved end to end.** Rather than change the function that handles accepting a trip —
+the riskiest one in the project — it records the car whenever a trip changes hands. That turned out to be the
+better answer anyway: when a trip goes back to the Pool it now *clears* the car, which the first plan would
+have got wrong and left a stale plate behind. Verified by a real Driver accepting a real trip.
+
 ⚑ **And the price question turned out to be the opposite of what I thought.** I worried that printing the fare
 showed the hotel what we pay you. It doesn't — they already see that number. The real risk is the **Guest**,
 who is sitting right there at a check while the hotel resold them the ride at its own margin. So the fare is

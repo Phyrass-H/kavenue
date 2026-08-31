@@ -45,15 +45,21 @@ export default async function WaybillPage({
   const { driver } = await getDriverContext();
   if (!driver) redirect("/onboarding");
 
-  // ⚑ `mission_read`, not `mission` — the money-column walls ([[d109]]) revoked
+  // ⚑ `mission_read`, not `mission` — the money-column walls ([[d114]]) revoked
   // `ceiling` and both commission rates off the base table for browser sessions,
   // so a `select("*")` here is a 403. Nothing about the document changes: the
   // guard two lines down means this only ever renders a trip the Driver HOLDS,
   // and the view withholds nothing on a held trip.
+  //
+  // ⚑ And named columns on top of the view, not `*`: the document prints eight fields, and a
+  // page whose whole job is to be held up to a stranger at the roadside should ask the
+  // database for nothing beyond what it shows.
   const supabase = await createClient();
   const { data: mission } = await supabase
     .from("mission_read")
-    .select("*")
+    .select(
+      "driver_id, business_id, dispatcher_id, vehicle_id, accepted_fare, created_at, pickup_at, pickup_address",
+    )
     .eq("id", id)
     .maybeSingle();
   if (!mission) notFound();

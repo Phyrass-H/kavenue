@@ -376,6 +376,21 @@ about that point — **fix the file before you build on it.** Then:
 
 ## ⚑ TRAPS LEARNED IN S72 — THE MONEY WALLS
 
+- ⚑ **WAITING FOR CI MEANS WAITING FOR *YOUR* SHA.** `gh run list --limit 1` returns the newest run, which on a
+  branch you just pushed is often still the PREVIOUS commit's — already `completed success`. A poll that breaks
+  on that pushes to `main` before this commit has been checked, and the ruleset correctly refuses it. Filter by
+  `headSha` and wait for a run that exists FOR your commit:
+
+      SHA=$(git rev-parse HEAD)
+      gh run list --branch <b> --limit 8 --json status,conclusion,headSha \
+        -q ".[] | select(.headSha==\"$SHA\") | .status"
+
+  Same family as everything else this session: a green that was true, about the wrong thing.
+- ⚑ **A BACKTICK IN A `git commit -m` STRING IS COMMAND SUBSTITUTION.** ``all 364 live missions are `transfer` ``
+  committed as "…live missions are ." with the word silently gone, and `transfer: command not found` scrolling
+  past in the output. Use `git commit -F -` with a QUOTED heredoc (`<<'MSG'`) for any message containing
+  backticks — which, in this repo's commit style, is most of them.
+
 - ⚑⚑ **A COLUMN-LEVEL `REVOKE` IS ALWAYS A NO-OP HERE.** See § THE RULE UNDERNEATH above. Three migrations and
   a six-week-old inert guard. **`handoff-check` assertion 45 now catches the shape** — watched red on a planted
   `revoke select (driver_net) on ledger_transaction`, green with it gone.

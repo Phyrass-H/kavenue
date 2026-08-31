@@ -11,6 +11,7 @@ import {
   Plane,
   Lock,
   Moon,
+  FileText,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -192,9 +193,16 @@ export default async function MissionDetailPage({
 
     return (
       <>
-        <p className="small">
+        <p className="small wb-link">
           <Link href={backHref} className="muted">
             {backLabel}
+          </Link>
+          {/* § 4 — the Waybill. Small and always there: a Driver reaches for it when a
+              police officer is already at the window, so it must not be behind a menu.
+              Only on a trip they hold — a pooled trip has no exploitant yet. */}
+          <Link href={`/missions/${mission.id}/waybill`} className="wb-btn">
+            <FileText size={13} strokeWidth={1.9} aria-hidden="true" />
+            Waybill
           </Link>
         </p>
 

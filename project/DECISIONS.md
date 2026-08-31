@@ -2967,6 +2967,97 @@ going red with one planted row and green again after removing it.
 > query, a probe comparing sorted rows with `JSON.stringify`, and a red check that was measuring elapsed time.
 > All three looked like results. **A check is only evidence once you have seen it fail on purpose.**
 
+### D109 — The hold's events ship with the hold, because a lapse leaves no row (2026-08-31, S72)
+`docs/06` §7's 30-second hold is written, LOCKED, and **not built** — step 4 of that doc's own build order,
+logged "Not done, on purpose" in S64. The founder believed it was already live, which is how a feature ships
+bare and nobody notices for a month.
+
+A hold ends one of two ways. The Driver commits, and the trigger writes `confirmed`. Or the clock runs out —
+and **nothing** happens: no status transition, so no trigger, and nothing is running at T+30 s to witness it.
+Ship the hold in one session and instrument it in the next, and every lapse in between is gone for good.
+
+⚑ **That asymmetry is the decision.** Every other figure on S72's measurement board — presence, open→accept
+conversion, time-to-accept — can start counting whenever someone gets to them. This one cannot. So it was
+booked *before* the Waybill rather than queued behind it, at a cost of ten minutes.
+
+Enforced by `handoff-check` assertion 39: silent while no hold exists, red the moment one does without
+`hold_started` / `hold_lapsed` in `lib/mission-events.ts` **and** in the `mission_event_type` registry.
+⚑ It matches identifiers, never the word — "hold" is ordinary English and `docs/06` §7 is full of it, so a
+prose match would arm the guard against a document and never against code. It also probes the live DB column,
+because the founder applies migrations by hand hours before the repo mentions them.
+⚑ Verified by planting a hold migration and watching it go STALE twice — once with the vocabulary absent, once
+with it present and the registry empty. A guard that has not been watched to fail is not evidence ([[d97]]).
+
+### D110 — The Waybill refuses rather than printing a blank line (2026-08-31, S72)
+The *justificatif de réservation préalable* (art. R. 3120-2; seven mentions set by article 1 of the **arrêté du
+6 août 2025**, JORF n° 0200, in force 29 Oct 2025). Three of the seven — 1°, 2°, 3° — are the exploitant's own
+identity, and two of those were not stored: we held the REVTC as a **scan**, and `document` has no number
+column for any type. The data looked present and was not printable.
+
+The tempting behaviour is to render the document and leave the unknown lines empty. **No.** A justificatif
+handed to an officer with a blank 2° is not a document with a gap — it is a dated, written admission of
+non-compliance, produced by Kavenue, in the officer's hand. Failing to justify a prior booking is punished
+under L. 3124-12 by **three years and €45 000**, raised from one year / €15 000 by the loi du 25 juin 2026 (in
+force 27 June 2026), with licence suspension and immobilisation of the vehicle.
+
+So `waybillGaps()` is a gate: no document at all, the missing mentions named by their legal number, a link to
+the form. The Driver falls back to whatever they carried before Kavenue. ⚑ Only the exploitant mentions can be
+short — 4°–7° come from the mission and the Business, which the S71 enrollment gate already completes before a
+trip can go live.
+
+⚑ **And "feuille de route" is not the name.** Verified against the code des transports, the arrêté itself and
+the ministry's own T3P pages: the term appears in VTC regulation nowhere, and on the DGITM FAQ only as "la
+feuille de route du Gouvernement". Waybill stays the internal word; the document carries the legal title,
+because a Driver holding out the wrong heading is answering a question nobody asked.
+
+### D111 — Kavenue is never in fields 1°–3° (2026-08-31, S72)
+Those three mentions carry the **exploitant VTC**'s name, REVTC number and SIREN. That is the Driver's own
+company. Kavenue holds no REVTC number as an operator, and printing its identifiers there would assert, in
+writing and to a police officer, that Kavenue operates the transport — the exact inverse of `docs/01`:11 and
+CLAUDE.md hard rule 2.
+
+Neither the arrêté nor R. 3120-2 names an issuer: they specify content and put the duty to *present* on the
+`conducteur`. So Kavenue may generate the document, as agent, in the exploitant's name — and says so on it.
+`WAYBILL_ISSUER_NOTE` is that sentence, and it is a constant rather than a string in a template so that
+removing it takes a decision.
+
+### D112 — The Course, and only the Course, and it sits last (2026-08-31, S72)
+The founder asked for the price. My first objection was **wrong and is recorded as wrong**: printing the fare
+does not expose Kavenue's margin to the Business, because the Business already reads that exact number as
+`Transport` on every expanded trip row (`components/trip-row.tsx`:1005) and on the booking form. Neither
+counterparty learns anything new.
+
+The real exposure is the one nobody had counted: **the Guest**. A justificatif is produced at a roadside check
+with the passenger sitting right there, and the Business resold that ride to them at its own margin
+(`docs/01`:47). A price in the header is a price the Business's own customer reads over the Driver's shoulder
+— that is the Business's commercial position, and the likeliest reason a hotel would leave the platform.
+
+So: the **Course** (`mission.accepted_fare`), because it is the fare of the supply the *exploitant* makes,
+which is what an agent's document should carry. Never `driver_net` — on a document the Business can reach,
+Course minus net yields the Driver-side rate that `docs/06`:190 forbids them. Never the Business all-in — it
+hands the Driver their cost basis and our full take. Never the Ceiling — the Driver is shown it nowhere in the
+app, and printing it after they accepted tells them what they left on the table. And it renders **last**,
+under the rule, never in the header. `WAYBILL_PRICE` pins the choice and a test asserts it.
+
+### D113 — The car that did the trip is stamped, but the picker still is not (2026-08-31, S72)
+`mission` had no `vehicle_id`, so every screen re-derived the car from the Driver *as of now* — and four
+readers disagreed about which car that is: `lib/driver.ts`:34 and `lib/app-context.ts`:57 take the oldest row,
+`lib/admin-activity.ts`:56 and `admin/drivers/[id]` take the active one, `dispatch/history/export/route.ts`:138
+takes whichever PostgREST returned last. Three answers, one trip.
+
+Invisible today — all 13 Drivers have exactly one car, measured 2026-08-30 — and it becomes a wrong plate on a
+legal document the first time a Driver buys a second or re-plates.
+
+⚑ **This partly reverses S48** (`2026-07-28_driver_account_and_documents.sql`:11-13: "mission.vehicle_id + a
+car picker inside accept_mission is deliberately NOT built, so the money-critical accept RPC stays untouched").
+That call was right and its reason has not weakened — `accept_mission` is still the riskiest function here.
+What changed is that a legal document now prints the car, so "the Driver's current car" stopped being a
+harmless approximation.
+
+⚑ **The car picker is still not built.** The stamp records the car the Driver was *already qualified on*, by
+turning the existing eligibility check into the stamp rather than adding one beside it — otherwise the RPC can
+qualify on car A and record car B. No UI, no signature change, no new parameter.
+
 ---
 
 ### D109 — A column privilege belongs to a Postgres ROLE; every one of these leaks belongs to an AUDIENCE (2026-08-30, S72)

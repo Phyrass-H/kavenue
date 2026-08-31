@@ -361,6 +361,12 @@ export interface Database {
           company_name: string | null;
           siret: string | null;
           vat_number: string | null;
+          // S72 — what the Waybill prints as the EXPLOITANT (2026-08-31a). Fields 1° and 2°
+          // of the arrêté du 6 août 2025; SIREN (3°) is left(siret, 9). ⚑ revtc_number is the
+          // NUMBER — the document of type 'revtc' is only a scan and cannot be printed.
+          revtc_number: string | null;
+          registered_address: string | null;
+          pro_card_number: string | null;
           created_at: string;
         };
         Insert: {
@@ -386,6 +392,9 @@ export interface Database {
           company_name?: string | null;
           siret?: string | null;
           vat_number?: string | null;
+          revtc_number?: string | null;
+          registered_address?: string | null;
+          pro_card_number?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["driver"]["Insert"]>;
@@ -543,6 +552,10 @@ export interface Database {
           waiting_minutes: number | null; // minutes STARTED, clamped by the ceiling
           waiting_rate: number | null; // €/min pinned for this row (rate is PROVISIONAL)
           waiting_fee: number | null; // waiting_minutes * waiting_rate
+          // S72 — the car that was actually on this trip, stamped by accept_mission
+          // (2026-08-31b/c). NULL = accepted before that migration: readers fall back to
+          // the Driver's current car. ⚑ Gate on driver_id — a re-pool leaves this set.
+          vehicle_id: string | null;
         };
         Insert: {
           id?: string;
@@ -619,6 +632,7 @@ export interface Database {
           waiting_minutes?: number | null;
           waiting_rate?: number | null;
           waiting_fee?: number | null;
+          vehicle_id?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["mission"]["Insert"]>;
         Relationships: [];

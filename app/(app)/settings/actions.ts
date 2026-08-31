@@ -178,6 +178,13 @@ export async function updateCompany(formData: FormData) {
   // SIRET is 14 digits; people type it with spaces off their Kbis.
   const siret = String(formData.get("siret") ?? "").replace(/\s/g, "");
   const vat = String(formData.get("vat_number") ?? "").replace(/\s/g, "").toUpperCase();
+  // S72 — the exploitant mentions the Waybill prints (arrêté du 6 août 2025, 1° and 2°).
+  // ⚑ No format check on the REVTC: the number's shape varies by préfecture and no
+  //    checksum is published, so validating it would reject real Drivers. The card number
+  //    is the same. Trimmed, stored, printed.
+  const address = String(formData.get("registered_address") ?? "").trim();
+  const revtc = String(formData.get("revtc_number") ?? "").trim();
+  const proCard = String(formData.get("pro_card_number") ?? "").trim();
 
   if (siret && !/^\d{14}$/.test(siret)) {
     redirect("/settings/company?error=siret");
@@ -190,6 +197,9 @@ export async function updateCompany(formData: FormData) {
       company_name: name || null,
       siret: siret || null,
       vat_number: vat || null,
+      registered_address: address || null,
+      revtc_number: revtc || null,
+      pro_card_number: proCard || null,
     })
     .eq("id", driverId);
   if (error) redirect("/settings/company?error=db");

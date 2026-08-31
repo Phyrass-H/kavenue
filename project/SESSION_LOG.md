@@ -5,6 +5,115 @@
 
 ---
 
+## 2026-08-31 — Session 72 — THE WAYBILL, AND THE ONE FIGURE THAT CANNOT BE BACKFILLED
+
+**Gate first.** `handoff-check.ts` **38/38** — *"The handoff still matches reality. Proceed."* Nothing had
+drifted since S71 closed. Ended at **39** (the new one is below), tests **815 → 831**.
+
+**Scope.** The founder answered S71's four open decisions in one line (`1. ok · 2. keep it · 3. don't build ·
+4. what?`), then asked for measurement questions to be answered, then chose the Waybill. In their words:
+*"stop calling it voucher"*.
+
+### Part A — the 30-second hold does not exist, and that changed the question
+The founder wrote *"we have a 30 seconds hold when the driver is in a car trip"*. It is **not built**:
+`docs/06` §7 is LOCKED but is step 4 of that doc's own build order, and S64 logged it under a heading reading
+"Not done, on purpose". `AcceptButton` fires `acceptMission` immediately; `accept_mission` confirms in one
+call; there is no countdown, no reservation, no persisted hold state.
+
+⚑ **[[d109]] — A LAPSE LEAVES NO ROW.** A hold ends by commit (which the trigger records as `confirmed`) or by
+the clock running out — and nothing runs at T+30 s to witness that. So of everything on the measurement board,
+the hold's events are the ONLY figure that cannot be collected backwards. Presence, conversion and
+time-to-accept can all start whenever someone gets to them.
+
+**Booked as `handoff-check` assertion 39**, silent while the hold does not exist and red the moment it does
+without `hold_started` / `hold_lapsed`. It watches the accept path **and** `docs/migrations/` **and the live
+DB column** (the founder applies migrations by hand hours before the repo mentions them). Both halves are
+load-bearing — the vocabulary in `lib/mission-events.ts` and the `mission_event_type` registry row.
+⚑ Matched on IDENTIFIERS, never the word: "hold" is ordinary English, it is all over `docs/06` §7, and a
+guard that matched prose would arm itself against a document and never against code.
+⚑ **Verified by planting a hold migration and watching it go STALE — twice**, once with the vocabulary absent
+and once with the vocabulary present but the registry empty. Then reverted.
+
+### Part B — the measurement questions, answered rather than built
+The founder asked for DAU/MAU plus five cross-numbers. Findings, none built this session:
+- **Already shipped:** pooled → accepted median is `lib/spend.ts:141`, rendering on `/dispatch/spend`. Zero new
+  writes to put it on `/admin`.
+- **Crosses the S66 line ([[d87]]):** card dwell time IS `mission_viewed` with a stopwatch — the type the
+  founder cut, with `tests/event-wiring.test.ts:60-62` failing the build if anyone wires it. "How many *times*
+  they open" and "speed from opening" both need per-session timestamps, i.e. `pool_impression` at session
+  granularity — the ~300 k rows/day priced and rejected in S66.
+- **The honest denominator:** "opens before a trip" attributes to the DRIVER what is usually a property of the
+  POOL. Recording what their Pool actually held that day splits "came and found nothing" from "came and
+  passed". Design written down; build deferred to launch week, when the first row is not Claude.
+
+### Part C — the Waybill
+Research: two workflows, primary sources on Legifrance. **The term "feuille de route" does not exist in VTC
+law** — verified against the code des transports, the arrêté, and the ministry's own T3P pages, where it
+appears only as "la feuille de route du Gouvernement". The document is the **justificatif de réservation
+préalable** (art. R. 3120-2), and the seven mandatory mentions are **article 1 of the arrêté du 6 août 2025**
+(JORF n° 0200, in force 29 Oct 2025). `docs/01`:28 has cited that arrêté since day one and never enumerated
+them; `docs/05`:14 still carried "define the template" as an open TODO. They are now in `lib/waybill.ts`.
+
+⚑ **NOT on the legal list**, though every template online shows them: destination, price, driver name, plate,
+passenger. The Driver's own capacity is proven by the carte professionnelle under R. 3120-6, not here. They
+are on our document because the founder asked (*"you need to add the information about the car the information
+about the Driver information about the price"*) — as extras that do not block.
+
+⚑ **[[d110]] — THE DOCUMENT REFUSES RATHER THAN PRINTING BLANKS.** `waybillGaps()` is the gate. A justificatif
+with an empty 2° is a dated admission of non-compliance produced by Kavenue and handed to an officer; the
+penalty under L. 3124-12 rose to **three years / €45 000** on 27 June 2026 (loi du 25 juin 2026). Refusing and
+naming the missing lines is kinder and safer.
+
+⚑ **[[d111]] — KAVENUE IS NEVER IN FIELDS 1°–3°.** Those carry the exploitant's identity. Kavenue has no REVTC
+number and putting it there would assert principal status in writing, to a police officer — the inverse of
+`docs/01`:11 and CLAUDE.md hard rule 2. `WAYBILL_ISSUER_NOTE` is the footer that says so.
+
+⚑ **[[d112]] — THE COURSE, AND ONLY THE COURSE.** My first read was wrong and is corrected here: printing the
+fare does NOT leak our margin to the Business, because they already read it as `Transport` on every expanded
+row (`components/trip-row.tsx:1005`). The real exposure is **the Guest**, standing there at the check, to whom
+the Business resold the ride at its own margin (`docs/01`:47). Never `driver_net` (hands the Business the
+Driver-side rate, `docs/06`:190), never the Business all-in, never the Ceiling. It sits LAST on the document.
+
+### Part D — the car that did the trip ([[d113]])
+`mission` had no `vehicle_id`, so every reader re-derived the car from the Driver as of now — and **four
+readers disagree**: `lib/driver.ts:34` and `lib/app-context.ts:57` take the oldest row, `lib/admin-activity.ts:56`
+and `admin/drivers/[id]` take the active one, `dispatch/history/export/route.ts:138` takes whatever PostgREST
+returned last. Invisible today (13 Drivers, one car each, measured) and fatal the first time a Driver buys a
+second car, because the wrong plate would print on a legal document.
+
+⚑ This partly reverses S48's deliberate call (`2026-07-28`:11-13, "deliberately NOT built, so the money-critical
+accept RPC stays untouched"). The reason has not weakened — what changed is that a legal document now prints
+the car. **The car picker is still not built**; the stamp records the car the Driver was already qualified on.
+
+### Shipped
+| | |
+|---|---|
+| `2026-08-31a` | `driver.revtc_number` · `registered_address` · `pro_card_number`. **Applied.** |
+| `2026-08-31b` | `mission.vehicle_id`, no cascade. **Applied.** |
+| `2026-08-31c` | the stamp inside `accept_mission` — ⚑ **NOT WRITTEN YET**, awaiting the live `pg_get_functiondef` (README: transform the real body, never retype it) |
+| `lib/waybill.ts` | the seven mentions, the issue gate, `WAYBILL_PRICE` pinned by a test |
+| the screens | the document, the refusal, the small button top-right of a trip you hold |
+| `settings/company` | three fields; `driver-readiness` gained three gaps and promoted SIRET warn → block |
+| `tests/waybill.test.ts` | 16 tests. `handoff-check` 38 → 39. Suite 815 → 831. |
+
+### Verified live
+Columns present on the real DB (4/4). The three fields written **through the real form** and **read back** —
+the S71 trap. The document renders with the real 25 August Negresco trip: seven mentions, conducteur, Mercedes
+Classe E / AB-123-CD, Course 62,00 €. The blocked state renders correctly *before* the migration too, because
+absent columns read as missing.
+
+⚑ **Marc Fontaine's three new fields hold seeded values I typed to verify the path.** They are plausible, not
+real. Either clear them or backfill all 13 Drivers through the seeder — the founder's call.
+
+### Not done
+- **`2026-08-31c`** — needs the live function body.
+- **The offline story.** There is no service worker in this repo, so the waybill is a server render: no signal,
+  no document. A print stylesheet ships as the interim (save a PDF). Flagged, not solved.
+- The presence tracker (deferred to launch week, by agreement).
+- Spawned as its own task: the cross-side RLS leaks — `p_mission_business_read` exposes
+  `commission_driver_rate`, `p_mission_driver_read` exposes `ceiling` on every pooled trip, and `p_ledger_read`
+  exposes `driver_net`. The "each side sees only its own money" rule is UI convention with nothing under it.
+
 ## 2026-08-30 — Session 72 — THE RULE IN THE DOC WAS THE ONLY THING ENFORCING IT ([[d109]])
 
 **Gate first.** `handoff-check.ts` **39 checks**, one drift — `git is clean ?? .local` — and it was this

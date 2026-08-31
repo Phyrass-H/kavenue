@@ -5,6 +5,50 @@
 
 ---
 
+## 30 August 2026 — the Waybill, and the number that can only be collected forward
+
+**Drivers can now show a police officer a real document.** Tap **Waybill** on any trip you hold and you get
+the *justificatif de réservation préalable* — the paper French law actually asks for at a roadside check.
+
+⚑ **It is not called a feuille de route, and that matters.** We checked the law itself, not the templates
+floating around online: the term "feuille de route" appears nowhere in VTC regulation — on the ministry's own
+pages it only ever means a government roadmap. The document's real name is the one now printed at the top of
+it. A Driver handing over something with the wrong title is answering a different question.
+
+**You remembered seven fields, and there are exactly seven** — set by the arrêté of 6 August 2025, in force
+since last October. Our own legal doc has cited that arrêté since day one and never once listed them. They are
+listed now, in the law's own numbering, 1° to 7°, down the left of the document so an officer can tick them
+off.
+
+**Two of the seven were about the Driver's company, and we did not have them.** We held the REVTC certificate
+— as a *scan*. The law wants the number printed, and a scan is not a number. Three new fields on Company
+papers close it: registered address, REVTC number, professional card number.
+
+⚑ **When they are missing, we issue nothing at all.** That is deliberate and it is the part worth arguing
+about. A waybill handed over with a blank line is not a document with a gap — it is a dated admission of
+non-compliance, produced by us, in the officer's hand. So the screen refuses, names the missing lines, and
+links straight to the form. Failing to justify a booking now costs three years and €45 000 — raised from one
+year and €15 000 this June.
+
+**Your three additions are on it: the Driver, the car, the price.** None of them is legally required — the
+destination isn't either, which surprises most people — but they are what a controller cross-checks, and every
+real app shows them.
+
+⚑ **The car had a bug hiding under it.** Nothing recorded *which* car did a trip, so every screen worked it
+out from whatever the Driver drives *today* — and four places in the code disagreed about which car that even
+is. Invisible now, because all 13 Drivers have exactly one car. It would have bitten the first Driver to buy a
+second, by printing the wrong plate on a legal document. There is now a column for it.
+
+⚑ **And the price question turned out to be the opposite of what I thought.** I worried that printing the fare
+showed the hotel what we pay you. It doesn't — they already see that number. The real risk is the **Guest**,
+who is sitting right there at a check while the hotel resold them the ride at its own margin. So the fare is
+on the document, but it sits last, under everything, never in the header.
+
+**Also booked, before any of this:** a rule that the 30-second hold — which is written, decided, and **not
+built**, though it was believed to be — cannot ship without recording what it does. A hold that lapses leaves
+no trace behind, so unlike every other number we have discussed, it can only ever be collected going forward.
+A check now goes red the moment the hold appears in the code without it.
+
 ## 30 August 2026 — neither side can read the other's money any more
 
 Kavenue's own rule says a Business never sees what the Driver is paid, or the rate we take from them. That was

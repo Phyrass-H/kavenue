@@ -129,6 +129,28 @@ Waybill's own `select("*")` to the eight columns it uses, which took it off the 
 ⚑ **Marc Fontaine's three new fields hold seeded values I typed to verify the path.** They are plausible, not
 real. Either clear them or backfill all 13 Drivers through the seeder — the founder's call.
 
+### ⚑ TWO SESSIONS RAN ON 2026-08-30/31, AND THEY COLLIDED IN THREE PLACES
+The RLS-walls task was spawned from this session mid-work and ran in its own worktree
+(`.claude/worktrees/charming-mayer-bae0a3`), against the SAME database and the same `main`. It got there
+first. What that cost, so the next parallel run is cheaper:
+
+1. ⚑ **A DUPLICATE `D109`.** Both sessions appended one on the same day — the hold's events, and the column
+   walls. Mine landed first and is referenced from `handoff-check` assertion 39, so **theirs was renumbered to
+   [[d114]]** and every `[[d109]]` in the walls' own files repointed. The decision log has no lock and nothing
+   detects this; the next parallel session should claim its numbers before it writes.
+2. ⚑ **THEY CAUGHT A READ IN MY WAYBILL.** Their `select("*")` wall would have 403'd it, and their merge
+   commit fixed it before I ever saw it. My rebase then conflicted on the same line, resolved to take BOTH:
+   `mission_read` (their wall, which is the enforcement) with named columns (mine — the page prints eight
+   fields and should ask for eight).
+3. ⚑ **`.next` IS SHARED AND NOT SAFE TO DELETE UNDER A RUNNING SERVER.** Two concurrent builds produced
+   `routes.d 2.ts`-style duplicates that `tsc` reported as `Duplicate identifier` errors in code nobody wrote;
+   clearing `.next` then broke the OTHER session's dev server with `ENOENT routes-manifest.json`. Neither is a
+   code fault and both look like one. Restart the server after any `rm -rf .next`.
+
+⚑ **And the useful half:** their assertions were written RED FIRST, before the view existed, so this session's
+gate went red for someone else's in-flight work. That is the correct behaviour and it caught a real read in my
+own page — but a red gate that is not yours is worth naming out loud rather than "fixing".
+
 ### Not done
 - **The offline story.** There is no service worker in this repo, so the waybill is a server render: no signal,
   no document. A print stylesheet ships as the interim (save a PDF). Flagged, not solved.

@@ -49,6 +49,10 @@ showed the hotel what we pay you. It doesn't — they already see that number. T
 who is sitting right there at a check while the hotel resold them the ride at its own margin. So the fare is
 on the document, but it sits last, under everything, never in the header.
 
+⚑ **Nothing invented was left in the database.** The company details typed in to test the form are cleared —
+no Driver carries a made-up REVTC number. With Marc's row empty again the screen goes back to refusing, which
+is the last piece of proof: the gate was watched working in both directions on real data.
+
 **Also booked, before any of this:** a rule that the 30-second hold — which is written, decided, and **not
 built**, though it was believed to be — cannot ship without recording what it does. A hold that lapses leaves
 no trace behind, so unlike every other number we have discussed, it can only ever be collected going forward.

@@ -5,6 +5,56 @@
 
 ---
 
+## 1 September 2026 — the 15 seconds, and the price that stopped punishing you for using them
+
+**The hold is live.** On any trip in the Pool there's now a second button under Accept: **Hold it 15
+seconds**. Tap it and the trip is yours to think about — nobody else can take it, and the price is locked in
+your favour. Everyone else sees the card go quiet with a **Being reviewed** badge, and on the trip itself
+their Accept is replaced by a countdown so they know whether to wait or move on. The hotel sees *"A Driver is
+reviewing this"* — the fact, not a clock, because a ticking timer on their screen only invites "so will they
+take it?"
+
+**Your fifteen seconds, not the thirty in the document.** Your call, and it makes everything cheaper: half the
+time a trip spends off the market.
+
+⚑ **The hold spends the hold, never the trip** — the thing you asked about, and it works exactly as you
+described. Hold it, think, walk away, come back five minutes later: the card is normal again and you can take
+it at the live price. All you've used up is the right to freeze it a second time, and the screen says so
+plainly — *"Hold used · you can still accept"* — rather than the button just disappearing, which would look
+broken.
+
+⚑ **And the price is now a floor rather than a freeze.** The document said freeze it, and reasoned that a
+Driver shouldn't have a price "change on them". But a Driver is *paid* that number, so a price that climbed
+while they thought is good news — freezing it charges them for thinking. Now they get at least what they were
+shown, and more if it went up. I measured the difference across every trip in the system: it changes the
+number 3% of the time and averages ten cents — except on trips posted less than an hour ahead, where it
+matters 70% of the time. Small, and pointed exactly at the urgent ones.
+
+**The thing that could only be built now, not later.** A hold ends one of two ways: the Driver takes it, or
+the clock runs out. The first leaves a record on its own. The second leaves nothing at all — no trace,
+nothing watching. So it's written down deliberately, marked as *worked out afterwards* rather than *seen
+happen*, with a note of how late we noticed. That distinction sounds pedantic and isn't: it's the difference
+between a record you can trust and one that quietly flatters itself.
+
+⚑ **A Driver letting a trip go is kept separate from a trip being cancelled underneath them.** They look
+identical in the data and mean opposite things — one tells you a price was refused, the other tells you
+nothing. Merged, they'd have quietly ruined the only price signal we'll ever get.
+
+### And a mistake worth telling you about
+While building this I saw an error, decided I'd broken the database, and **asked you to run a line that would
+have undone a security fix from that morning**. The other session caught it before you ran it.
+
+The error was real. My explanation of it was wrong, and it was wrong in the most ordinary way possible: my
+copy of the code was thirteen versions out of date, and I never checked. The thing I thought I'd broken was
+actually a wall working correctly.
+
+Two things made it easy to get wrong, and both look like being careful. Every automated check stayed green,
+because the checks run with a master key that ignores permissions entirely — so they physically cannot see
+that kind of problem. And my explanation fitted the symptom perfectly, which is exactly what a wrong
+explanation does. There's now a check that signs in as a real Driver, and it guards the opposite of what I
+first wrote.
+
+
 ## 30 August 2026 — the Waybill, and the number that can only be collected forward
 
 **Drivers can now show a police officer a real document.** Tap **Waybill** on any trip you hold and you get

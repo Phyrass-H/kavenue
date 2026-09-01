@@ -3149,3 +3149,101 @@ return type — a separate job, and not one that belongs in the same paste.
 > **The shape to carry forward:** *a rule written in a doc and honoured by the UI is not enforced.* The wall
 > has to be somewhere the caller cannot go round — and the first question about any wall is which role it is
 > granted to, not which column it names.
+
+### D115 — The hold is voluntary, fifteen seconds, and spends the hold rather than the trip (2026-09-01, S72)
+`docs/06` §7 is LOCKED and says thirty seconds. It shipped at **fifteen**, on the founder's call: *"we are
+the only one that offers this because period of big season and big demands, 15 seconds there's a lot of time
+to think."* Half the time a trip spends off the market, and the price moves even less inside the window.
+
+⚑ **THE SPEC SETTLED VOLUNTARY-VS-MANDATORY BY ACCIDENT, IN A LINE ABOUT SOMETHING ELSE.** §7:419 says *"one
+hold per Driver per trip — no releasing and re-holding to reset the clock."* If holding were the ONLY route to
+Accept, that sentence would permanently lock a Driver out of a trip because their phone slept for fifteen
+seconds. It is coherent only as an anti-clock-reset measure on an OPTIONAL freeze. So Accept is untouched and
+always there, and the hold sits beside it.
+
+The honest cost, stated once: the impulsive Driver §7 exists to protect is exactly the one who will not use a
+voluntary hold. What is bought instead is better. A voluntary `hold_lapsed` is a **deliberate act** — someone
+took a trip off the shelf, read the number, and put it back — and it is the only evidence Kavenue will ever
+have about WHICH price a Driver walked away from. A mandatory one is mostly a Driver who got distracted,
+which is `mission_viewed` wearing a different name, and [[d87]] cut that.
+
+⚑ **AND THE HOLD SPENDS THE HOLD, NEVER THE TRIP** (founder, S72). Freeze it, think, walk away — five seconds
+or five minutes later the card is normal again and they can take it at the live price. All that is used up is
+the right to freeze it a second time. `unique (mission_id, driver_id)` enforces exactly that and nothing more;
+nothing in the accept path consults a spent hold. ⚑ And the screen SAYS SO — *"Hold used · you can still
+accept"* — rather than dropping the button, because a control that vanishes reads as a bug (founder asked
+for this directly).
+
+Leaving the card releases it early (founder: *"if you leave the card you lose the hold, period"*), but
+backgrounding the app does not: on a phone a notification banner or a glance at the map counts as hidden, and
+a Driver checking their route to decide has not left — they are doing the thinking the hold is for.
+
+### D116 — A price FLOOR, not a freeze (2026-09-01, S72)
+§7 says the price is "frozen" and argues: *"Accept at the price the Driver was shown. Prices only rise, so the
+server's number can only be higher; honouring the displayed one removes any 'it changed on me' complaint."*
+
+⚑ **THAT IS CONSUMER LOGIC, AND THE DRIVER IS NOT THE CONSUMER.** They are PAID this number. A price that rose
+during their fifteen seconds is good news for them, and honouring the lower displayed one bills them for
+thinking. So `accept_mission` takes `greatest(held_fare, p_fare)` inside the existing clamp: at least what
+they were shown, more if the curve climbed, ceiling still capping everything.
+
+Measured with `currentFare()` against all 364 live trips at the real `accepted_at` instants, so the size of
+the concession is a number and not an opinion: a strict freeze would change the fare on **3.4 %** of accepts,
+mean **€0.10**, worst €6.52, with 15.6 % already sitting on the Ceiling where it costs exactly zero. ⚑ But it
+inverts by lead time — on trips posted inside an hour it bites **70 %** of the time, around €2, because §6
+rule 3 compresses the whole climb into half the remaining time. Small on average, pointed squarely at the
+urgent trips. The Business pays nothing extra either way: any Driver accepting at that same later second pays
+the climbed price regardless.
+
+Founder's call. It contradicts one word of a LOCKED section, which is recorded here so the contradiction is
+deliberate rather than discovered.
+
+### D117 — A lapse is DERIVED, and a void is not a lapse (2026-09-01, S72)
+Two distinctions, both invisible in the data, both load-bearing.
+
+⚑ **NOTHING OBSERVES T+15 s.** No cron, no worker, no realtime — `lib/expiry.ts`:12-17 records why (Vercel
+Hobby caps cron at once a DAY). A hold ends by commit, which commits in the same transaction and is genuinely
+witnessed, or by the clock running out, which nothing sees. So `hold_lapsed` is written later by
+`sweep_lapsed_holds()`, stamped with **`expires_at` — when the clock actually ran out** — and labelled
+`source: 'derived'`, a new value beside `db_trigger` and the backfills. Calling it `db_trigger` would make the
+log claim it witnessed something it reconstructed, which is the fault [[d86]]–[[d92]] are all instances of.
+`payload.notice_lag_s` carries how late we noticed, so the lag is visible rather than hidden. Verified live:
+a real hold through the real UI produced `hold_taken` at 09:07:12 and `hold_lapsed` at 09:07:27 with
+`notice_lag_s: 12`.
+
+⚑ **AND `void` IS NOT `lapsed`.** A lapse is a Driver who looked at a price and let it go. A void is the trip
+being cancelled underneath them, which says nothing about the price at all. From timestamps alone they are
+identical, so the outcome is WRITTEN rather than inferred — and merging them would silently corrupt the one
+number this table exists to produce, with nothing on any screen to hint at it.
+
+⚑ Corollary, and the reason [[d109]] insisted the events ship in the same commit: every other figure on the
+measurement board can start counting whenever someone gets to it. This one cannot.
+
+### D118 — A permission error is not proof that you broke something (2026-09-01, S72)
+Recorded as a process decision because it nearly undid a security fix the same day.
+
+Having reproduced `accept_mission` for the § 7 gate, I called it as a real Driver and got
+`42501 permission denied`. I concluded my `create or replace` had dropped the function's EXECUTE grant, wrote
+that into a migration, and **told the founder to run `grant execute … to authenticated`**. The parallel S72
+session caught it before they did.
+
+What was actually true: `create or replace` preserves a function's ACL exactly. There was no grant left to
+preserve, because that session had revoked it hours earlier in
+`2026-08-31g_rpc_returns_nothing.sql` — a SECURITY DEFINER function's **composite return is not subject to
+column privileges**, so `returns mission` was handing a Driver the Ceiling straight through the money walls
+built that morning. Nine functions were closed and given void `*_call` wrappers. **The raw name being refused
+was the wall working**, and the grant would have re-opened it.
+
+⚑ **THE ERROR WAS REAL; THE DIAGNOSIS NEVER CHECKED ITS OWN FOOTING.** My checkout was thirteen commits
+behind `origin/main`. "I am out of date" should have been the first hypothesis and was not considered at all.
+The rule: **before concluding the database is broken, confirm the repo is current** — `git fetch` costs a
+second and would have ended it immediately.
+
+⚑ Two things that made it worse are worth naming, because both look like diligence. Every service-role probe
+stayed green throughout — the service role bypasses ACLs, so a whole class of failure is structurally
+invisible from that seat ([[rule-zero]]). And the fix I proposed was *plausible*: it explained the symptom
+perfectly, which is precisely what a wrong diagnosis does.
+
+`handoff-check` now asserts the inverse of what I first wrote — the raw money RPCs must STAY refused to a
+browser session, and the wrappers must work — and it checks as a real Driver. Rule-Zero'd by pointing it at a
+function that IS open (`place_hold`, before 31j) and watching it name that function.

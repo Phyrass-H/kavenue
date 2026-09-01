@@ -5,6 +5,69 @@
 
 ---
 
+## 2026-09-01 — Session 72 (part 3) — THE 15-SECOND HOLD, AND A 42501 I READ BACKWARDS
+
+**Scope.** The founder chose § 7 straight after the Waybill. Built, applied (`31h`/`31i`/`31j`) and verified
+live. Suite **857**, `handoff-check` **48**, `hold-live` **31 · ALL AGREE**.
+
+### What shipped
+| | |
+|---|---|
+| `2026-08-31h` | `mission_hold` + `mission.hold_expires_at` + the event trigger + 5 registry rows + `place_hold` / `release_hold` / `sweep_lapsed_holds` + `mission_read` gains one masked column |
+| `2026-08-31i` | the § 7 gate INSIDE `accept_mission`, transformed from the extracted live body — four changes, everything else byte for byte |
+| `2026-08-31j` | `place_hold` returns **void** — the 31g rule, applied to a function I had written hours after 31g and in the same shape it forbade |
+| `lib/hold.ts` | the window, the outcomes, the countdown, `holdFloor` |
+| `hold-controls.tsx` | three states, null-clock first frame, 1 s tick, release-on-navigate |
+| the screens | Pool badge (row fades, badge does not — founder), trip-page countdown, `A Driver is reviewing this` on Dispatch |
+
+Decisions [[d115]] (voluntary · 15 s · spends the hold not the trip), [[d116]] (a FLOOR not a freeze),
+[[d117]] (a lapse is DERIVED, and a void is not a lapse), [[d118]] (the process one, below).
+
+### ⚑ THE ONE THAT MATTERS — I TOLD THE FOUNDER TO RUN A LINE THAT WOULD HAVE RE-OPENED A SECURITY HOLE
+Having reproduced `accept_mission`, I called it as a real Driver, got `42501 permission denied`, and concluded
+my `create or replace` had dropped the grant. It had not. The parallel session had revoked it hours earlier
+(`31g`): a SECURITY DEFINER **composite return is not subject to column privileges**, so `returns mission`
+handed a Driver the Ceiling through the morning's money walls. Nine functions closed, nine void `*_call`
+wrappers opened. **The refusal was the wall working.** The parallel session caught my instruction before the
+founder ran it.
+
+⚑ **My checkout was THIRTEEN commits behind `origin/main`, and I never checked.** `git fetch` costs a second.
+"I am out of date" was not merely rejected as a hypothesis — it was never formed. Full reasoning in [[d118]];
+the short version is that a wrong diagnosis and a right one feel identical from the inside, and the tell is
+whether you checked your own footing before the world's.
+
+⚑ **Every service-role probe stayed green throughout.** The service role bypasses ACLs, so an entire class of
+failure is structurally invisible from that seat. The replacement assertion signs in as a real Driver and
+guards the INVERSE of what I first wrote: the raw money RPCs must STAY refused, the wrappers must work.
+Rule-Zero'd by listing `place_hold` (then still open) among the walled names and watching it name that
+function.
+
+### Traps this part added
+- ⚑ **A FUNCTION IS FOUR THINGS AND `pg_get_functiondef` PRINTS ONE.** Body, owner, `search_path`, ACL. The
+  other three are invisible in the text you transform, which is what makes them easy to lose — and `drop` +
+  `create` (31j, to change a return type) genuinely DOES reset EXECUTE to the PUBLIC default, so 31j states
+  the grant in both directions.
+- ⚑ **FIVE OLDER PROBES WERE KNOCKING ON DOORS 31g HAD MOVED** — `accepted-fare`, `accept-floor`,
+  `reclaim-live`, `write-test`, `event-registry-live`. All reported failures against a correct database.
+  Repointed to `*_call`; ⚑ `column-leak` and `handoff-check` call the raw names ON PURPOSE and were left alone.
+- ⚑ **TWO PROBE FAILURES THAT WERE THE TEST, NOT THE CODE.** Fares of 40 and 45 sit below this template's
+  rate-card floor of 51.25, so the pre-existing clamp raised them and the hold looked like it was mispricing.
+  The clamp now has its own deliberate assertion instead of being something other checks trip over.
+- ⚑ **A CHECK THAT LEFT ITS OWN HOLD OPEN** broke the nine after it — one hold at a time is a partial UNIQUE
+  index, and the probe was its own first victim.
+- ⚑ **ORPHANED EVENTS DRAG A RATIO.** `mission_event` has no FK, so every probe mission deleted today left its
+  `created` row behind and pushed "≥ 2 observed events per trip" under 2 on a healthy trigger.
+  `sweep-orphans --delete` is the documented remedy; 144 swept.
+- ⚑ **`handoff-check` ASSERTION 39 EARNED ITSELF TWICE** — once on a planted migration, and once for real when
+  the hold landed with all five types in the DB registry and none in `lib/mission-events.ts`.
+
+### Verified live
+A real hold taken through the real UI on a real pooled trip: `hold_taken` 09:07:12 (`db_trigger`),
+`hold_lapsed` 09:07:27 (`derived`, `notice_lag_s: 12`), `hold_expires_at` cleared, countdown ticking 15 → 0,
+card returning to Accept, and `Hold used · you can still accept` on the way back. ⚑ Those rows were then
+DELETED — they were mine, not a Driver's, and an audit log with a manufactured row is worse than an empty one.
+
+
 ## 2026-08-31 — Session 72 — THE WAYBILL, AND THE ONE FIGURE THAT CANNOT BE BACKFILLED
 
 **Gate first.** `handoff-check.ts` **38/38** — *"The handoff still matches reality. Proceed."* Nothing had

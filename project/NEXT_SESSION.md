@@ -9,6 +9,20 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## ⚑ § 7's HOLD IS BUILT (2026-09-01) — and `docs/06` §7 now differs from it in two places
+Shipped as `2026-08-31h` / `31i` / `31j`, all applied. **FIFTEEN seconds, not thirty** ([[d115]]) and a price
+**FLOOR, not a freeze** ([[d116]]) — both the founder's calls, both deliberate departures from a LOCKED
+section, both recorded. Voluntary: Accept is untouched and always there. ⚑ A spent hold blocks only a second
+freeze, never the trip.
+
+⚑ **`handoff-check` assertion 39 has done its job and now reads "built AND instrumented".** It stays armed:
+if a future migration adds hold machinery without `hold_taken`/`hold_lapsed` in `lib/mission-events.ts` AND
+the `mission_event_type` registry, it goes red again.
+
+⚑ **THE ACCEPT PATH IS `accept_mission_call`, NEVER `accept_mission`** (31g). The raw name returning 42501 to
+a browser session is the wall, not a fault — S72 misread exactly that and nearly restored the grant
+([[d118]]). `.local/probe/column-leak.mts` and `handoff-check` call the raw names on purpose.
+
 ## ⚑⚑ RULE ZERO — MAKE IT GO RED ON PURPOSE BEFORE YOU TRUST THE GREEN
 
 **Read this before the § 0 gate. It is the rule that catches the bugs the gate cannot.**
@@ -391,7 +405,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**45 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**48 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 842 passing

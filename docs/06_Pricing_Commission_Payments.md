@@ -406,28 +406,64 @@ twice: on the fare *and* on the fee.
 
 ---
 
-## 7. The 30-second hold — LOCKED, build after the pricing engine
+## 7. The 15-second hold — ✅ SHIPPED 2026-09-01 (S72)
 
-A Driver can hold a trip for **30 seconds** to think before committing.
+A Driver can hold a pooled trip for **15 seconds** to think before committing.
 
 **Why it exists:** an attractive number triggers an impulsive accept, and the Driver then finds it
 does not fit their day. That becomes a Driver cancellation — a 100% penalty, a re-pooled trip and a
-hotel with no car. Thirty seconds of thinking time is cheap against that.
+Business with no car. Fifteen seconds of thinking time is cheap against that.
 
-- **The price is frozen** for the duration. At 30 seconds it barely moves, and frozen is easier to
-  explain.
+⚑ **THIS SECTION WAS LOCKED AT THIRTY SECONDS AND A FROZEN PRICE. Both changed on the founder's
+call, and both are recorded rather than quietly corrected** — [[d115]] and [[d116]]. What follows
+is what is BUILT; where the earlier wording survives anywhere else, this section wins (§0).
+
+- **Fifteen seconds, not thirty.** The founder, S72: *"we are the only one that offers this because
+  period of big season and big demands, 15 seconds there's a lot of time to think."* Half the time
+  a trip spends off the market, and the price moves even less inside the window.
+- ⚑ **THE PRICE IS A FLOOR, NOT A FREEZE.** The Driver is paid **at least** the number they were
+  shown, and **more if the curve climbed** while they thought. This reverses the ⚑ that used to
+  close this section — *"accept at the price the Driver was shown … removes any 'it changed on me'
+  complaint"* — which is consumer logic applied to the wrong party. **The Driver is not the
+  consumer; they are PAID this number**, so a price that rose during their 15 seconds is good news,
+  and honouring the lower displayed one would bill them for thinking. Measured with `currentFare()`
+  across all 364 live trips at the real accept instants: a strict freeze would change the fare on
+  **3.4%** of accepts, mean **€0.10**, and 15.6% of accepts are already on the Ceiling where it
+  costs exactly zero — ⚑ but on trips posted inside an hour it bites **70%** of the time, ~€2,
+  because §6 rule 3 compresses the whole climb into half the remaining lead. Small on average,
+  aimed squarely at the urgent trips. The Business pays nothing extra either way: any Driver
+  accepting at that same later second pays the climbed price regardless.
+- ⚑ **IT IS VOLUNTARY. Accept is unchanged and always there**, and the hold sits beside it. The
+  rule below decides this by itself: if holding were the only route to Accept, "one hold per Driver
+  per trip" would permanently lock a Driver out of a trip because their phone slept for 15 seconds.
 - **One hold at a time per Driver**, or someone parks three trips and blocks the Pool.
 - **One hold per Driver per trip** — no releasing and re-holding to reset the clock.
+  ⚑ **THE HOLD SPENDS THE HOLD, NEVER THE TRIP.** A Driver who freezes a trip, thinks, and walks
+  away comes back — five seconds or five minutes later — to a normal card, and takes it at the live
+  price. All they have used up is the right to freeze it again, and the screen says so
+  (*"Hold used · you can still accept"*) rather than dropping the button, because a control that
+  vanishes reads as a bug.
 - **Enforced inside the same gate as Accept.** If it were checked separately, a Driver pressing
   Accept in the same tenth of a second could write past a live hold and steal it. One decision
-  point, under the existing row lock.
-- **The card stays fully readable to everyone else.** Accept is replaced by a quiet
-  **"Being reviewed · 0:23"** counting down; when it lapses the card silently returns to normal.
-  Showing the countdown is deliberate — another Driver knows whether to wait or move on.
-- **The Business sees "a Driver is reviewing this"** — reassuring, not alarming.
+  point, under the existing row lock. ⚑ This is why `accept_mission` had to be reproduced whole
+  rather than fronted by a trigger — a trigger fires after the UPDATE has already picked a winner.
+- **The card stays fully readable to everyone else.** On the trip page Accept is replaced by a
+  quiet **"Being reviewed · 0:11"** counting down; when it lapses the card silently returns to
+  normal. Showing the countdown is deliberate — another Driver knows whether to wait or move on.
+  ⚑ On the Pool **list** it is a badge with no clock: making it tick would mean polling the Pool
+  ~45 times a minute per idle Driver to carry a 15-second notice.
+- **The Business sees "a Driver is reviewing this"** — reassuring, not alarming, and deliberately
+  without a countdown: a ticking clock on their screen invites *"so will they take it?"*, and the
+  answer is often no.
 
-⚑ **Accept at the price the Driver was shown.** Prices only rise, so the server's number can only
-be higher; honouring the displayed one removes any "it changed on me" complaint.
+⚑ **AND THE LAPSE IS RECORDED, WHICH IS THE PART THAT COULD NOT BE ADDED LATER** ([[d109]],
+[[d117]]). A hold ends by commit — observed, in the same transaction — or by the clock running out,
+which **nothing watches**: no status transition, no trigger, no cron. `hold_lapsed` is therefore
+written afterwards by `sweep_lapsed_holds()`, stamped with **when the clock ran out** rather than
+when anyone noticed, and labelled `source: 'derived'` so the log never claims to have witnessed
+what it reconstructed. `payload.notice_lag_s` carries the delay. ⚑ `hold_void` — the trip cancelled
+underneath the holder — is kept SEPARATE from `hold_lapsed`: they are identical in the data and
+opposite in meaning, and only the second is a price rejection.
 
 ---
 
@@ -668,7 +704,12 @@ hard-wire Stripe into mission logic.
    columns. Money tests rewritten (455), both migration probes updated, `write-test` 170/170, plus a new
    `curve-live` probe against the real DB. **Still owed:** the two riders (§ R growth limit, BACKLOG
    § V), the Business-facing copy sentence, and §9's stored accepted fare.
-4. **The §7 hold** — after the pricing engine, since both touch the accept path.
+4. ~~**The §7 hold** — after the pricing engine, since both touch the accept path.~~ ✅ **SHIPPED
+   2026-09-01 (S72)** — `2026-08-31h` (`mission_hold`, the events, `place_hold`/`release_hold`/
+   `sweep_lapsed_holds`), `2026-08-31i` (the gate inside `accept_mission`, transformed from the
+   extracted live body), `2026-08-31j` (`place_hold` returns void — a SECURITY DEFINER composite
+   return is not subject to column privileges). **Shipped at 15 s and with a price FLOOR** — see §7.
+   ⚑ Its events shipped in the same commit as the feature, because a lapse leaves no row behind.
 5. **§8 learned routes** — once there is volume.
 
 ⚑ **Fix on the way:** the Pool loads the whole archive and filters in memory. Already flagged as the

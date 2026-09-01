@@ -341,13 +341,17 @@ D86 · D87 · D88 · D90 · two in D91 · D92 · and now:
 > purpose.**
 
 ### ⚑ BOOKED IN S72 — THE HOLD SHIPS WITH ITS EVENTS, OR NOT AT ALL
-`docs/06` §7's **30-second hold is NOT BUILT** — it is step 4 of that doc's own build order, logged
+⚑ **SUPERSEDED 2026-09-01 — THE HOLD IS BUILT** (§ above, [[d115]]–[[d117]]); `docs/06` §7 now reads 15 s and
+a price FLOOR. The rule below is why the guard exists and why it stays armed, and is kept verbatim because it
+is the clearest statement of the principle this project keeps rediscovering.
+
+`docs/06` §7's **hold was NOT BUILT when this was written** — it was step 4 of that doc's own build order, logged
 "not done, on purpose" in S64. ⚑ **The founder believed it was already live** (S72). That belief is exactly
 how a feature ships bare.
 
 **The rule, now enforced by `handoff-check` assertion 39:** a hold ends by commit — which leaves a
 `confirmed` row behind — or by lapse, and **a lapse leaves nothing**: no status transition, so no trigger,
-and nothing runs at T+30 s to witness it. So the hold's events (`hold_started`, `hold_lapsed`) go in the
+and nothing runs at T+15 s to witness it. So the hold's events (`hold_taken`, `hold_lapsed`) go in the
 **same commit as the feature**, never a session later. Every lapse before that is lost for good.
 
 The guard is silent while the hold does not exist and goes red the moment it does without its events. It

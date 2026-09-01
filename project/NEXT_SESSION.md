@@ -9,6 +9,36 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## ⚑ § 4's OFFLINE GAP IS CLOSED (2026-09-01, S73) — and the Waybill lost its 1°–7°
+
+`main` = **the S73 commits**, CI-green on a branch first. **857 → 873 tests. handoff-check 48 → 50.**
+**No migration** — nothing for the founder to run.
+
+A service worker (`public/sw.js`) keeps the Waybill for every HELD trip on the phone, refreshed on every app
+open by `WaybillCacheSync` in the Driver layout. `/waybills` is the one page that opens with no signal and is
+the worker's fallback for any other navigation. A saved copy carries two marks: app chrome (never prints) and
+`Copie enregistrée le … à … h …` on the document (**grey, not amber** — founder). **No expiry** ([[d119]]).
+Sign-out deletes the copies. The manifest finally ships icons — load-bearing, since an installed app keeps its
+cache far longer than a browser tab.
+
+⚑ **THE 1°–7° MARKS ARE GONE** from the document *and* from the refusal list ([[d122]], founder). Legally
+free: the arrêté requires the seven pieces of INFORMATION, never its own numbering. Do not put them back
+without asking.
+
+⚑ **`handoff-check` grew two assertions (49, 50)** — the worker must be *registered by the app*, not merely
+present in `public/`; and the manifest must name icons that exist. Both Rule-Zero'd. ⚑ The first was written
+loose (`WaybillCacheSync` anywhere in the layout) and **stayed green with the render deleted**, because the
+import line matched. It matches `<WaybillCacheSync` now.
+
+⚑ **TWO LIVE FACTS THE FOUNDER SHOULD SEE.** Not one Driver in the DB has `company_name` /
+`registered_address` / `revtc_number`, so **every real Waybill refuses today** — working as designed, but the
+document had never rendered against live data before this session. And there was **no live trip in the whole
+database** (364 rows: completed/expired/cancelled/pooled), so `Demo Driver` was given company details and the
+dev seed left a few trips on it, deliberately.
+
+⚑ **iOS evicts the cache after ~7 days unopened.** Opening the app restores it. Print-to-PDF stays as the
+belt-and-braces and its hint line stays on the document.
+
 ## ⚑ § 7's HOLD IS BUILT (2026-09-01) — and `docs/06` §7 now differs from it in two places
 Shipped as `2026-08-31h` / `31i` / `31j`, all applied. **FIFTEEN seconds, not thirty** ([[d115]]) and a price
 **FLOOR, not a freeze** ([[d116]]) — both the founder's calls, both deliberate departures from a LOCKED
@@ -222,8 +252,8 @@ the raw names ON PURPOSE.
    into "came and found nothing" (supply) vs "came and passed" (pricing).
 3. **`docs/01`:28 still says "7 mandatory fields"** and now they are enumerated in `lib/waybill.ts` — worth
    pointing the doc at the code.
-4. **The offline gap on the Waybill.** No service worker, so no signal = no document, and a control happens in
-   the CDG parking levels. Print-to-PDF is the interim. Its own job.
+4. ~~**The offline gap on the Waybill.**~~ ✅ **DONE 2026-09-01 (S73)** — service worker + `/waybills` +
+   the saved-copy stamp + the app icons. Print-to-PDF kept as the belt-and-braces ([[d119]]).
 5. **§ Y / § AH / the VAT-per-group question** from the parallel half — see its sections below.
 
 ### 🎯 IF THE FOUNDER HAS NO PREFERENCE
@@ -476,10 +506,10 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**48 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**50 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 857 passing
+    npx tsc --noEmit && npx vitest run          # expect 873 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
@@ -499,6 +529,39 @@ about that point — **fix the file before you build on it.** Then:
 **If a probe fails, that is the job** — not whatever is queued above.
 ⚑ **RUN THE LIVE PROBES ONE AT A TIME** — several assert a mission-count baseline and see each other's rows.
 ⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
+
+---
+
+## ⚑ TRAPS LEARNED IN S73 — THREE GREENS, ALL LYING, ALL IN ONE SESSION
+
+⚑ **1 · A STAMP THE SERVICE WORKER INJECTS DOES NOT SURVIVE REACT** ([[d120]]). A cached page HYDRATES:
+React reconciles the real DOM against its own component tree and deletes every node the worker added.
+**The same code passed and failed the same test thirty minutes apart** — the first offline run had a second
+bug in it (the Next stylesheet cached under a `?v=` key and looked up without one), so nothing hydrated and
+the stamp was THERE. Fixing the stylesheet made the page hydrate and the stamp vanished. *The first green was
+produced by the bug.* Anything a service worker adds to HTML in this app is temporary by construction.
+
+⚑ **2 · `navigator.onLine` IS NOT "CAN I REACH KAVENUE"** ([[d121]]). It reports whether the device has *a*
+network. With the dev server off it was **true**, and the saved list said *"Up to date. Your 2 trips will open
+without signal."* Use `reachable()` in `lib/offline-waybill.ts` — a real request — anywhere the answer is a
+promise to the Driver.
+
+⚑ **3 · A CHECK THAT MATCHES AN IMPORT IS NOT CHECKING THE FEATURE.** The new assertion 49 tested for
+`WaybillCacheSync` anywhere in the layout. Deleting the render left the import, and it stayed green with the
+feature switched off. Match the *call site* (`<WaybillCacheSync`), not the name.
+
+⚑ **4 · ON THIS APP, CACHE EVERYTHING BY PATHNAME, QUERY STRIPPED.** `next dev` serves
+`/_next/static/css/app/layout.css?v=<timestamp>` with a NEW timestamp per rebuild. Keeping the query files one
+copy per rebuild *and* misses on lookup — the saved document came back with the right words in Times New
+Roman. In production the filename carries a content hash, so the pathname IS the version.
+
+⚑ **5 · A SERVICE WORKER MUST NEVER KEEP A REDIRECT.** A redirect to `/login` is a 200 by the time `fetch`
+resolves it. `keepable()` checks `res.ok && !res.redirected && res.type === "basic"` — caching the other kind
+hands a Driver a login screen at a roadside check.
+
+⚑ **6 · THE SCREENSHOT IS PART OF THE TEST.** Trap 1 was found by *looking at* an offline render, not by any
+assertion. Both DOM probes said the document was there and both were right. "It rendered" and "it rendered as
+the document we designed" are different questions.
 
 ---
 

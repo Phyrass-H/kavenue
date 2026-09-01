@@ -5,6 +5,80 @@
 
 ---
 
+## 2026-09-01 — Session 73 — THE WAYBILL OFF THE NETWORK, AND TWO GREENS THAT WERE LYING
+
+**Scope.** The founder asked whether to close § 4's offline gap now or wait for the native app. Now — the
+native app is decided as *after V1* (store accounts, review cycles), and a Driver stopped in the CDG parking
+levels next week has nothing in their hand. Scoped, previewed, approved, built. Suite **857 → 873**,
+`handoff-check` **48 → 50**. No migration.
+
+### What shipped
+| | |
+|---|---|
+| `public/sw.js` | the service worker. Network first EVERYWHERE — cache-first is faster on the hashed Next assets and also serves yesterday's build under `npm run dev`, and a stale document is the one thing this must never produce |
+| `/waybills` | the one page that opens with no signal, and the worker's fallback for any other navigation. Rendered from what is ACTUALLY on the device, never a server query |
+| `WaybillCacheSync` | in the **Driver layout**, not on `/waybills`: a Driver reaching for this has an officer at the window and will not remember a button |
+| `components/saved-copy.tsx` | the two marks — app chrome (never prints) + `Copie enregistrée le …` on the document (prints). **Grey, not amber** (founder) |
+| `lib/offline-waybill.ts` | the shared constants, `savedLabel`, `waybillWhen`, `reachable()`, and `HELD_STATUSES` — now My Rides' own list too, so "what you see" and "what works offline" are one set |
+| `app/api/waybills` | the manifest the worker saves from. Three fields, no money, no Guest |
+| icons | `manifest.webmanifest` shipped `"icons": []`. Load-bearing, not cosmetic: an installed app keeps its cache far longer than a browser tab |
+| the numbering | the arrêté's 1°–7° marks come off the document **and** off the refusal list (founder). The law requires the seven pieces of information, never its own numbering |
+
+**No expiry** (founder): a dated snapshot beats an empty screen, and it re-saves on every app open.
+**Sign-out deletes the copies** — each names a Business, a Guest's pickup and a price.
+
+### ⚑⚑ THE ONE THAT MATTERS — I BUILT THE STAMP IN THE ONE PLACE REACT WOULD DELETE IT
+The stamp began as a string `public/sw.js` spliced into the cached HTML, and the reasoning was good: *the
+thing that hands over a copy is the only thing that knows it is one, so the stamp can never go missing.* It
+does not survive React. A cached page **hydrates** — React reconciles the real DOM against its own component
+tree and removes every node the worker added.
+
+⚑ **The same code passed and failed the same test, twice, thirty minutes apart.** The first offline run had a
+second bug in it (the stylesheet was cached under a key with a query string and looked up without one), so
+nothing hydrated — and the stamp was **there**. Fixing the stylesheet made the page hydrate, and the stamp was
+**gone**. Two runs, one behaviour, opposite results: *the first green was produced by the bug.*
+
+The marks are React components now, and the worker has no opinion about markup. `tests/offline-waybill.test.ts`
+fails if it grows one back.
+
+### ⚑ THE SECOND GREEN THAT LIED — `navigator.onLine` IS NOT "CAN I REACH KAVENUE"
+With the dev server switched off, the saved list said **"Up to date. Your 2 trips will open without signal."**
+`navigator.onLine` reports whether the device has *a* network: it is true behind a hotel captive portal, true
+on a train, and true on a laptop whose own server is not running. That banner is a promise to someone about to
+drive into a car park.
+
+One `reachable()` in `lib/offline-waybill.ts` — an actual request to `/api/waybills`, which the worker passes
+straight through — answers for both screens. A test asserts neither component mentions `navigator.onLine`.
+
+### ⚑ AND THE THIRD, IN THE CHECK ITSELF — the dead battery I nearly shipped
+The new `handoff-check` assertion ("the worker is registered by the app, not just present in `public/`")
+matched `WaybillCacheSync` **anywhere** in the layout. Deleting the render left the *import* behind, so the
+check stayed **green with the feature switched off**. It matches `<WaybillCacheSync` now, and was re-pressed:
+red on the render alone, silent when the worker itself is absent.
+
+> Three in one session, and the shape is identical every time: **a check passed, and the reason it passed had
+> nothing to do with the thing it was checking.** Rule Zero caught two; the third was caught only because the
+> screenshot was looked at rather than the assertion.
+
+### Verified
+- Rule Zero on all five new guards — each broken on purpose, the red read, then unbroken.
+- **End to end with the server actually stopped**, twice: RED first (no worker, blank page — today's
+  behaviour), then GREEN (document styled, grey stamp `Copie enregistrée le 1 septembre 2026 à 14 h 28`,
+  list showing the no-signal banner, and `/pool` falling back to the Waybills screen instead of the browser
+  error page).
+- `handoff-check` **50 · green**, `sweep-orphans` 0, `tsc`, 873 tests, `npm run build`.
+
+### Notes for the founder
+- **Not one Driver in the live DB has `company_name` / `registered_address` / `revtc_number`**, so every real
+  Waybill refuses today. The refusal is working as designed — but the document had never rendered against live
+  data until this session. `Demo Driver` was given company details so it could be tested.
+- The dev seed left a handful of trips on the demo Driver, deliberately: there was **no live trip in the whole
+  database** to test an offline document against.
+- ⚑ **iOS evicts the cache after ~7 days unopened.** Opening the app restores it; print-to-PDF stays as the
+  belt-and-braces, and its hint line stays on the document.
+
+---
+
 ## 2026-09-01 — Session 72 (part 3) — THE 15-SECOND HOLD, AND A 42501 I READ BACKWARDS
 
 **Scope.** The founder chose § 7 straight after the Waybill. Built, applied (`31h`/`31i`/`31j`) and verified

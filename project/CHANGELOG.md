@@ -5,6 +5,46 @@
 
 ---
 
+## 1 September 2026 — your waybill now works with no signal
+
+**The problem.** A control happens in the CDG parking levels, where there's no signal — and until today that
+meant no document. Not because the Waybill button was broken: because *the app itself* needs the network to
+open, so the button was behind three doors that wouldn't open.
+
+**What changed.** Kavenue now keeps a copy of the waybill for every trip you're holding **on the phone
+itself**, and it does it on its own — every time you open the app, quietly, with no button to remember. Think
+of a boarding pass saved to your phone: it still opens in the tunnel.
+
+**A new screen: Waybills.** There's a small link on My Rides. With signal it's just a list, and it tells you
+plainly whether you're covered — *"Up to date. Your 2 trips will open without signal."* Worth a glance before
+you drive down a ramp. **With no signal, it's the screen the app opens on** — the one door that works — and
+every trip on it opens.
+
+**The document says it's a copy.** One grey line at the bottom, in French, under the line naming Kavenue as
+the agent: *Copie enregistrée le 1 septembre 2026 à 14 h 28.* The officer is reading a legal document and
+should be able to see it's a snapshot and how old. In practice it's minutes old. Above the document, in
+English and only for you, a quiet strip: *saved copy — Kavenue couldn't reach the network.*
+
+**And an old copy still shows** — your call, and the right one. A dated snapshot beats an empty screen at the
+roadside.
+
+**The 1° 2° 3° numbering is gone** from the document, as you asked. Nothing legal left with it: the *arrêté*
+requires the seven pieces of information, never its own numbering, and the headings already say which is
+which.
+
+**Kavenue finally has an icon.** Adding it to your home screen used to give a blurry screenshot of the page.
+It matters beyond looks — the saved waybills survive far longer in an installed app than in a browser tab.
+
+⚑ **One honest limit.** On iPhone, if you don't open Kavenue for about a week, Safari can throw the saved
+copies away; opening the app brings them back. Saving a PDF from the share menu is still there as the
+belt-and-braces — that file never disappears.
+
+⚑ **Two things worth knowing.** No Driver in the system has filled in their company name, REVTC number or
+registered address yet — so today every real waybill politely refuses rather than printing a blank line. And
+there was no live trip anywhere in the database to test against, so the demo Driver now has a few.
+
+---
+
 ## 1 September 2026 — the 15 seconds, and the price that stopped punishing you for using them
 
 **The hold is live.** On any trip in the Pool there's now a second button under Accept: **Hold it 15

@@ -3247,3 +3247,60 @@ perfectly, which is precisely what a wrong diagnosis does.
 `handoff-check` now asserts the inverse of what I first wrote — the raw money RPCs must STAY refused to a
 browser session, and the wrappers must work — and it checks as a real Driver. Rule-Zero'd by pointing it at a
 function that IS open (`place_hold`, before 31j) and watching it name that function.
+
+### D119 — The Waybill's offline story ships now, not with the native app (2026-09-01, S73)
+The founder asked which. **Now**, and it was not close: the native app is decided as *after V1* — store
+accounts, review cycles, a real project — while a Driver stopped in the CDG parking levels next week has
+nothing in their hand and the penalty for failing to justify a prior booking rose to 3 years / €45 000 on
+27 June 2026.
+
+Two shapes were weighed. **A PDF the Driver saves** is a real file that never expires and needs no app — but
+it is manual, they must remember, and it goes stale silently with no way to refresh or warn. **A service
+worker** is automatic and self-refreshing but invisible, and iOS can evict it after ~7 days unopened. Shipped
+the second and kept the first: the hint line telling the Driver to save a PDF stays on the document, and the
+`@media print` rule that dresses it stays with it.
+
+⚑ **No expiry on a saved copy** (the founder's call). A dated snapshot beats an empty screen at a roadside,
+and the copy re-saves itself on every app open, so in practice it is minutes old. What it must never do is
+present itself as live — hence [[d121]].
+
+### D120 — A stamp the service worker injects does not survive React (2026-09-01, S73)
+The saved copy carries `Copie enregistrée le … à … h …`. It was built the obvious way first: `public/sw.js`
+spliced the line into the cached HTML on its way out, because **the thing that hands over a copy is the only
+thing that knows it is one, so the stamp could never go missing.** The reasoning was right and the mechanism
+was wrong.
+
+A cached page **hydrates**. React reconciles the real DOM against its own component tree and deletes every
+node the worker added — silently, and only once the stylesheet and JS have loaded.
+
+⚑ **THE SAME CODE PASSED AND FAILED THE SAME TEST, THIRTY MINUTES APART.** The first offline run carried a
+second bug (the Next stylesheet was cached under a key with a `?v=` query and looked up without one), so
+nothing hydrated — **and the stamp was there.** Fixing the stylesheet made the page hydrate, and the stamp was
+gone. *The first green was produced by the bug.* [[rule-zero]] catches a check that asks the wrong question;
+this was a check asking the right question and getting the right answer for a reason that was about to vanish.
+
+The two marks are React components (`components/saved-copy.tsx`); the worker hands the cached page back byte
+for byte. A test fails if it grows an opinion about markup again.
+
+⚑ Grey, not amber (founder): on a document handed to a police officer a coloured line reads as a warning
+*about the document*. This is a fact about the copy and belongs in the voice of the issuer note above it.
+
+### D121 — `navigator.onLine` is not "can I reach Kavenue" (2026-09-01, S73)
+With the dev server switched off, the saved list said **"Up to date. Your 2 trips will open without signal."**
+`navigator.onLine` reports whether the device has *a* network — it is true behind a hotel captive portal, true
+on a train passing a mast, and true on a laptop whose own server is not running.
+
+That banner is a promise to someone about to drive down a ramp, and the document beside it must never present
+itself as live when it came out of the cache. Both screens now call `reachable()` in
+`lib/offline-waybill.ts`, which makes a real request to `/api/waybills` — neither a navigation nor a static
+asset, so the worker passes it straight through and it either arrives or it doesn't. A test asserts that
+neither component mentions `navigator.onLine`.
+
+### D122 — The arrêté's 1°–7° numbering comes off the document (2026-09-01, S73)
+The founder's call, and legally free: the *arrêté du 6 août 2025* requires the seven pieces of **information**,
+never its own numbering. Nothing mandatory left with the marks, and the section headings (*Exploitant VTC*,
+*Donneur d'ordre*, *Réservation*, *Prise en charge*) already say which is which.
+
+Taken off the refusal list too — a Driver fixing their profile is looking for a settings field, not a legal
+index. The numbering stays in `lib/waybill.ts`'s header comment, which is where the law is written down, and
+the gap objects now name the field.

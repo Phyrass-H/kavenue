@@ -8,6 +8,7 @@ import {
   Layers,
   Route,
   Handshake,
+  FileText,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -24,6 +25,7 @@ import { checkInOpen, needsClosing, parisDayKey } from "@/lib/dispatch-status";
 import { closingLine } from "@/lib/mission-cards";
 import type { MissionRow, MissionStatus } from "@/lib/database.types";
 import { parseWaypoints } from "@/lib/waypoints";
+import { HELD_STATUSES } from "@/lib/offline-waybill";
 import { progressDone, progressSegments } from "@/lib/mission-flow";
 import { statusPill, progressCaption } from "@/components/mission-run-view";
 import { RidesTabs } from "@/components/rides-tabs";
@@ -32,13 +34,9 @@ export const dynamic = "force-dynamic";
 
 // My Rides holds the LIVE work: trips the Driver is running or is about to. Finished
 // trips move to the Past tab (/rides/history), so this list stays short and current.
-const ACTIVE_STATUSES: MissionStatus[] = [
-  "accepted",
-  "confirmed",
-  "en_route",
-  "arrived",
-  "on_board",
-];
+// ⚑ Shared with the offline Waybill save (§ 4): "what My Rides shows" and "what works
+// with no signal" are the same set by construction, not by two lists agreeing today.
+const ACTIVE_STATUSES: MissionStatus[] = HELD_STATUSES;
 const PAST_STATUSES: MissionStatus[] = ["completed", "cancelled"];
 
 /**
@@ -269,7 +267,16 @@ export default async function RidesPage() {
 
   return (
     <>
-      <h1 className="rhead">My Rides</h1>
+      <div className="rhead-row">
+        <h1 className="rhead">My Rides</h1>
+        {/* § 4 — the way in to the saved Waybills. It sits in the open rather than in
+            Account because its whole value is being checkable BEFORE the signal goes:
+            a Driver about to drive down into the CDG parking levels can look now. */}
+        <Link href="/waybills" className="wb-btn">
+          <FileText size={13} strokeWidth={1.9} aria-hidden="true" />
+          Waybills
+        </Link>
+      </div>
       {/* The count is the OPEN trips only. A trip waiting to be closed is not
           upcoming work, and counting it was half of why the tab lied. */}
       <RidesTabs active="upcoming" upcoming={open.length} past={pastCount ?? 0} />

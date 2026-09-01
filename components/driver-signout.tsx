@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { LogOut } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { MSG_CLEAR } from "@/lib/offline-waybill";
 
 export function DriverSignOut() {
   const router = useRouter();
@@ -15,6 +16,9 @@ export function DriverSignOut() {
     startTransition(async () => {
       const supabase = createClient();
       await supabase.auth.signOut();
+      // § 4 — the saved Waybills go too. Each one names a Business, a Guest's pickup
+      // and a price, and the next person to hold this phone is not this Driver.
+      navigator.serviceWorker?.controller?.postMessage({ type: MSG_CLEAR });
       router.replace("/login");
       router.refresh();
     });

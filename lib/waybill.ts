@@ -5,8 +5,12 @@
 // prior booking "au moyen d'un document écrit sur un support papier ou électronique", and
 // says the CONDUCTEUR must present it on demand. The **arrêté du 6 août 2025** (JORF
 // n° 0200, texte n° 17; in force 29 October 2025) enumerates what must be on it. Seven
-// mentions, in the law's own numbering — which this module preserves, because a controller
-// reads 1° … 7° and ticks them off:
+// mentions, in the law's own numbering — which this module preserves in COMMENTS and in
+// section order, but no longer prints. ⚑ The 1°–7° marks were on the document until
+// 2026-09-01 and the founder took them off: the arrêté requires the seven pieces of
+// INFORMATION, never its own numbering, and the section headings already say which is
+// which. Nothing mandatory left with them. The numbering stays here because this is where
+// the law is written down:
 //
 //   1°  the exploitant VTC's name / dénomination sociale + coordonnées
 //   2°  its number in the register of art. L. 3122-3 (REVTC)
@@ -36,7 +40,7 @@ type DriverRow = Database["public"]["Tables"]["driver"]["Row"];
 type VehicleRow = Database["public"]["Tables"]["vehicle"]["Row"];
 
 /**
- * 3° — the SIREN is the first nine digits of the SIRET. Stored as neither: `driver.siret`
+ * The SIREN is the first nine digits of the SIRET. Stored as neither: `driver.siret`
  * is 14 digits (validated in settings), and nothing stores the SIREN separately.
  * Returns null rather than a truncated lie when the SIRET is absent or malformed.
  */
@@ -51,8 +55,6 @@ export function formatSiren(siren: string | null): string | null {
 }
 
 export interface WaybillGap {
-  /** The arrêté's own numbering, so the Driver sees which legal line is short. */
-  mention: "1°" | "2°" | "3°";
   label: string;
   href: string;
 }
@@ -74,16 +76,16 @@ export interface WaybillGap {
 export function waybillGaps(driver: DriverRow): WaybillGap[] {
   const gaps: WaybillGap[] = [];
   if (!driver.company_name?.trim()) {
-    gaps.push({ mention: "1°", label: "Your company name", href: "/settings/company" });
+    gaps.push({ label: "Your company name", href: "/settings/company" });
   }
   if (!driver.registered_address?.trim()) {
-    gaps.push({ mention: "1°", label: "Your registered address", href: "/settings/company" });
+    gaps.push({ label: "Your registered address", href: "/settings/company" });
   }
   if (!driver.revtc_number?.trim()) {
-    gaps.push({ mention: "2°", label: "Your REVTC number", href: "/settings/company" });
+    gaps.push({ label: "Your REVTC number", href: "/settings/company" });
   }
   if (!sirenFromSiret(driver.siret)) {
-    gaps.push({ mention: "3°", label: "Your SIRET", href: "/settings/company" });
+    gaps.push({ label: "Your SIRET", href: "/settings/company" });
   }
   return gaps;
 }
@@ -200,4 +202,31 @@ export function buildWaybill(
       : null,
     course: mission.accepted_fare,
   };
+}
+
+/**
+ * The document's date shape: "25 août 2026 à 21 h 35".
+ *
+ * ⚑ Two substitutions, both deliberate: the comma Intl puts between date and time becomes
+ * "à", and the colon becomes "h" — French administrative documents write the hour that
+ * way, and this one is read by a French officer.
+ *
+ * ⚑ `public/sw.js` re-implements this by hand, because a file served raw to the browser
+ * cannot import from here. `tests/offline-waybill.test.ts` pins the two together — the
+ * saved copy's stamp sits under six dates in this shape and must not arrive in another.
+ */
+const stamp = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  timeZone: "Europe/Paris",
+});
+
+export function frDateTime(iso: string): string {
+  return stamp
+    .format(new Date(iso))
+    .replace(", ", " à ")
+    .replace(/(\d{2}):(\d{2})/, "$1 h $2");
 }

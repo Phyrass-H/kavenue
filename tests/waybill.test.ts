@@ -107,11 +107,16 @@ describe("3° — the SIREN", () => {
 
 describe("the issue gate", () => {
   it("issues nothing at all when the exploitant is incomplete", () => {
+    // ⚑ The gap names the FIELD, not the arrêté's numbering — the 1°–7° marks came off
+    // both the document and this list on 2026-09-01. A Driver fixing their profile is
+    // looking for a settings field, not for a legal index.
     expect(waybillGaps(driver({ revtc_number: null }))).toHaveLength(1);
-    expect(waybillGaps(driver({ revtc_number: null }))[0].mention).toBe("2°");
-    expect(waybillGaps(driver({ company_name: null }))[0].mention).toBe("1°");
-    expect(waybillGaps(driver({ registered_address: null }))[0].mention).toBe("1°");
-    expect(waybillGaps(driver({ siret: null }))[0].mention).toBe("3°");
+    expect(waybillGaps(driver({ revtc_number: null }))[0].label).toBe("Your REVTC number");
+    expect(waybillGaps(driver({ company_name: null }))[0].label).toBe("Your company name");
+    expect(waybillGaps(driver({ registered_address: null }))[0].label).toBe(
+      "Your registered address",
+    );
+    expect(waybillGaps(driver({ siret: null }))[0].label).toBe("Your SIRET");
   });
 
   it("treats whitespace as absent — a space is not a company name", () => {
@@ -120,8 +125,8 @@ describe("the issue gate", () => {
   });
 
   it("blocks on a MALFORMED siret, not just a missing one", () => {
-    // 3° is derived, so a SIRET that cannot yield a SIREN is the same failure as none.
-    expect(waybillGaps(driver({ siret: "4605485632" }))[0].mention).toBe("3°");
+    // The SIREN is derived, so a SIRET that cannot yield one is the same failure as none.
+    expect(waybillGaps(driver({ siret: "4605485632" }))[0].label).toBe("Your SIRET");
   });
 
   it("lets a complete exploitant through", () => {

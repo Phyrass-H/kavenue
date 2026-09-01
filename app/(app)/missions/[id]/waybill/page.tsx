@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { AlertTriangle, ArrowRight } from "lucide-react";
+import { SavedCopyNotice, SavedCopyStamp } from "@/components/saved-copy";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDriverContext } from "@/lib/driver";
 import { formatMoney } from "@/lib/format";
 import {
   buildWaybill,
+  frDateTime,
   waybillGaps,
   WAYBILL_AUTHORITY,
   WAYBILL_ISSUER_NOTE,
@@ -14,27 +16,6 @@ import {
 } from "@/lib/waybill";
 
 export const dynamic = "force-dynamic";
-
-// The document is French because the person reading it is a French control officer.
-// The app chrome around it stays in the app's own language.
-const stamp = new Intl.DateTimeFormat("fr-FR", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: "Europe/Paris",
-});
-
-function frDateTime(iso: string): string {
-  // "25 août 2026 à 21 h 35". Two substitutions, both deliberate: the comma Intl puts
-  // between date and time becomes "à", and the colon becomes "h" — French administrative
-  // documents write the hour that way, and this one is read by a French officer.
-  return stamp
-    .format(new Date(iso))
-    .replace(", ", " à ")
-    .replace(/(\d{2}):(\d{2})/, "$1 h $2");
-}
 
 export default async function WaybillPage({
   params,
@@ -94,7 +75,6 @@ export default async function WaybillPage({
           <ul className="wb-gaps">
             {gaps.map((g) => (
               <li key={g.label}>
-                <span className="wb-mention">{g.mention}</span>
                 <Link href={g.href}>{g.label}</Link>
               </li>
             ))}
@@ -161,6 +141,12 @@ export default async function WaybillPage({
         </Link>
       </p>
 
+      {/* ⚑ Both marks render NOTHING on a live page and appear only when the document
+          came out of the cache — see components/saved-copy.tsx for why they are React
+          components rather than a string the service worker injects (React hydration
+          deletes anything the worker adds). This first one is app chrome, never prints. */}
+      <SavedCopyNotice missionId={id} />
+
       <article className="wb-doc">
         <header className="wb-head">
           <h1>{WAYBILL_TITLE}</h1>
@@ -169,41 +155,27 @@ export default async function WaybillPage({
 
         <section className="wb-sec">
           <h2>Exploitant VTC</h2>
-          <p>
-            <span className="wb-n">1°</span> {wb.exploitant.name}
-          </p>
+          <p>{wb.exploitant.name}</p>
           <p className="wb-m">{wb.exploitant.address}</p>
-          <p>
-            <span className="wb-n">2°</span> REVTC {wb.exploitant.revtc}
-          </p>
-          <p>
-            <span className="wb-n">3°</span> SIREN {wb.exploitant.siren}
-          </p>
+          <p>REVTC {wb.exploitant.revtc}</p>
+          <p>SIREN {wb.exploitant.siren}</p>
         </section>
 
         <section className="wb-sec">
           <h2>Donneur d’ordre</h2>
-          <p>
-            <span className="wb-n">4°</span> {wb.ordering.name}
-          </p>
+          <p>{wb.ordering.name}</p>
           {wb.ordering.phone && <p className="wb-m">{wb.ordering.phone}</p>}
         </section>
 
         <section className="wb-sec">
           <h2>Réservation</h2>
-          <p>
-            <span className="wb-n">5°</span> {frDateTime(wb.bookedAt)}
-          </p>
+          <p>{frDateTime(wb.bookedAt)}</p>
         </section>
 
         <section className="wb-sec">
           <h2>Prise en charge</h2>
-          <p>
-            <span className="wb-n">6°</span> {frDateTime(wb.pickupAt)}
-          </p>
-          <p>
-            <span className="wb-n">7°</span> {wb.pickupAddress}
-          </p>
+          <p>{frDateTime(wb.pickupAt)}</p>
+          <p>{wb.pickupAddress}</p>
         </section>
 
         <hr className="wb-rule" />
@@ -236,7 +208,11 @@ export default async function WaybillPage({
           </section>
         )}
 
-        <footer className="wb-foot">{WAYBILL_ISSUER_NOTE}</footer>
+        <footer className="wb-foot">
+          <p>{WAYBILL_ISSUER_NOTE}</p>
+          {/* The second mark. On the document, so it prints with it. */}
+          <SavedCopyStamp missionId={id} />
+        </footer>
       </article>
 
       <p className="dhint wb-why">

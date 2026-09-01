@@ -4,6 +4,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { DriverTabbar } from "@/components/driver-tabbar";
+import { WaybillCacheSync } from "@/components/offline-waybills";
 import { getAppContext, routeFor } from "@/lib/app-context";
 import { createClient } from "@/lib/supabase/server";
 import { CHECK_IN_GRACE_MS, CHECK_IN_OPENS_MS, needsClosing } from "@/lib/dispatch-status";
@@ -61,6 +62,11 @@ export default async function AppLayout({
     <>
       <main className="dapp-main">{children}</main>
       <DriverTabbar checkInCount={checkInCount ?? 0} closingCount={closingCount} />
+      {/* § 4 — invisible. Registers the service worker and refreshes the saved Waybills
+          on every Driver page open. It lives HERE rather than on /waybills because a
+          Driver who never opens that screen still has to be covered when the signal
+          goes; the save is the app's job, not a button they must remember. */}
+      <WaybillCacheSync />
     </>
   );
 }

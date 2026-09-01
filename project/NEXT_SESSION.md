@@ -166,7 +166,74 @@ minutes of being written. Don't defer verification to "next time" — probe it w
 
 ---
 
-## WHERE WE ARE (2026-08-31, end of S72)
+## WHERE WE ARE (2026-09-01, end of S72)
+
+`main` = **`0de4c6b`**. CI green on every push. **815 → 857 tests. handoff-check 38 → 48.**
+
+⚑ **TWO SESSIONS RAN S72 SIDE BY SIDE** against the same `main` and the same database — the Waybill and the
+hold in one, the money walls in the other. Both landed. Read § THE COLLISION before assuming either half is
+the whole story; the short version is that they collided three times and every collision was survivable only
+because someone checked.
+
+### ✅ Shipped in S72 — this session's half, in the order the founder asked for it
+
+**1 · The Waybill** (`31a` · `31b` · `31c`). The *justificatif de réservation préalable* a Driver shows at a
+roadside check — the seven mandatory mentions of the **arrêté du 6 août 2025**, in the law's own 1°–7°
+numbering. ⚑ *"Feuille de route" is not a term in VTC law*; the document carries the legal title.
+⚑ **It REFUSES rather than printing a blank line** ([[d110]]): a justificatif with an empty 2° is a dated
+admission of non-compliance produced by us, and the penalty rose to 3 years / €45 000 on 27 June 2026.
+⚑ Kavenue is never in fields 1°–3° ([[d111]]). The price is the **Course** and sits LAST ([[d112]]) — not
+because the Business would learn anything (they already see it) but because the **Guest** is standing there
+and the Business resold them the ride at its own margin.
+⚑ **The car had a bug under it** ([[d113]]): `mission` had no `vehicle_id`, so four readers each derived a
+different car from the Driver *as of today*. Fixed by a trigger on `driver_id`, NOT a line in `accept_mission`
+— accept is not the only way a trip changes hands, and a re-pool would have left a stale plate.
+
+**2 · The 15-second hold** (`31h` · `31i` · `31j`), `docs/06` §7, now SHIPPED and rewritten to match.
+Voluntary · 15 s not 30 · a price **FLOOR** not a freeze ([[d115]]–[[d117]]). ⚑ The hold spends the hold,
+never the trip. ⚑ Its events shipped in the same commit because a lapse leaves no row behind — `hold_lapsed`
+is `source: 'derived'`, stamped when the clock ran out, with `notice_lag_s`; `hold_void` is kept separate
+because only one of the two is a price rejection.
+
+### ⚑⚑ THE ONE TO CARRY OUT OF THIS HALF — I nearly undid a security fix
+I reproduced `accept_mission`, saw `42501 permission denied` as a real Driver, concluded my `create or
+replace` had dropped the grant, and **told the founder to run `grant execute … to authenticated`**. The
+parallel session stopped them. The revoke was theirs, deliberate, hours old: a SECURITY DEFINER **composite
+return is not subject to column privileges**, so `returns mission` handed a Driver the Ceiling through the
+morning's walls. **The refusal was the wall working.**
+
+⚑ **My checkout was thirteen commits behind and I never checked.** `git fetch` costs a second. Before
+concluding the database is broken, confirm the repo is current — [[d118]].
+⚑ **Every service-role probe stayed green throughout.** The service role bypasses ACLs; that seat is
+structurally blind to permission bugs. Assertion: `handoff-check` now signs in as a real Driver and asserts
+the INVERSE — the raw money RPCs must STAY refused, the wrappers must work.
+⚑ **THE ACCEPT PATH IS `accept_mission_call`.** Five older probes were repointed (`accepted-fare`,
+`accept-floor`, `reclaim-live`, `write-test`, `event-registry-live`); `column-leak` and `handoff-check` call
+the raw names ON PURPOSE.
+
+### 🔴 WAITING ON THE FOUNDER — nothing here is blocked on Claude
+1. **The last-seen tracker.** Approved, deliberately deferred to **launch week** — today it would count Claude
+   and the founder's own testing. One table (`person_id`, `day`, a DATE not a timestamp so per-session timing
+   is impossible by construction), one upsert in the app layout, one in Dispatch. It buys DAU/MAU and
+   "how many who came took a trip". ⚑ Explained to the founder 2026-09-01; they asked what DAU/MAU means, so
+   lead with the plain version.
+2. **The honest denominator, designed and unbuilt.** "How many opens before a trip" blames the DRIVER for
+   what is usually a property of the POOL. Record what their Pool actually HELD that day and the number splits
+   into "came and found nothing" (supply) vs "came and passed" (pricing).
+3. **`docs/01`:28 still says "7 mandatory fields"** and now they are enumerated in `lib/waybill.ts` — worth
+   pointing the doc at the code.
+4. **The offline gap on the Waybill.** No service worker, so no signal = no document, and a control happens in
+   the CDG parking levels. Print-to-PDF is the interim. Its own job.
+5. **§ Y / § AH / the VAT-per-group question** from the parallel half — see its sections below.
+
+### 🎯 IF THE FOUNDER HAS NO PREFERENCE
+The Waybill's **offline story** is the one with a real person on the other end of it. After that, § 5's
+embarrassing details (the Driver's photo and languages shown to nobody, `manifest.webmanifest` shipping
+`"icons": []`). The analytics page stays last and still needs the trackers above.
+
+---
+
+## WHERE WE ARE (2026-08-31, mid-S72 — the money walls half)
 
 `main` = **`5ee1a3c`** (`69f3742` is the last commit with CODE in it; this one is the handoff).
 Deployed and Ready on Vercel. **815 → 842 tests. handoff-check 38 → 45.**
@@ -412,7 +479,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 **48 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 842 passing
+    npx tsc --noEmit && npx vitest run          # expect 857 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE
@@ -426,6 +493,7 @@ about that point — **fix the file before you build on it.** Then:
     npx tsx .local/probe/dataset-audit.mts                               #  30 · 0 failed ([[d108]])
     npx tsx .local/probe/accept-floor.mts                                #   6 · the § H2 residual
     npx tsx .local/probe/column-leak.mts                                 #   S72 · expect 0 LEAK(S) OPEN
+    npx tsx .local/probe/hold-live.mts                                   #  31 · § 7 end to end (⚑ uses accept_mission_call)
     npx tsx .local/probe/sweep-orphans.mts                               #  ⚑ after any live-probe session
 
 **If a probe fails, that is the job** — not whatever is queued above.
@@ -433,6 +501,31 @@ about that point — **fix the file before you build on it.** Then:
 ⚑ **When you finish, do the same to your own handoff**, and **add an assertion for anything that bit you**.
 
 ---
+
+## ⚑ TRAPS LEARNED IN S72 — THE WAYBILL AND THE HOLD
+
+- ⚑ **A PERMISSION ERROR IS NOT PROOF THAT YOU BROKE SOMETHING.** Before concluding the database is broken,
+  `git fetch` and check the repo is current. Thirteen commits behind, and the error was another session's
+  deliberate wall. [[d118]] — the fullest version of this is worth reading before touching an RPC.
+- ⚑ **A FUNCTION IS FOUR THINGS AND `pg_get_functiondef` PRINTS ONE.** Body, owner, `search_path`, ACL.
+  `create or replace` preserves all four; `drop` + `create` (needed to change a return type) resets EXECUTE to
+  the PUBLIC default. State grants explicitly in both directions.
+- ⚑ **A SERVICE-ROLE PROBE CANNOT SEE A PERMISSION BUG.** It bypasses ACLs. Anything about who may do what
+  must sign in as a real Driver / Dispatcher.
+- ⚑ **A PROBE FAILURE IS AS LIKELY TO BE THE PROBE.** Two hold checks went red because the fares they used
+  (40, 45) sit BELOW this template's rate-card floor of 51.25, so the pre-existing clamp raised them. The
+  clamp was right. It now has its own deliberate assertion instead of being something other checks trip over.
+- ⚑ **A CHECK THAT LEAVES STATE BEHIND BREAKS THE ONES AFTER IT.** One hold at a time is a partial UNIQUE
+  index; a probe that held and never released produced nine red lines with one cause.
+- ⚑ **ORPHANED EVENTS DRAG A RATIO.** `mission_event` has no FK, so every probe mission deleted leaves its
+  `created` row and pushes "≥ 2 observed events per trip" under 2 on a healthy trigger.
+  `npx tsx .local/probe/sweep-orphans.mts --delete` after any live-probe session.
+- ⚑ **WRITE IS NOT VERIFIED UNTIL THE ROW IS READ BACK** (S71's, earned again on the Driver company fields).
+- ⚑ **`.next` IS SHARED BETWEEN WORKTREES.** Two concurrent builds produce `routes.d 2.ts`-style duplicates
+  that `tsc` reports as `Duplicate identifier` in code nobody wrote; `rm -rf .next` then breaks the other
+  session's dev server with `ENOENT routes-manifest.json`. Neither is a code fault and both look like one.
+- ⚑ **THE DECISION LOG HAS NO LOCK.** Two sessions both appended a `D109` on the same day. Claim your numbers
+  before writing when another session is live.
 
 ## ⚑ TRAPS LEARNED IN S72 — THE MONEY WALLS
 

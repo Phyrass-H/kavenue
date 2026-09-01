@@ -4,7 +4,7 @@ import Link from "next/link";
 import { MapPin, Radar, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDriverContext } from "@/lib/driver";
-import { sweepExpiredMissions } from "@/lib/expiry";
+import { sweepExpiredMissions, sweepLapsedHolds } from "@/lib/expiry";
 import { MissionCard } from "@/components/mission-card";
 import { poolFaresNet } from "@/lib/pool-fares";
 import { serviceClassLabel } from "@/lib/format";
@@ -88,6 +88,12 @@ export default async function PoolPage({
   // status the Business sees, the floor below is what actually protects a Driver
   // if the sweep is behind or fails.
   await sweepExpiredMissions(supabase);
+  // § 7 — and settle any hold whose clock ran out, so `hold_lapsed` exists at all (D109).
+  // ⚑ Rides here rather than anywhere else because this is the page that renders holds: the
+  //   Driver who is about to see a card come back is the one whose read should have noticed
+  //   it went. Never throws, and nothing above depends on it — the mask on
+  //   mission_read.hold_expires_at already hides a dead hold whether or not this ran.
+  await sweepLapsedHolds(supabase);
 
   // Pool = pooled missions matching the Driver's category. RLS lets a Driver
   // read any pooled mission; we then keep those whose pickup OR dropoff falls

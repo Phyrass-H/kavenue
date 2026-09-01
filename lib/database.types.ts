@@ -23,6 +23,9 @@ export type Json =
 
 // ---------- ENUMS ----------
 export type UserRole = "driver" | "dispatcher" | "admin";
+
+/** § 7 — how a hold ended. Mirrored (with the reasoning) in lib/hold.ts HOLD_OUTCOMES. */
+export type HoldOutcome = "open" | "committed" | "lapsed" | "released" | "void";
 // vehicle_category is the SERVICE TIER. 'van' is legacy (migrated to
 // business+body=van on 2026-06-19); tiers offered now: eco/business/luxury.
 export type VehicleCategory = "eco" | "business" | "van" | "luxury";
@@ -556,6 +559,11 @@ export interface Database {
           // (2026-08-31b/c). NULL = accepted before that migration: readers fall back to
           // the Driver's current car. ⚑ Gate on driver_id — a re-pool leaves this set.
           vehicle_id: string | null;
+          // S72 — § 7. Denormalised from the live mission_hold row so the Pool's hot read is
+          // a plain column, not a correlated subquery per card. ⚑ Masked in mission_read:
+          // another Driver learns the INSTANT, never the identity. NULL = no hold, and a
+          // PAST value means the hold is over — always compare to now(), never to null.
+          hold_expires_at: string | null;
         };
         Insert: {
           id?: string;
@@ -633,6 +641,7 @@ export interface Database {
           waiting_rate?: number | null;
           waiting_fee?: number | null;
           vehicle_id?: string | null;
+          hold_expires_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["mission"]["Insert"]>;
         Relationships: [];
@@ -1009,6 +1018,37 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["payout"]["Insert"]>;
         Relationships: [];
       };
+      mission_hold: {
+        Row: {
+          id: string;
+          mission_id: string;
+          driver_id: string;
+          // The Course-space fare shown to the Driver at the moment they froze it. The
+          // FLOOR on accept (lib/hold.ts holdFloor), never a cap.
+          held_fare: number | null;
+          taken_at: string;
+          expires_at: string;
+          // ⚑ How many seconds this hold was granted. Stored, not assumed: HOLD_SECONDS may
+          // change, and an old row must still say what IT was given rather than what today's
+          // constant happens to be.
+          hold_seconds: number;
+          outcome: HoldOutcome;
+          settled_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          mission_id: string;
+          driver_id: string;
+          held_fare?: number | null;
+          taken_at?: string;
+          expires_at: string;
+          hold_seconds?: number;
+          outcome?: HoldOutcome;
+          settled_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["mission_hold"]["Insert"]>;
+        Relationships: [];
+      };
       booking_voucher: {
         Row: {
           id: string;
@@ -1048,6 +1088,12 @@ export interface Database {
       };
     };
     Functions: {
+      // ⚑ VOID by the 31g rule (2026-08-31j): a SECURITY DEFINER composite return is not
+      // subject to column privileges, so no row shape may cross to a browser session. The
+      // screen re-reads mission_hold under its own RLS. Nothing ever read this value.
+      place_hold: { Args: { p_mission_id: string; p_fare?: number | null }; Returns: undefined };
+      release_hold: { Args: { p_mission_id: string }; Returns: undefined };
+      sweep_lapsed_holds: { Args: Record<string, never>; Returns: number };
       // Kavenue's price for a trip (docs/06 §4), from the rate_card table. The
       // authority: the server calls this with its OWN road distance so a browser
       // can never post a price it invented. lib/rate-card.ts is the mirror copy

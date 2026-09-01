@@ -12,6 +12,66 @@ export type AcceptResult = { ok: true } | { ok: false; message: string };
 // immediate confirm (D55), and the § P expiry check — lives in the DB function
 // accept_mission (Doc spine). We just call it AS THE DRIVER (user-session client,
 // so auth.uid() resolves) and translate any error into something human-readable.
+/**
+ * § 7 — freeze this trip for a few seconds while the Driver thinks.
+ *
+ * ⚑ THE FARE IS COMPUTED HERE, exactly as acceptMission does and for the same reason:
+ * Postgres cannot evaluate the §6 curve, lib/pdp.ts is the only place it exists, and this is
+ * a server action so the browser sends an id and nothing else. `place_hold` re-clamps it into
+ * [floor, ceiling] regardless.
+ *
+ * ⚑ AND IT RUNS EVERY GUARD ACCEPT RUNS. A hold takes the trip off the market for everyone,
+ * so a Driver who could never accept this trip must not be able to freeze it.
+ */
+export async function holdMission(missionId: string): Promise<AcceptResult> {
+  const supabase = await createClient();
+  const course = await courseForAccept(missionId);
+
+  const { error } = await supabase.rpc("place_hold", {
+    p_mission_id: missionId,
+    p_fare: course,
+  });
+
+  if (error) {
+    // Same translation shape as accept. ⚑ NOT logged as accept_rejected: the Driver was not
+    // refused the WORK, they were refused a freeze, and conflating the two would put noise
+    // in the one signal that says "Kavenue's own rules turned away someone who wanted this".
+    return { ok: false, message: holdMessage(error.message) };
+  }
+  return { ok: true };
+}
+
+/**
+ * The Driver left the card. Founder, S72: "if you leave the card you lose the hold, period."
+ *
+ * ⚑ BEST EFFORT, AND THAT IS FINE. A phone that dies, a tab killed mid-navigation — the
+ * release never fires and the hold simply runs out its clock instead. Releasing early only
+ * ever returns the trip to the Pool SOONER than the guarantee, so a failure costs at most
+ * the seconds remaining.
+ */
+export async function releaseMissionHold(missionId: string): Promise<void> {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("release_hold", { p_mission_id: missionId });
+  if (error) console.error("[hold] release failed:", error.message);
+}
+
+/** The Driver-facing wording. The raw Postgres message is never shown. */
+function holdMessage(raw: string): string {
+  if (raw.includes("Another Driver is reviewing")) {
+    return "Another Driver is looking at this one right now.";
+  }
+  if (raw.includes("already held")) {
+    // ⚑ Says what it costs, because it costs almost nothing.
+    return "You've already held this trip — you can still accept it.";
+  }
+  if (raw.includes("Slot conflict")) {
+    return "You already have a trip within 90 minutes of this pickup.";
+  }
+  if (raw.includes("Not eligible")) return "This trip isn't a match for your vehicle.";
+  if (raw.includes("expired")) return "This trip's pickup time has passed.";
+  return "This trip is no longer available.";
+}
+
 export async function acceptMission(missionId: string): Promise<AcceptResult> {
   const supabase = await createClient();
 

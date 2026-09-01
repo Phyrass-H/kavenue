@@ -33,3 +33,22 @@ export async function sweepExpiredMissions(
   const { error } = await supabase.rpc("expire_stale_missions");
   if (error) console.error("[expiry] sweep failed:", error.message);
 }
+
+/**
+ * § 7 — settle holds whose clock has run out, so `hold_lapsed` exists at all.
+ *
+ * ⚑ THIS IS FOR THE LOG, NEVER FOR CORRECTNESS, and the difference matters. Every guard that
+ * decides anything — `place_hold`, `accept_mission`, the `mission_read` mask, the client
+ * countdown — compares `expires_at` to now(). A hold therefore ends on time whether or not
+ * this ever runs. What only this produces is the ROW: the event D109 exists to capture,
+ * which cannot be collected retroactively because nothing observes T+15 s.
+ *
+ * So a failure here loses a record, never a trip. Same never-throws contract as the sweep
+ * above, for the same reason and with the same shape.
+ */
+export async function sweepLapsedHolds(
+  supabase: SupabaseClient<Database>,
+): Promise<void> {
+  const { error } = await supabase.rpc("sweep_lapsed_holds");
+  if (error) console.error("[hold] sweep failed:", error.message);
+}

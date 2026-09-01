@@ -38,7 +38,7 @@ import { buildAmendmentData, buildReleaseData } from "@/lib/mission-cards";
 import { isExpired } from "@/lib/dispatch-status";
 import type { MissionStatus } from "@/lib/database.types";
 import { MissionRunView } from "@/components/mission-run-view";
-import { AcceptButton } from "./accept-button";
+import { HoldControls } from "./hold-controls";
 
 export const dynamic = "force-dynamic";
 
@@ -257,6 +257,28 @@ export default async function MissionDetailPage({
   // RLS read at the top of this function. "—" when the price cannot be read; a
   // 0 would look like a real offer.
   const fare = await poolFareNet(mission.id);
+
+  // § 7 — the hold, from two different sources on purpose.
+  // ⚑ MY OWN hold comes from `mission_hold`, which RLS scopes to this Driver. SOMEONE
+  //   ELSE'S comes from `mission_read.hold_expires_at`, which carries the INSTANT and never
+  //   the identity — "Marc is looking at this" is the Pool behaviour [[d87]] cut, and it
+  //   would leak a named contractor's activity to every other Driver in the region.
+  // ⚑ AND `holdSpent` IS ANY row, live or finished: one hold per Driver per trip, ever. A
+  //   spent hold never blocks Accept, only a second freeze.
+  const { data: myHold } = await supabase
+    .from("mission_hold")
+    .select("expires_at, outcome")
+    .eq("mission_id", mission.id)
+    .maybeSingle();
+
+  const myLiveHoldEndsAt =
+    myHold && myHold.outcome === "open" && Date.parse(myHold.expires_at) > Date.now()
+      ? myHold.expires_at
+      : null;
+  const holdSpent = !!myHold && !myLiveHoldEndsAt;
+  // The masked column is already NULL once the instant has passed, so a non-null value here
+  // means a live hold — and if it is not mine, it is somebody else's.
+  const othersHoldExpiresAt = myLiveHoldEndsAt ? null : (mission.hold_expires_at ?? null);
   const when = formatPoolWhen(mission.pickup_at);
   const waypoints = parseWaypoints(mission.waypoints);
   const distanceKm = tripDistanceKm(
@@ -426,7 +448,13 @@ export default async function MissionDetailPage({
       )}
 
       {isPooled && eligible ? (
-        <AcceptButton missionId={mission.id} />
+        <HoldControls
+          missionId={mission.id}
+          myHoldExpiresAt={myLiveHoldEndsAt}
+          othersHoldExpiresAt={othersHoldExpiresAt}
+          holdSpent={holdSpent}
+          netFare={fare}
+        />
       ) : isPooled ? (
         <div className="notice warn">
           This trip doesn’t match your vehicle. If that’s wrong, update it in Settings.

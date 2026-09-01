@@ -304,7 +304,12 @@ export type ToneInputs = Pick<
   | "waypoints"
   | "stops_reached"
   | "mission_type"
-> & { no_show?: boolean | null; close_answer?: CloseAnswer | null };
+> & {
+  no_show?: boolean | null;
+  close_answer?: CloseAnswer | null;
+  /** § 7 — when the live hold on this trip runs out. Masked to NULL once past. */
+  hold_expires_at?: string | null;
+};
 
 /**
  * § Q slice 2 — the Driver has answered that the trip never happened. Red, not
@@ -409,6 +414,20 @@ export function missionTone(
       // bug the founder reported. Doing it here covers the schedule, the calendar,
       // the history and the expanded row in one place.
       if (pickup <= now.getTime()) return expiredTone;
+      // § 7 — a Driver has this trip frozen while they decide. Ranked ABOVE the
+      // "No Driver yet" urgency on purpose: both can be true at once, and of the two
+      // "someone is looking at it right now" is the one that changes what a Dispatcher
+      // should do, which is nothing, for fifteen seconds.
+      // ⚑ THE FACT, NOT A COUNTDOWN. docs/06:427 asks for "reassuring, not alarming", and
+      //   a clock ticking down on a hotel's screen invites "so will they take it?" — a
+      //   question whose answer is often no, delivered to the wrong audience.
+      if (m.hold_expires_at && new Date(m.hold_expires_at).getTime() > now.getTime())
+        return {
+          tone: "info",
+          label: "A Driver is reviewing this",
+          hint: "A Driver has this trip on hold while they decide.",
+          needsAttention: false,
+        };
       // "No Driver yet" (still fixable) vs "Unfilled" (over) — founder's wording.
       // These used to BOTH read "Unfilled", one as a warning and one as an
       // outcome, which is the one pair of labels a Dispatcher must never confuse.

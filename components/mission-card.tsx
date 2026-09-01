@@ -16,6 +16,7 @@ import {
   Plane,
   Moon,
   type LucideIcon,
+  Eye,
 } from "lucide-react";
 import type { PoolMissionRow } from "@/lib/database.types";
 import { tripDistanceKm } from "@/lib/geo";
@@ -53,6 +54,11 @@ export function MissionCard({
   fare: number | null;
 }) {
   const when = formatPoolWhen(mission.pickup_at);
+  // § 7 — someone is holding this right now. ⚑ The masked view column is already NULL once
+  // the instant has passed, so a value here means live. No countdown on the LIST: making it
+  // tick would mean polling the Pool ~45 times a minute per idle Driver, each render four
+  // sequential round trips, to carry a 15-second notice. The clock ticks on the trip page.
+  const reviewed = !!mission.hold_expires_at && Date.parse(mission.hold_expires_at) > Date.now();
   const isHourly = mission.mission_type === "hourly";
 
   const straightKm = tripDistanceKm(
@@ -98,7 +104,10 @@ export function MissionCard({
   }
 
   return (
-    <Link href={`/missions/${mission.id}`} className="pcard">
+    <Link
+      href={`/missions/${mission.id}`}
+      className={reviewed ? "pcard pcard--reviewed" : "pcard"}
+    >
       <div className="pcard__head">
         <span className="pcard__fare">{fare == null ? "—" : formatMoney(fare)}</span>
         <span className="pcard__when">
@@ -111,6 +120,15 @@ export function MissionCard({
 
       <div className="pcard__body">
         <div className="pcard__badges">
+          {/* ⚑ The badge stays at full opacity while the row fades around it (founder, S72):
+              the card is the thing that is unavailable, the badge is the thing that says
+              why, and fading the explanation with the thing it explains helps nobody. */}
+          {reviewed && (
+            <span className="pill-reviewed">
+              <Eye size={12} strokeWidth={1.9} aria-hidden="true" />
+              Being reviewed
+            </span>
+          )}
           <span className="pbadge pbadge--type">
             {isHourly ? (
               <Clock size={13} strokeWidth={1.9} aria-hidden="true" />

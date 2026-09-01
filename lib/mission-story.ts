@@ -63,6 +63,16 @@ export const PHRASES: Record<MissionEventType, { says: string; phase: StoryPhase
   // Recorded in the vocabulary, deliberately never written (founder, S66).
   pool_impression: { says: "Seen in the Pool", phase: "booking" },
   mission_viewed: { says: "Opened by a Driver", phase: "booking" },
+  // § 7 — the hold. Admin-only (audienceFor), so these phrases appear on the console's
+  // trip story and nowhere a Business or Driver can read them.
+  // ⚑ THE WORDING KEEPS THE OUTCOMES APART. "Let it go" and "Ran out of time" describe two
+  //   different Drivers, and "Trip withdrawn" is not about the Driver at all — only the last
+  //   one is NOT a price signal, and a shared phrase would hide that in plain sight.
+  hold_taken: { says: "Held to think", phase: "booking" },
+  hold_committed: { says: "Took it after holding", phase: "assignment" },
+  hold_lapsed: { says: "Ran out of time deciding", phase: "booking" },
+  hold_released: { says: "Let it go before the clock", phase: "booking" },
+  hold_void: { says: "Trip withdrawn while held", phase: "booking" },
 };
 
 const KNOWN = new Set<string>([...TRIGGER_EVENTS, ...APP_EVENTS]);

@@ -4164,3 +4164,44 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   background: var(--surface);
 }
 .wb-btn:hover { background: var(--accent-soft); }
+
+/* ------------------------------------------------------------------ § 7 · the hold
+   Fifteen seconds of thinking time. Three states, three voices: the holder's is
+   reassuring, the watcher's is factual, the spent one is neither — it just states
+   a fact that turns out to be good news. */
+.dcta--ghost {
+  background: var(--surface);
+  color: var(--accent);
+  border: 1px solid var(--border-strong);
+}
+.dcta--ghost:hover:not(:disabled) { background: var(--accent-soft); }
+
+.hold-mine {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  margin: 8px 0 0; font-size: 12.5px; color: var(--text-muted);
+}
+/* ⚑ The watcher's line replaces the Accept button, so it occupies the same space and
+   weight — a Driver must see at a glance that the control is gone, not hunt for it. */
+.hold-watch {
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 13px; font-size: 13.5px; font-weight: 500; color: var(--text-muted);
+  background: var(--surface);
+  font-variant-numeric: tabular-nums;
+}
+.hold-spent {
+  margin: 9px 0 0; text-align: center;
+  font-size: 12.5px; color: var(--text-muted);
+}
+
+/* The Pool row. ⚑ The ROW fades and the BADGE does not — the founder's call, S72: the
+   card is the thing that is unavailable, the badge is the thing that explains why. */
+.pcard--reviewed .pcard__fare,
+.pcard--reviewed .pcard__route,
+.pcard--reviewed .pcard__foot { opacity: 0.5; }
+.pill-reviewed {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--tone-neutral-bg); color: var(--tone-neutral-fg);
+  border-radius: var(--radius-pill); padding: 3px 9px;
+  font-size: 11.5px; font-weight: 500; white-space: nowrap;
+}

@@ -62,6 +62,33 @@ export const APP_EVENTS = [
   "close_answered",
 ] as const;
 
+/**
+ * § 7 — the hold. Written by the trigger on `mission_hold`, so neither a status transition
+ * nor an app write: a third source, and it needs its own list.
+ *
+ * ⚑ D109 REQUIRED THESE TO SHIP WITH THE FEATURE, and `handoff-check` assertion 39 went red
+ * when the migration landed and this list was still empty — which is exactly what it was
+ * written for. A hold ends by commit (observed, same transaction) or by the clock running
+ * out, and NOTHING observes that: no status change, no trigger, nothing running at T+15 s.
+ * Ship the hold and instrument it later and every lapse in between is gone for good.
+ *
+ * ⚑ `hold_lapsed` AND `hold_void` ARE `source: 'derived'`, NOT 'db_trigger'. They are
+ * reconstructed from a timestamp by `sweep_lapsed_holds()` whenever someone next looks.
+ * Labelling them 'db_trigger' would make the log claim it witnessed something it inferred —
+ * the exact fault D86–D92 are all instances of. `payload.notice_lag_s` says how late.
+ *
+ * ⚑ AND `lapsed` ≠ `void`. A lapse is a Driver who looked at a price and walked away: the
+ * sharpest price-rejection signal Kavenue will ever have. A void is the trip being cancelled
+ * underneath them, which says nothing about the price. Merging them would be invisible.
+ */
+export const HOLD_EVENTS = [
+  "hold_taken",
+  "hold_committed",
+  "hold_lapsed",
+  "hold_released",
+  "hold_void",
+] as const;
+
 /** The subset log_mission_event() will accept from a browser JWT. */
 export const CLIENT_LOGGABLE = [
   "pool_impression",
@@ -72,7 +99,8 @@ export const CLIENT_LOGGABLE = [
 
 export type TriggerEvent = (typeof TRIGGER_EVENTS)[number];
 export type AppEvent = (typeof APP_EVENTS)[number];
-export type MissionEventType = TriggerEvent | AppEvent;
+export type HoldEvent = (typeof HOLD_EVENTS)[number];
+export type MissionEventType = TriggerEvent | AppEvent | HoldEvent;
 
 export type EventSource =
   | "db_trigger"
@@ -80,6 +108,14 @@ export type EventSource =
   | "app"
   | "status_event_backfill"
   | "mission_row_backfill"
+  /**
+   * ⚑ RECONSTRUCTED, NOT OBSERVED. A hold that lapses leaves nothing behind — no status
+   * change, so no trigger, and nothing runs at T+15 s to witness it. `sweep_lapsed_holds()`
+   * infers it later from `expires_at` and stamps the row with WHEN THE CLOCK RAN OUT, not
+   * when the sweep noticed; `payload.notice_lag_s` carries the difference. True, and not
+   * witnessed — which is a third thing, distinct from both 'db_trigger' and the backfills.
+   */
+  | "derived"
   /**
    * ⚑ MANUFACTURED. A row written by `.local/seed/`, describing a trip that was
    * invented to test with. It exists because the alternative was worse: the
@@ -138,6 +174,14 @@ export function audienceFor(type: string): Audience[] {
     case "contact_revealed":
     case "accept_rejected":
     case "mission_viewed":
+    // § 7 — the same rule. The Business is told live that a Driver is reviewing (from
+    // mission.hold_expires_at, a status), but a named contractor's hesitation is not an
+    // entry in the Business's history.
+    case "hold_taken":
+    case "hold_committed":
+    case "hold_lapsed":
+    case "hold_released":
+    case "hold_void":
       // ⚑ A Driver's Pool behaviour is not the Business's business.
       return ["admin"];
     default:

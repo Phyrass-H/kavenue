@@ -39,9 +39,16 @@ It matters beyond looks — the saved waybills survive far longer in an installe
 copies away; opening the app brings them back. Saving a PDF from the share menu is still there as the
 belt-and-braces — that file never disappears.
 
-⚑ **Two things worth knowing.** No Driver in the system has filled in their company name, REVTC number or
-registered address yet — so today every real waybill politely refuses rather than printing a blank line. And
-there was no live trip anywhere in the database to test against, so the demo Driver now has a few.
+⚑ **Two things worth knowing.** No Driver in the system had filled in their company name, REVTC number or
+registered address — so every waybill politely refused rather than printing a blank line. **All 13 test
+Drivers now have them** (plausible values, not real registrations; a real Driver fills them in Account →
+Company). And there was no live trip anywhere in the database to test against, so the demo Driver now has a
+few.
+
+⚑ **One thing that will confuse you if nobody says it.** The "seed missions" dev tool creates its own hotel —
+**Carlton Cannes (seed)** — while the one-click Dispatch sign-in puts you in as **Hôtel Majestic Cannes**. So
+a seeded trip shows on the Driver side and *not* on your Dispatch screen. Nothing is broken; they simply
+belong to two different hotels. To follow one trip from both sides, use one belonging to Majestic.
 
 ---
 

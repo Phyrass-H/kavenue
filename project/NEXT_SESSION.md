@@ -30,11 +30,20 @@ present in `public/`; and the manifest must name icons that exist. Both Rule-Zer
 loose (`WaybillCacheSync` anywhere in the layout) and **stayed green with the render deleted**, because the
 import line matched. It matches `<WaybillCacheSync` now.
 
-⚑ **TWO LIVE FACTS THE FOUNDER SHOULD SEE.** Not one Driver in the DB has `company_name` /
-`registered_address` / `revtc_number`, so **every real Waybill refuses today** — working as designed, but the
-document had never rendered against live data before this session. And there was **no live trip in the whole
-database** (364 rows: completed/expired/cancelled/pooled), so `Demo Driver` was given company details and the
-dev seed left a few trips on it, deliberately.
+⚑ **THE EXPLOITANT FIELDS WERE EMPTY ON EVERY DRIVER AND ARE NOW FILLED** (founder asked, same session).
+All **13 Drivers clear `waybillGaps()`** — company name, registered address, REVTC and carte pro, plus two
+SIRETs repaired that were not 14 digits and so yielded no SIREN. Before this the document had never rendered
+against live data at all. ⚑ These are plausible test values, **not real registrations** — a real Driver fills
+them in `/settings/company`.
+
+⚑ **THERE WAS NO LIVE TRIP IN THE WHOLE DATABASE** (364 rows: completed/expired/cancelled/pooled), so the dev
+seed left a few on `Demo Driver`, deliberately.
+
+⚑ **AND THE SEED TOOL OWNS ITS OWN BUSINESS.** `/api/seed` creates **Carlton Cannes (seed)** with dispatcher
+`Concierge Desk`, while `/api/dev-login?as=business` signs in as **Demo Desk → Hôtel Majestic Cannes**. A
+seeded trip is therefore invisible on the Dispatch side, which cost the founder a confused ten minutes
+(2026-09-01). Not a bug — but if you are checking one trip from BOTH sides, accept a trip belonging to
+Hôtel Majestic Cannes, not a seeded one.
 
 ⚑ **iOS evicts the cache after ~7 days unopened.** Opening the app restores it. Print-to-PDF stays as the
 belt-and-braces and its hint line stays on the document.

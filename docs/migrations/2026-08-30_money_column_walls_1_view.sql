@@ -145,6 +145,10 @@ select
   m.waiting_fee,
   m.no_show_by,
   m.checked_in_at,
+  -- ⚑ Added 2026-09-01. The §7 hold's column landed on `mission` in a parallel
+  --   session and was added to the LIVE view there; without it here, the next
+  --   `drop view / create view` from this file would silently delete it again.
+  m.hold_expires_at,
   m.close_answer,
   m.close_answered_at,
   m.rate_card_id,

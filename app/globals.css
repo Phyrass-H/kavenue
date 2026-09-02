@@ -942,11 +942,15 @@ textarea::placeholder {
   display: grid;
   grid-template-columns:
     minmax(58px,  0.5fr)    /* time   — floor fits a lifted row's "30 Jul" (§ Q) */
-    minmax(86px,  4fr)      /* route  — widest at rest, shrinks with the rest */
+    minmax(86px,  3.6fr)    /* route  — widest at rest, shrinks with the rest */
     minmax(56px,  0.95fr)   /* flight */
     minmax(56px,  1.15fr)   /* guest  */
     minmax(50px,  0.75fr)   /* ref    */
     minmax(56px,  1.15fr)   /* driver */
+    /* fare — floor fits "Closed at 196,17 €" without wrapping the label off the
+       number. Route gives up the width, matching the archive's own proportions,
+       which have carried eight columns since History shipped. */
+    minmax(112px, 1fr)
     minmax(116px, 1.1fr);   /* status — floor fits the longest pill ("Not confirmed") */
   gap: 12px; align-items: center;
 }
@@ -1097,6 +1101,7 @@ textarea::placeholder {
 .dxh-sort:hover { color: var(--text); }
 .dxh-sort.is-on { color: var(--accent); }
 .dxh-sort--num { justify-content: flex-end; }
+.dx-colhead > *:nth-child(7),
 .dx-colhead--arch > *:nth-child(7) { text-align: right; }
 .dxh-sort__dir { font-size: 10px; }
 
@@ -1117,6 +1122,30 @@ textarea::placeholder {
    settled, so it shows on its row and is excluded from every total. Muted so it
    can't be read as money owed. */
 .dxh-fare--pending b { font-weight: 400; color: var(--text-muted); }
+
+/* ── the live schedule's Fare cell ─────────────────────────────────────────────
+   Two lines: what this money IS plus the amount, then the Ceiling under it.
+
+   ⚑ THE LABEL IS DELIBERATELY TINY AND GREY (founder, 2026-09-01). Badges were
+   mocked up and rejected — a row already carries a STATUS pill and sometimes a
+   "Night rate" tag, and a third pill made three pill-shaped things arguing on one
+   line. Only the number carries weight; the word is there when you look for it. */
+.dxs-fare {
+  text-align: right;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.35;
+}
+.dxs-fare__top { display: block; white-space: nowrap; }
+.dxs-fare__lab { font-size: 10.5px; color: var(--text-faint); margin-right: 4px; }
+.dxs-fare__top b { font-size: 13px; font-weight: 600; color: var(--text); }
+.dxs-fare__sub {
+  display: block; font-size: 10.5px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The auction climbed the whole way and still nobody took it — the one row on the
+   screen that is asking to be acted on, so it is the one that carries a colour. */
+.dxs-fare__sub--warn { color: var(--tone-warn-fg); }
 
 /* Search hit. Amber wash rather than the accent — navy on navy would fight the
    status rail, and this is a "look here", not a state. */

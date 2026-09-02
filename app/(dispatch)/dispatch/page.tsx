@@ -75,6 +75,7 @@ function ColumnHead() {
       <span>Guest</span>
       <span>Ref</span>
       <span>Driver</span>
+      <span>Fare</span>
       <span>Status</span>
     </div>
   );

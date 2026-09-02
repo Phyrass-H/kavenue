@@ -5,6 +5,7 @@ import type { MissionRow, AmendmentStatus, ReleaseStatus } from "@/lib/database.
 import { closeAmendment } from "@/app/(dispatch)/dispatch/[id]/amend/actions";
 import { closeRelease } from "@/app/(dispatch)/dispatch/actions";
 import { settledFare } from "@/lib/pdp";
+import { fareCell } from "@/lib/fare-cell";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
 import { businessCost, carriesCommission, businessRatesOf, businessSplitFor,
@@ -373,6 +374,10 @@ export function TripRow({
   // snapshot renders exactly as it did before commission shipped.
   const fareSplit = businessSplitFor(mission, settledFare(mission));
   const ceilingSplit = businessSplitFor(mission, Number(mission.ceiling));
+
+  // The collapsed row's Fare cell — Auction / Closed at / Not taken / Fee, each with
+  // the Ceiling under it. One rule, shared with the admin console.
+  const cell = fareCell(mission);
   // Only once a Driver holds it: while the price is still climbing, "saved" is
   // a claim about a number that is still moving.
   // ⚑ WHAT THE ROW'S OWN AMOUNT IS MADE OF, in Course space — `historyFare`'s
@@ -560,6 +565,22 @@ export function TripRow({
           >
             {fare == null ? "—" : <b>{formatMoney(fare)}</b>}
             {archiveNote && <em>{archiveNote}</em>}
+          </span>
+        )}
+
+        {/* The live schedule's own Fare cell. Until 2026-09-01 the money above was
+            `archived &&` and nothing rendered here at all — History had a Fare column
+            and the screen a Dispatcher lives on had none. See lib/fare-cell.ts for why
+            each row names its own money rather than printing a bare euro figure. */}
+        {!archived && (
+          <span className="dxs-fare">
+            <span className="dxs-fare__top">
+              <span className="dxs-fare__lab">{cell.label}</span>
+              {cell.amount != null && <b>{formatMoney(cell.amount)}</b>}
+            </span>
+            <span className={`dxs-fare__sub${cell.reached ? " dxs-fare__sub--warn" : ""}`}>
+              {cell.reached ? "ceiling reached" : `ceiling ${formatMoney(cell.ceiling)}`}
+            </span>
           </span>
         )}
 

@@ -61,16 +61,27 @@ labelling. The founder is satisfied the money is right. ⚑ Re-raise ONLY with t
 that was made and never answered: *the founder understands it after four messages of
 explanation; a Dispatcher at the hotel will never get that explanation.*
 
-### 🧹 TWO SMALL ONES, MEASURED AND QUEUED
-- **Typecheck `.local/seed/`.** TypeScript's include globs **skip dot-directories**, so
-  nothing under `.local/` is checked — which is why a branded type could not protect the two
-  scripts that mispriced 25 trips ([[d124]]). Turning it on costs **18 errors across 5 files**
-  in `seed/` (`bleach`, `s61-priced`, `s64-curve`, `seed-hard-cases`, `seed-probe-accounts`);
-  `seed-trips` and `seed-live` are already clean. ⚑ `.local/probe/` is another 41 errors and
-  is read-mostly — do `seed/` only. Needs `allowImportingTsExtensions` too.
+### 🧹 ONE SMALL ONE LEFT
 - **The admin status pill is behind its own row.** On a pooled trip whose pickup has passed
   the fare cell says `Not taken` (`isExpired`) while the pill says `Pooled` (raw status).
-  The pill is stale; `lib/dispatch-status` already solves this on Dispatch.
+  The pill is the stale one; `lib/dispatch-status` already solves this on Dispatch.
+
+### ✅ `.local/seed/` IS TYPECHECKED (2026-09-02) — and it found a third night bug
+TypeScript's include globs **skip dot-directories**, so nothing under `.local/` had ever
+been checked — which is why the `ParisLocal` brand could not protect the scripts the bug
+lived in. `.local/seed/**` + `allowImportingTsExtensions` are now in `tsconfig.json`.
+
+⚑ **On the first run it named `seed-hard-cases.mts:53`** — a THIRD script passing
+`toISOString()` to `isNightPickup`, which nobody had found by reading. ⚑ And a dead ternary
+in `bleach.mts` (`t === "profile" ? …`) that could never take its first branch, because
+`profile` is deliberately not in `ORDER`.
+
+The other 16 were nulls, fixed with **throws, not `!`** — a bare non-null assertion is how a
+seed writes rows against nothing at all in silence.
+
+⚑ **`.local/probe/` is STILL UNCHECKED — another 41 errors**, and those scripts read far
+more than they write. Left on purpose. If you turn it on, expect `'q' is of type unknown`
+in `accepted-fare.ts`, `curve-live.ts` and `s64-curve.ts`, and nullable `biz`/`drv` rows.
 
 ## ⚑ § 4's OFFLINE GAP IS CLOSED (2026-09-01, S73) — and the Waybill lost its 1°–7°
 

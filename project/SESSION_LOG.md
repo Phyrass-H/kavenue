@@ -5,6 +5,62 @@
 
 ---
 
+## 2026-09-02 — Session 73 (part 3) — THE NIGHT CLOCK, AND A MODEL THE FOUNDER CORRECTED
+
+**Scope.** The founder's own night-rate question, then the fix. Suite **891 → 895**. No migration.
+
+### What shipped
+`ParisLocal`, a branded type in `lib/time.ts` — `asParisLocal()` from a form field,
+`utcToParisLocal()` from an instant. Both seeds converted. Full reasoning in [[d124]].
+
+⚑ **THE BRAND ALONE WOULD NOT HAVE CAUGHT IT.** TypeScript's `include` globs **skip
+directories beginning with a dot**, so `.local/` — where both broken scripts live — is not
+typechecked at all. Found by planting a type error there and watching `tsc` stay silent.
+Hence the runtime throw: a wall clock never carries a zone, so a trailing `Z` or `+02:00`
+now raises instead of quietly reading the wrong hour. ⚑ Including `.local/**` properly
+surfaces **70 pre-existing errors** in old probe scripts — out of scope, and named in
+[[d124]] so the next person knows the compiler does not cover that directory.
+
+⚑ **`/api/seed` deliberately untouched**, and my earlier note about it was wrong: it
+hand-prices its fixtures off no rate card, so setting the flag would claim a premium the
+number does not contain.
+
+### ⚑⚑ THE ONE TO CARRY — I ARGUED A PRICING CHANGE FROM THE WRONG MODEL OF DRIVERS
+The founder asked whether the ×1,20 really reaches the Driver given the auction. I said no,
+and built a case: if a Driver accepts when the price crosses a number they have already
+decided on, lifting the band makes the price cross it *sooner* — the premium buys time, not
+money. I recommended opening the night curve at 70% of the ceiling, and produced a diagram.
+
+**Then the founder said what actually happens: many Drivers per class, they compete, the
+hungriest takes what is showing.** Drivers *grab*. Under grabbing, a night trip taken early
+pays an opening price that is 20% higher — **the premium lands in full, because of the very
+behaviour I thought would absorb it.** [[d125]]. No pricing change. The badge is honest.
+
+⚑ **And I moralised past them on the way there.** I measured that 36% of trips settle below
+a quarter of the band and that the cheapest quarter banks 1,50 €/km against 4,08 €/km for
+the patient quarter — *2,7× for the same work* — and framed it as the platform underpaying
+the Drivers least able to refuse. The founder read it as competition working, which is what
+an auction with abundant supply produces, and lifting the floor to "protect" anyone is
+Kavenue nudging the fare — `docs/06` §0 forbids it. Their read stands. The numbers are kept
+in [[d125]] so nobody re-litigates them from scratch.
+
+⚑ **A process lesson worth more than the pricing.** I asked the founder to name a price and
+they did not understand why — **the prices are settled**, floor and ceiling live in the rate
+card. What I wanted to change was the shape of the climb between them, a code constant.
+**Name the parameter, not the price.**
+
+### Verified
+Rule Zero three ways, including re-introducing the exact original bug (`utcToParisLocal`
+returning the raw ISO) and watching the test name it. Plus DST: the same wall clock reads as
+night in August (+02) and December (+01) — the point of working on a wall clock at all.
+
+### Left alone, on purpose
+The 25 archive rows with the wrong flag (founder's call). They are internally consistent;
+flag-only would put a `Night rate` badge on a day-priced trip, and 19 of 25 have settled
+money. Next bleach + re-seed corrects them.
+
+---
+
 ## 2026-09-02 — Session 73 (part 2) — THE SCHEDULE GETS ITS MONEY BACK
 
 **Scope.** The founder picked the money-labelling job, then redirected it mid-preview: I had

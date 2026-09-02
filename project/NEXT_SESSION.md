@@ -11,7 +11,7 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ## ⚑ THE SCHEDULE HAS A FARE COLUMN (2026-09-02, S73) — and the night rate is wrong in the SEEDS
 
-`main` = **`fa2ca0f`**, CI-green on a branch first. **873 → 891 tests.** No migration.
+`main` = **`52a76a2`**, CI-green on a branch first. **873 → 895 tests.** No migration.
 
 Every row on `/dispatch` now names its own money — `Auction` · `Closed at` · `Not taken` ·
 `Fee` · `No fee`, each with the Ceiling under it, all Business all-in. One rule in
@@ -33,28 +33,33 @@ on that screen. It needs its own preview before anything is built.
 Dispatch History has shown the settled fare for a while, and the calendar already labels
 `Fare (now) · ceiling`. The admin console is the only place left.
 
-### 🔴 THE NIGHT RATE — REAL, MEASURED, NOT FIXED ([[d124]])
-Founder spotted it on their own schedule: a 23:42 pickup with no `Night rate` tag beside a
-01:46 one that had it.
+### ✅ THE NIGHT RATE — ANSWERED AND FIXED (2026-09-02) — do not re-open the pricing
+**The ×1,20 DOES reach the Driver** ([[d125]]). I argued at length that the auction absorbs
+it — that reasoning assumed Drivers hold out for a reservation price. **The founder's own
+observation is that they grab**: many Drivers per class, they compete, the hungriest takes
+what is showing. Under grabbing, a night trip taken early opens 20% higher and pays 20% more.
+**No change to floor, ceiling or opening point. The `Night rate` badge is honest.**
 
-**The app is correct.** `isNightPickup(pickupLocal)` gets the Paris wall-clock string the
-booking form holds, exactly as its doc comment asks. A real Business posting a trip is fine.
+⚑ **DO NOT re-derive the "open the night curve at 70%" proposal.** It was made, it was
+argued from the wrong model of Driver behaviour, and it is closed.
 
-**The seeds are wrong.** `.local/seed/seed-trips.mts:158` and `.local/seed/seed-live.mts:61`
-pass `d.toISOString()` — **UTC** — so the hour is read in the wrong zone and the whole window
-slides by the offset: in summer the seeded archive priced nights as **00:00–08:00** instead of
-22:00–06:00. `/api/seed` never sets `night_applied` at all.
+⚑ **AND DO NOT re-litigate the spread.** 36% of accepted trips settle below a quarter of the
+band; the cheapest quarter banks **1,50 €/km** against **4,08 €/km** for the patient quarter,
+*2,7× for the same work*. That was read as the platform underpaying — **the founder reads it
+as competition working**, and lifting the floor to "protect" anyone is Kavenue nudging the
+fare, which `docs/06` §0 forbids. Numbers kept in [[d125]]; the interpretation is settled.
 
-**Measured: 25 of 370 trips wrong** — 8 that should be night billed as day (20% under), 17
-flagged night that are not (20% over) — and **every wrong row is in Paris hours 06h, 07h, 22h,
-23h**, which is the slide and nothing else.
+**The clock bug is fixed.** `ParisLocal` is a branded type (`lib/time.ts`); both seeds
+converted; a runtime throw catches an instant. ⚑ **TypeScript does NOT typecheck `.local/`** —
+its globs skip dot-directories, which is why the brand alone was not enough and why the
+throw exists. Including it properly surfaces 70 pre-existing errors in old probe scripts.
 
-⚑ **THE FIX IS NOT ONLY THE DATA.** `isNightPickup` takes a `string` and cannot tell a Paris
-clock from a UTC one; two separate scripts made the identical mistake in silence. Take the
-instant and convert inside, or brand the parameter. **And add the probe assertion** —
-`night_applied` must agree with the Paris wall clock on every row.
+**The 25 archive rows are left wrong on purpose** (founder). Internally consistent; a
+flag-only fix would badge a day-priced trip as night. They correct on the next bleach + re-seed.
 
-⚑ **The founder had a second night-rate observation of their own, not yet heard.** Ask.
+⚑ **Multi-country, when it comes:** the window must be the local clock AT THE PICKUP, so a
+mission needs its own zone. `rate_card.market` (already `'riviera'`, already what selects
+prices) is where it belongs. Not needed until a second market opens.
 
 ## ⚑ § 4's OFFLINE GAP IS CLOSED (2026-09-01, S73) — and the Waybill lost its 1°–7°
 
@@ -565,7 +570,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 **50 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 891 passing
+    npx tsc --noEmit && npx vitest run          # expect 895 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE

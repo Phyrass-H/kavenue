@@ -3371,6 +3371,64 @@ and do the conversion itself, or the parameter should be a branded `ParisLocal` 
 never-checked assumption looked like working code. A probe asserting `night_applied` agrees
 with the Paris clock on every row would have caught it the day it appeared.
 
-**Not fixed yet — the founder chose to ship the Fare column first.** Nothing is wrong on a
-customer's screen; what is wrong is that any read of night pricing over the archive is
-currently measuring the bug.
+**FIXED 2026-09-02.** `ParisLocal` is a branded type (`lib/time.ts`), built by
+`asParisLocal()` from a form field or `utcToParisLocal()` from an instant. Passing a raw
+string is now a compile error at every call site the app builds. Both seeds converted.
+
+⚑ **AND A RUNTIME THROW, BECAUSE THE BRAND IS NOT ENOUGH.** TypeScript's `include` globs
+**skip directories beginning with a dot**, so `.local/` — where both broken scripts live —
+was never typechecked at all. Verified by planting a type error there and watching `tsc`
+stay silent. A wall clock never carries a zone, so a trailing `Z` or `+02:00` now throws.
+⚑ Including `.local/**` properly surfaces **70 pre-existing errors** in a dozen old probe
+scripts; out of scope for a night fix, and the throw covers them meanwhile. **If you ever
+rely on the compiler to protect a script under `.local/`, it will not.**
+
+⚑ **`/api/seed` was deliberately NOT changed**, and the earlier note saying it should set
+the flag was wrong: it hand-prices its fixtures and never touches the rate card, so it has
+no night band. Setting the flag would claim a premium the number does not contain.
+
+⚑ **The 25 archive rows are left alone** (founder, 2026-09-02). They are internally
+consistent — flag and band agree with each other, both computed from the same wrong
+boolean. Fixing the flag alone would break that and put a `Night rate` badge on a
+day-priced trip, which is a worse lie; and 19 of the 25 have settled money. They correct
+themselves on the next bleach + re-seed.
+
+### D125 — The night premium DOES reach the Driver, because Drivers accept early (2026-09-02, S73)
+The founder's question: *"it's supposed to be 20% higher, but because it's an auction the
+price starts with the same logic, so for the Drivers there's not a 20% higher rate."*
+
+I argued at length that they were right, from this model: a Driver accepts when the
+climbing price crosses a number they have already decided on, so lifting the whole band by
+20% makes the price cross that number *sooner* — the Driver accepts earlier and banks the
+same amount. **The 20% buys time, not money.** I recommended opening the night auction
+high in the band instead, the SPEED WIN mechanism.
+
+⚑ **THE MODEL WAS WRONG, AND THE FOUNDER'S OWN OBSERVATION IS WHAT SHOWED IT.** There are
+many Drivers per class, they compete, and *"the most angry one just wants to work and they
+would take it"*. Drivers do not hold out for a reservation price — **they grab whatever is
+showing**. Under grabbing:
+
+- a day trip taken early pays roughly the opening price
+- a night trip taken early pays an opening price that is **20% higher**
+
+**So the premium lands, in full, precisely because of the behaviour that made me think it
+would not.** No change to floor, ceiling or opening point. The `Night rate` badge is honest:
+a Driver taking a night trip early really does bank ~20% more than taking a comparable day
+trip early.
+
+⚑ **AND THE MEASUREMENT THAT ALMOST SENT ME THE WRONG WAY, kept here so it is not
+re-litigated.** Across 296 accepted trips: **36% settle below a quarter of the band**, the
+cheapest decile at **6%**, and the quarter who take it cheapest bank **1,50 €/km** against
+**4,08 €/km** for the quarter who wait — *2,7× for the same work*. I read that as the
+platform underpaying the Drivers least able to refuse. **The founder read it as competition
+working**, which is what an auction with abundant supply is supposed to produce — and
+Kavenue lifting the floor to "protect" Drivers is Kavenue nudging the fare, which
+`docs/06` §0 forbids outright. Their read stands; [[founder-knows-the-market]].
+
+⚑ **A process note worth more than the pricing.** I asked the founder to name a price
+(*"what is the least you would take for a 30 km run at 01:00"*) and they did not understand
+the question — **because the prices are settled**: floor and ceiling live in the rate card
+and were decided long ago. What I actually wanted to change was the *shape* of the climb
+between them, which is a code constant, not a price. Asking for a number that already
+exists reads as re-opening a locked decision. **Name the parameter, not the price.**
+

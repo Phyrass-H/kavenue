@@ -5,6 +5,39 @@
 
 ---
 
+## 2 September 2026 — the night rate, answered and fixed
+
+**Your question was: is the 20% night premium actually reaching the Drivers, or does the
+auction swallow it?** I argued at length that it swallows it. **I was wrong, and what you
+said about Drivers is what showed it.**
+
+My reasoning assumed a Driver waits until the price reaches a number they've decided on. If
+that were true, raising the whole price band by 20% would just make the price reach that
+number sooner — they'd accept earlier and take home the same money. You told me that's not
+this market: there are many Drivers per class, they compete, and the one who needs the work
+takes what's showing. **If Drivers grab, the premium lands in full** — a night trip taken
+early opens 20% higher, so they bank 20% more. The night rate does what it says, and the
+badge is honest.
+
+**Nothing needed changing in your prices.** What was broken was the data.
+
+**The clock bug is fixed.** The night rule reads the local hour — "22:00" — and the seeding
+scripts were handing it a UTC timestamp, so the window slid two hours. Now a "Paris wall
+clock" is its own kind of value in the code: hand the function a timestamp by mistake and it
+either won't compile, or it stops and says so. It can't silently read the wrong hour again.
+
+⚑ **Summer and winter are already handled**, and it's worth knowing why: the rule works on
+the clock on the wall, not on a timestamp, so the calendar has already done the work. 23:30
+is night in August and in December, and nothing in Kavenue mentions daylight saving. When
+you open in another country, the only new thing needed is which clock that market runs on.
+
+**The 25 old trips with the wrong tag stay as they are** — your call, and the right one.
+They're wrong in a *consistent* way (the tag and the price agree with each other), and
+correcting only the tag would put a "Night rate" badge on a trip that wasn't priced as one.
+They'll fix themselves next time the test data is rebuilt.
+
+---
+
 ## 2 September 2026 — your schedule finally shows the money
 
 **You were right that something was missing.** Your Schedule had no price on any row — you

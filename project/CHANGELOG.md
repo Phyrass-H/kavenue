@@ -5,6 +5,45 @@
 
 ---
 
+## 2 September 2026 — your schedule finally shows the money
+
+**You were right that something was missing.** Your Schedule had no price on any row — you
+had to open a trip to see what it cost. The odd part: the History page has had a Fare column
+all along, and it's the same piece of code. The column existed and was simply switched off on
+the screen you actually use.
+
+**It's on now, and every row says which money it's showing.** That matters more than it
+sounds. A trip has four different prices in its life and they're far apart — across your
+trips, the ceiling and what was actually paid differ on **two rows out of three**, by **50 €
+typically** and by **615 €** at worst. One finished trip was showing 34,80 € for a ride that
+went for 17,20 €. So no row prints a bare number any more:
+
+- **Auction 185,63 €** · ceiling 335,80 € — still in the Pool, price climbing
+- **Closed at 196,17 €** · ceiling 402,96 € — a Driver took it, price frozen
+- **Not taken 191,76 €** · ceiling reached — the price climbed all the way and nobody took it
+- **Fee 104,85 €** — cancelled, a fee was charged
+- **No fee** — cancelled, nothing owed (never "0,00 €")
+
+**The word is "Auction".** You were right to throw out "Offered" — Kavenue doesn't offer
+anything, it's an agent. And a Dispatcher who reads "Auction" every day learns how the price
+works without anyone explaining it. Small grey label, bold number, ceiling underneath — no
+badges, because your rows already carry a status pill and sometimes a night tag.
+
+⚑ **The row with "ceiling reached" in amber is the one to act on.** It means the price
+climbed the whole way and still nobody took that trip — usually a sign the ceiling is too low
+for that route.
+
+**Still to come:** the same treatment on the admin console, which still shows a bare ceiling.
+
+⚑ **And the night rate thing you spotted is real.** Your 23:42 trip had no night tag when it
+should have. Good news: **your booking screen is correct** — a real trip gets the right price.
+It's the *test data* that's wrong; the seeding scripts read the clock in the wrong time zone,
+which slid the night window two hours. 25 of your 370 trips carry the wrong flag, all of them
+at 6am, 7am, 10pm or 11pm. Nothing a customer sees is affected, but any judgement about night
+pricing based on this data would be reading the mistake. Fixing it next.
+
+---
+
 ## 1 September 2026 — your waybill now works with no signal
 
 **The problem.** A control happens in the CDG parking levels, where there's no signal — and until today that

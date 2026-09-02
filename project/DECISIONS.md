@@ -3304,3 +3304,73 @@ never its own numbering. Nothing mandatory left with the marks, and the section 
 Taken off the refusal list too — a Driver fixing their profile is looking for a settings field, not a legal
 index. The numbering stays in `lib/waybill.ts`'s header comment, which is where the law is written down, and
 the gap objects now name the field.
+
+### D123 — Every fare on a row names itself (2026-09-02, S73)
+The Dispatch schedule carried no money at all: the fare cell in `components/trip-row.tsx`
+was gated on `archived`, so History had a Fare column and the screen a Dispatcher lives on
+had none. The founder went looking for a price on a row and found nothing. Nothing in the
+code ever argued for withholding it — the cell's own comment justifies putting it ON the
+archive and says nothing about the schedule. It was never considered, not decided.
+
+⚑ **WHY IT IS NOT A BARE EURO FIGURE.** A trip has four prices over its life and they are
+not close together. Measured across the live data: the Ceiling and what was actually paid
+differ on **67% of rows, median 50 €, worst 615 €**. One real completed row read 34,80 €
+for a trip that went for 17,20 €; one cancelled row read 525,20 € when the fee was 91,17 €.
+A column of unlabelled euros is not a column of comparable numbers.
+
+Five outcomes, one rule in `lib/fare-cell.ts`, shared with the admin console when that
+lands: `Auction` · `Closed at` · `Not taken` · `Fee` · `No fee`.
+
+⚑ **"AUCTION", NOT "OFFERED AT" — and the founder was right to reject it.** "Offered at"
+was proposed and mocked up; the objection was that **Kavenue is an agent and offers
+nothing**, which is [[CLAUDE.md]] hard rule 2 applied to microcopy. The price climbing
+toward the Ceiling until a Driver takes it *is* an auction, `docs/06 §6` is titled exactly
+that, and a Dispatcher who reads the word daily learns the model — [[plain-words-plus-terms]].
+"Closed at" is the founder's own word for its other end. `Open at` was considered and
+dropped: it reads as *where it opened*, which is a different number.
+
+⚑ **NO BADGES** (founder). Mocked up and rejected: a row already carries a STATUS pill and
+sometimes a `Night rate` tag, and a third pill made three pill-shaped things arguing on one
+line. The label is 10.5px grey; only the number carries weight. ⚑ And the badges had been
+drawn in one neutral grey on purpose — coloured, they read as a second status and start
+fighting the pill on the right.
+
+⚑ **THE SAVING WAS CUT** (founder). An earlier mock put `saved 206,79 €` on the closed row.
+It is docs/06 §6's own "argument for the whole auction" — but it is already on the expanded
+row, and the collapsed row's job is to say which money this is, not to argue.
+
+⚑ **EVERY AMOUNT IS THE BUSINESS ALL-IN**, never the Course (docs/06 §3) — `businessSplitFor`
+is the one door. ⚑ **And "Closed at" is the agreed fare, NOT the bill:** waiting stays in the
+expanded row's invoice table. The label is what keeps that honest — a bare number there
+would be claiming to be a total it isn't, which is exactly the confusion [[d114]]'s grouped
+bill was built to end.
+
+⚑ **`isExpired` is read before `status`.** A `pooled` trip whose pickup has passed is dead
+whether or not the sweep has run; reading the status alone prints a climbing Auction price
+on a trip that is over.
+
+### D124 — The night rate is right in the app and wrong in the seed data (2026-09-02, S73)
+Founder, looking at their own schedule: a 23:42 pickup carried no `Night rate` tag while a
+01:46 one did. Both are inside the window. **Not a product bug — the real posting path is
+correct**, because `isNightPickup(pickupLocal)` is handed the Paris wall-clock string the
+form holds, exactly as its doc comment asks.
+
+**The seed scripts hand it `d.toISOString()` — UTC.** The function takes a *string* and
+cannot tell the two apart, so it reads the wrong hour and the whole window slides by the
+offset: in summer the seeded archive priced nights as **00:00–08:00** instead of 22:00–06:00.
+
+Measured over 370 trips: **25 wrong — 8 that should be night billed as day (20% under), 17
+flagged night that are not (20% over)** — and every single wrong row falls in Paris hours
+**06h, 07h, 22h, 23h**, which is the two-hour slide and nothing else. `/api/seed` never sets
+the flag at all, so anything it creates is day whatever the hour.
+
+⚑ **THE FIX IS NOT ONLY THE DATA.** Two separate scripts made the identical mistake,
+silently, because the signature accepts any string. `isNightPickup` should take the instant
+and do the conversion itself, or the parameter should be a branded `ParisLocal` — the
+[[make-the-compiler-check]] pattern, and this is the seventh time in this repo that a
+never-checked assumption looked like working code. A probe asserting `night_applied` agrees
+with the Paris clock on every row would have caught it the day it appeared.
+
+**Not fixed yet — the founder chose to ship the Fare column first.** Nothing is wrong on a
+customer's screen; what is wrong is that any read of night pricing over the archive is
+currently measuring the bug.

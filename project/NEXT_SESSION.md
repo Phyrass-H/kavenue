@@ -9,6 +9,53 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## ⚑ THE SCHEDULE HAS A FARE COLUMN (2026-09-02, S73) — and the night rate is wrong in the SEEDS
+
+`main` = **`fa2ca0f`**, CI-green on a branch first. **873 → 891 tests.** No migration.
+
+Every row on `/dispatch` now names its own money — `Auction` · `Closed at` · `Not taken` ·
+`Fee` · `No fee`, each with the Ceiling under it, all Business all-in. One rule in
+**`lib/fare-cell.ts`**. Full reasoning + the rejected alternatives in [[d123]].
+
+⚑ **THE VOCABULARY IS DECIDED. Do not re-open it.** "Auction" (not "Offered at" — *Kavenue
+is an agent and offers nothing*, hard rule 2 applied to microcopy), "Closed at" is the
+founder's own word, **no badges**, **no saving figure on the row**, label 10.5px grey.
+
+### 🔴 THE HALF THAT IS NOT DONE — the admin console
+`components/admin-trip-list.tsx:116` still prints `formatMoney(t.ceiling)` **bare and
+unlabelled** on `/admin/trips`, `/admin/businesses/[id]` and `/admin/drivers/[id]` — including
+on completed trips, where the ceiling is not what happened. 67% of those rows show a number
+that is not what the trip did. ⚑ It was left out ON PURPOSE: the console shows the **Course**,
+not the Business all-in, so reusing `fareCell()` as-is would change the basis of every number
+on that screen. It needs its own preview before anything is built.
+
+⚑ **The handoff used to claim "every row on every list prints the Ceiling". That was stale** —
+Dispatch History has shown the settled fare for a while, and the calendar already labels
+`Fare (now) · ceiling`. The admin console is the only place left.
+
+### 🔴 THE NIGHT RATE — REAL, MEASURED, NOT FIXED ([[d124]])
+Founder spotted it on their own schedule: a 23:42 pickup with no `Night rate` tag beside a
+01:46 one that had it.
+
+**The app is correct.** `isNightPickup(pickupLocal)` gets the Paris wall-clock string the
+booking form holds, exactly as its doc comment asks. A real Business posting a trip is fine.
+
+**The seeds are wrong.** `.local/seed/seed-trips.mts:158` and `.local/seed/seed-live.mts:61`
+pass `d.toISOString()` — **UTC** — so the hour is read in the wrong zone and the whole window
+slides by the offset: in summer the seeded archive priced nights as **00:00–08:00** instead of
+22:00–06:00. `/api/seed` never sets `night_applied` at all.
+
+**Measured: 25 of 370 trips wrong** — 8 that should be night billed as day (20% under), 17
+flagged night that are not (20% over) — and **every wrong row is in Paris hours 06h, 07h, 22h,
+23h**, which is the slide and nothing else.
+
+⚑ **THE FIX IS NOT ONLY THE DATA.** `isNightPickup` takes a `string` and cannot tell a Paris
+clock from a UTC one; two separate scripts made the identical mistake in silence. Take the
+instant and convert inside, or brand the parameter. **And add the probe assertion** —
+`night_applied` must agree with the Paris wall clock on every row.
+
+⚑ **The founder had a second night-rate observation of their own, not yet heard.** Ask.
+
 ## ⚑ § 4's OFFLINE GAP IS CLOSED (2026-09-01, S73) — and the Waybill lost its 1°–7°
 
 `main` = **the S73 commits**, CI-green on a branch first. **857 → 873 tests. handoff-check 48 → 50.**
@@ -518,7 +565,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 **50 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 873 passing
+    npx tsc --noEmit && npx vitest run          # expect 891 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE

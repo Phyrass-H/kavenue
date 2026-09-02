@@ -5,6 +5,54 @@
 
 ---
 
+## 2026-09-02 — Session 73 (part 2) — THE SCHEDULE GETS ITS MONEY BACK
+
+**Scope.** The founder picked the money-labelling job, then redirected it mid-preview: I had
+previewed the **admin console**, and they showed me their **Dispatch schedule**, which has no
+price column at all. Theirs was the better find. Suite **873 → 891**. No migration.
+
+### What shipped
+`lib/fare-cell.ts` + the Fare column on `/dispatch`. Five outcomes, each naming its own money:
+`Auction 185,63 € / ceiling 335,80 €` · `Closed at 196,17 € / ceiling 402,96 €` ·
+`Not taken 191,76 € / ceiling reached` · `Fee 104,85 €` · `No fee`. Full reasoning in [[d123]].
+
+**The measurement that justified it:** Ceiling vs what was actually paid differs on **67% of
+rows, median 50 €, worst 615 €**. One completed row read 34,80 € for a trip that went for 17,20 €.
+
+### ⚑ THE DESIGN LOOP DID ITS JOB, FOUR TIMES
+Every one of these was caught by the founder in a preview, before any code existed:
+1. I previewed the **wrong screen** — the admin console, not the one they use.
+2. **"Offered at" was wrong** and they said why: *Kavenue is an agent, it offers nothing.*
+   That is hard rule 2 applied to microcopy, and I had walked straight past it.
+3. **Badges were too busy** — a row already has a STATUS pill and sometimes `Night rate`.
+4. **The saving did not belong** on a collapsed row.
+
+> Four rounds of preview cost less than one round of building the wrong thing. [[show-preview-before-coding]].
+
+### ⚑ AND A GENUINE BUG THE FOUNDER FOUND BY LOOKING — [[d124]]
+A 23:42 pickup with no `Night rate` tag beside a 01:46 one that had it. **The app is right;
+the seeds are wrong** — they pass `toISOString()` (UTC) to a function whose doc comment asks
+for a Paris wall clock, sliding the whole night window two hours. 25 of 370 trips carry the
+wrong flag, every one of them in Paris hours 06h/07h/22h/23h. Not fixed yet — the founder
+chose the Fare column first.
+
+### Verified
+- Rule Zero on all four new guards: `status` instead of `isExpired`, a held trip still ticking
+  upward, the fee skipping the commission, a zero fee printing as `0,00 €`. Each broken, each
+  red for the right reason, each unbroken.
+- Every `mission_status` asserted rather than sampled — no status may reach a blank cell.
+- Live against the founder's real schedule, all five states rendering; layout down to 768px
+  with no overflow and nothing clipped.
+
+### ⚑ AN HOUR LOST TO macOS, WORTH RECORDING
+Mid-session `git` began returning `Operation not permitted` on `.git/config` while `head` read
+the same file fine — macOS TCC denying the git *binary*, not a file-permission problem.
+Granting Full Disk Access was not enough: **the running process keeps its old grant**, and
+`getcwd()` then failed too. A restart fixed it. If this recurs: it is not the repo, and it is
+not the sandbox — quit and reopen.
+
+---
+
 ## 2026-09-01 — Session 73 — THE WAYBILL OFF THE NETWORK, AND TWO GREENS THAT WERE LYING
 
 **Scope.** The founder asked whether to close § 4's offline gap now or wait for the native app. Now — the

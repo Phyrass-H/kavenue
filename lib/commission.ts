@@ -30,7 +30,12 @@
 // Every mission created before this shipped was billed no fee at all. Those rows
 // carry NULL rates and `charged: false`, and the app renders them as one amount
 // with no breakdown. Reading NULL as 0 would be the same arithmetic by accident;
-// reading it as 0,125 would retroactively invent 15 % of charges on 271 live rows.
+// reading it as 0,125 would retroactively invent 15 % of charges on the 6 live rows
+// that still carry them (measured 2026-09-02; an earlier comment here said 271).
+
+// ⚑ TYPE-ONLY, so it is erased at build time and there is no import cycle:
+// lib/vat.ts classifies, this file counts, and only this direction is real.
+import type { BillLineKind, TaxLine, TaxTreatment } from "@/lib/vat";
 
 /** A generation of the rates. One row is live at a time — docs/06 §0. */
 export type CommissionRateRow = {
@@ -383,7 +388,14 @@ export function driverNet(m: CommissionSnapshot | null | undefined, course: numb
 //   remainder. Verified against all 106 by tests/commission.test.ts.
 
 export type BillGroup = {
-  /** What this money paid for. */
+  /**
+   * What this line IS, for the invoice and for VAT. ⚑ THE DISCRIMINANT — the
+   * label below is per-audience wording (the Driver's screen says "No-show —
+   * full fare" where the Business's bill says "Trip"); this is the shared truth
+   * underneath, and the only thing `taxOf` may be asked about.
+   */
+  kind: BillLineKind;
+  /** What this money paid for, in this audience's words. */
   label: string;
   /** Course-side — the amount before Kavenue's fee. */
   gross: number;
@@ -401,12 +413,12 @@ export type BillGroup = {
  */
 export function billGroups(
   m: CommissionSnapshot | null | undefined,
-  items: { label: string; gross: number }[],
+  items: { kind: BillLineKind; label: string; gross: number }[],
   total: number,
 ): BillGroup[] {
   const groups = items.map((it) => {
     const s = businessSplitFor(m, it.gross);
-    return { label: it.label, gross: it.gross, feeHt: s.businessFeeHt, feeVat: s.businessFeeVat, total: s.businessTotal };
+    return { kind: it.kind, label: it.label, gross: it.gross, feeHt: s.businessFeeHt, feeVat: s.businessFeeVat, total: s.businessTotal };
   });
   if (groups.length === 0) return groups;
 
@@ -461,20 +473,36 @@ export function courseFromBusinessTotal(total: number, rates: Rates | null): num
 }
 
 /**
- * The VAT sitting inside a TTC course, at the Driver's own rate — docs/06 §3.
- * 0 for a Driver under *franchise en base*, who charges none. Mirrors
- * `transport_vat()`.
+ * The VAT sitting inside a TTC amount, at a rate already proved positive.
+ * Mirrors SQL `transport_vat()`. The arithmetic is byte-for-byte the
+ * `transportVat` this replaced — `tests/vat.test.ts` pins it cent by cent.
+ *
+ * ⚑ NO LONGER EXPORTED, AND THAT IS THE POINT. The old signature took
+ * `number | string | null | undefined` and answered 0 for BOTH a 0 rate and a
+ * NULL one — a Driver under *franchise en base* and a trip nobody has taken
+ * yet, given the same answer. Every render site then had to remember a
+ * hand-written guard, and exactly one of them ever did. The only door now is
+ * `taxLineFor`, which cannot be called without a resolved treatment.
+ */
+function vatInside(ttc: number, rate: number): number {
+  const r = rateUnits(rate);
+  if (r <= 0n) return 0;
+  const raw = Number(ttc);
+  const c = cents(Number.isFinite(raw) ? Math.max(raw, 0) : 0);
+  return euros(c - divRound(c * RATE_SCALE, RATE_SCALE + r));
+}
+
+/**
+ * A treatment, plus the money it comes to when there is any.
  *
  * ⚑ Read the rate from the mission's `transport_vat_rate` snapshot, never from
  * the Driver's live `vat_number`: a Driver who registers in September must not
- * change the VAT on a trip they drove in August.
+ * change the VAT on a trip they drove in August. `lib/vat.ts` holds that rule.
  */
-export function transportVat(course: number, rate: number | string | null | undefined): number {
-  const r = rateUnits(num(rate) ?? 0);
-  if (r <= 0n) return 0;
-  const raw = Number(course);
-  const c = cents(Number.isFinite(raw) ? Math.max(raw, 0) : 0);
-  return euros(c - divRound(c * RATE_SCALE, RATE_SCALE + r));
+export function taxLineFor(amountTtc: number, t: TaxTreatment): TaxLine {
+  return t.kind === "taxable"
+    ? { kind: "taxable", rate: t.rate, amount: vatInside(amountTtc, t.rate) }
+    : t;
 }
 
 /**
@@ -483,11 +511,12 @@ export function transportVat(course: number, rate: number | string | null | unde
  * on the commission. Equal to `driverNet` for a Driver under franchise en base,
  * who neither charges nor reclaims.
  */
-export function driverKeeps(
-  split: DriverSplit,
-  transportVatRate: number | string | null | undefined,
-): number {
-  const collected = transportVat(split.course, transportVatRate);
+export function driverKeeps(split: DriverSplit, tax: TaxTreatment): number {
+  // ⚑ Every non-taxable treatment keeps the whole net — but they are NOT the
+  // same fact and must not be collapsed upstream: a franchise Driver charges
+  // none, and an undetermined one has simply not been established yet.
+  if (tax.kind !== "taxable") return split.driverNet;
+  const collected = vatInside(split.course, tax.rate);
   if (collected <= 0) return split.driverNet;
   return euros(cents(split.driverNet) - cents(collected) + cents(split.driverFeeVat));
 }

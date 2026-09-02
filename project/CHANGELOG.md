@@ -5,6 +5,45 @@
 
 ---
 
+## 2 September 2026 — the VAT knows which line it's on
+
+You asked me to check the rates online instead of taking my word. Good, because **I had one wrong.**
+
+**At disposal — a car and Driver booked by the hour — is 20 %, not the 10 % I told you.** Buying a
+driver's time with no agreed destination isn't a transport contract, it's closer to a hire. That's
+not my reading: the biggest operator in the trade took it to France's highest court in May 2025 to
+get it overturned, and lost. What earns the 10 % is **the destination being agreed before the ride**
+— not being a VTC. So it has to be on the trip record.
+
+The rest: transfers 10 %, waiting follows the ride, a no-show **is** a VAT line (calling it
+compensation doesn't change that), a Driver's cancellation penalty is outside VAT entirely. And one
+nobody asked about, which every check flagged as the gap: **your own commission is 20 %** — it
+doesn't inherit the ride's 10 %.
+
+⚑ **The bigger thing: there is no such thing as a 0 % line in France.** The rates are 20, 10, 5,5
+and 2,1. Zero isn't one of them. When a Driver charges no VAT it's because they're under the
+*franchise en base*, and an invoice has to say that in those exact words.
+
+**And that was 80 % of your database.** 297 of your 370 trips were carrying a "0", because not one
+of your 13 Drivers has a VAT number on file, so the system stamped a zero on everything. The code
+now can't write a 0 % rate at all — it's not that it's forbidden, it's that there's no way to spell
+it. 926 checks, one of which tries 504 combinations looking for a way in.
+
+**Nothing on any screen changed. Not one number, not one word.** That's the point, and it's proven
+cent by cent.
+
+⚑ **Two questions for your accountant**, both of which change a product rather than paperwork: can
+an hourly block that includes kilometres still be 10 %, and does publishing a cancellation grid pull
+the fee into VAT or keep it out. On that second one the two expert readings are flatly opposed, so
+I've left the code refusing to answer rather than guessing.
+
+⚑ **One to know about now, for 2028.** A new EU rule would treat a platform like Kavenue as the
+transport company itself — the opposite of your whole legal position. It doesn't apply if your
+Drivers have given you their VAT number. **So start asking for it at signup.** It's free today and
+expensive to collect from a live fleet later.
+
+---
+
 ## 2 September 2026 — the badge stops disagreeing with its own row
 
 You spotted this last session and I wrote it down rather than folding it in. Now it's fixed.

@@ -1032,6 +1032,16 @@ export function TripRow({
                 mission,
                 [
                   {
+                    // ⚑ The KIND is what the invoice and the VAT need; the label
+                    // is what a Dispatcher reads. They deliberately differ — the
+                    // Business's bill says "Trip" where the Driver's screen says
+                    // "No-show — full fare" for the very same money.
+                    kind:
+                      mission.status === "cancelled"
+                        ? "cancellation_business"
+                        : mission.no_show
+                          ? "no_show"
+                          : "transfer",
                     label: mission.status === "cancelled" ? "Cancellation fee" : "Trip",
                     gross: paidSplit.course - waitingFee,
                   },
@@ -1039,6 +1049,7 @@ export function TripRow({
                   // — 13 × 0,50 is exactly the 6,50 in the <dd>.
                   ...(waitingFee > 0
                     ? [{
+                        kind: "waiting" as const,
                         label: `Waiting${
                           waitingMinutes > 0
                             ? ` · ${formatWaitingSpell(waitingMinutes, mission.waiting_rate)}`
@@ -1050,7 +1061,7 @@ export function TripRow({
                 ],
                 paidSplit.businessTotal,
               ).map((g, i, all) => (
-                <Fragment key={g.label}>
+                <Fragment key={g.kind}>
                   <dt>{g.label}</dt>
                   <dd>{formatMoney(g.gross)}</dd>
                   <dt className="dx-fee__sub">

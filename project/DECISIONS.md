@@ -3443,3 +3443,68 @@ and were decided long ago. What I actually wanted to change was the *shape* of t
 between them, which is a code constant, not a price. Asking for a number that already
 exists reads as re-opening a locked decision. **Name the parameter, not the price.**
 
+---
+
+### D126 — VAT belongs to the LINE, and "0 %" is not a state (2026-09-02, S74)
+
+**The founder asked for the rates to be confirmed online, not reasoned out.** They were right to:
+the research overturned Claude's own recommendation on one of the five.
+
+**Decided, and now encoded in `lib/vat.ts`:**
+
+| line | treatment |
+|---|---|
+| Transfer (destination agreed in advance) | 10 % |
+| **Mise à disposition** (hourly, no agreed destination) | **20 %** — ⚑ reverses Claude's advice |
+| Waiting | follows the ride, as an accessory |
+| No-show | **in scope**, ride's rate — not compensation |
+| Cancellation → Business | ⚑ **OPEN**, never resolved to a rate |
+| Cancellation → Driver | out of scope: no VAT line at all |
+| Kavenue's commission | 20 %, always, its own supply |
+
+⚑ **WHY AT-DISPOSAL IS 20 %.** Buying a driver's time by the hour with no agreed destination is
+closer to a hire than to transport. This is not a reading: **Sté Chabé, the largest operator in the
+trade, asked the Conseil d'État to strike the doctrine down on 13 May 2025 (n° 499031) and the
+request was rejected.** What earns the 10 % is the destination being fixed in advance — it is not a
+property of being a VTC.
+⚑ The grey zone that remains: a block sold as "4 h, 80 km included, then per km". CE *Air
+Limousines* (n° 419254) says only billing based *exclusively* on time defeats the 10 %; CAA Lyon
+26 mars 2026 (n° 25LY01286) applied 20 % even with capped mileage. **For the accountant.**
+
+⚑ **AND THE STRUCTURAL PART, WHICH MATTERS MORE THAN ANY RATE: THERE IS NO 0 % IN FRANCE.**
+The rates are 20 · 10 · 5,5 · 2,1. A line carrying no VAT is in one of three *other* states, and
+they are legally distinct: **franchise en base** (in scope, no VAT, mandatory mention « TVA non
+applicable, article 293 B du CGI »), **hors champ** (not a supply — no VAT line at all, its own
+document), and **exonéré** (in scope but relieved, must cite the provision).
+
+So `TaxTreatment` puts `rate` **inside** the `taxable` variant and nowhere else. **A 0 % rate is
+not spellable**, and the compiler is the enforcement rather than a convention. `tests/vat.test.ts`
+sweeps 504 combinations asserting no input can produce one.
+
+⚑ **THIS WAS 80 % OF THE LIVE DATABASE, NOT A HYPOTHETICAL.** `mission.transport_vat_rate` was
+one number answering two questions — *"is this Driver registered?"* and *"what rate does this
+supply carry?"*. Measured 2026-09-02: **297 of 370 rows at `0`, 73 NULL, not one at 0,10** — all 13
+Drivers have an empty `vat_number`, so the whole database was sitting in the state the old model
+called "0 %". `.local/probe/vat-states.mts` is the census.
+
+⚑ **NO MIGRATION.** The reshape reads the column's TRI-STATE (null / 0 / positive) as
+*registration* and takes the rate from the line. Lossless precisely because no live row carries a
+non-zero value. The trigger does not change and must not: it freezes the Driver's status at
+acceptance, which is why a Driver registering in September cannot rewrite August.
+
+⚑ **`transportVat` STOPPED BEING EXPORTED, and that is the fix.** Its signature took
+`number | string | null | undefined` and answered `0` for **both** a 0 rate and a NULL one — a
+franchise Driver and a trip nobody had taken, given the same answer. Every render site then had to
+remember a hand-written guard, and exactly one ever did. The door is now `taxLineFor`, which cannot
+be called without a resolved treatment. See also [[d114]] for the same move applied to money columns.
+
+⚑ **HALF THE CONTESTED CANCELLATION IS ALREADY SETTLED — BY THE SQL, NOT BY AN OPINION.**
+`business_cancel_mission` sets the fee to 0 while a trip is pooled or Driverless, so a fee above
+zero **always** implies a Driver had accepted. The no-Driver branch resolves to `out_of_scope` and
+bills nothing. Only the accepted case is open.
+
+⚑ **WHAT WAS DELIBERATELY NOT DONE.** The Driver's money note still asks for the **ride's**
+treatment even on a cancelled trip, exactly as before. Wiring `cancellation_business` in there
+would have changed what a Driver sees on the strength of the one question nobody has answered.
+Named, not fixed by accident.
+

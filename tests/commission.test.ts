@@ -25,10 +25,12 @@ import {
   billGroups,
   driverSplitFor,
   splitFor,
-  transportVat,
+  taxLineFor,
   type CommissionRateRow,
   type Rates,
 } from "@/lib/commission";
+
+const TAXABLE_10 = { kind: "taxable", rate: 0.1 } as const;
 
 const RATES: Rates = { businessHt: 0.125, driverHt: 0.1, feeVat: 0.2 };
 
@@ -234,8 +236,8 @@ describe("the bill, grouped by what each amount pays for", () => {
   // headline say 19,78 € above a table whose first line said 17,20 €, and asked
   // where the difference went. It was nowhere — the flat table pools both fees
   // into one figure, so the headline is not reachable from it by any addition.
-  const trip = { label: "Trip", gross: 17.2 };
-  const wait = { label: "Waiting", gross: 6.6 };
+  const trip = { kind: "transfer" as const, label: "Trip", gross: 17.2 };
+  const wait = { kind: "waiting" as const, label: "Waiting", gross: 6.6 };
 
   it("puts the row's own headline back in the table that explains it", () => {
     const g = billGroups(snapshot, [trip, wait], 27.37);
@@ -263,7 +265,7 @@ describe("the bill, grouped by what each amount pays for", () => {
       const fare = cents / 100;
       const w = Math.round(fare * 37) / 100; // an unrelated, awkward second item
       const total = businessTotal(snapshot, fare + w);
-      const g = billGroups(snapshot, [{ label: "Trip", gross: fare }, { label: "Waiting", gross: w }], total);
+      const g = billGroups(snapshot, [{ kind: "transfer", label: "Trip", gross: fare }, { kind: "waiting", label: "Waiting", gross: w }], total);
       const summed = g.reduce((n, x) => n + Math.round(x.total * 100), 0);
       expect(summed).toBe(Math.round(total * 100));
       for (const x of g) {
@@ -334,23 +336,32 @@ describe("the Ceiling round-trips", () => {
 });
 
 describe("the VAT inside the fare — docs/06 §3", () => {
+  // ⚑ THE `it` THAT USED TO LIVE HERE WAS THE BUG, CODIFIED. It read
+  // `is nothing for a Driver under franchise en base` and asserted that
+  // transportVat(98.86, 0), (…, null) and (…, undefined) all equalled 0 —
+  // three legally distinct inputs pinned to one answer, with the suite standing
+  // guard over the conflation. Those cases are now assertions about STATES in
+  // tests/vat.test.ts, where `franchise` and `undetermined` must never be equal.
+  // What stays here is the arithmetic, which did not change.
   it("finds the 10 % a registered Driver collects", () => {
-    expect(transportVat(98.86, 0.1)).toBe(8.99);
-    expect(transportVat(138.61, 0.1)).toBe(12.6);
+    expect(taxLineFor(98.86, TAXABLE_10)).toEqual({ kind: "taxable", rate: 0.1, amount: 8.99 });
+    expect(taxLineFor(138.61, TAXABLE_10)).toEqual({ kind: "taxable", rate: 0.1, amount: 12.6 });
   });
 
-  it("is nothing for a Driver under franchise en base", () => {
-    expect(transportVat(98.86, 0)).toBe(0);
-    expect(transportVat(98.86, null)).toBe(0);
-    expect(transportVat(98.86, undefined)).toBe(0);
+  it("gives a franchise line no amount at all, rather than an amount of zero", () => {
+    // Not `amount: 0`. The type has no such field on this branch, so a caller
+    // cannot print "0,00 € of VAT" — it has to name the regime instead.
+    expect(taxLineFor(98.86, { kind: "franchise" })).toEqual({ kind: "franchise" });
   });
 
   it("leaves the registered Driver keeping less than the unregistered one", () => {
     // The same 87,00 € on screen, two different amounts kept — the reason the
     // Driver's side breaks VAT out and the Business's side does not.
+    // ⚑ The two expected figures must not move: they are the proof the reshape
+    // changed the shape and not the arithmetic.
     const s = commissionSplit(98.86, RATES);
-    expect(driverKeeps(s, 0.1)).toBe(79.98);
-    expect(driverKeeps(s, 0)).toBe(87);
+    expect(driverKeeps(s, TAXABLE_10)).toBe(79.98);
+    expect(driverKeeps(s, { kind: "franchise" })).toBe(87);
   });
 });
 

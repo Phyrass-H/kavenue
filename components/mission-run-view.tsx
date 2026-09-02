@@ -27,8 +27,9 @@ import {
   driverNet,
   driverRatesOf,
   driverSplitFor,
-  transportVat,
+  taxLineFor,
 } from "@/lib/commission";
+import { taxOf } from "@/lib/vat";
 import type { MissionRow, MissionStatus, PreferredGps } from "@/lib/database.types";
 import { isExecutable, progressDone, progressSegments } from "@/lib/mission-flow";
 import { parseWaypoints } from "@/lib/waypoints";
@@ -176,13 +177,24 @@ export function MissionRunView({
   const baseGross = payment.course - settledWaitingGross;
   const baseLabel =
     m.status === "cancelled" ? "Cancellation compensation" : m.no_show ? "No-show — full fare" : "Fare";
-  const vatCollected = transportVat(payment.course, m.transport_vat_rate);
-  // NULL is not zero. The trigger stamps 0 for a Driver under *franchise en base*
-  // and leaves NULL when nobody has been attached yet, when the trip was re-pooled,
-  // or when no rate generation was in force (2026-08-17_transport_vat_snapshot).
-  // "We don't know" must never render as "you charge none" — that is a statement
-  // about someone's tax affairs.
-  const vatKnown = m.transport_vat_rate != null;
+  // NULL is not zero, and 0 is not a rate. The trigger stamps 0 for a Driver
+  // under *franchise en base* and leaves NULL when nobody has been attached yet,
+  // when the trip was re-pooled, or when no rate generation was in force
+  // (2026-08-17_transport_vat_snapshot). "We don't know" must never render as
+  // "you charge none" — that is a statement about someone's tax affairs — and
+  // "franchise en base" must never render as "0 %", which is not a rate that
+  // exists in France. `lib/vat.ts` holds all three apart; this used to be one
+  // hand-written `vatKnown` boolean, in this component only.
+  //
+  // ⚑ ASKS FOR THE RIDE'S TREATMENT, ON PURPOSE, EVEN ON A CANCELLED TRIP.
+  // Today a cancelled trip's compensation is shown carrying the transport rate,
+  // and that is preserved here byte for byte rather than quietly re-rated: the
+  // VAT on a cancellation is the one position the research left CONTESTED, and
+  // `taxOf("cancellation_business")` deliberately refuses to answer it. Wiring
+  // it in here would have changed what a Driver sees on the strength of a
+  // question nobody has answered. Open item, named — not fixed by accident.
+  const supply = taxOf(m.no_show ? "no_show" : "transfer", m);
+  const vat = taxLineFor(payment.course, supply);
 
   return (
     <>
@@ -464,18 +476,19 @@ export function MissionRunView({
                 <dt className="dfee__tot">Paid to you</dt>
                 <dd className="dfee__tot">{formatMoney(payment.driverNet)}</dd>
               </dl>
-              {/* Only when the snapshot answered. See `vatKnown` above. */}
-              {vatKnown && (
+              {/* ⚑ `undetermined` renders NOTHING — the same silence the old
+                  `vatKnown` guard produced, now impossible to forget because the
+                  union has no branch for it here. */}
+              {vat.kind === "taxable" && (
                 <p className="dfee__note">
-                  {vatCollected > 0 ? (
-                    <>
-                      The fare carries {formatMoney(vatCollected)} of VAT you collect and
-                      declare, and you reclaim the {formatMoney(payment.driverFeeVat)} above.
-                      After settling both you keep {formatMoney(driverKeeps(payment, m.transport_vat_rate))}.
-                    </>
-                  ) : (
-                    <>You charge no VAT, so there is none to declare and none to reclaim.</>
-                  )}
+                  The fare carries {formatMoney(vat.amount)} of VAT you collect and
+                  declare, and you reclaim the {formatMoney(payment.driverFeeVat)} above.
+                  After settling both you keep {formatMoney(driverKeeps(payment, supply))}.
+                </p>
+              )}
+              {vat.kind === "franchise" && (
+                <p className="dfee__note">
+                  You charge no VAT, so there is none to declare and none to reclaim.
                 </p>
               )}
             </div>

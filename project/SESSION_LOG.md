@@ -5,6 +5,105 @@
 
 ---
 
+## 2026-09-02 — Session 74 (part 2) — VAT BELONGS TO THE LINE, AND 0 % IS NOT A STATE
+
+**Scope.** The founder's own request from S72, unblocked. They declined to answer the five rate
+questions from reasoning and asked for them to be **confirmed against official sources online** —
+which was the right call, because the research **overturned Claude's own recommendation** on one of
+the five. Suite **909 → 926**. Typecheck clean. **No migration.** [[d126]]
+
+### ⚑ AT DISPOSAL IS 20 %, NOT THE 10 % CLAUDE RECOMMENDED
+Claude advised 10 % on the reasoning that a driver comes with the car, so it is still passenger
+transport. Wrong, and not marginally: **Sté Chabé, the largest operator in the trade, asked the
+Conseil d'État to strike that doctrine down on 13 May 2025 (`n° 499031`) and lost.** What earns the
+10 % is the **destination being fixed in advance**, not being a VTC.
+
+25 agents: six researchers on official French sources, then every answer attacked from three
+independent angles — *does the cited text actually say this*, *does it apply to a French VTC in
+2026*, *argue the opposite*. The adversarial pass also caught a wrong rate in the first pass
+(Corsica is 2,1 %, not 10 % — it sits with the DOM, not the mainland) and found the line nobody had
+asked about: **Kavenue's own commission is 20 % and does not inherit the ride's 10 %.**
+
+### ⚑⚑ THE STRUCTURAL FINDING IS BIGGER THAN ANY RATE: THERE IS NO 0 % IN FRANCE
+The rates are 20 · 10 · 5,5 · 2,1. A line carrying no VAT is in one of three OTHER states, legally
+distinct: **franchise en base** (in scope, no VAT, mandatory mention « TVA non applicable, article
+293 B du CGI »), **hors champ** (not a supply at all — no VAT line, its own document), **exonéré**.
+
+`lib/vat.ts` puts `rate` **inside** the `taxable` variant and nowhere else, so **a 0 % rate is not
+spellable**. `rateOf()` is the only place a number becomes a rate and it refuses anything not
+strictly positive. The compiler is the enforcement, not a convention ([[d126]], and the same move
+as [[d114]]).
+
+⚑ **AND IT WAS 80 % OF THE LIVE DATABASE.** Measured against the real DB, not the handoff (which
+said 294/70 and had drifted): **370 missions — 297 at `0`, 73 NULL, NOT ONE at 0,10.** All 13
+Drivers have an empty `vat_number`, so the trigger has been stamping 0 on everything and the whole
+database was sitting in the state the old model called "0 %". `.local/probe/vat-states.mts` is the
+census, 9 checks, and it prints that sentence for the founder.
+
+### The reshape
+- **`lib/vat.ts` (new).** `TaxTreatment` (taxable · franchise · out_of_scope · exempt ·
+  undetermined), `BillLineKind` (7 kinds), and one resolver `taxOf(kind, facts)` with an exhaustive
+  switch and a `never`.
+- **Waiting and no-show are written as a DELEGATION, not a rate.** `return taxOf(rideKindOf(m), m)`
+  — one line that literally says "accessory, follows the ride". Restating "10 %" would be a second
+  copy that could drift. The test asserts *equality with the ride*, not a number.
+- **⚑ `transportVat` STOPPED BEING EXPORTED, and that is the actual fix.** Its signature took
+  `number | string | null | undefined` and returned `0` for **both** a 0 rate and a NULL one —
+  franchise and "nobody has taken it" given the same answer. Every render site had to remember a
+  hand-written guard and exactly one ever did (`vatKnown`, in one component). The only door now is
+  `taxLineFor`, which cannot be called without a resolved treatment. The arithmetic is byte-for-byte
+  the same, pinned cent by cent from 0,01 to 40,00.
+- **`BillGroup` gained a `kind`.** ⚑ The two sides of the product disagreed about what a line IS:
+  the Driver's screen says *"No-show — full fare"* where the Business's bill says *"Trip"*, for the
+  same money. Labels stay per-audience; the kind is the shared truth an invoice needs. It also
+  closes a React key collision — `key={g.label}` became `key={g.kind}`.
+
+### ⚑ NOT ONE NUMBER ON ANY SCREEN MOVED, and not one string either
+Zero visual change. The taxable branch of the Driver's money note **has never rendered in
+production** — no Driver has a `vat_number` — so the only exercise it has ever had is the new tests.
+
+⚑ **DELIBERATELY NOT DONE:** the Driver's note still asks for the **ride's** treatment even on a
+cancelled trip, exactly as before. Wiring `cancellation_business` in there would have changed what a
+Driver sees on the strength of the one question nobody has answered. Named, not fixed by accident.
+
+### Rule Zero, three breaks, all red for the right reason
+1. Let `rateOf` accept 0 → `expected { kind: 'taxable', rate: +0 } to deeply equal { kind: 'franchise' }`. The conflation itself.
+2. Make waiting restate 10 % → it stops following the ride into `undetermined`.
+3. Put at-disposal back at 10 % → `expected { rate: 0.1 } to deeply equal { rate: 0.2 }` — Claude's own wrong advice, now a red test.
+
+⚑ **AND THE DEAD-BATTERY GUARD IN `tests/vat.test.ts` FIRED ON ITS OWN FIRST DRAFT.** The matrix
+sweep asserts its own size. Removing an impossible `mission_type: null` (the column is
+`not null default 'transfer'` — the compiler caught the test inventing a forbidden state) cut it
+from 756 combinations to 504, and the guard said so rather than quietly covering less.
+
+### The test that was the bug
+`tests/commission.test.ts` had an `it` named *"is nothing for a Driver under franchise en base"*
+asserting `transportVat(98.86, 0)`, `(…, null)` and `(…, undefined)` **all equal 0** — three legally
+distinct inputs pinned to one answer, with the suite standing guard over the conflation. Those cases
+are now assertions about STATES in `tests/vat.test.ts`, where franchise and undetermined must
+**never** be equal.
+
+### docs/06 §3 instructed the OPPOSITE of the code, on both halves
+It read: *"10% if the Driver is VAT-registered, 0% if not. Read it from the Driver's `vat_number`;
+never assume."* Both wrong. There is no 0 %; and the code deliberately reads the **snapshot**, never
+the live `vat_number`, so a Driver who registers in September cannot rewrite August. Left as it was,
+the next session would have read the doc and reintroduced a live read. Corrected, with the full
+per-line table.
+
+### For the founder's accountant — five questions, in the artifact
+Rates on screen are not blocked by any of them. The two that change a product: **can an hourly
+block with kilometres included stay at 10 %**, and **does publishing a cancellation grid pull the
+fee into VAT or keep it out** (two readings of the same paragraph, flatly opposed).
+
+⚑ **AND ONE FOR THE HARD RULES.** From 1 July 2028 an EU rule (ViDA, art. 28 bis) deems a platform
+facilitating road passenger transport to be the **principal** — the exact opposite of Kavenue's
+legal position and hard-rule #2. It does not apply where the Driver has given the platform his VAT
+number and declared he charges the VAT. **That is why "ask every Driver for their VAT number at
+signup" is worth doing now**, not in 2028: it is today's rate switch and the 2028 switch, and
+backfilling a live Driver base is expensive. Not built — flagged.
+
+---
+
 ## 2026-09-02 — Session 74 — THE STALE STATUS PILL, AND THE CHIPS THAT PRODUCED IT
 
 **Scope.** The founder took both queued items. This is the second one; the VAT work is

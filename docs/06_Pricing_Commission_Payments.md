@@ -189,8 +189,38 @@ Total                       218,50 €
 **not** the 10% on the transport, so the two must be separable. The same three lines appear
 everywhere the total appears. The Business never sees `driver_net` or the Driver-side rate.
 
-⚑ The transport line must show the VAT that **actually applies** — 10% if the Driver is
-VAT-registered, 0% if not. Read it from the Driver's `vat_number`; never assume.
+⚑ The transport line must show the VAT that **actually applies**. Both halves of what this
+paragraph used to say were wrong, and the code has never done either (corrected 2026-09-02, S74):
+
+- **NOT "0% if not".** ⚑ **There is no 0% rate in France** — the rates are 20, 10, 5,5 and 2,1.
+  A Driver who is not VAT-registered is under the **franchise en base**: in scope, charging no
+  VAT, and their invoice must carry the exact words **« TVA non applicable, article 293 B du
+  CGI »**. A "0 %" line asserts a taxable supply at a rate that does not exist. Since e-invoicing
+  went live on 1 September 2026 each line carries a machine-read category code, so the two are
+  no longer interchangeable in practice either.
+- **NOT "read it from the Driver's `vat_number`".** Read the **snapshot on the mission**. A Driver
+  who registers in September must not change the VAT on a trip they drove in August; the
+  `2026-08-17_transport_vat_snapshot` trigger freezes the answer at acceptance and the code has
+  always read that. This paragraph would have had someone reintroduce a live read and
+  retroactively rewrite settled history.
+
+**The rate belongs to the LINE, not the mission** (`lib/vat.ts`, S74):
+
+    what a line carries  =  (the rate for THIS kind of supply)
+                         ×  (does this Driver charge VAT at all)
+
+| line | treatment | why |
+|---|---|---|
+| Transfer — destination agreed in advance | **10%** | `transport de voyageurs`, CGI art. 279 b quater |
+| **Mise à disposition** — hourly, no agreed destination | **20%** | a hire, not a journey. CE 13 mai 2025 n° 499031 (Sté Chabé) upheld this against the trade's largest operator. ⚑ **This is the founder's decision of 2026-09-02 and reverses the earlier assumption of 10%.** |
+| Waiting time | **follows the ride** | accessory supply. ⚑ If it stops being small next to the fare the exposure is the standard rate on the **whole job**, not a 20% waiting line |
+| No-show fee | **in scope**, ride's rate | the Driver travelled and held the car available. Calling it an `indemnité` changes nothing |
+| Cancellation — charged to the Business | ⚑ **OPEN** | taxable if it pays for capacity held; arguably out of scope if the Business used a right we granted. Not answered — `taxOf` returns `undetermined` |
+| Cancellation — charged to a Driver | **out of scope** | an indemnity. **No VAT line at all**, on its own document, never netted off a commission invoice |
+| **Kavenue's own commission** | **20%** | its own supply of intermediation; it does NOT inherit the ride's 10% |
+
+One invoice may lawfully carry a 10% transport line beside a 20% commission line. What is
+forbidden is two rates on **one** operation.
 
 ---
 

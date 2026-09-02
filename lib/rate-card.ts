@@ -13,6 +13,7 @@
 // "Numbers live in tables, not in code. Recalibration is an INSERT/UPDATE, never
 // a redeploy."
 
+import type { ParisLocal } from "@/lib/time";
 import type { BodyType, ServiceTier } from "@/lib/vehicle-catalog";
 
 export type RateCardRow = {
@@ -48,12 +49,31 @@ export const NIGHT_START_HOUR = 22;
 export const NIGHT_END_HOUR = 6;
 
 /**
- * Is this a night pickup? Takes the Paris wall-clock string the form holds
- * ("YYYY-MM-DDTHH:mm"), so the hour is already local — no timezone maths, and
- * therefore no DST edge case.
+ * Is this a night pickup? Takes a Paris WALL CLOCK, so the hour is already local — no
+ * timezone maths here, and therefore no DST edge case: "22:00" is 22:00 in January and
+ * in July, and the zone database has already done the work.
+ *
+ * ⚑ THE PARAMETER IS BRANDED ON PURPOSE ([[d124]]). It used to be `string`, and two seed
+ * scripts passed `d.toISOString()` — UTC — which slid the whole night window by the zone
+ * offset and mispriced 25 trips by 20% in silence. Build one with `asParisLocal()` from a
+ * form field, or `utcToParisLocal()` from an instant; both are in lib/time.ts.
  */
-export function isNightPickup(pickupAtLocal: string | null | undefined): boolean {
-  const hour = /^\d{4}-\d{2}-\d{2}T(\d{2}):/.exec(pickupAtLocal ?? "")?.[1];
+export function isNightPickup(pickupAtLocal: ParisLocal | null | undefined): boolean {
+  const raw = pickupAtLocal ?? "";
+  // ⚑ THE LOUD HALF, and it is load-bearing. TypeScript does NOT typecheck `.local/`
+  // — its globs skip directories beginning with a dot — which is exactly where the two
+  // scripts that got this wrong live. The brand protects everything the app compiles;
+  // this protects everything it doesn't. A wall clock never carries a zone, so a "Z" or
+  // a "+02:00" means the caller is holding an instant and the hour below would be read
+  // in the wrong zone. Throwing is the kind answer: the alternative is a 20% pricing
+  // error that no test, no type and no log ever mentions ([[d124]]).
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/.test(raw)) {
+    throw new TypeError(
+      `isNightPickup needs a Paris wall clock, got an instant: ${raw}. ` +
+        "Use utcToParisLocal() from lib/time.ts.",
+    );
+  }
+  const hour = /^\d{4}-\d{2}-\d{2}T(\d{2}):/.exec(raw)?.[1];
   if (hour == null) return false;
   const h = Number(hour);
   return h >= NIGHT_START_HOUR || h < NIGHT_END_HOUR;

@@ -10,7 +10,7 @@ import { getAppContext } from "@/lib/app-context";
 import { businessReadiness } from "@/lib/business-readiness";
 import { recordBusinessEvent } from "@/lib/business-events-server";
 import { isValidLatLng } from "@/lib/geo";
-import { parisLocalToUtc } from "@/lib/time";
+import { asParisLocal, parisLocalToUtc } from "@/lib/time";
 import { routeMetrics } from "@/lib/directions";
 import { parseWaypointsField, unlocatedStops } from "@/lib/waypoints";
 import {
@@ -252,7 +252,7 @@ export async function createMission(formData: FormData) {
   // the copy that decides, and `mission_price` is the same function the
   // migration installed, so the two halves cannot drift without a test failing.
   const supabase = await createClient();
-  const nightApplied = isNightPickup(pickupLocal);
+  const nightApplied = isNightPickup(asParisLocal(pickupLocal));
   const { data: quote } = await (metrics?.distanceKm != null
     ? supabase
         .rpc("mission_price", {

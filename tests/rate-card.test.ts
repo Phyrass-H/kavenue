@@ -6,6 +6,7 @@
 // where it shows up.
 
 import { describe, it, expect } from "vitest";
+import { asParisLocal, utcToParisLocal } from "@/lib/time";
 import {
   priceFor,
   rateCardFor,
@@ -167,14 +168,54 @@ describe("night pricing — ×1.20 on floor and ceiling alike", () => {
   });
 
   it("detects the 22:00–06:00 window on Paris wall-clock, inclusive of 22 and exclusive of 06", () => {
-    expect(isNightPickup("2026-08-16T22:00")).toBe(true);
-    expect(isNightPickup("2026-08-16T23:59")).toBe(true);
-    expect(isNightPickup("2026-08-16T00:00")).toBe(true);
-    expect(isNightPickup("2026-08-16T05:59")).toBe(true);
-    expect(isNightPickup("2026-08-16T06:00")).toBe(false);
-    expect(isNightPickup("2026-08-16T21:59")).toBe(false);
-    expect(isNightPickup("")).toBe(false);
+    const wall = (s: string) => asParisLocal(s);
+    expect(isNightPickup(wall("2026-08-16T22:00"))).toBe(true);
+    expect(isNightPickup(wall("2026-08-16T23:59"))).toBe(true);
+    expect(isNightPickup(wall("2026-08-16T00:00"))).toBe(true);
+    expect(isNightPickup(wall("2026-08-16T05:59"))).toBe(true);
+    expect(isNightPickup(wall("2026-08-16T06:00"))).toBe(false);
+    expect(isNightPickup(wall("2026-08-16T21:59"))).toBe(false);
+    expect(isNightPickup(wall(""))).toBe(false);
     expect(isNightPickup(null)).toBe(false);
+  });
+
+  // ⚑ THE BUG THIS WHOLE GUARD EXISTS FOR ([[d124]]). Two seed scripts passed
+  // `d.toISOString()` and nothing complained: the hour was read in UTC, so the window
+  // slid by the zone offset and 25 of 370 trips were mispriced by 20%, silently.
+  describe("an instant is not a wall clock", () => {
+    // 23:42 Paris in summer is 21:42 UTC. Reading the UTC hour says "day"; the rule
+    // says night. That single two-hour slide is the entire bug.
+    const instant = "2026-08-31T21:42:00.000Z";
+    const wall = utcToParisLocal(instant);
+
+    it("converts the instant to the Paris wall clock", () => {
+      expect(wall).toBe("2026-08-31T23:42");
+      expect(isNightPickup(wall)).toBe(true);
+    });
+
+    it("refuses to guess when handed an instant, loudly", () => {
+      // The app is protected by the branded type; `.local/` is not typechecked at all
+      // (TypeScript skips dot-directories), so the throw is what protects the seeds.
+      expect(() => isNightPickup(instant as never)).toThrow(/wall clock/);
+      expect(() => isNightPickup("2026-08-31T21:42+02:00" as never)).toThrow(/wall clock/);
+    });
+
+    it("rejects an instant rather than branding it", () => {
+      expect(asParisLocal(instant)).toBeNull();
+      expect(asParisLocal("2026-08-31T23:42")).toBe("2026-08-31T23:42");
+    });
+  });
+
+  // ⚑ Summer and winter, on purpose. The design is DST-proof BECAUSE it works on the
+  // wall clock — the zone database has already done the arithmetic, so 22:00 is 22:00
+  // in January and in July and no code here knows the difference.
+  describe("the same wall clock either side of the DST change", () => {
+    it("reads 23:30 as night in both August and December", () => {
+      expect(utcToParisLocal("2026-08-15T21:30:00.000Z")).toBe("2026-08-15T23:30"); // +02
+      expect(utcToParisLocal("2026-12-15T22:30:00.000Z")).toBe("2026-12-15T23:30"); // +01
+      expect(isNightPickup(utcToParisLocal("2026-08-15T21:30:00.000Z"))).toBe(true);
+      expect(isNightPickup(utcToParisLocal("2026-12-15T22:30:00.000Z"))).toBe(true);
+    });
   });
 });
 

@@ -19,6 +19,7 @@ import {
   isBelowFloor,
   type RateCardRow,
 } from "@/lib/rate-card";
+import { asParisLocal } from "@/lib/time";
 import {
   commissionSplit,
   courseFromBusinessTotal,
@@ -295,7 +296,7 @@ export function MissionForm({
   // to raise an amber "consider a higher ceiling" nudge; the card now applies
   // the ×1.20 night rate itself, so that nudge would be asking the Business to
   // do something already done. The helper line under the Ceiling names it instead.
-  const night = isNightPickup(pickupAt);
+  const night = isNightPickup(asParisLocal(pickupAt));
 
   // Prefill addresses: a resumed draft keeps its own pickup; a NEW mission starts
   // with the Business's saved address (when "pre-fill as pickup" is on) so a

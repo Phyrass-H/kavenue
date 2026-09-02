@@ -95,3 +95,39 @@ export function prettyParisLocal(local: string): string {
     timeZone: "UTC",
   }).format(asUtc);
 }
+
+/**
+ * A Paris WALL CLOCK — "YYYY-MM-DDTHH:mm", no zone, the thing a human reads off a
+ * station board. Deliberately NOT assignable from a plain string.
+ *
+ * ⚑ WHY THIS IS A BRANDED TYPE AND NOT JUST `string`. `isNightPickup` reads the hour
+ * straight out of the text, so it is only correct if the text is local. Two separate seed
+ * scripts handed it `d.toISOString()` — UTC — and the night window silently slid by the
+ * zone offset: in summer the seeded archive priced nights as 00:00–08:00 instead of
+ * 22:00–06:00, on 25 of 370 trips ([[d124]]). Nothing failed. Nothing warned. Both calls
+ * read as obviously correct.
+ *
+ * A brand makes that a compile error instead of a 20% pricing error.
+ */
+export type ParisLocal = string & { readonly __parisLocal: unique symbol };
+
+/**
+ * Validate a wall clock. Null when it isn't one.
+ *
+ * ⚑ A TRAILING ZONE IS THE TELL, and it is the whole point of the runtime half: every
+ * `toISOString()` ends in "Z", and an offset like "+02:00" means someone passed an
+ * instant. A wall clock cannot carry a zone — if it does, the caller is holding the
+ * wrong kind of value and the honest answer is "this is not a wall clock".
+ */
+export function asParisLocal(local: string | null | undefined): ParisLocal | null {
+  const s = (local ?? "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return null;
+  if (/(?:Z|[+-]\d{2}:?\d{2})$/.test(s)) return null;
+  return s as ParisLocal;
+}
+
+/** An instant → the Paris wall clock at that instant. The conversion the seeds skipped. */
+export function utcToParisLocal(instant: Date | string): ParisLocal {
+  const iso = typeof instant === "string" ? instant : instant.toISOString();
+  return utcToParisLocalInput(iso) as ParisLocal;
+}

@@ -9,57 +9,68 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
-## ⚑ THE SCHEDULE HAS A FARE COLUMN (2026-09-02, S73) — and the night rate is wrong in the SEEDS
+## ⚑ S73 IS CLOSED — `main` = `31a4b2b` · 873 → 897 tests · gate 50/50 · no migration
 
-`main` = **`52a76a2`**, CI-green on a branch first. **873 → 895 tests.** No migration.
+Four parts, each CI-green on a branch before `main`: **the offline Waybill** · **the
+Schedule's Fare column** · **the night clock** · **the admin console**. Nothing half-built.
 
-Every row on `/dispatch` now names its own money — `Auction` · `Closed at` · `Not taken` ·
-`Fee` · `No fee`, each with the Ceiling under it, all Business all-in. One rule in
-**`lib/fare-cell.ts`**. Full reasoning + the rejected alternatives in [[d123]].
+**Every trip row on every screen now names its own money** — `Auction` · `Closed at` ·
+`Not taken` · `Fee` · `No fee`, ceiling underneath. One rule, `lib/fare-cell.ts`, two bases
+([[d123]]): Dispatch shows the Business all-in, the admin console shows the **Course**.
+⚑ **The vocabulary is decided — do not re-open it.** "Auction" not "Offered at" (*Kavenue is
+an agent and offers nothing*), no badges, no saving figure on the row, label 10.5px grey.
 
-⚑ **THE VOCABULARY IS DECIDED. Do not re-open it.** "Auction" (not "Offered at" — *Kavenue
-is an agent and offers nothing*, hard rule 2 applied to microcopy), "Closed at" is the
-founder's own word, **no badges**, **no saving figure on the row**, label 10.5px grey.
+**The night rate is answered AND fixed** ([[d124]], [[d125]]). The ×1,20 reaches the Driver —
+they grab rather than hold out, so a night trip taken early opens 20% higher. **No pricing
+change; do not re-derive the "open the night curve at 70%" proposal.** The clock bug is
+fixed: `ParisLocal` is a branded type plus a runtime throw.
 
-### 🔴 THE HALF THAT IS NOT DONE — the admin console
-`components/admin-trip-list.tsx:116` still prints `formatMoney(t.ceiling)` **bare and
-unlabelled** on `/admin/trips`, `/admin/businesses/[id]` and `/admin/drivers/[id]` — including
-on completed trips, where the ceiling is not what happened. 67% of those rows show a number
-that is not what the trip did. ⚑ It was left out ON PURPOSE: the console shows the **Course**,
-not the Business all-in, so reusing `fareCell()` as-is would change the basis of every number
-on that screen. It needs its own preview before anything is built.
+---
 
-⚑ **The handoff used to claim "every row on every list prints the Ceiling". That was stale** —
-Dispatch History has shown the settled fare for a while, and the calendar already labels
-`Fare (now) · ceiling`. The admin console is the only place left.
+## 🎯 THE NEXT SESSION — the founder asked for these two, in this order
 
-### ✅ THE NIGHT RATE — ANSWERED AND FIXED (2026-09-02) — do not re-open the pricing
-**The ×1,20 DOES reach the Driver** ([[d125]]). I argued at length that the auction absorbs
-it — that reasoning assumed Drivers hold out for a reservation price. **The founder's own
-observation is that they grab**: many Drivers per class, they compete, the hungriest takes
-what is showing. Under grabbing, a night trip taken early opens 20% higher and pays 20% more.
-**No change to floor, ceiling or opening point. The `Night rate` badge is honest.**
+### 1 · VAT PER GROUP — blocked on FIVE ANSWERS, ask for them FIRST
+The founder's own request (2026-08-31), and **Claude cannot start it**. Nothing on screen is
+wrong today; it becomes urgent the day invoicing ships or the first at-disposal trip is
+posted. The full structural finding is below in § ASKED FOR IN S72 — the short version is
+that **`mission.transport_vat_rate` is one rate per MISSION, not per item**, and answers
+"is this Driver VAT-registered?" rather than "what rate does this kind of supply carry?".
 
-⚑ **DO NOT re-derive the "open the night curve at 70%" proposal.** It was made, it was
-argued from the wrong model of Driver behaviour, and it is closed.
+**Put these five to the founder before anything else — they are tax, not design:**
+1. **Transfer** (A → B passenger transport) — 10 %?
+2. **At disposal / mise à disposition** — 10 %, or 20 % because it is a hire not a journey?
+   ⚑ `mission_type` is 100 % `transfer` on every live row, so nothing has ever exercised it.
+3. **Waiting time** — accessory to the transport, or a separate service at 20 %?
+4. **No-show** — a supply at all, or compensation?
+5. **Cancellation fee** — docs/06 §1 already calls the Driver's penalty an *indemnity*, which
+   is normally **outside the scope** of VAT — and that is **not the same as a 0 % line**.
 
-⚑ **AND DO NOT re-litigate the spread.** 36% of accepted trips settle below a quarter of the
-band; the cheapest quarter banks **1,50 €/km** against **4,08 €/km** for the patient quarter,
-*2,7× for the same work*. That was read as the platform underpaying — **the founder reads it
-as competition working**, and lifting the floor to "protect" anyone is Kavenue nudging the
-fare, which `docs/06` §0 forbids. Numbers kept in [[d125]]; the interpretation is settled.
+⚑ 4 and 5 matter more than they look: "outside scope" means **no VAT line at all**, and
+`billGroups()` currently gives every group the same shape.
 
-**The clock bug is fixed.** `ParisLocal` is a branded type (`lib/time.ts`); both seeds
-converted; a runtime throw catches an instant. ⚑ **TypeScript does NOT typecheck `.local/`** —
-its globs skip dot-directories, which is why the brand alone was not enough and why the
-throw exists. Including it properly surfaces 70 pre-existing errors in old probe scripts.
+### 2 · THE DESIGN LOCK — it is ONE item, not two
+⚑ **The founder asked for "the two design lock". One of the two shipped on 2026-09-02** —
+"trip rows should say which money they show" is [[d123]], now live on Dispatch AND admin.
 
-**The 25 archive rows are left wrong on purpose** (founder). Internally consistent; a
-flag-only fix would badge a day-priced trip as night. They correct on the next bleach + re-seed.
+**What is actually left:** **move "Worth a look" ABOVE the numbers on `/admin`.** The
+stylesheet already says a finding must never be out-shouted by the band — and then renders
+the band first. A number is the same at 9am and 5pm; a finding is not.
 
-⚑ **Multi-country, when it comes:** the window must be the local clock AT THE PICKUP, so a
-mission needs its own zone. `rate_card.market` (already `'riviera'`, already what selects
-prices) is where it belongs. Not needed until a second market opens.
+**And one that is DECLINED, not open** — the `Accepted at 19,78 €` / `Transport 17,20 €`
+labelling. The founder is satisfied the money is right. ⚑ Re-raise ONLY with the argument
+that was made and never answered: *the founder understands it after four messages of
+explanation; a Dispatcher at the hotel will never get that explanation.*
+
+### 🧹 TWO SMALL ONES, MEASURED AND QUEUED
+- **Typecheck `.local/seed/`.** TypeScript's include globs **skip dot-directories**, so
+  nothing under `.local/` is checked — which is why a branded type could not protect the two
+  scripts that mispriced 25 trips ([[d124]]). Turning it on costs **18 errors across 5 files**
+  in `seed/` (`bleach`, `s61-priced`, `s64-curve`, `seed-hard-cases`, `seed-probe-accounts`);
+  `seed-trips` and `seed-live` are already clean. ⚑ `.local/probe/` is another 41 errors and
+  is read-mostly — do `seed/` only. Needs `allowImportingTsExtensions` too.
+- **The admin status pill is behind its own row.** On a pooled trip whose pickup has passed
+  the fare cell says `Not taken` (`isExpired`) while the pill says `Pooled` (raw status).
+  The pill is stale; `lib/dispatch-status` already solves this on Dispatch.
 
 ## ⚑ § 4's OFFLINE GAP IS CLOSED (2026-09-01, S73) — and the Waybill lost its 1°–7°
 
@@ -570,7 +581,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 **50 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 895 passing
+    npx tsc --noEmit && npx vitest run          # expect 897 passing
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE

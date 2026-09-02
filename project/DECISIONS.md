@@ -3318,8 +3318,19 @@ differ on **67% of rows, median 50 €, worst 615 €**. One real completed row 
 for a trip that went for 17,20 €; one cancelled row read 525,20 € when the fee was 91,17 €.
 A column of unlabelled euros is not a column of comparable numbers.
 
-Five outcomes, one rule in `lib/fare-cell.ts`, shared with the admin console when that
-lands: `Auction` · `Closed at` · `Not taken` · `Fee` · `No fee`.
+Five outcomes, one rule in `lib/fare-cell.ts`: `Auction` · `Closed at` · `Not taken` ·
+`Fee` · `No fee`. **Shipped on the Dispatch schedule and, 2026-09-02, on the admin console
+too** (`/admin/trips`, `/admin/businesses/[id]`, `/admin/drivers/[id]`).
+
+⚑ **TWO BASES, NAMED EXPLICITLY (`FareBasis`).** Dispatch shows the Business all-in — it is
+a counterparty screen and docs/06 §3 says a Business is only ever shown what it pays. The
+**admin console shows the Course**: it is not a counterparty screen, it reads both sides at
+once, and `/admin/trips/[id]` already heads with the Course ceiling — a list on a different
+basis from the detail page it links to would print two different numbers for one trip.
+
+⚑ **This closes the third design-lock item** ("trip rows should say which money they
+show"). The founder's original proposal was `Ceiling 120 €` / `Went for 74 €`; what shipped
+is the same idea with the vocabulary they chose later.
 
 ⚑ **"AUCTION", NOT "OFFERED AT" — and the founder was right to reject it.** "Offered at"
 was proposed and mocked up; the objection was that **Kavenue is an agent and offers

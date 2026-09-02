@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-09-02 — Session 73 (part 4) — THE ADMIN CONSOLE, AND THE SESSION CLOSED
+
+**Scope.** The last screen printing a bare ceiling. Suite **895 → 897**. No migration.
+`main` = **`31a4b2b`**.
+
+`components/admin-trip-list.tsx` now uses the same rule and the same five words as the
+Dispatch schedule, on all three screens it feeds. ⚑ **On the COURSE**, via an explicit
+`FareBasis` — the console is not a counterparty screen and `/admin/trips/[id]` already heads
+with the Course ceiling ([[d123]]). One line to flip if that judgement is wrong.
+
+⚑ **This closed the third design-lock item.** The founder asked to queue "the two design
+lock" for next session; one of the two was this. What is actually left is **one**: move
+"Worth a look" above the numbers on `/admin`.
+
+### ⚑ NOTICED, NOT FIXED — the status pill is behind its own row
+On a pooled trip whose pickup has passed, the fare cell says `Not taken` (it reads
+`isExpired`) while the pill beside it still says `Pooled` (it reads the raw status). **The
+pill is the stale one** — it is behind the sweep, and Dispatch's schedule already resolves
+exactly this through `lib/dispatch-status`. Small, and named in the handoff rather than
+folded into a change nobody asked for.
+
+### ⚑ AND A HOLE IN THE COMPILER, MEASURED — `.local/` is not typechecked
+Raised by the founder after [[d124]]: *"something to fix here?"* Yes. TypeScript's include
+globs skip dot-directories, so nothing under `.local/` is checked. Turning it on costs
+**59 pre-existing errors — 18 in `.local/seed/` (5 files) and 41 in `.local/probe/`**.
+⚑ **`seed/` is the half worth doing**: those scripts WRITE prices, and two of them are what
+mispriced 25 trips. `seed-trips.mts` and `seed-live.mts` are already clean, so the guard
+would hold from day one. Queued, not done — it was not what the session was for.
+
+### Session close
+Four parts, all on `main`, CI green on every push, gate **50/50**, **873 → 897 tests**:
+the offline Waybill · the Schedule's Fare column · the night clock · the admin console.
+Nothing left half-built; the two things named above are named, not hidden.
+
+---
+
 ## 2026-09-02 — Session 73 (part 3) — THE NIGHT CLOCK, AND A MODEL THE FOUNDER CORRECTED
 
 **Scope.** The founder's own night-rate question, then the fix. Suite **891 → 895**. No migration.

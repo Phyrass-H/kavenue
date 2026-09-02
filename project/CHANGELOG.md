@@ -5,6 +5,29 @@
 
 ---
 
+## 2 September 2026 — the admin console gets the same treatment
+
+The last screen that still printed a bare price. Your console — Trips, and each hotel's and
+Driver's page — showed the **ceiling** on every row, unlabelled, including on finished trips
+where the ceiling is the most you *could* have paid rather than what you did. Now it reads
+the same as your Schedule: **Auction · Closed at · Not taken · Fee · No fee**, with the
+ceiling underneath.
+
+One difference, deliberate: the console shows the **transport price**, not your all-in with
+the service fee. It's the screen where you look at both sides of the marketplace at once,
+and the trip page it links to already shows the transport price — two different numbers for
+one trip would be worse than either. One line to change if you'd rather it matched Dispatch.
+
+⚑ **This was one of the two design-lock items you wanted queued** — so only one is left:
+moving "Worth a look" above the numbers on the console's front page.
+
+⚑ **One thing I noticed and didn't touch:** on a Pool trip whose pickup time has already
+passed, the price says "Not taken" while the status badge still says "Pooled". The price is
+right and the badge is behind — it's waiting on a background sweep. Small, written down,
+not folded into work you didn't ask for.
+
+---
+
 ## 2 September 2026 — the night rate, answered and fixed
 
 **Your question was: is the 20% night premium actually reaching the Drivers, or does the

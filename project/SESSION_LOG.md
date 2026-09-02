@@ -5,6 +5,97 @@
 
 ---
 
+## 2026-09-02 — Session 74 — THE STALE STATUS PILL, AND THE CHIPS THAT PRODUCED IT
+
+**Scope.** The founder took both queued items. This is the second one; the VAT work is
+blocked on their answers and is being researched separately. Suite **897 → 909**. Typecheck
+clean. **No migration.**
+
+### The bug, and how narrow the fix is
+A console row printed two things about one trip: what its money did (`fareCell`, which asks
+`isExpired`) and what the trip *is* (the raw `status` column). `expire_stale_missions` only
+runs on Pool and Dispatch reads — **the console never sweeps** — so a pooled trip whose
+pickup had passed said `Not taken` and `Pooled` in the same row, ten pixels apart.
+
+`lib/dispatch-status.ts` gains **`missionStatusLabelAt(m, now)`** — `missionStatusLabel` of
+`isExpired(m, now) ? "expired" : m.status`. One word changes: `Pooled` becomes `Unfilled`
+exactly when the fare cell says `Not taken`.
+
+⚑ **DELIBERATELY NOT `missionTone`**, which is what the scouting pass proposed. `missionTone`
+speaks to a Dispatcher — *"No Driver yet"*, *"call them"*, *"A Driver is reviewing this"* —
+and the console is an **audit** screen, not a counterparty one. Taking it would have been a
+whole-console vocabulary change nobody asked for, would have squeezed the 12.5px nowrap
+`.adm-row__kind` column with labels like *"Driver says it didn't happen"*, and would have hit
+the `draft` gap in that switch (it falls through to `default:` and prints the raw lowercase
+enum). The narrow fix has none of those problems, and `MISSION_STATUS_LABELS` is a
+`Record<MissionStatus, string>` — so the compiler already checks it exhaustively.
+
+Two call sites: `components/admin-trip-list.tsx:137` (threading the SAME `now` the fare cell
+already receives — the component makes exactly one clock on purpose) and
+`app/admin/trips/[id]/page.tsx:117`. Fixing only the list would have made a row and the page
+it links to disagree.
+
+Also collapsed the duplicated predicate inside `missionTone`'s `pooled` case
+(`pickup <= now.getTime()` → `isExpired(m, now)`). Provably equivalent inside that branch,
+and it removes the place a third answer could have been born.
+
+### The knock-on the founder chose to fix in the same change
+`/admin/trips`' filter chips queried the RAW status in SQL, so **"In the Pool" listed trips
+whose own row now reads `Unfilled`, and "Nobody took" missed every one of them** — the chip
+disagreeing with the list it had just produced. Both are now one SQL query still:
+
+    "In the Pool"  →  .eq("status","pooled").gt("pickup_at", nowIso)
+    "Nobody took"  →  .or(`status.eq.expired,and(status.eq.pooled,pickup_at.lte."${nowIso}")`)
+
+⚑ **The `isExpired` rule is now written TWICE** — once in TypeScript, once in PostgREST —
+because the filter has to be part of the paged query. That is a rule that can drift, and
+nothing in vitest or `tsc` can see the second copy. Hence the probe.
+
+### ⚑⚑ RULE ZERO CAUGHT THIS PROBE LYING — SEVEN GREENS ON ZERO ROWS
+The first `admin-chips.mts` used the **service role** and printed *seven passing checks*. All
+seven were vacuous: `mission_read` ends in `where app_role() = 'admin' or business_id = … or
+driver_id = …`, and the service role is **none of those**, so the view is empty to it. 370
+rows in `mission`, **0 through the view**. Every assertion passed over an empty set.
+
+The probe now **signs in as `admin@kavenue.fr`** — the console's own user, through the same
+view the page reads — and carries a **dead-battery guard** as an assertion in its own right:
+*"the view returns rows to this session at all"*, which exits non-zero before any other check
+can pass vacuously.
+
+⚑ **Generalise this:** a probe that reads `mission_read` with the service role is measuring
+nothing. That view is role-gated in its own `WHERE`, by design ([[d114]]).
+
+### What was verified, and how
+- **12 new tests** in `tests/admin-status-label.test.ts`. The first is the *invariant*, not
+  an example: for any row and one clock, `missionStatusLabelAt(...) === "Unfilled"` **iff**
+  `fareCell(...).label === "Not taken"`, over a seven-status matrix. It is the test that
+  would have caught the original bug, and it stops the next screen deriving the rule a third
+  time. Plus the `<=` boundary (already `Unfilled` AT the pickup instant) and a test pinning
+  that the console does **not** borrow the Dispatcher's words.
+- **Rule Zero, three times.** (1) Reverted `missionStatusLabelAt` to the raw column → red,
+  *"expected 'Pooled' to be 'Unfilled'"*. (2) Swapped it for `missionTone` → red,
+  *"expected 'No Driver yet' to be 'Pooled'"*. (3) Put the raw-status chips back in the probe
+  → red, *"1 disagreeing of 5"*, *"68 returned vs 69 expected"*. Every red named the right
+  thing.
+- **`.local/probe/admin-chips.mts`, 9 checks, live.** The chips partition the 73 pooled/
+  expired rows with no gap and no overlap. **One live trip was exhibiting the bug**
+  (`8a7a1c87-e31a-44d8-bc08-4c519544c5d7`, pickup 2026-09-02T14:20Z).
+
+### ⚑ THE DESIGN LOCK ITEM WAS CLOSED BY BEING REVERSED, NOT BUILT
+S73's handoff recorded the founder asking to move **"Worth a look" ABOVE the numbers** on
+`/admin`. A mockup of exactly that was put to them on 2026-09-02 and they answered
+**"numbers on top, findings underneath"** — which is what is already live. So the item is a
+**no-op**, not a change. Confirmed with them rather than assumed, because the handoff says
+the opposite. The quiet-day answer (keep *"Every check ran and found nothing."* rather than
+hiding the section) is also already the shipped behaviour.
+
+### Still open
+- **VAT per group** — the five rate questions. The founder asked for them to be confirmed
+  against official sources online rather than answered from reasoning; that research is the
+  other half of this session.
+
+---
+
 ## 2026-09-02 — Session 73 (part 4) — THE ADMIN CONSOLE, AND THE SESSION CLOSED
 
 **Scope.** The last screen printing a bare ceiling. Suite **895 → 897**. No migration.

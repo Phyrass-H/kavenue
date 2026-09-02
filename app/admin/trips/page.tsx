@@ -39,11 +39,32 @@ export default async function AdminTripsPage({
   // cannot be paged in SQL — it is read whole and capped by the flag itself.
   const flagged = flag === "no-cancellation-record";
 
+  // ⚑ ONE CLOCK for the chip and the rows it produces. The list re-reads the
+  // time when it renders, milliseconds later; both sides of the `<=` boundary
+  // are the same predicate, so a trip cannot be filtered in as live and then
+  // printed as dead.
+  const nowIso = new Date().toISOString();
+
   let query = db
     .from("mission_read")
     .select("*", { count: "exact" })
     .order("pickup_at", { ascending: false });
-  if (status) query = query.eq("status", status as MissionStatus);
+  // ⚑ THE CHIPS FILTER ON WHAT THE ROW SAYS, NOT ON THE COLUMN. `expire_stale_missions`
+  // only runs on Pool and Dispatch reads, so the console is full of trips still
+  // marked `pooled` whose pickup was weeks ago. Filtering on the raw status made
+  // "In the Pool" list rows whose own status reads `Unfilled`, and made "Nobody
+  // took" miss every one of them — the chip disagreeing with the list it just
+  // produced. Same `isExpired` rule as lib/dispatch-status, written here in SQL
+  // because the filter has to be part of the paged query.
+  if (status === "pooled") {
+    query = query.eq("status", "pooled").gt("pickup_at", nowIso);
+  } else if (status === "expired") {
+    query = query.or(
+      `status.eq.expired,and(status.eq.pooled,pickup_at.lte."${nowIso}")`,
+    );
+  } else if (status) {
+    query = query.eq("status", status as MissionStatus);
+  }
   // ⚑ THE FLAGGED VIEW CANNOT BE PAGED IN SQL — it is filtered in JS against
   // `mission_cancellation` — so BOTH of its reads have to be paged by hand. Left
   // unbounded they stop at 1 000 rows in silence, and this view is the PROOF

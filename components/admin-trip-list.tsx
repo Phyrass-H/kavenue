@@ -17,9 +17,9 @@ import {
   formatMoney,
   formatShortDay,
   formatTime,
-  missionStatusLabel,
   shortPlaceLabel,
 } from "@/lib/format";
+import { missionStatusLabelAt } from "@/lib/dispatch-status";
 import type { MissionStatus } from "@/lib/database.types";
 
 export interface AdminTripRow {
@@ -134,7 +134,7 @@ export function AdminTripList({
                     {cell.reached ? "ceiling reached" : `ceiling ${formatMoney(cell.ceiling)}`}
                   </span>
                 </span>
-                <span className="adm-row__kind">{missionStatusLabel(t.status)}</span>
+                <span className="adm-row__kind">{missionStatusLabelAt(t, now)}</span>
               </Link>
             );
           })}

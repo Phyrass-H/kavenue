@@ -1,6 +1,7 @@
 // Status "tone" for the Dispatch schedule — the at-a-glance colour a hotel
 // scans. Derived from mission.status + time-to-pickup + the D61 check-in.
 import type { CloseAnswer, MissionRow } from "@/lib/database.types";
+import { missionStatusLabel } from "@/lib/format";
 
 export type Tone = "neutral" | "info" | "success" | "warn" | "danger";
 
@@ -113,6 +114,26 @@ export function isExpired(
     m.status === "expired" ||
     (m.status === "pooled" && new Date(m.pickup_at).getTime() <= now.getTime())
   );
+}
+
+/**
+ * § P — the status a CONSOLE row should PRINT, which is not always the one in
+ * the column. A still-`pooled` trip whose pickup has passed is dead; the sweep
+ * simply hasn't reached the row yet, and the fare cell beside it already says
+ * "Not taken". This makes the two halves of one row agree, by calling the SAME
+ * `isExpired` the fare cell calls rather than re-deriving it.
+ *
+ * ⚑ DELIBERATELY NOT `missionTone`. That speaks to a Dispatcher — "No Driver
+ * yet", "call them", "A Driver is reviewing this" — and the console is an audit
+ * screen, not a counterparty one. It keeps the console's own flat vocabulary and
+ * changes exactly one word: `Pooled` becomes `Unfilled` when, and only when, the
+ * fare cell says `Not taken`.
+ */
+export function missionStatusLabelAt(
+  m: Pick<MissionRow, "status" | "pickup_at">,
+  now: Date = new Date(),
+): string {
+  return missionStatusLabel(isExpired(m, now) ? "expired" : m.status);
 }
 
 /**
@@ -413,7 +434,8 @@ export function missionTone(
       // not wait for it — showing "In the Pool" on a trip from last month is the
       // bug the founder reported. Doing it here covers the schedule, the calendar,
       // the history and the expanded row in one place.
-      if (pickup <= now.getTime()) return expiredTone;
+      // ⚑ The predicate itself, not a second writing of it — see § P above.
+      if (isExpired(m, now)) return expiredTone;
       // § 7 — a Driver has this trip frozen while they decide. Ranked ABOVE the
       // "No Driver yet" urgency on purpose: both can be true at once, and of the two
       // "someone is looking at it right now" is the one that changes what a Dispatcher

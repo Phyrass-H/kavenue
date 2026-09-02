@@ -5,6 +5,36 @@
 
 ---
 
+## 2 September 2026 — the badge stops disagreeing with its own row
+
+You spotted this last session and I wrote it down rather than folding it in. Now it's fixed.
+
+On a Pool trip whose pickup time had already gone, the price said **"Not taken"** and the
+badge beside it still said **"Pooled"** — the same trip, two answers, ten pixels apart. The
+badge was the one that was behind: it read the raw database column, and the tidy-up that
+marks dead trips only runs on the Pool and Dispatch screens, never on your console. So on
+your console it could be weeks out of date. It now says **"Unfilled"** exactly when the price
+says "Not taken", and nothing else changes.
+
+**The filter buttons on Trips had the same fault, so they're fixed too.** "In the Pool" was
+listing trips that were over, and "Nobody took" was missing them. One live trip was doing
+this today.
+
+⚑ **The console keeps its own words.** The Schedule's version of this says things like "No
+Driver yet" and "call them" — instructions for a hotel. Your console is for looking at what
+happened, so it stays flat: one word per trip, the same words as before.
+
+⚑ **And the check I wrote to prove it was lying to me.** My first version passed seven checks
+in a row — against **zero rows**, because the door it was knocking on doesn't open for the
+key it was using. Seven greens that meant nothing. The check now signs in the way your
+console does, and it refuses to report anything at all if it can't see any trips.
+
+⚑ **The "Worth a look" move is a no-op.** Last session's notes recorded you asking for the
+findings to go above the numbers. I mocked it up; you said numbers on top — which is what's
+already live. So there's nothing to build, and the design lock is closed.
+
+---
+
 ## 2 September 2026 — the admin console gets the same treatment
 
 The last screen that still printed a bare price. Your console — Trips, and each hotel's and

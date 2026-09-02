@@ -23,10 +23,10 @@ import {
   formatDateTime,
   formatMoney,
   formatTripMeta,
-  missionStatusLabel,
   serviceClassLabel,
   shortPlaceLabel,
 } from "@/lib/format";
+import { missionStatusLabelAt } from "@/lib/dispatch-status";
 
 export const dynamic = "force-dynamic";
 
@@ -114,7 +114,7 @@ export default async function AdminTripPage({
           </p>
         </div>
         <div className="adm-head__side">
-          <span className="adm-pill">{missionStatusLabel(mission.status)}</span>
+          <span className="adm-pill">{missionStatusLabelAt(mission)}</span>
           {holder && (
             <Link href={`/admin/drivers/${holder.driver.id}`} className="adm-pill adm-pill--info">
               {holder.driver.first_name} {holder.driver.last_name}

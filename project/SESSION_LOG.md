@@ -84,10 +84,20 @@ nothing. That view is role-gated in its own `WHERE`, by design ([[d114]]).
 ### ⚑ THE DESIGN LOCK ITEM WAS CLOSED BY BEING REVERSED, NOT BUILT
 S73's handoff recorded the founder asking to move **"Worth a look" ABOVE the numbers** on
 `/admin`. A mockup of exactly that was put to them on 2026-09-02 and they answered
-**"numbers on top, findings underneath"** — which is what is already live. So the item is a
-**no-op**, not a change. Confirmed with them rather than assumed, because the handoff says
-the opposite. The quiet-day answer (keep *"Every check ran and found nothing."* rather than
+**"numbers on top, findings underneath"** — which is what is already live. Asked a second
+time rather than assumed, and the founder settled it: *"I was confused and mixed up wording
+with something else... so numbers on top."* So the item is a **no-op**, not a change, and the
+S73 note recording the opposite is **superseded — do not resurrect it.** The quiet-day answer (keep *"Every check ran and found nothing."* rather than
 hiding the section) is also already the shipped behaviour.
+
+### ⚑ handoff-check 50 → 51 — the trap is now enforced, not merely commented
+Assertion 51: **no probe reads `mission_read` with only the service role.** It scans
+`.local/probe/*` for a file that queries the view while holding a service-role key and never
+calling `signInWithPassword`. The knowledge was already thirty lines up `handoff-check.ts`,
+in a comment on the `mission_read` column assertion — *and a comment does not go red.*
+Rule-Zero'd: with `admin-chips.mts` reverted to the service role it prints
+`STALE … ⚑ admin-chips.mts — the view is EMPTY to that role; every assertion passes
+vacuously. Sign in.`
 
 ### Still open
 - **VAT per group** — the five rate questions. The founder asked for them to be confirmed

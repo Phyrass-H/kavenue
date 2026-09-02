@@ -3799,6 +3799,24 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   font-size: 13px; color: var(--text-muted); font-variant-numeric: tabular-nums;
 }
 
+/* The trip list's money, two lines — the same rule and the same words the Dispatch
+   schedule uses (lib/fare-cell.ts), on the COURSE basis: this console reads both sides
+   at once and /admin/trips/[id] already heads with the Course ceiling.
+   ⚑ The row is `align-items: baseline`, and a two-line cell aligns on its FIRST line,
+   which is the one carrying the amount — so the column of euros still lines up with the
+   time and the route beside it. */
+.adm-row__fare { text-align: right; line-height: 1.35; }
+.adm-row__fare-t { display: block; white-space: nowrap; }
+.adm-row__fare-l { font-size: 10.5px; color: var(--text-faint); margin-right: 4px; }
+.adm-row__fare-t b { font-weight: 600; color: var(--text); }
+.adm-row__fare-s {
+  display: block; font-size: 10.5px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The auction climbed all the way and nobody took it — on the console this is the row
+   that says a Ceiling is too low for its route. */
+.adm-row__fare-s--warn { color: var(--tone-warn-fg); }
+
 /* ── the head of a trip / Driver / hotel ────────────────────────────────── */
 .adm-head {
   display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;

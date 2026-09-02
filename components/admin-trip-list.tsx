@@ -9,6 +9,7 @@
 // Server component on purpose — it renders Links and nothing interactive.
 import Link from "next/link";
 import { farLeg, byDay, type Band, type PageNote } from "@/lib/admin-list";
+import { fareCell } from "@/lib/fare-cell";
 import { tripLabel, whenLabel } from "@/lib/activity-findings";
 import {
   formatDate,
@@ -60,6 +61,10 @@ export function AdminTripList({
 }) {
   if (rows.length === 0) return <p className="adm-none">{empty}</p>;
 
+  // One clock for the whole list, so a pooled trip near its pickup cannot be "Auction"
+  // on one row and "Not taken" on the next purely because the render took a moment.
+  const now = new Date();
+
   return (
     <>
       {byDay(rows, (r) => r.pickup_at, band).map((day) => (
@@ -81,6 +86,7 @@ export function AdminTripList({
               lat: t.dropoff_lat,
               lng: t.dropoff_lng,
             };
+            const cell = fareCell(t as never, now, "course");
             const leg = farLeg(
               from,
               to,
@@ -113,7 +119,21 @@ export function AdminTripList({
                   )}
                   {leg.label}
                 </span>
-                <span className="adm-row__side">{formatMoney(t.ceiling)}</span>
+                {/* ⚑ Until 2026-09-02 this printed `formatMoney(t.ceiling)` — bare, and
+                    on a COMPLETED trip, where the ceiling is the most the Business could
+                    ever have paid and not what happened. 67% of these rows showed a
+                    number the trip never transacted at. Same rule as the Dispatch
+                    schedule; `course` basis because this console is not a counterparty
+                    screen and /admin/trips/[id] already heads with the Course ceiling. */}
+                <span className="adm-row__side adm-row__fare">
+                  <span className="adm-row__fare-t">
+                    <span className="adm-row__fare-l">{cell.label}</span>
+                    {cell.amount != null && <b>{formatMoney(cell.amount)}</b>}
+                  </span>
+                  <span className={`adm-row__fare-s${cell.reached ? " adm-row__fare-s--warn" : ""}`}>
+                    {cell.reached ? "ceiling reached" : `ceiling ${formatMoney(cell.ceiling)}`}
+                  </span>
+                </span>
                 <span className="adm-row__kind">{missionStatusLabel(t.status)}</span>
               </Link>
             );

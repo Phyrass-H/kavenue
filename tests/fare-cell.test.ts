@@ -122,3 +122,33 @@ describe("every status a row can carry says something", () => {
     if (c.amount == null) expect(c.label).toBe("No fee");
   });
 });
+
+// ⚑ The admin console reads BOTH sides of the marketplace, so it is not a counterparty
+// screen: it shows the Course, and `/admin/trips/[id]` already heads with the Course
+// ceiling. A list on a different basis from the detail page it links to would print two
+// different numbers for one trip.
+describe("the admin console's basis", () => {
+  const RATED2 = { commission_business_rate: 0.15, commission_vat_rate: 0.2 } as const;
+  const NOW2 = new Date("2026-07-15T10:00:00+02:00");
+
+  it("shows the Course, not the Business all-in", () => {
+    const m = mission({
+      ...standardCurve(100), ...RATED2, status: "completed",
+      accepted_at: "2026-07-15T09:00:00+02:00", accepted_fare: 74,
+    });
+    const admin = fareCell(m, NOW2, "course");
+    const dispatch = fareCell(m, NOW2, "business");
+    expect(admin.amount).toBeCloseTo(74, 2);
+    expect(admin.ceiling).toBeCloseTo(100, 2);
+    // Same trip, same words, two bases — and the difference is exactly the service fee.
+    expect(admin.label).toBe(dispatch.label);
+    expect(dispatch.amount!).toBeGreaterThan(admin.amount!);
+  });
+
+  it("defaults to the Business all-in when no basis is named", () => {
+    const m = mission({ ...standardCurve(100), ...RATED2, status: "expired" });
+    expect(fareCell(m, NOW2).ceiling).toBeNull();
+    expect(fareCell(m, NOW2).amount).toBeGreaterThan(100);
+    expect(fareCell(m, NOW2, "course").amount).toBeCloseTo(100, 2);
+  });
+});

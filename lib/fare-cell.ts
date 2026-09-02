@@ -30,6 +30,18 @@ import { businessSplitFor } from "@/lib/commission";
 import { isExpired } from "@/lib/dispatch-status";
 import { currentFare, settledFare } from "@/lib/pdp";
 
+/**
+ * Which side's money the cell is counting.
+ *
+ * ⚑ `business` — the all-in, fee included. docs/06 §3: a Business is only ever shown what
+ *   it pays. This is the Dispatch schedule.
+ * ⚑ `course` — the bare transport price, neither side's total. This is the ADMIN console,
+ *   which is not a counterparty screen: it looks at both sides at once, and `/admin/trips/[id]`
+ *   already prints "Ceiling <course>" in its header. Giving the list a different basis from
+ *   the detail page it links to would put two different numbers on one trip.
+ */
+export type FareBasis = "business" | "course";
+
 export interface FareCell {
   /** The small grey word in front of the amount. */
   label: string;
@@ -55,8 +67,14 @@ type Input = MissionRow;
  * passed is dead whether or not the sweep has run yet — one predicate, so the calendar,
  * the schedule and a deep link cannot disagree about a trip nobody took.
  */
-export function fareCell(m: Input, now: Date = new Date()): FareCell {
-  const ceiling = businessSplitFor(m, Number(m.ceiling)).businessTotal;
+export function fareCell(
+  m: Input,
+  now: Date = new Date(),
+  basis: FareBasis = "business",
+): FareCell {
+  const amount = (course: number) =>
+    basis === "course" ? course : businessSplitFor(m, course).businessTotal;
+  const ceiling = amount(Number(m.ceiling));
 
   if (isExpired(m, now)) {
     // The amount IS the ceiling here, so it is stated once and the second line
@@ -69,13 +87,13 @@ export function fareCell(m: Input, now: Date = new Date()): FareCell {
     const fee = raw != null && Number.isFinite(raw) && raw > 0 ? raw : null;
     return fee == null
       ? { label: "No fee", amount: null, ceiling, reached: false }
-      : { label: "Fee", amount: businessSplitFor(m, fee).businessTotal, ceiling, reached: false };
+      : { label: "Fee", amount: amount(fee), ceiling, reached: false };
   }
 
   if (m.accepted_at) {
     return {
       label: "Closed at",
-      amount: businessSplitFor(m, settledFare(m)).businessTotal,
+      amount: amount(settledFare(m)),
       ceiling,
       reached: false,
     };
@@ -83,7 +101,7 @@ export function fareCell(m: Input, now: Date = new Date()): FareCell {
 
   return {
     label: "Auction",
-    amount: businessSplitFor(m, currentFare(m, now)).businessTotal,
+    amount: amount(currentFare(m, now)),
     ceiling,
     reached: false,
   };

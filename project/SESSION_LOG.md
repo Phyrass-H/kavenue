@@ -74,10 +74,37 @@ through a 92-day seed, leaving half of it in the live database with nothing to u
 base_lat/base_lng check moved up to the `FLEET` map, beside the other preconditions, so it fires
 **before the first write**.
 
+### ✅ ROTATED AND VERIFIED DEAD (2026-09-03, same session)
+The Supabase dashboard could not do it — its only option is *"send a password recovery email"*,
+and this app has **no set-a-new-password page** (only `app/auth/callback`), so the link would
+land nowhere useful. Written instead: **`.local/seed/rotate-passwords.mts`**. The founder types
+three new values into `.env.local`; Claude never sees them.
+
+⚑ **THE FOUNDER EDITED `.env.local` AND ASSUMED THAT WAS THE ROTATION.** It is not — the file
+says what password the code should USE; Supabase still had the old lock fitted. A check right
+then found `pickup-dev-password-123` still opening 6 accounts, `admin@kavenue.fr` included. Worth
+saying plainly to a non-developer: changing the note is not changing the lock.
+
+Then run: **22 rotated** (1 admin + 6 fixtures + 15 seeded), and the 3 real Gmail accounts —
+`phyrass.h@gmail.com` among them — correctly **named and left alone** rather than silently swept
+in. `admin-chips.mts` passed 9/9 afterwards, which is the proof the new admin password works.
+
+**Verified dead, not assumed:** a throwaway probe tried both published strings against all 25
+accounts — *"DEAD. opens nothing."* twice.
+
+⚑ Three separate secrets on purpose (`ADMIN_PASSWORD` / `DEV_PASSWORD` / `SEED_PASSWORD`):
+`admin@kavenue.fr` is a REAL account, the console's only way in, and must not share a string
+with twenty throwaway fixtures. `.local/probe/admin-chips.mts` is the ONLY place in the codebase
+that signs in as it, and it reads `ADMIN_PASSWORD` now.
+
+⚑ Two guards in the script, both of which earned their place on the first run: it **refuses** to
+rotate onto either published string (landing back on the leaked value would be the loudest
+possible false sense of safety), and it **names** every account no group covers.
+
 ### Still open
-- **Rotate both passwords** — the founder is doing `admin@kavenue.fr` by hand;
-  `.local/seed/seed-probe-accounts.mts` re-asserts the other five from `DEV_PASSWORD`, and
-  `seed-3months.mts` the fifteen from `SEED_PASSWORD`.
+- **A `.env.local` value with a trailing `#` comment or quotes would break silently** — the
+  probes' hand-rolled parser is `l.slice(i + 1).trim()`, which strips neither. Not hit, but it is
+  a footgun in 67 files.
 - ⚑ **`.local/probe/accepted-fare.ts` and `curve-live.ts` pick a Business with `.limit(1)` and no
   `.order()`, then look up its Dispatcher.** Nothing guarantees that row has a desk, so both can
   fail on a database where nothing is wrong. Pre-existing, named by the audit, not fixed: the real

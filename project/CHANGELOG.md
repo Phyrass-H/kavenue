@@ -24,9 +24,14 @@ and the commit I was about to make would have put it there.
 **What I did:** both passwords now live in `.env.local`, the file that never leaves your Mac. The
 code refuses to run without them rather than falling back to a default.
 
-⚑ **What only you can do: change them.** GitHub keeps history forever, so the old one stays
-readable no matter what I edit. Changing the password is the fix. Start with `admin@kavenue.fr` in
-the Supabase dashboard.
+⚑ **You changed them, and they're now dead.** The Supabase dashboard couldn't do it — its only
+button sends a recovery email, and your app has no page for that link to land on. So you typed
+three new passwords into `.env.local` and ran one command: **22 accounts rotated**, and your own
+Gmail accounts deliberately left alone. I then tried both old passwords against all 25 accounts:
+**neither opens anything any more.**
+
+One thing worth remembering from it: editing the file was not the rotation. The file says what
+password the code should *use*; Supabase still had the old lock fitted until the command ran.
 
 ⚑ **And I have to correct myself.** Yesterday I told you CI was green on the typechecking. It was
 green and it meant nothing — the folder wasn't in GitHub, so there was nothing for it to check. It

@@ -5,6 +5,91 @@
 
 ---
 
+## 2026-09-03 — Session 74 (part 6) — MONACO ANSWERED, AND A TWO-HOUR RULE NOBODY HAD NAMED
+
+**Scope.** The founder asked for the Monaco VAT question researched with sources, and for the
+access-badge feature captured for the session after VAT. No app code changed; the research and
+the documents are the deliverable. Decisions **D127** and **D128** added.
+
+### ⚑ THE SUBAGENT API WAS DOWN — THREE WORKFLOWS, 529 EVERY TIME
+`scope-vat-per-line` (×2) and `monaco-vat-and-badges` all returned **API Error 529 Overloaded**
+with **zero** agents completing. All the research below was done in the main loop with WebSearch
+and WebFetch. ⚑ Worth carrying: when the fan-out is unavailable, the work is still doable
+directly — and the scoping done by hand is what found `lib/vat.ts` already existed.
+
+### ✅ MONACO IS INSIDE THE FRENCH VAT TERRITORY — NOTHING TO BUILD ([[d127]])
+**BOI-TVA-CHAMP-20-10** (v. 18/01/2023) § 10 lists *« le territoire de Monaco défini par la
+convention douanière signée à Paris le 18 mai 1963 »*; § 145: *« Aux fins de la TVA, ce territoire
+est assimilé au territoire français. »* Independently, the Monegasque government
+(monentreprise.gouv.mc): *« La TVA est perçue sur les mêmes bases et aux mêmes taux qu'en
+France »*, under the same 1963 customs union.
+
+So a Cannes → Monaco transfer is a **domestic 10 % supply, no distance split** — CGI art. 259 A 4°
+would only bite if Monaco were foreign. ⚑ Corroborating: BOI-TVA-CHAMP-20-60-10, the page on
+**international** passenger transport, **never mentions Monaco**, because such a journey is not
+international.
+
+⚑ **Claude's prior reading was right — and that is not the point.** The handoff had recorded it
+as a question *because* it was reasoning rather than a source. It is now checkable, and the next
+session cannot burn a day re-deriving it. ⚑ Also measured: **0 Italian and 0 Swiss trips live**,
+so the art. 259 A 4° split has nothing to apply to yet.
+
+### ⚑⚑ THE BADGE BRIEF TURNED OUT TO BE A LEAD-TIME RULE ([[d128]])
+The founder described two permits (airport, Monaco) gating **pickup** while **drop-off stays
+free**. Researching the official terms found a **third** requirement for Monaco that nobody had
+named — Ord. Souveraine **n° 1.720 du 4 juillet 2008**, mod. **n° 9.841 du 27 mars 2023**:
+
+1. an **authorisation** from the Direction de la Sûreté Publique (French applicants: registered in
+   **Alpes-Maritimes or Var**, plus a **quality charter**);
+2. a **vignette per VEHICLE**, unique and non-transferable;
+3. ⚑ a **déclaration préalable de course, ≥ TWO HOURS before the journey, EVERY trip.**
+
+**Kavenue is an auction whose price climbs toward pickup and whose trips are taken late. A Monaco
+pickup therefore cannot lawfully be accepted inside T−2h, by anyone, badge or not.** That is a
+**lead-time floor**, not a capability flag, and it is the kind of thing a settings-screen framing
+would have missed entirely.
+
+**Airport is two permits, not one:** a nominative driver **badge bleu** (≈13,89 € HT/yr) **and** an
+annual **vehicle** access authorisation — so one hangs on `driver`, one on `vehicle`.
+**Deliberately left undecided**, because the founder is: *"maybe not for Eco… before business or
+first maybe mandatory"*, which would be the first **class-dependent** rule in `lib/eligibility.ts`.
+Staged answer: Monaco **enforces**; the airport starts in `decidesNothing` — recorded and
+rendered, gating nothing — so data accumulates before the rule exists.
+
+**Measured on live data:** Monaco **46 pickups** (First 37 · Business 4 · Eco 5) vs 56 drop-offs ·
+airport **4 pickups** vs 107 drop-offs. ⚑ The airport mix is the seed's shape, not real demand —
+[[design-for-scale-not-todays-data]].
+
+### ⚑⚑ AND `CLAUDE.md` HAD TWO STALE HARD FACTS — BOTH CORRECTED
+Found while looking for where a badge rule would plug in. `CLAUDE.md` § Key data facts said:
+
+1. *"Pool … AND `zone ∈ driver.operational_zones`"*. **Abandoned 2026-06-17.**
+   `docs/migrations/2026-06-17_driver_service_area.sql:20` — *"kept for now but is no longer
+   used"*; `2026-08-11_accept_mission_eligibility.sql:45` — *"NOT ENFORCED · operational_zones"*.
+   The Pool matches **base + radius** (`lib/geo.ts`), and `lib/eligibility.ts:22` already reported
+   the column as **decides-nothing**. The code was right and the hard-rule doc was three months
+   stale.
+2. *"Accept = `rpc('accept_mission', …)`"*. It is **`accept_mission_call`** — the raw name has
+   returned 42501 to browser sessions since `2026-08-31g`.
+
+⚑ **This is the third time in two days a FILE about the code was wrong while the code was right**
+(the handoff's "VAT is not built", the handoff's "CI is green", and now `CLAUDE.md` twice). The
+pattern is worth naming: **every check in this repo guards a claim about behaviour; almost nothing
+guards a claim about the codebase.** `handoff-check` 53 now covers one of them.
+
+⚑ **Consequence for the badge work, written into the backlog:** do not key it off
+`operational_zones`, and do not trust `mission.zone` either — the live spread is `cannes` 159 /
+`Cannes` 2 / `nice` 114 / `Nice` 3 / `monaco` 46. **Mixed case**, harmless only while nothing
+reads it.
+
+### Documents updated
+`CLAUDE.md` (two hard facts) · `docs/01_Legal_VAT_Compliance.md` (destination-fixed-in-advance,
+mise à disposition at 20 %, the four no-VAT states, the territories, Monaco) ·
+`docs/05_Roadmap_Backlog_TODOs.md` (§ Access badges, full spec) · `project/DECISIONS.md`
+(D127, D128) · `project/NEXT_SESSION.md` (Monaco struck off, badges sequenced after VAT).
+
+---
+
 ## 2026-09-03 — Session 74 (part 5) — THE HANDOFF, AND A CORRECTION THAT MATTERS
 
 **Scope.** The founder asked to update the handoff and prepare the VAT session.

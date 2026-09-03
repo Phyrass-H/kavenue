@@ -3445,6 +3445,86 @@ exists reads as re-opening a locked decision. **Name the parameter, not the pric
 
 ---
 
+### D127 — Monaco is inside the French VAT territory, so a Cannes → Monaco ride is a plain 10 % domestic supply (2026-09-03, S74)
+
+**The question.** 102 of 370 live missions (28 %) touch Monaco. `lib/vat.ts` has no place-of-supply
+argument at all. If Monaco were a foreign territory, CGI art. 259 A 4° would tax passenger
+transport *"en fonction des distances parcourues en France"* — meaning every Monaco trip would
+need its fare split by distance, on an invoice, per line. That would have been a large build.
+
+**The answer: no split, nothing to build.** Two independent primary sources:
+
+- **BOFiP, BOI-TVA-CHAMP-20-10** (v. 18/01/2023), the definition of the VAT territory, § 10 lists
+  *« le territoire de Monaco défini par la convention douanière signée à Paris le 18 mai 1963 »*,
+  and § 145 states *« Aux fins de la TVA, ce territoire est assimilé au territoire français. »*
+- **The Monegasque government** (monentreprise.gouv.mc):
+  *« La Taxe sur la Valeur Ajoutée (TVA) est perçue sur les mêmes bases et aux mêmes taux qu'en
+  France. »* and *« Les territoires français et monégasque, y compris leurs eaux territoriales,
+  forment une union douanière organisée par la convention douanière franco-monégasque du
+  18 mai 1963. »*
+
+So distance covered in Monaco **is** distance covered in France for VAT. A Cannes → Monaco
+transfer is a domestic supply at **10 %**, exactly like Cannes → Nice. ⚑ Corroborating detail:
+BOI-TVA-CHAMP-20-60-10, the page on **international** passenger transport, does not mention
+Monaco at all — because such a journey is not international.
+
+**Why this is recorded as a decision and not a note.** Claude had already told the founder its
+*reading* was that Monaco sat inside French VAT — and was told to go and find sources, because
+this project has been wrong once before by reasoning a rate out instead of fetching it
+([[check-sources-not-reasoning]]). The reading turned out right. That is not the point: the point
+is that it is now checkable, and the next session does not have to re-derive it.
+
+**What is still open.** The four territorial branches remain real for anywhere Kavenue expands —
+2,1 % in Corsica and in Guadeloupe/Martinique/Réunion (where the standard rate is 8,5 %), no VAT
+in Guyane and Mayotte. And a genuinely foreign leg **would** need the art. 259 A 4° split:
+⚑ **there are 0 Italian and 0 Swiss trips in the live data today**, but Ventimiglia and Sanremo
+are ordinary Riviera runs, so this returns the day one is booked.
+
+---
+
+### D128 — A Monaco pickup is not a badge, it is a badge PLUS a two-hour declaration (2026-09-03, S74)
+
+**The founder's brief** (2026-09-03): Drivers need to buy badges to work certain places. No badge,
+no **pickup** — but a **drop-off is always allowed**. Two cases: the airport, and Monaco, *"it's
+another country, they don't have Uber in Monaco… you need a specific Monaco badge."*
+
+**Researching the official terms found a third requirement nobody had named**, and it is the one
+that changes the product rather than the settings screen. For a **foreign (French) VTC picking up
+in Monaco**, under Ordonnance Souveraine **n° 1.720 du 4 juillet 2008**, modified by **n° 9.841 du
+27 mars 2023** (in force 1 April 2023), all three are needed:
+
+1. a prior **authorisation** from the Direction de la Sûreté Publique — and for a French applicant,
+   registration in **Alpes-Maritimes or Var** plus adherence to a **quality charter** agreed
+   between Monegasque and French professionals;
+2. a **vignette**, unique and non-transferable, **per vehicle**;
+3. ⚑ a **déclaration préalable de course — filed at least TWO HOURS before the journey**, for
+   **every single trip**, with the *Cellule de Contrôle du Transport de Personnes*.
+
+**The consequence, and it is a design one.** Kavenue's whole mechanism is an auction whose price
+climbs toward the pickup and whose trips are often taken late. **A Monaco pickup cannot be
+lawfully accepted less than two hours before pickup, by anyone, badge or no badge.** So Monaco
+needs a **lead-time floor**, not only a capability flag. No exemption was found for carrying back
+out a passenger you brought in — searched for specifically, because it is the most commercially
+important edge case; absence of a source is not proof there is none, and the founder should
+confirm it from the trade.
+
+**The airport is a different shape and is NOT decided.** Aéroport Nice Côte d'Azur gates its
+dedicated pickup lanes on **two** things: a nominative driver **badge bleu** (≈ 13,89 € HT/year)
+**and** an annual **vehicle** access authorisation. ⚑ So one requirement hangs on the Driver and
+one on the car — which the data model must reflect. The founder is explicitly **undecided** on
+whether to filter the Pool for it: *"maybe not for Eco, they can park in the parking and deal with
+it; before business or first maybe the airport badge should be mandatory."*
+
+**Recorded now, built later** — after the VAT work. `lib/eligibility.ts` already has the right
+shape for it: a type-keyed `Record<EligibilityRuleId, …>` distinguishing **`refuse`** (SQL turns
+the accept down) from **`hide`** (the trip never appears), and a `decidesNothing` list for facts
+recorded but not enforced. ⚑ **The staged answer that matches the founder's own certainty:**
+Monaco **enforces**; the airport starts in `decidesNothing` — recorded, visible on the Driver and
+the console, gating nothing — until they decide. See `docs/05_Roadmap_Backlog_TODOs.md` § Access
+badges.
+
+---
+
 ### D126 — VAT belongs to the LINE, and "0 %" is not a state (2026-09-02, S74)
 
 **The founder asked for the rates to be confirmed online, not reasoned out.** They were right to:

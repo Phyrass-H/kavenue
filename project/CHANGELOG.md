@@ -5,6 +5,42 @@
 
 ---
 
+## 3 September 2026 — Monaco is fine for VAT, but you can't pick up there on short notice
+
+**The VAT question: answered, and there's nothing to build.** For tax purposes Monaco counts as
+France. A Cannes → Monaco trip is an ordinary 10 % French job, exactly like Cannes → Nice, with no
+splitting of the fare by distance. Two official sources say so independently — the French tax
+office's own rulebook, and the Monegasque government from its side. That's 28 % of your trips off
+the worry list.
+
+**The badges: I found something you didn't mention, and it's bigger than a badge.**
+
+You're right that a French VTC can't just pick up in Monaco. But it turns out there are *three*
+requirements, not one: the authorisation, a sticker for each car — and **a declaration filed for
+every single trip, at least two hours before it starts.**
+
+⚑ **That last one collides with how Kavenue works.** Your price climbs as pickup approaches, and
+trips often get taken late. But a Monaco pickup can't legally be accepted inside two hours of the
+pickup time — by anyone, badge or no badge. So Monaco needs a cut-off, not just a tick-box in
+settings. Worth knowing before it's built.
+
+**The airport I've left open, because you did.** You said maybe not for Eco, maybe mandatory for
+Business and First. That would be the first rule in Kavenue that depends on the class of car, so
+it's a real decision rather than a setting. Meanwhile the plan is to record who has a badge without
+enforcing anything — so the information is there when you decide. (Also: the airport is two
+permits, one for the driver and one for the car.)
+
+**One question for you**, which I couldn't find an answer to anywhere: if you drove someone *into*
+Monaco, are you allowed to take that same person back out? You'll know the trade better than the
+websites do.
+
+⚑ **And I found two things in the project's own rulebook that were out of date** — it described
+how trips are matched to Drivers using a rule the code stopped using back in June, and named the
+wrong function for accepting a trip. Both corrected. That's the third time in two days that a
+*file about the code* was wrong while the code was right.
+
+---
+
 ## 3 September 2026 — the notes said a job was still to do, and it was already done
 
 I was writing up what the next session should build, and checked the code first rather than

@@ -80,23 +80,23 @@ item — the code is NOT ready"*. **That is out of date.** `lib/vat.ts` (236 lin
 
 ### 🔴 WHAT IS ACTUALLY LEFT — and #1 is live today, not hypothetical
 
-**1 · PLACE OF SUPPLY IS NOT HANDLED AT ALL — AND 102 OF 370 TRIPS CROSS INTO MONACO.**
-`taxOf` takes no place argument. `grep -riE "corse|guadeloupe|guyane"` over `lib/ app/ components/`
-returns **nothing but a SIREN comment**. Today's research found four territorial branches:
-10 % métropole hors Corse · **2,1 % Corsica AND Guadeloupe/Martinique/Réunion** (where the
-standard rate is **8,5 %**, so an hourly block there is 8,5 %, not 20 %) · **no VAT** in Guyane
-and Mayotte · cross-border taxed **pro rata the distance covered in France** (CGI art. 259 A 4°).
+**1 · ✅ MONACO IS ANSWERED — NOTHING TO BUILD.** ([[d127]], researched with sources 2026-09-03.)
+**Monaco is inside the French VAT territory**, so a Cannes → Monaco ride is a plain domestic
+supply at **10 %** with **no distance split**. Two primary sources: BOI-TVA-CHAMP-20-10 § 10 lists
+*« le territoire de Monaco défini par la convention douanière signée à Paris le 18 mai 1963 »* and
+§ 145 says *« Aux fins de la TVA, ce territoire est assimilé au territoire français »*; the
+Monegasque government says *« La TVA est perçue sur les mêmes bases et aux mêmes taux qu'en
+France »*. Corroborating: the BOFiP page on **international** passenger transport never mentions
+Monaco — because such a journey is not international. **Do not re-derive this.**
 
-⚑ **28 % of the live database is `Cannes → Port Hercule, Monaco`.** The codebase already knows
-Monaco is special (`lib/format.ts:172`, `lib/company-register.ts` — *"Monaco is not in the
-register"*). **START BY RESEARCHING THIS ONE THING, WITH SOURCES:** is a France→Monaco ride
-inside French VAT territory (so 10 % throughout, nothing to change), or a cross-border supply
-needing a pro-rata split? Claude's untested reading is that the Franco-Monegasque convention
-puts Monaco inside French VAT — **but that is reasoning, not a source, and the founder has
-already caught exactly that mistake once** ([[check-sources-not-reasoning]]). Fetch BOFiP.
-Corsica and the DOM are real but Kavenue does not operate there yet; Monaco does, today.
+⚑ **The territorial branches are still real for anywhere else**, and `taxOf` still takes no place
+argument: 2,1 % Corsica and Guadeloupe/Martinique/Réunion (standard rate **8,5 %** there) · no VAT
+in Guyane and Mayotte · a genuinely foreign leg split *« en fonction des distances parcourues en
+France »* (CGI art. 259 A 4°). **0 Italian and 0 Swiss trips live today** — but Ventimiglia and
+Sanremo are ordinary Riviera runs, so this returns the day one is booked. Build it when there is a
+trip that needs it, not before.
 
-**2 · THE TWO ACCOUNTANT QUESTIONS — still unanswered, still blocking.**
+**2 · THE TWO ACCOUNTANT QUESTIONS — the only real blockers left.**
 - **An hourly block with kilometres included** ("4 h / 80 km, then per km") — 10 % or 20 %?
   CE *Air Limousines* (n° 419254) says only billing based **exclusively** on time defeats the
   10 %; CAA Lyon 26 mars 2026 (n° 25LY01286) applied 20 % even with mileage **capped**. Two
@@ -119,6 +119,38 @@ production. ⚑ Note the naming: `MissionType` is `"transfer" | "hourly"`, `Bill
 commission at 20 %, transport at 10 %, and that the Business **cannot reclaim** transport VAT —
 it anticipated the deduction finding. What it does **not** mention: **mise à disposition at
 20 %**, the **territorial branches**, and that "0 %" is not a French state. Add those.
+
+### 🔜 THE SESSION AFTER VAT — ACCESS BADGES (founder, 2026-09-03 · [[d128]])
+Full spec in `docs/05_Roadmap_Backlog_TODOs.md` § Access badges. The founder's brief: a Driver
+needs a bought permit to **pick up** at the airport and in Monaco; **dropping off is always
+allowed**. Put it in Driver settings, and *"maybe create filters"*.
+
+⚑⚑ **RESEARCH FOUND A THIRD REQUIREMENT THAT CHANGES THE PRODUCT, NOT THE SETTINGS SCREEN.**
+A French VTC picking up in Monaco needs an authorisation **and** a per-vehicle **vignette** **and**
+a **déclaration préalable de course filed at least TWO HOURS before the journey, every trip**
+(Ord. Souveraine n° 1.720 du 4 juillet 2008, mod. n° 9.841 du 27 mars 2023). Kavenue is an auction
+whose price climbs toward pickup and whose trips are taken late — so **a Monaco pickup cannot
+lawfully be accepted inside T−2h, by anyone.** Monaco needs a **lead-time floor**, not only a flag.
+
+**Live data:** Monaco **46 pickups** (First 37 · Business 4 · Eco 5) vs 56 drop-offs ·
+airport 4 pickups vs 107 drop-offs.
+
+**Staged to match the founder's own certainty:** Monaco **enforces** (a `refuse` rule, so it needs
+a migration in `accept_mission`, plus the T−2h floor). The **airport is NOT decided** — they said
+*"maybe not for Eco… before business or first maybe mandatory"*, which would be the first
+**class-dependent** rule in `lib/eligibility.ts`. Start it in `decidesNothing`: recorded on the
+Driver and rendered, gating nothing, so the data accumulates before the rule exists.
+⚑ Airport access is **two** permits — a driver `badge bleu` (≈13,89 € HT/yr) **and** an annual
+**vehicle** authorisation — so one hangs on `driver`, one on `vehicle`.
+
+⚑ **DO NOT key any of this off `driver.operational_zones`** — it decides nothing and has since
+2026-06-17; matching is base + radius. `CLAUDE.md` § Key data facts was **corrected 2026-09-03**,
+along with the Accept path (`accept_mission_call`, never the raw name). ⚑ `mission.zone` is not
+safe either: `cannes` 159 / `Cannes` 2 / `nice` 114 / `Nice` 3 — mixed case, harmless only while
+nothing reads it.
+
+⚑ **Ask the founder:** is there an exemption for carrying back out a passenger you brought in?
+Searched for and not found — but they work this trade and absence of a source is not proof.
 
 ### 📎 THE RESEARCH, IN FULL
 Published as an artifact (rates, confidence after the adversarial pass, one best source each,

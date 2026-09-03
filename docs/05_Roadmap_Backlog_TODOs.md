@@ -52,6 +52,70 @@
 - **Management via Administrator account** — assign roles, adjust permissions, oversee all dispatch activity.
 - **Multi-Dispatch** — multiple Dispatcher seats per Business account, each with individual rights, under centralized control.
 
+### Access badges — where a Driver is allowed to PICK UP (founder, 2026-09-03 · [[d128]])
+
+⚑ **The asymmetry is the whole feature: a drop-off is always allowed; a PICKUP is what needs the
+permit.** A Driver with no badge can take a hotel guest *to* the airport or *to* Monaco all day.
+
+**Live data, 2026-09-03 (370 missions):**
+
+| | pick up there | drop off only |
+|---|---|---|
+| **Monaco** | **46** (First 37 · Business 4 · Eco 5) | 56 |
+| **Nice airport** | 4 (Eco 3 · Business 1) | 107 |
+
+⚑ Today's airport mix is drop-off-heavy, but that is the seed's shape, not real demand — design
+for the traffic at scale, not for these four rows.
+
+#### MONACO — decided, and it is not just a badge
+A French VTC needs **three** things (Ord. Souveraine n° 1.720 du 4 juillet 2008, modified by
+n° 9.841 du 27 mars 2023, in force 1 April 2023):
+1. an **authorisation** from the Direction de la Sûreté Publique — French applicants must be
+   registered in **Alpes-Maritimes or Var** and adhere to a **quality charter**;
+2. a **vignette per VEHICLE**, unique and non-transferable;
+3. ⚑ a **déclaration préalable de course, at least TWO HOURS before the journey, for every trip.**
+
+⚑⚑ **THE PRODUCT CONSEQUENCE, and it is not a settings field.** Kavenue is an auction whose price
+climbs toward pickup and whose trips are often taken late. **A Monaco pickup cannot be lawfully
+accepted inside two hours of pickup — by anyone.** Monaco therefore needs a **lead-time floor**
+as well as a capability flag. A trip that reaches T−2h unaccepted is dead for Monaco pickups even
+though the curve says it is still climbing.
+
+⚑ **Unanswered, and the founder should settle it from the trade:** is there an exemption for
+carrying back out a passenger you brought in? Searched for specifically and not found — but the
+absence of a source is not proof there is no rule.
+
+#### AIRPORT — NOT decided, on purpose
+Aéroport Nice Côte d'Azur gates its dedicated pickup lanes on **two** things: a nominative driver
+**badge bleu** (≈ 13,89 € HT/year) **and** an annual **vehicle** access authorisation.
+⚑ One hangs on the Driver, one on the car.
+
+The founder is explicitly undecided: *"I'm not sure I want to filter that — maybe not for Eco,
+they can park in the parking and deal with it. Before business or first maybe the airport badge
+should be mandatory."* So a possible rule is **class-dependent** (Eco unfiltered, Business/First
+requiring the badge) — which no existing rule in `lib/eligibility.ts` is, and that is a real
+design step, not a flag.
+
+#### The shape to build
+`lib/eligibility.ts` already has the right structure — a type-keyed
+`Record<EligibilityRuleId, { kind: "refuse" | "hide" }>` where **`refuse`** is SQL turning an
+accept down and **`hide`** is the trip never appearing, plus a `decidesNothing` list for facts
+recorded but consulted by nothing.
+
+⚑ **Staged to match the founder's own certainty:**
+- **Monaco → enforce.** A new rule, and because `refuse` rules live in `accept_mission`, it needs
+  a **migration** (the founder runs it). Plus the T−2h floor.
+- **Airport → `decidesNothing` first.** Recorded on the Driver, rendered on their settings and on
+  the admin console, gating nothing, until the founder decides. This is what the `decidesNothing`
+  list is *for*, and it means the data starts accumulating before the rule exists.
+
+⚑ **DO NOT key any of this off `driver.operational_zones`.** That column decides nothing and has
+since 2026-06-17; matching is base + radius ([[d128]], and `CLAUDE.md` § Key data facts, corrected
+2026-09-03). ⚑ And `mission.zone` is **not** safe as-is either: the live spread is
+`cannes` 159 / `Cannes` 2 / `nice` 114 / `Nice` 3 / `antibes` 44 / `Antibes` 1 / `monaco` 46 —
+**mixed case**, harmless while nothing reads it, a silent mismatch the day something does. The
+pickup's coordinates are the fact; a town label is a convenience.
+
 ### Driver tools & reliability
 - **Driver→Driver hand-over ("copilote") — O7 Phase 2 (DECIDED model, 2026-07-13, D45).** A full **transfer (novation)** of a booked mission to another verified, **same-category** Kavenue Driver — **NOT subcontracting**: the original Driver drops out entirely (no pay, no invoice, no liability) and keeps only a "passed on" trace; the copilote **re-accepts on their own account** and becomes the Driver of record. Avoids the outright-cancel penalty and keeps service uninterrupted. **Legally confirmed viable** (cleaner than sous-traitance — Kavenue stays the pure intermediary; the credential gate is what keeps it legal, since *sous-traitance illicite* is a named REVTC offence from 2026). Requires the community/registration layer + credential-gating (WAY-Partner model). Precedent: Drivalty · iaDriver · WAY-Partner · VTC cooperatives. See D45 + IDEAS.md.
 - **SPEED WIN reachability gate (DECIDED, build later — D45)** — a SPEED WIN can only be accepted by a Driver who can **physically reach the pickup on time**: geolocate the Driver, compute the GPS ETA to pickup, and **block acceptance with a popup** if they'd be late. Needs Driver geolocation + a Directions ETA call.

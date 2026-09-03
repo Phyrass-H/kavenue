@@ -53,9 +53,18 @@ touches it; don't read them all at startup (see `project/NEXT_SESSION.md` for th
 
 ## Key data facts (from the spine)
 - **Pool** is a query, not a table:
-  `mission WHERE status='pooled' AND category = <driver's vehicle category>
-   AND zone ∈ driver.operational_zones`.
-- **Accept** = `rpc('accept_mission', { p_mission_id })`. It already does atomic accept
+  `mission WHERE status='pooled' AND category = <driver's vehicle category>`, then kept if the
+  pickup **or** the dropoff falls inside the Driver's **base + radius** (`lib/geo.ts`).
+  ⚑ **NOT `zone ∈ driver.operational_zones`** — that was the original spine rule and it was
+  **abandoned on 2026-06-17** (`docs/migrations/2026-06-17_driver_service_area.sql:20`:
+  *"kept for now but is no longer used"*; `2026-08-11_accept_mission_eligibility.sql:45`:
+  *"NOT ENFORCED · operational_zones"*). The column still exists and still holds values, and
+  `lib/eligibility.ts` reports it as **decides-nothing** on purpose so nobody assumes it matters.
+  The spine's rule is *"matching is by location, not a town list"*. Corrected 2026-09-03.
+- **Accept** = `rpc('accept_mission_call', { p_mission_id, p_fare })`. ⚑ **The `_call` wrapper,
+  NEVER the raw `accept_mission`** — 2026-08-31g closed the raw SECURITY DEFINER functions to
+  browser sessions (a composite return bypasses column privileges), so the raw name returns
+  42501 to a signed-in Driver. That is the wall, not a fault. It already does atomic accept
   (first wins), slot-conflict check, and the Lock-in 3h rule. Don't reimplement it.
 - **Current fare (PDP)** is computed on read from base/ceiling/start/step/interval —
   never stored as "the price". SPEED WIN starts at/near the ceiling.

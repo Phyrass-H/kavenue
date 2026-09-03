@@ -10,7 +10,13 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const DEV_PASSWORD = "pickup-dev-password-123";
+// ⚑ THIS LINE PUBLISHED A WORKING PASSWORD. It was a plain-text literal in a
+// tracked file in a PUBLIC repo (committed 98a89ff), and the key a browser uses
+// to reach Supabase is NEXT_PUBLIC_ by design — so the pair was complete and
+// readable by anyone. It opened 6 accounts on the live project, admin@kavenue.fr
+// among them. The old value stays in git history forever, which is why the
+// accounts had to be rotated rather than the line merely edited.
+const DEV_PASSWORD = process.env.DEV_PASSWORD;
 const DEMO = {
   business: "demo.business@pickup.local",
   driver: "demo.driver@pickup.local",
@@ -45,8 +51,18 @@ export async function GET(request: Request) {
     );
   }
 
+  // ⚑ Refuse rather than fall back to a default. A hard-coded fallback here is
+  // exactly what published the last one, and a fallback that ships is a fallback
+  // that gets used.
+  if (!DEV_PASSWORD) {
+    return NextResponse.json(
+      { error: "DEV_PASSWORD is not set. Add it to .env.local (and to the Vercel env if you use dev sign-in there)." },
+      { status: 500 },
+    );
+  }
+
   const admin = createAdminClient();
-  await ensureUser(admin, email);
+  await ensureUser(admin, email, DEV_PASSWORD);
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
@@ -64,10 +80,13 @@ export async function GET(request: Request) {
 async function ensureUser(
   admin: ReturnType<typeof createAdminClient>,
   email: string,
+  // ⚑ Passed in, not closed over: the caller has already proved it is set, so
+  // this function cannot create an account against `undefined`.
+  password: string,
 ): Promise<void> {
   const { data: created } = await admin.auth.admin.createUser({
     email,
-    password: DEV_PASSWORD,
+    password,
     email_confirm: true,
   });
   if (created?.user) return;
@@ -77,7 +96,7 @@ async function ensureUser(
   const found = list?.users.find((u) => u.email === email);
   if (found) {
     await admin.auth.admin.updateUserById(found.id, {
-      password: DEV_PASSWORD,
+      password,
       email_confirm: true,
     });
   }

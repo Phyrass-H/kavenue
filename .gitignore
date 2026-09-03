@@ -32,6 +32,20 @@ Thumbs.db
 # ----- Claude Design handoff bundle (reference only — kept local, not committed) -----
 .design-handoff/
 
-# Local-only test tooling (the seeded-fleet script + its manifest).
-# Writes to the live DB, so it is deliberately NOT committed — same call as S42.
-.local/
+# Local-only test tooling — the probes and the seed scripts.
+# ⚑ `.local/` IS TRACKED (2026-09-03). It holds the probes and seed scripts, and
+# leaving it out meant `tsc` never read them — a probe could import a function
+# that no longer existed and stay "green" until someone ran it by hand. CI now
+# typechecks it like anything else.
+#
+# ⚑ BEFORE ADDING ANYTHING HERE: this is a PUBLIC repo. No literal passwords, no
+# keys. Both fixture passwords were moved to .env.local the day this was tracked;
+# one of them had already been published from app/api/dev-login/route.ts.
+# .env.local and .env*.local stay ignored above — do not touch those lines.
+#
+# ⚑ The SCRIPTS are tracked; their OUTPUT is not. Every *.json under .local is a
+# run artifact — live mission and auth-user ids, rewritten on each run (_times.json
+# alone is 150 kB). They are read with fs.readFileSync, never imported, so tsc does
+# not need them, and committing them would publish live row ids and churn the diff
+# on every probe run.
+.local/**/*.json

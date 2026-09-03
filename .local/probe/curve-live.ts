@@ -26,10 +26,19 @@ const { data: rateRow } = await db.from("commission_rate").select(COMMISSION_RAT
   .lte("effective_from", new Date().toISOString()).order("effective_from", { ascending: false }).limit(1).maybeSingle();
 const rates = ratesFromRow(rateRow);
 
-const { data: biz } = await db.from("business").select("id").limit(1).maybeSingle();
-if (!biz) throw new Error("no Business in the database — this probe hangs its mission on one; run .local/seed/seed-3months.mts");
-const { data: disp } = await db.from("dispatcher").select("id").eq("business_id", biz.id).limit(1).maybeSingle();
-if (!disp) throw new Error(`Business ${biz.id} has no Dispatcher — a mission needs one; run .local/seed/seed-3months.mts`);
+// ⚑ THE DESK FIRST, NOT THE BUSINESS. This used to pick a Business with
+// `.limit(1)` and no `.order()` — whichever row Postgres happened to hand back —
+// and then hunt for a Dispatcher belonging to it. Nothing guarantees that
+// Business HAS a desk, so the probe could fail on a database where nothing was
+// wrong, purely on row order. Reading the desk first makes the pair exist by
+// construction: `dispatcher.business_id` is NOT NULL, so a desk always names the
+// Business it belongs to. The `.order()` is the other half of the fix — without
+// it "the first row" is whatever the planner feels like, which is how a probe
+// passes on Monday and fails on Tuesday having tested a different Business.
+const { data: disp } = await db.from("dispatcher").select("id, business_id")
+  .order("created_at", { ascending: true }).limit(1).maybeSingle();
+if (!disp) throw new Error("no Dispatcher rows at all — this probe posts its mission as one, and a mission needs a desk; run .local/seed/seed-3months.mts");
+const biz = { id: disp.business_id };
 
 // Exactly what createMission does: price in SQL from the server's own distance.
 const KM = 22;

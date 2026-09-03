@@ -101,6 +101,23 @@ that signs in as it, and it reads `ADMIN_PASSWORD` now.
 rotate onto either published string (landing back on the leaked value would be the loudest
 possible false sense of safety), and it **names** every account no group covers.
 
+### ✅ THE TWO FLAKY PROBES — the desk is read first now
+`accepted-fare.ts` and `curve-live.ts` picked a Business with `.limit(1)` and **no `.order()`**,
+then hunted for a Dispatcher belonging to it. Two faults in one statement: nothing guarantees the
+chosen Business HAS a desk, and "the first row" without an ORDER BY is whatever the planner
+feels like — which is how a probe passes on Monday and fails on Tuesday having silently tested a
+different Business.
+
+Both now read the **desk** first and take its `business_id`. `dispatcher.business_id` is NOT
+NULL, so the pair exists **by construction** rather than by luck, and `.order("created_at")`
+makes which desk deterministic. Both re-run green (`curve-live` 8 ALL AGREE · `accepted-fare`
+20 ALL AGREE).
+
+⚑ **HONEST SCOPE — this had NOT bitten yet, and the check says so.** A throwaway probe counted
+it: **5 Businesses, all 5 have a desk**, so the old code was passing reliably today. The fix
+removes a dependence on luck; it did not repair a live failure. Recording it that way on purpose
+— overclaiming a fix is the same failure as overclaiming a green.
+
 ### Still open
 - **A `.env.local` value with a trailing `#` comment or quotes would break silently** — the
   probes' hand-rolled parser is `l.slice(i + 1).trim()`, which strips neither. Not hit, but it is

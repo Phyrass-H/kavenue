@@ -5,6 +5,64 @@
 
 ---
 
+## 2026-09-03 — SESSION 74 CLOSED — `main` = `f7b3264` · 897 → 926 tests · gate 50 → 53
+
+**Ten pushes, each CI-green on a branch before `main`. No migration. Nothing half-built.**
+
+| | |
+|---|---|
+| `main` | `f7b3264` |
+| tests | 897 → **926** |
+| `handoff-check` | 50 → **53** |
+| tsc | **0 errors**, and it now reads `.local/` |
+| migrations for the founder to run | **none** |
+
+### What shipped
+1. **The admin status pill agrees with its own row** — `Pooled` → `Unfilled` exactly when the
+   fare cell says `Not taken`, one predicate. The `/admin/trips` chips fixed in the same change.
+2. **`.local/probe` typechecked** (41 errors) and **`.local/` TRACKED**, so CI checks it —
+   proven by pushing a planted error and watching CI reject it by name.
+3. **288 non-null assertions → guards that name what is missing.** Zero real ones left.
+4. **A published password found, rotated, verified dead.**
+5. **VAT per line researched** with sources, adversarially verified. **At-disposal is 20 %.**
+6. **Monaco answered** — inside the French VAT territory, nothing to build ([[d127]]).
+7. **The access-badge brief captured** — and it is a lead-time rule, not a badge ([[d128]]).
+8. **Two probes that had lied since August** now pass 56 checks between them.
+9. **Two flaky probes** made deterministic — honestly reported as removing luck, not a live fix.
+10. **`CLAUDE.md`'s two stale hard facts corrected.**
+
+### ⚑ THE THREAD THAT RAN THROUGH THE WHOLE DAY
+Every safeguard in this repo guards against **a check saying "fine" when it is not**. Four times
+today the failure was the **mirror image** — a *file about the code* being wrong while the code
+was right:
+
+1. the handoff said the VAT reshape was **not built**; `lib/vat.ts` had shipped the day before;
+2. part 3 reported **"CI green"** for a typecheck CI was not running;
+3. `CLAUDE.md` described a **Pool rule abandoned in June**;
+4. `CLAUDE.md` named the **wrong Accept function**.
+
+None of these is a bug. Each costs a rebuild, a false assurance, or a wrong design — and none
+would ever go red, because **almost nothing here guards a claim about the codebase.** Assertions
+51–53 now cover three of them. ⚑ **This is the thing to carry into S75.**
+
+### 🔴 OPEN — nothing is blocked on Claude
+- **The two accountant questions.** (a) An hourly block with kilometres included — 10 % or 20 %?
+  (b) Does a published cancellation grid pull the fee into VAT or keep it out? `taxOf` waits.
+- **The Monaco return-leg window.** Founder confirmed the exemption exists (~3 h) and is asking
+  the authority in person. **Not to be coded until confirmed.** Six questions in `docs/05`;
+  ⚑ the deciding one is whether the exemption covers the **declaration only** or the whole regime.
+- ⚑ **133 orphaned `mission_event` rows** (was 18 at the start of the day). **115 are this
+  session's** — every live probe creates trips, deletes them, and the DB triggers leave events
+  behind. **NOT swept**: they are audit rows and the founder was not asked. One line when wanted:
+  `npx tsx .local/probe/sweep-orphans.mts --delete`.
+- **The `.env` parser in 67 scripts** strips neither quotes nor a trailing `#`.
+
+### For S75
+Read `project/NEXT_SESSION.md` § THE NEXT SESSION. **VAT first** — and read the correction at the
+top of it before touching anything, because the reshape is already built. **Badges after.**
+
+---
+
 ## 2026-09-03 — Session 74 (part 6) — MONACO ANSWERED, AND A TWO-HOUR RULE NOBODY HAD NAMED
 
 **Scope.** The founder asked for the Monaco VAT question researched with sources, and for the

@@ -5,6 +5,36 @@
 
 ---
 
+## 3 September 2026 — the notes said a job was still to do, and it was already done
+
+I was writing up what the next session should build, and checked the code first rather than
+trusting my own notes. Good thing.
+
+**The VAT work you asked for is already built.** It shipped yesterday — a proper little module
+that answers "what rate does *this line* carry?" for each of the seven things Kavenue bills, with
+at-disposal already at 20 %, and with the cancellation fee deliberately refusing to guess until
+your accountant answers.
+
+⚑ **And I have to correct myself again.** Earlier today I told you nothing was coded yet, and you
+said "build it with at-disposal at 20 %". It already existed. I nearly rebuilt 236 lines of
+working code — which would have left two versions that could disagree with each other.
+
+Every safeguard in this project watches for a check that says "fine" when it isn't. This was the
+mirror image: notes saying a job was *outstanding* when it was finished. Nothing was watching for
+that, because it costs wasted work rather than a bug — so it looks harmless. It isn't. There's now
+a check that fails if that module ever goes missing or loosens.
+
+⚑ **The real gap left is Monaco, and it's live today.** 102 of your 370 trips run Cannes →
+Monaco — 28 %. The VAT code has no notion of *where* a trip happens, and the rate does depend on
+that. My reading is that Monaco counts as France for VAT and nothing changes, but that's me
+reasoning, not me reading a source — and you've caught me doing exactly that before. So it's
+written up as the first thing to check, with sources, next session.
+
+The handoff for next session is rewritten: what shipped, the password story with the rules that
+come out of it, and the VAT work with the two questions still sitting with your accountant.
+
+---
+
 ## 3 September 2026 — a password of yours was already on the internet
 
 I was about to put your `.local` folder into GitHub, as you asked. I scanned it for anything

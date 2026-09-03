@@ -9,79 +9,135 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
-## ⚑ S73 IS CLOSED — `main` = `31a4b2b` · 873 → 897 tests · gate 50/50 · no migration
+## ⚑ S74 IS CLOSED — `main` = `1291da7` · 897 → 926 tests · gate 50 → 52 · no migration
 
-Four parts, each CI-green on a branch before `main`: **the offline Waybill** · **the
-Schedule's Fare column** · **the night clock** · **the admin console**. Nothing half-built.
+Six things, each CI-green on a branch before `main`. Nothing half-built.
 
-**Every trip row on every screen now names its own money** — `Auction` · `Closed at` ·
-`Not taken` · `Fee` · `No fee`, ceiling underneath. One rule, `lib/fare-cell.ts`, two bases
-([[d123]]): Dispatch shows the Business all-in, the admin console shows the **Course**.
-⚑ **The vocabulary is decided — do not re-open it.** "Auction" not "Offered at" (*Kavenue is
-an agent and offers nothing*), no badges, no saving figure on the row, label 10.5px grey.
-
-**The night rate is answered AND fixed** ([[d124]], [[d125]]). The ×1,20 reaches the Driver —
-they grab rather than hold out, so a night trip taken early opens 20% higher. **No pricing
-change; do not re-derive the "open the night curve at 70%" proposal.** The clock bug is
-fixed: `ParisLocal` is a branded type plus a runtime throw.
+1. **The admin status pill agrees with its own row.** `Pooled` becomes `Unfilled` exactly when
+   the fare cell says `Not taken` — one predicate (`isExpired`), not a second copy. The
+   `/admin/trips` filter chips were fixed in the same change: "In the Pool" was listing trips
+   that were over and "Nobody took" was missing them.
+2. **`.local/probe` is typechecked** (41 errors fixed) — and `.local/` is now **TRACKED**, so CI
+   checks it. ⚑ Proven by pushing a planted error and watching CI reject it by name.
+3. **288 non-null assertions replaced with throws** across 34 files. Zero real ones left.
+4. **A published password, rotated and verified dead** — see the section below. Read it first.
+5. **VAT per line researched** against BOFiP / Légifrance / Conseil d'État, 25 agents,
+   every rate adversarially attacked. **At-disposal is 20 %, not the 10 % Claude first advised.**
+6. **Two probes that had been lying since August** now pass 56 checks between them.
 
 ---
 
-## 🎯 THE NEXT SESSION — the founder asked for these two, in this order
+## ⚑⚑ READ THIS FIRST — A WORKING PASSWORD WAS PUBLIC, AND IS NOW DEAD
 
-### 1 · VAT PER GROUP — blocked on FIVE ANSWERS, ask for them FIRST
-The founder's own request (2026-08-31), and **Claude cannot start it**. Nothing on screen is
-wrong today; it becomes urgent the day invoicing ships or the first at-disposal trip is
-posted. The full structural finding is below in § ASKED FOR IN S72 — the short version is
-that **`mission.transport_vat_rate` is one rate per MISSION, not per item**, and answers
-"is this Driver VAT-registered?" rather than "what rate does this kind of supply carry?".
+`app/api/dev-login/route.ts:13` held `pickup-dev-password-123` as a plain literal. That file is
+tracked and **this repo is PUBLIC** (`gh repo view --json visibility` → PUBLIC). The Supabase
+browser key is `NEXT_PUBLIC_` by design and ships in the deployed site, so the pair was complete.
 
-**Put these five to the founder before anything else — they are tax, not design:**
-1. **Transfer** (A → B passenger transport) — 10 %?
-2. **At disposal / mise à disposition** — 10 %, or 20 % because it is a hire not a journey?
-   ⚑ `mission_type` is 100 % `transfer` on every live row, so nothing has ever exercised it.
-3. **Waiting time** — accessory to the transport, or a separate service at 20 %?
-4. **No-show** — a supply at all, or compensation?
-5. **Cancellation fee** — docs/06 §1 already calls the Driver's penalty an *indemnity*, which
-   is normally **outside the scope** of VAT — and that is **not the same as a 0 % line**.
+**Measured, not assumed:** it opened **6 of 25 accounts including `admin@kavenue.fr`** — full
+admin read of every mission, Business, Driver and money column. A second literal,
+`kavenue-seed-2026` in `.local/seed/seed-3months.mts`, opened **15 more**, and was about to be
+published by the commit that tracked `.local/`.
 
-⚑ 4 and 5 matter more than they look: "outside scope" means **no VAT line at all**, and
-`billGroups()` currently gives every group the same shape.
+**Both are rotated and verified dead** — tried against all 25 accounts, *"opens nothing"* twice.
+Three secrets now live in `.env.local`: `ADMIN_PASSWORD` (a REAL account, the console's only way
+in) · `DEV_PASSWORD` (fixtures) · `SEED_PASSWORD` (the seeded fleet). Rotate with
+`.local/seed/rotate-passwords.mts` — the founder types the values; **Claude never sees them.**
 
-### 2 · THE DESIGN LOCK — it is ONE item, not two
-⚑ **The founder asked for "the two design lock". One of the two shipped on 2026-09-02** —
-"trip rows should say which money they show" is [[d123]], now live on Dispatch AND admin.
+⚑ **THE RULES THAT COME OUT OF THIS, and they are permanent:**
+- **Grep before you commit anything previously ignored.** That scan is the ONLY reason this was
+  found. `.local/**/*.json` stays ignored (run artifacts holding live row ids).
+- **Editing a leaked value out of a file is NOT a fix.** Git history keeps it. Rotate.
+- **Never type a credential for the founder.** Write the script; they run it.
+- ⚑ **The founder edited `.env.local` and reasonably assumed that WAS the rotation.** It is not —
+  the file says what password the code should USE; Supabase still had the old lock fitted. Say
+  this plainly to a non-developer: changing the note is not changing the lock.
 
-**What is actually left:** **move "Worth a look" ABOVE the numbers on `/admin`.** The
-stylesheet already says a finding must never be out-shouted by the band — and then renders
-the band first. A number is the same at 9am and 5pm; a finding is not.
+---
 
-**And one that is DECLINED, not open** — the `Accepted at 19,78 €` / `Transport 17,20 €`
-labelling. The founder is satisfied the money is right. ⚑ Re-raise ONLY with the argument
-that was made and never answered: *the founder understands it after four messages of
-explanation; a Dispatcher at the hotel will never get that explanation.*
+## 🎯 THE NEXT SESSION — VAT, AND IT IS **NOT** WHAT THE OLD HANDOFF SAID
 
-### 🧹 ONE SMALL ONE LEFT
-- **The admin status pill is behind its own row.** On a pooled trip whose pickup has passed
-  the fare cell says `Not taken` (`isExpired`) while the pill says `Pooled` (raw status).
-  The pill is the stale one; `lib/dispatch-status` already solves this on Dispatch.
+### ⚑⚑ CORRECTION: THE RESHAPE IS ALREADY BUILT. DO NOT REBUILD IT.
+Every previous handoff said *"`mission.transport_vat_rate` is one rate per MISSION, not per
+item — the code is NOT ready"*. **That is out of date.** `lib/vat.ts` (236 lines, shipped
+2026-09-02) already contains the whole reshape, and it is good:
 
-### ✅ `.local/seed/` IS TYPECHECKED (2026-09-02) — and it found a third night bug
-TypeScript's include globs **skip dot-directories**, so nothing under `.local/` had ever
-been checked — which is why the `ParisLocal` brand could not protect the scripts the bug
-lived in. `.local/seed/**` + `allowImportingTsExtensions` are now in `tsconfig.json`.
+- **`TaxTreatment`** — the four legal states plus `undetermined`, as a discriminated union.
+  ⚑ **A zero rate is UNSPELLABLE**: `rate` lives only inside the `taxable` variant and `rateOf`
+  refuses anything not strictly positive. The compiler is the enforcement.
+- **`BillLineKind`** — seven kinds: `transfer` · `disposal` · `waiting` · `no_show` ·
+  `cancellation_business` · `cancellation_driver` · `commission`.
+- **`taxOf(kind, facts)`** — one resolver, one case per kind, exhaustive `never` default.
+  `waiting`/`no_show` **delegate** to the ride rather than restating a rate.
+  **`disposal` is already 20 %.** `cancellation_driver` is `out_of_scope`.
+  `cancellation_business` returns **`undetermined`** — it refuses to guess.
+- **`FRANCHISE_MENTION`** = the exact CGI art. 293 B wording, declared, deliberately unrendered.
+- Wired at `components/mission-run-view.tsx:196` via `taxLineFor` (`lib/commission.ts:502`).
+  Covered by `tests/vat.test.ts`, `tests/commission.test.ts:347` and
+  `.local/probe/vat-states.mts` (9 checks, *"the reshape is lossless on live data"*).
 
-⚑ **On the first run it named `seed-hard-cases.mts:53`** — a THIRD script passing
-`toISOString()` to `isNightPickup`, which nobody had found by reading. ⚑ And a dead ternary
-in `bleach.mts` (`t === "profile" ? …`) that could never take its first branch, because
-`profile` is deliberately not in `ORDER`.
+⚑ **`docs/02_Product_Features_MVP.md:46` marks auto invoice generation CUT.** So the unrendered
+`FRANCHISE_MENTION` is correct, not a gap. **Do not build an invoice document** (hard rule #5).
 
-The other 16 were nulls, fixed with **throws, not `!`** — a bare non-null assertion is how a
-seed writes rows against nothing at all in silence.
+### 🔴 WHAT IS ACTUALLY LEFT — and #1 is live today, not hypothetical
 
-⚑ **`.local/probe/` is STILL UNCHECKED — another 41 errors**, and those scripts read far
-more than they write. Left on purpose. If you turn it on, expect `'q' is of type unknown`
-in `accepted-fare.ts`, `curve-live.ts` and `s64-curve.ts`, and nullable `biz`/`drv` rows.
+**1 · PLACE OF SUPPLY IS NOT HANDLED AT ALL — AND 102 OF 370 TRIPS CROSS INTO MONACO.**
+`taxOf` takes no place argument. `grep -riE "corse|guadeloupe|guyane"` over `lib/ app/ components/`
+returns **nothing but a SIREN comment**. Today's research found four territorial branches:
+10 % métropole hors Corse · **2,1 % Corsica AND Guadeloupe/Martinique/Réunion** (where the
+standard rate is **8,5 %**, so an hourly block there is 8,5 %, not 20 %) · **no VAT** in Guyane
+and Mayotte · cross-border taxed **pro rata the distance covered in France** (CGI art. 259 A 4°).
+
+⚑ **28 % of the live database is `Cannes → Port Hercule, Monaco`.** The codebase already knows
+Monaco is special (`lib/format.ts:172`, `lib/company-register.ts` — *"Monaco is not in the
+register"*). **START BY RESEARCHING THIS ONE THING, WITH SOURCES:** is a France→Monaco ride
+inside French VAT territory (so 10 % throughout, nothing to change), or a cross-border supply
+needing a pro-rata split? Claude's untested reading is that the Franco-Monegasque convention
+puts Monaco inside French VAT — **but that is reasoning, not a source, and the founder has
+already caught exactly that mistake once** ([[check-sources-not-reasoning]]). Fetch BOFiP.
+Corsica and the DOM are real but Kavenue does not operate there yet; Monaco does, today.
+
+**2 · THE TWO ACCOUNTANT QUESTIONS — still unanswered, still blocking.**
+- **An hourly block with kilometres included** ("4 h / 80 km, then per km") — 10 % or 20 %?
+  CE *Air Limousines* (n° 419254) says only billing based **exclusively** on time defeats the
+  10 %; CAA Lyon 26 mars 2026 (n° 25LY01286) applied 20 % even with mileage **capped**. Two
+  verifiers read this in opposite directions. **This decides whether Kavenue can sell an hourly
+  product at 10 % at all.**
+- **Does publishing a cancellation grid** (free before T−X h, then 50 %, then 100 %) pull the fee
+  **into** VAT or keep it **out**? Same BOFiP paragraph, opposite conclusions. This is what
+  `taxOf("cancellation_business")` is waiting for. ⚑ Half is already settled **by the SQL, not by
+  opinion**: `business_cancel_mission` zeroes the fee when no Driver had accepted, so a fee above
+  zero always implies capacity was held.
+
+**3 · `disposal` BORROWS `commission_vat_rate`** (`lib/vat.ts`, the `transfer`/`disposal` case).
+That column holds the standard French rate snapshotted per generation — arithmetically right,
+under a name that says "fee". ⚑ **The one thing to replace the day an at-disposal trip becomes
+bookable.** Nothing writes `mission_type` (370/370 are `transfer`), so the branch cannot fire in
+production. ⚑ Note the naming: `MissionType` is `"transfer" | "hourly"`, `BillLineKind` says
+`"disposal"` — `rideKindOf` bridges them.
+
+**4 · DOC EDITS.** `docs/01_Legal_VAT_Compliance.md:33-37,51` is **already right** on the
+commission at 20 %, transport at 10 %, and that the Business **cannot reclaim** transport VAT —
+it anticipated the deduction finding. What it does **not** mention: **mise à disposition at
+20 %**, the **territorial branches**, and that "0 %" is not a French state. Add those.
+
+### 📎 THE RESEARCH, IN FULL
+Published as an artifact (rates, confidence after the adversarial pass, one best source each,
+the four legal states, the 2026 calendar, the five accountant questions):
+**https://claude.ai/code/artifact/2beafdb3-4417-4af1-ac0a-184d469638ea**
+
+⚑ **The one wrong rate the adversarial pass caught:** the first researcher reasoned from silence
+in CGI art. 297 and concluded Corsica was 10 %. It is **2,1 %** — three verifiers independently
+fetched BOI-TVA-GEO-10-10 § 70. Reasoning from a text's silence is not a source.
+
+### 🧹 SMALL ONES LEFT, all named not hidden
+- **The `.env` parser in 67 scripts is `l.slice(i + 1).trim()`** — strips neither quotes nor a
+  trailing `#`, so either would become part of a password, silently. Not hit yet.
+- **18 orphaned `mission_event` rows** point at deleted trips. **NOT from S74** — checked, zero in
+  the newest 400. Audit rows; deleting them was not asked for. `sweep-orphans.mts --delete`.
+- **`handoff-check` drift that is just time passing:** *"the seeded live trips are still in the
+  future"*. Re-run `.local/seed/seed-live.mts` if you want a populated Pool.
+
+---
 
 ## ⚑ § 4's OFFLINE GAP IS CLOSED (2026-09-01, S73) — and the Waybill lost its 1°–7°
 
@@ -450,6 +506,14 @@ These are decisions, not tasks. **Ask, do not assume.**
 4. **The "last seen" tracker** — one write per person per day, for DAU/MAU. Asked for in S66, never built.
    ⚑ Records THAT they came, never what they looked at — that distinction is what made it acceptable.
 
+### ✅ SUPERSEDED — ASKED FOR IN S72, BUILT 2026-09-02, RESEARCHED 2026-09-03
+> ⚑⚑ **EVERYTHING BELOW IN THIS SECTION IS HISTORY. DO NOT ACT ON IT.**
+> It says the code is not ready for a rate per item. It has been since `lib/vat.ts` shipped on
+> 2026-09-02, and the five questions were researched with sources on 2026-09-03 — only **two**
+> are still open. See **§ THE NEXT SESSION** at the top of this file for the current state.
+> Kept because the reasoning that produced the reshape is worth reading, and because it records
+> what the column actually stored.
+
 ### 🔴 ASKED FOR IN S72 — VAT PER GROUP, BEFORE THE EXTRAS ARRIVE
 The founder's own framing, 2026-08-31, immediately after the grouped bill shipped: *"I want to make sure that
 the VAT — by doing groups like we just did — has to be different for transfers, at disposal, waiting time. Is
@@ -589,10 +653,12 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**50 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**52 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
-    npx tsc --noEmit && npx vitest run          # expect 897 passing
+    npx tsc --noEmit && npx vitest run          # expect 926 passing · 0 tsc errors
+    # ⚑ tsc now reads .local/seed AND .local/probe (S74). A dead import in a probe
+    #   is a build error, not a surprise at run time. handoff-check 52 guards the glob.
     node --experimental-strip-types .local/probe/diff-sql-vs-lib.ts     # 1 949 · ALL AGREE (slow, ~4 min)
     node --experimental-strip-types .local/probe/write-test.ts          # 170 · ALL AGREE
     node --experimental-strip-types .local/probe/curve-live.ts          #   8 · ALL AGREE

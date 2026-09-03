@@ -872,6 +872,49 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
       : `${include.filter((g) => g.startsWith(".local")).length} .local glob(s) in "include"`);
 }
 
+// ── S74 · the VAT reshape is built, and a zero rate stays unspellable ──────
+{
+  console.log("\n── VAT per line (S74) ──");
+  // ⚑ WRITTEN BECAUSE THE HANDOFF LIED IN THE OTHER DIRECTION. Every file up to
+  //   2026-09-03 said "the code is NOT ready for a rate per item" — and it had
+  //   been ready since lib/vat.ts shipped on 2026-09-02. A session nearly
+  //   rebuilt 236 lines that already existed. Prose decays; an assertion does
+  //   not, so the claim is checked here instead of merely written down.
+  //
+  // ⚑ AND THE PROPERTY WORTH GUARDING IS THE ODD ONE: there is no way to spell
+  //   a 0 % rate. France has 20 / 10 / 5,5 / 2,1 and nothing else, so a line
+  //   carrying no VAT is in one of three OTHER states, legally distinct, and
+  //   machine-read per line on an e-invoice since 1 September 2026. `rate` lives
+  //   only inside the `taxable` variant. If a future edit adds a rate field at
+  //   the top level, or lets `rateOf` return 0, that guarantee is gone in
+  //   silence — and the invoice is wrong rather than the screen.
+  const vat = fs.existsSync("lib/vat.ts") ? fs.readFileSync("lib/vat.ts", "utf8") : "";
+  const need: [string, boolean][] = [
+    ['the four legal states + undetermined', ["taxable", "franchise", "out_of_scope", "exempt", "undetermined"]
+      .every((k) => new RegExp(`kind:\\s*"${k}"`).test(vat))],
+    ['`rate` only inside the taxable variant', /\{\s*kind:\s*"taxable";\s*rate:\s*number\s*\}/.test(vat)],
+    ['rateOf refuses a non-positive rate', /n\s*>\s*0\s*\?\s*n\s*:\s*null/.test(vat)],
+    ['taxOf has an exhaustive never', /const\s+never:\s*never\s*=\s*kind/.test(vat)],
+    ['disposal is a kind of its own', /"disposal"/.test(vat)],
+    ['cancellation_business still refuses to guess', /position_open/.test(vat)],
+    ['the art. 293 B wording is not retyped from memory', vat.includes("TVA non applicable, article 293 B du CGI")],
+  ];
+  const broken = need.filter(([, ok]) => !ok).map(([w]) => w);
+  t("lib/vat.ts still resolves a rate PER LINE, and 0 % stays unspellable",
+    vat.length > 0 && broken.length === 0,
+    vat.length === 0
+      ? "⚑ lib/vat.ts is GONE — the reshape shipped 2026-09-02; do not rebuild it, restore it"
+      : broken.length ? `⚑ lost: ${broken.join(" · ")}` : `${need.length} properties held`);
+
+  // ⚑ Place of supply is the KNOWN GAP, and 102 of 370 live trips cross into
+  //   Monaco. This does not go red — nothing is broken today — but it prints, so
+  //   the gap cannot be forgotten between sessions the way the reshape was.
+  const placed = /corse|corsica|guadeloupe|martinique|guyane|mayotte|place_of_supply|placeOfSupply/i.test(vat);
+  console.log(placed
+    ? "note  lib/vat.ts now mentions a place of supply — check the handoff's § 1 is still accurate"
+    : "note  lib/vat.ts has NO place of supply (known gap, § 1 of the next session — Monaco is 28% of live trips)");
+}
+
 console.log("\n── the repo the handoff describes ──");
 const sh = (c: string) => { try { return execSync(c, { encoding: "utf8" }).trim(); } catch { return ""; } };
 t("git is clean", sh("git status --porcelain") === "", sh("git status --porcelain").split("\n")[0] ?? "");

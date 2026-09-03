@@ -5,6 +5,71 @@
 
 ---
 
+## 2026-09-03 — Session 74 (part 5) — THE HANDOFF, AND A CORRECTION THAT MATTERS
+
+**Scope.** The founder asked to update the handoff and prepare the VAT session.
+`main` = **`1291da7`** at the time of writing. handoff-check **52 → 53**. No code change to the
+app; the assertion and the handoff are the deliverable.
+
+### ⚑⚑ THE HANDOFF WAS LYING IN THE DIRECTION NOBODY CHECKS FOR
+Every handoff up to today said *"`mission.transport_vat_rate` is one rate per MISSION — the code
+is NOT ready for a rate per item."* **It has been ready since `lib/vat.ts` shipped 2026-09-02.**
+236 lines, and good: the four legal states as a discriminated union, seven `BillLineKind`s, one
+`taxOf` resolver with an exhaustive `never`, `disposal` **already at 20 %**,
+`cancellation_business` returning `undetermined` rather than guessing, and `FRANCHISE_MENTION`
+carrying the exact CGI art. 293 B wording.
+
+⚑ **This session told the founder "nothing is coded yet" and they replied "build it with
+at-disposal at 20 %" — for something that already existed.** It was found only by scoping the
+work before writing the handoff, i.e. by reading the code instead of the file about the code.
+
+**The lesson generalises past this repo:** every check in this project guards against a green
+that should be red. This was the opposite — a handoff claiming work was OUTSTANDING when it was
+done. Nothing was watching for that, because a stale "still to do" costs a rebuild rather than a
+bug, and so reads as harmless. It is not: it nearly cost 236 lines and would have produced two
+resolvers that could disagree.
+
+**Fixed structurally, not just in prose:** `handoff-check` **assertion 53** asserts `lib/vat.ts`
+still holds all seven properties — the five states, `rate` only inside the `taxable` variant,
+`rateOf` refusing anything not strictly positive, the exhaustive `never`, `disposal` as its own
+kind, `position_open`, and the art. 293 B wording. Rule-Zero'd twice: letting `rateOf` return 0
+prints `⚑ lost: rateOf refuses a non-positive rate`; deleting the module prints `⚑ lib/vat.ts is
+GONE — the reshape shipped 2026-09-02; do not rebuild it, restore it`.
+
+### ⚑ AND THE REAL REMAINING GAP IS LIVE, NOT HYPOTHETICAL: MONACO
+`taxOf` takes **no place-of-supply argument**, and a grep for `corse|guadeloupe|guyane` over
+`lib/ app/ components/` returns nothing but a SIREN comment. Today's research found four
+territorial branches — and a count of the live database found **102 of 370 missions (28 %) are
+`Cannes → Port Hercule, Monaco`**.
+
+The codebase already knows Monaco is special (`lib/format.ts:172`; `lib/company-register.ts`
+— *"Monaco is not in the register"*), just not for VAT. ⚑ **Claude's reading is that the
+Franco-Monegasque convention puts Monaco inside French VAT territory, so nothing changes — but
+that is reasoning, not a source, and it is written into the handoff AS a question to research
+with sources**, precisely because the founder has already caught that exact mistake once
+([[check-sources-not-reasoning]]). Assertion 53 prints the gap as a `note` every run so it
+cannot be forgotten between sessions the way the reshape was.
+
+### What the handoff now says
+Rewritten top: S74's six shipped items · the published-password section first, with the four
+permanent rules that come out of it · then the VAT session, led by the correction above. The
+old S72 VAT section is **kept and marked SUPERSEDED** rather than deleted — the reasoning that
+produced the reshape is worth reading, and it records what the column actually stored.
+
+⚑ **`docs/02_Product_Features_MVP.md:46` marks auto invoice generation CUT**, so the unrendered
+`FRANCHISE_MENTION` is correct rather than a gap, and the next session must not build an invoice
+document (hard rule #5). ⚑ **`docs/01:33-37,51` is already right** on the commission at 20 %,
+transport at 10 %, and the Business being unable to reclaim transport VAT — it anticipated the
+deduction finding. It is silent on at-disposal at 20 % and on the territories; those are the
+edits.
+
+### § 0 gate refreshed
+52 → 53 assertions · 926 tests · `vat-states.mts` and `admin-chips.mts` added to the probe list ·
+and a standing warning that every probe now needs `DEV_PASSWORD` / `ADMIN_PASSWORD` /
+`SEED_PASSWORD` in `.env.local`, plus the `mission_read`-with-the-service-role trap.
+
+---
+
 ## 2026-09-03 — Session 74 (part 4) — THE `!` PASS, AND A PASSWORD THAT WAS ALREADY PUBLIC
 
 **Scope.** The founder asked for the non-null-assertion pass. It turned into a security fix.

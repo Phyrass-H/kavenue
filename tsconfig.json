@@ -36,7 +36,11 @@
     ".next/types/**/*.ts",
     "**/*.mts",
     ".local/seed/**/*.ts",
-    ".local/seed/**/*.mts"
+    ".local/seed/**/*.mts",
+    ".local/probe/**/*.ts",
+    ".local/probe/**/*.mts",
+    ".local/live/**/*.ts",
+    ".local/live/**/*.mts"
   ],
   "exclude": [
     "node_modules"

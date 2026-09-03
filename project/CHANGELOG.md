@@ -5,6 +5,35 @@
 
 ---
 
+## 3 September 2026 — the proofreader now reads the whole project
+
+Yesterday I renamed a function and one of your checking scripts kept calling the old name. The
+proofreader that would normally catch that in a second **wasn't reading that folder at all** — it
+skips folders whose name starts with a dot, and yours is called `.local`. So the mistake was
+invisible until I happened to run the script by hand.
+
+It reads it now. **41 problems were sitting in there**, in 6 files, and they're all fixed.
+
+The worst two were scripts that had been told *"this can never happen"* about a piece of data, and
+then went on to read that data anyway. One of them, on a missing row, would have reported **a
+failure about your pricing curve** — when the real problem was a row that wasn't there. That's the
+worst kind of wrong answer: it sends you looking in the wrong place.
+
+Six others were "this might be missing" — scripts that look up a Business by name, or a Driver
+called Marc Dubois. Rename either one and they'd have carried the nothing straight into the
+database. They now stop and say which one is missing.
+
+**Nothing in the app changed.** This is only your testing and checking scripts. Same 926 checks.
+
+⚑ I also added a check that the setting can't be quietly switched off again — it's one line in a
+config file, and one line is all it took to blind the whole folder in the first place.
+
+⚑ **One thing I left alone:** there are 18 old event records pointing at trips that no longer
+exist. They're not from today — I checked. They're history, and deleting history isn't something
+I'll do without asking.
+
+---
+
 ## 2 September 2026 — the VAT knows which line it's on
 
 You asked me to check the rates online instead of taking my word. Good, because **I had one wrong.**

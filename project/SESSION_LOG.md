@@ -5,6 +5,75 @@
 
 ---
 
+## 2026-09-03 — Session 74 (part 3) — `.local/probe` IS TYPECHECKED
+
+**Scope.** The founder's ask, straight after the reshape broke a probe the compiler could not
+see. **41 errors in 6 files, all fixed.** handoff-check **51 → 52**. Suite unchanged at 926 —
+nothing in `app/`, `lib/` or `components/` was touched. No migration.
+
+### Why the folder was invisible
+TypeScript's `**/*.ts` **skips dot-directories**. `.local/` had therefore never been read by
+`tsc` in the life of this project. `.local/seed/**` was added in S73 (and found a third
+night-clock bug on its first run); `.local/probe/**` was left, "expect 41 errors". It is now in
+`include`, along with `.local/live/**` — empty of TS today, glob added so it cannot repeat this.
+
+⚑ **The trigger was concrete.** Unexporting `transportVat` (S74 part 2) broke
+`.local/probe/commission-parity.ts` — the standing TS-vs-SQL guarantee — and `npx tsc --noEmit`
+said **nothing**. It surfaced only when the probe was run by hand. With the glob on it is a
+one-second build error.
+
+### The 41 were four problems, not forty-one
+1. **`as never` — 22 of them, and the interesting one.** `read()` in `accepted-fare.ts` ended
+   `.data as never`. `never` is not a type, it is the compiler being told *"this case cannot
+   happen"* — so every `.accepted_fare` below was reading a field off a value the code had sworn
+   did not exist. Replaced with a real `Pick<MissionRow, …>` matching `FARE_COLS`.
+   ⚑ The second instance was worse: `new Date((p2 as never).accepted_at)` on a missing row is
+   `new Date(undefined)` → Invalid Date → a NaN comparison, which would have reported a FAILURE
+   **about the fare curve** rather than about the row that was never there.
+2. **`unknown` — 9.** Root cause, not symptom: the probes built their Supabase client without the
+   `Database` generic, so every `.rpc()` was untyped. `createClient<Database>(…)` turned `q` from
+   *"no idea what this is"* into *"I know exactly what this is, and it may be null"* — a real
+   complaint, fixed with a throw.
+3. **`possibly null` — 6.** `cancel-modal-trip.ts` looks its fixtures up BY NAME on the live
+   database (a Business matching `%Grand%`, a Driver called Marc Dubois). ⚑ **Throws, not `!`**
+   (the S73 rule): a `!` would have carried a null into an INSERT — a mission written against
+   `business_id: undefined`, or an accept applied to nobody.
+4. **Three one-offs.** A Supabase query annotated `Promise` when it is only `PromiseLike` (it has
+   `.then`, but no `.catch`/`.finally`); `users` declared twice in `reclaim-seed.mts` from two
+   `listUsers` calls, merged into one at the wider page size; and `Object.keys(vRow as object)` in
+   `column-leak.mts` where a null row would have printed *"0 missing, 0 extra"* — a clean bill of
+   health from a comparison that never ran.
+
+### Verified
+- `npx tsc --noEmit` — **0 errors**, and `npx vitest run` still **926**.
+- **Rule Zero, twice.** A deliberate `const proof: number = "text"` in a probe → caught. And the
+  original bug restored — the dead `transportVat` import → `TS2305 has no exported member`, in one
+  second, where yesterday it was silent.
+- **Probes re-run, one at a time:** `curve-live` 8 ALL AGREE · `column-leak` 0 leaks · 18 closed ·
+  `accepted-fare` 20 ALL AGREE, cleaned up · `commission-parity` GREEN · `waiting-money` fine ·
+  `vat-states` 9/0. `reclaim-seed` was the only file whose *behaviour* changed, so it was run and
+  then `--undo`n: 3 trips seeded, 3 removed.
+- **`sweep-orphans`: 18 orphaned events, and they are NOT from this session** — a targeted check of
+  the newest 400 events found zero. Pre-existing, from earlier sessions. **Left alone**: they are
+  audit rows and deleting them was not asked for.
+
+### ⚑ handoff-check 52 — the glob cannot go back to invisible quietly
+Asserts `tsconfig.json`'s `include` covers **both** `.local/seed` and `.local/probe`. It is one
+line of JSON that silently disables a whole folder's proofreading, which is exactly the shape of
+thing this file exists to catch. Rule-Zero'd: removing the glob prints
+`⚑ .local/probe is outside tsconfig "include" — a dead import there compiles`.
+
+### Still open
+- ⚑ **The `!` that already compiled were NOT rewritten.** Only the 41 errors were fixed. Several
+  probes still carry pre-existing non-null assertions (`veh!`, `biz!`, `made!` in
+  `accepted-fare.ts` among them) which typecheck fine and are the same silent-failure shape as the
+  ones replaced with throws. A separate pass, deliberately not folded into this one.
+- **`handoff-check` drift, not caused here:** *"the seeded live trips are still in the future"* —
+  1 live, 4 aged out simply because a day passed. Fixed by re-running `.local/seed/seed-live.mts`;
+  left for whoever wants demo data fresh.
+
+---
+
 ## 2026-09-02 — Session 74 (part 2) — VAT BELONGS TO THE LINE, AND 0 % IS NOT A STATE
 
 **Scope.** The founder's own request from S72, unblocked. They declined to answer the five rate

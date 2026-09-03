@@ -5,6 +5,40 @@
 
 ---
 
+## 3 September 2026 — a password of yours was already on the internet
+
+I was about to put your `.local` folder into GitHub, as you asked. I scanned it for anything
+secret first — and that scan is the only reason we found this.
+
+**A password was already public, and had been for months.** Not in `.local` — in
+`app/api/dev-login/route.ts`, an ordinary file in your repo, which is public. Anyone could read it.
+
+It works. I tested it against all 25 accounts on your database: **6 opened, including
+`admin@kavenue.fr`** — which sees every trip, every hotel, every Driver and all the money. The
+other half of the lock, the key your website uses to reach the database, is *supposed* to be
+public. So the password was the only thing in the way.
+
+**And a second one**, in your seed script, opens 15 more accounts. That one was never on GitHub —
+and the commit I was about to make would have put it there.
+
+**What I did:** both passwords now live in `.env.local`, the file that never leaves your Mac. The
+code refuses to run without them rather than falling back to a default.
+
+⚑ **What only you can do: change them.** GitHub keeps history forever, so the old one stays
+readable no matter what I edit. Changing the password is the fix. Start with `admin@kavenue.fr` in
+the Supabase dashboard.
+
+⚑ **And I have to correct myself.** Yesterday I told you CI was green on the typechecking. It was
+green and it meant nothing — the folder wasn't in GitHub, so there was nothing for it to check. It
+is now, and I proved it properly: I pushed a deliberate mistake and watched the build reject it by
+name.
+
+Also today: the 288 "trust me, it's there" shortcuts are gone, and two checking scripts that had
+been reporting failures since August — about a database that was working perfectly — now pass 56
+checks between them.
+
+---
+
 ## 3 September 2026 — the proofreader now reads the whole project
 
 Yesterday I renamed a function and one of your checking scripts kept calling the old name. The

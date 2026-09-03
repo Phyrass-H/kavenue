@@ -5,6 +5,86 @@
 
 ---
 
+## 2026-09-03 — Session 74 (part 4) — THE `!` PASS, AND A PASSWORD THAT WAS ALREADY PUBLIC
+
+**Scope.** The founder asked for the non-null-assertion pass. It turned into a security fix.
+`main` = **`8e7f2e3`**. 926 tests, 0 tsc errors, handoff-check 52. No migration.
+
+### ⚑⚑ THE FINDING THAT MATTERS: A WORKING PASSWORD WAS ALREADY ON GITHUB
+The founder approved committing `.local/` so CI could typecheck it. Scanning it first for
+secrets — which is the only reason this was found — turned up `pickup-dev-password-123` in 16
+files. Then: **`app/api/dev-login/route.ts:13` held it as a plain literal, that file is TRACKED,
+it was committed in `98a89ff`, and this repo is PUBLIC.**
+
+The pair was complete: the Supabase key a browser uses is `NEXT_PUBLIC_` by design and ships in
+the deployed site, so password + key + a live deployment = a working login for anyone.
+
+**Measured, not assumed** — a throwaway probe tried it against all 25 accounts:
+- **6 of 25 open**, including **`admin@kavenue.fr`** — full admin read of every mission,
+  Business, Driver and money column.
+- A SECOND password, `kavenue-seed-2026` in `.local/seed/seed-3months.mts`, opens **15 more**.
+  Never committed — and **this very commit would have published it.**
+
+**Fixed:** both read from `.env.local` (git-ignored) as `DEV_PASSWORD` / `SEED_PASSWORD`,
+documented valueless in `.env.example`. `/api/dev-login` **refuses** rather than falling back to
+a default — a shipped fallback is a used fallback — and `ensureUser` takes the password as an
+argument so it cannot create an account against `undefined`.
+
+⚑ **THE OLD VALUE IS IN GIT HISTORY FOREVER. Editing the line is not the fix; rotating the
+accounts is.** The founder was told to change `admin@kavenue.fr` in the Supabase dashboard first.
+Claude did not and must not set passwords on their accounts.
+
+### The `!` pass itself — 288 across 34 files, 0 left
+11 agents in parallel, one strict rule, then an independent audit. A `!` says *"trust me, it
+exists"*; when it doesn't, a seed writes rows against `business_id: undefined` and a probe's
+assertions compare `undefined` and pass. Every one is now a guard naming the thing and the fix.
+The 8 remaining grep hits are `!` inside string literals (`"(no error!)"`).
+
+⚑ **The audit caught two things the eleven reporters missed**, which is the argument for having
+one: (1) `git diff` was **empty** — `.local` was gitignored, so there was no reviewable diff and
+no revert path, and every "removed 36" count was unverifiable; (2) **`tsc` was RED**, two errors,
+because **TypeScript will not carry a guard's narrowing into a hoisted `function` declaration** —
+it could be called before the guard runs. Fixed by binding the narrowed value to a const the call
+site can see.
+
+### Two probes had been lying since August, and it was not this pass
+`board-guest-test.ts` and `vehicle-stamp.mts` called the RAW RPC names walled off in
+`2026-08-31g`. They reported **FAILURE against a database working exactly as designed** — trap #2
+from Rule Zero, in the wild. Pointed at the `_call` wrappers the app already uses:
+`board-guest-test` now runs **56 checks ALL AGREE**, and its *"no double settlement"* doors refuse
+for the **real** reason instead of for lack of permission — which was a false pass.
+
+### ⚑ AND THE CI CLAIM FROM PART 3 WAS HOLLOW — CORRECTED
+Part 3 reported "CI green" for turning on the `.local` typecheck. It was green and it **proved
+nothing**: `.local` was not in the repo, so `tsc` matched zero files against those globs. The
+commit contained only `tsconfig.json` and two docs.
+
+Now `.local` is tracked, and **Rule Zero was run on CI itself**: a branch with a planted
+`const ciProof: number = "CI must reject this"` in `.local/probe/curve-live.ts` was pushed and CI
+**failed**, naming `.local/probe/curve-live.ts(110,7)`. Branch deleted. The green means something
+now.
+
+⚑ **The `*.json` under `.local` stays ignored** — run artifacts holding live mission and auth-user
+ids, rewritten every run (`_times.json` alone is 150 kB), read with `readFileSync` and never
+imported, so `tsc` does not need them.
+
+### One behaviour change worth knowing
+`seed-trips.mts` has no `--undo` and no cleanup block. A new guard could have thrown mid-way
+through a 92-day seed, leaving half of it in the live database with nothing to unwind it. The
+base_lat/base_lng check moved up to the `FLEET` map, beside the other preconditions, so it fires
+**before the first write**.
+
+### Still open
+- **Rotate both passwords** — the founder is doing `admin@kavenue.fr` by hand;
+  `.local/seed/seed-probe-accounts.mts` re-asserts the other five from `DEV_PASSWORD`, and
+  `seed-3months.mts` the fifteen from `SEED_PASSWORD`.
+- ⚑ **`.local/probe/accepted-fare.ts` and `curve-live.ts` pick a Business with `.limit(1)` and no
+  `.order()`, then look up its Dispatcher.** Nothing guarantees that row has a desk, so both can
+  fail on a database where nothing is wrong. Pre-existing, named by the audit, not fixed: the real
+  fix is to select the Business FROM the dispatcher table, which is a behaviour change.
+
+---
+
 ## 2026-09-03 — Session 74 (part 3) — `.local/probe` IS TYPECHECKED
 
 **Scope.** The founder's ask, straight after the reshape broke a probe the compiler could not

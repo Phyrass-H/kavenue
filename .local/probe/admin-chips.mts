@@ -33,8 +33,12 @@ const env = Object.fromEntries(
 // has been readable on GitHub since commit 98a89ff, and it opened 6 real
 // accounts on the live Supabase project including admin@kavenue.fr. It comes
 // from .env.local now, which is git-ignored. Set DEV_PASSWORD there.
-const DEV_PASSWORD = env.DEV_PASSWORD;
-if (!DEV_PASSWORD) throw new Error("DEV_PASSWORD is not in .env.local — the probe accounts cannot be signed in to");
+// ⚑ ADMIN_PASSWORD, not DEV_PASSWORD. This is the one probe that signs in as a
+// REAL account — admin@kavenue.fr, the console's only way in — so it must not
+// share a secret with twenty throwaway fixtures. Rotate with
+// .local/seed/rotate-passwords.mts.
+const ADMIN_PASSWORD = env.ADMIN_PASSWORD;
+if (!ADMIN_PASSWORD) throw new Error("ADMIN_PASSWORD is not in .env.local — this probe reads the console's own view, so it signs in as admin@kavenue.fr");
 
 // ⚑ Either key name will do; neither is what hurts — an empty key surfaces as a sign-in
 // failure, which reads like the admin account being gone rather than a missing line.
@@ -50,7 +54,7 @@ let pass = 0, fail = 0;
 const t = (name: string, ok: boolean, detail = "") => { ok ? pass++ : fail++; console.log(`${ok ? "ok  " : "FAIL"}  ${name}${detail ? "   " + detail : ""}`); };
 
 const { error: authErr } = await db.auth.signInWithPassword({
-  email: "admin@kavenue.fr", password: DEV_PASSWORD,
+  email: "admin@kavenue.fr", password: ADMIN_PASSWORD,
 });
 if (authErr) { console.log(`FAIL  cannot sign in as the admin console's own user   ${authErr.message}`); process.exit(1); }
 

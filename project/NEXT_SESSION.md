@@ -149,8 +149,14 @@ along with the Accept path (`accept_mission_call`, never the raw name). ⚑ `mis
 safe either: `cannes` 159 / `Cannes` 2 / `nice` 114 / `Nice` 3 — mixed case, harmless only while
 nothing reads it.
 
-⚑ **Ask the founder:** is there an exemption for carrying back out a passenger you brought in?
-Searched for and not found — but they work this trade and absence of a source is not proof.
+⚑ **ANSWERED by the founder (2026-09-03): the return leg IS exempt** — *"yes you can take the
+same person back out, but I think it's within 3 hours or something like that."* ⚑ **The window is
+NOT confirmed; they are asking the authority in person. Do not code 3 h.** The consequence is
+large: the T−2h floor applies to a **cold** Monaco pickup, not to a **return**, so Kavenue can
+pair an outbound with its return and that pairing is what makes the return legal. Six precise
+questions for the visit are recorded in `docs/05` § Access badges — ⚑ the one that decides the
+design is whether the exemption covers the **declaration only** or the **whole regime**
+(scheduling rule vs capability rule).
 
 ### 📎 THE RESEARCH, IN FULL
 Published as an artifact (rates, confidence after the adversarial pass, one best source each,

@@ -81,9 +81,24 @@ accepted inside two hours of pickup — by anyone.** Monaco therefore needs a **
 as well as a capability flag. A trip that reaches T−2h unaccepted is dead for Monaco pickups even
 though the curve says it is still climbing.
 
-⚑ **Unanswered, and the founder should settle it from the trade:** is there an exemption for
-carrying back out a passenger you brought in? Searched for specifically and not found — but the
-absence of a source is not proof there is no rule.
+⚑ **THE RETURN LEG IS EXEMPT (founder, 2026-09-03) — and this is what makes Monaco workable.**
+*"Yes you can take the same person back out, but I think it's within 3 hours or something like
+that."* ⚑ **The window is NOT confirmed** — the founder is verifying it at the authority in person.
+**Do not code 3 h until they come back with it.**
+
+So the T−2h floor applies to a **cold** Monaco pickup, not to a **return**. Kavenue can pair an
+outbound with its return, and the pairing is what makes the return legal — meaning a Monaco
+pickup at short notice is possible for the Driver who brought that passenger in, and only them.
+
+**Questions to put to the Direction de la Sûreté Publique**, so the visit is productive:
+1. Does the return still need a *déclaration préalable*, or none at all?
+2. What starts the clock — drop-off, or arrival in Monaco — and how long is it?
+3. Same Driver only, or same vehicle too? Same passenger, or same booking?
+4. Must the outbound declaration have announced the return?
+5. ⚑ Does the exemption cover the **declaration only**, or the whole regime? If the authorisation
+   and vignette are still needed, an unpermitted Driver still cannot do the return — and that one
+   answer decides whether this is a **scheduling** rule or a **capability** rule.
+6. What if the party changes size (brought 2, take 4 back)?
 
 #### AIRPORT — NOT decided, on purpose
 Aéroport Nice Côte d'Azur gates its dedicated pickup lanes on **two** things: a nominative driver

@@ -3503,10 +3503,29 @@ in Monaco**, under Ordonnance Souveraine **n° 1.720 du 4 juillet 2008**, modifi
 **The consequence, and it is a design one.** Kavenue's whole mechanism is an auction whose price
 climbs toward the pickup and whose trips are often taken late. **A Monaco pickup cannot be
 lawfully accepted less than two hours before pickup, by anyone, badge or no badge.** So Monaco
-needs a **lead-time floor**, not only a capability flag. No exemption was found for carrying back
-out a passenger you brought in — searched for specifically, because it is the most commercially
-important edge case; absence of a source is not proof there is none, and the founder should
-confirm it from the trade.
+needs a **lead-time floor**, not only a capability flag. **⚑ THE RETURN LEG IS EXEMPT — founder, 2026-09-03.** Claude searched for this specifically and
+found nothing either way; the founder answered from the trade: *"yes you can take the same person
+back out, but I think it's within 3 hours or something like that."* They are taking the
+verification themselves — *"at the proper moment I will go to Monaco and ask the authority"* — so
+**the window is NOT confirmed and must not be coded as 3 h until it is.**
+
+⚑ **This is the difference between a workable Monaco product and an unworkable one.** With the
+exemption, a Monaco pickup CAN be taken at short notice **when it is the same Driver carrying back
+out the passenger they brought in** — so the T−2h floor applies to a *cold* Monaco pickup, not to
+a return. Kavenue can therefore pair an outbound and its return, and the pairing is what makes the
+return legal. Without the exemption, half the Monaco market would be closed to any Driver who did
+not plan two hours ahead.
+
+**The precise questions to put to the Direction de la Sûreté Publique** (recorded so the visit is
+productive — see `docs/05` § Access badges):
+1. Does the return leg still need a *déclaration préalable*, or none at all?
+2. What starts the clock — the drop-off, or the arrival in Monaco — and how long is it?
+3. Same **Driver** only, or same **vehicle** too? Same passenger, or the same booking?
+4. Must the outbound declaration have announced the return?
+5. ⚑ Does the exemption cover the **declaration only**, or the whole regime? If the
+   authorisation + vignette are still required, an unpermitted Driver still cannot do the return —
+   and that single answer decides whether this is a scheduling rule or a capability rule.
+6. What if the party changes size (brought 2, take 4 back)?
 
 **The airport is a different shape and is NOT decided.** Aéroport Nice Côte d'Azur gates its
 dedicated pickup lanes on **two** things: a nominative driver **badge bleu** (≈ 13,89 € HT/year)

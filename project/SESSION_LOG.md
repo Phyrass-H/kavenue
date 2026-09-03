@@ -51,10 +51,25 @@ would ever go red, because **almost nothing here guards a claim about the codeba
 - **The Monaco return-leg window.** Founder confirmed the exemption exists (~3 h) and is asking
   the authority in person. **Not to be coded until confirmed.** Six questions in `docs/05`;
   ⚑ the deciding one is whether the exemption covers the **declaration only** or the whole regime.
-- ⚑ **133 orphaned `mission_event` rows** (was 18 at the start of the day). **115 are this
-  session's** — every live probe creates trips, deletes them, and the DB triggers leave events
-  behind. **NOT swept**: they are audit rows and the founder was not asked. One line when wanted:
-  `npx tsx .local/probe/sweep-orphans.mts --delete`.
+- ✅ **The 133 orphaned `mission_event` rows are SWEPT** (founder asked, at close). Log 2702 →
+  **2569, every row about a trip that exists** — verified by an independent paged count, not by
+  the sweep's own arithmetic.
+
+  ⚑⚑ **AND INSPECTING THEM CAUGHT ME IN THE SAME MISTAKE I SPENT THE DAY HUNTING, TWICE.**
+  1. The first inspection printed **"0 orphaned of 1000"** — an unbounded PostgREST read stops at
+     1 000 rows **in silence**, and the table holds 2 702. A clean bill of health for two thirds
+     of a table. The repo already warns about this in `app/admin/trips/page.tsx`; I wrote the bug
+     anyway, in my own throwaway probe.
+  2. Worse, it invalidated an **earlier claim to the founder**. This morning I reported the 18
+     orphans then were *"old, not from this session"* — on the strength of a query ordering
+     `mission_event` by **`created_at`, a column that does not exist** (the columns are
+     `occurred_at` and `seq`). The read errored, `data` came back null, I destructured without
+     checking `error`, and read the emptiness as *"no recent orphans"*. **They were mine all
+     along** — the paged count shows all 133 dated `2026-09-03`.
+
+  ⚑ Both are the dead-battery pattern, in throwaway code written by the person auditing for it.
+  **A scratch probe deserves the error check and the paging that a committed one gets** — it is
+  scratch code that gets believed, precisely because nobody reviews it.
 - **The `.env` parser in 67 scripts** strips neither quotes nor a trailing `#`.
 
 ### For S75

@@ -215,7 +215,7 @@ paragraph used to say were wrong, and the code has never done either (corrected 
 | line | treatment | why |
 |---|---|---|
 | Transfer — destination agreed in advance | **10%** | `transport de voyageurs`, CGI art. 279 b quater |
-| **Mise à disposition** — hourly, no agreed destination | **20%** | a hire, not a journey. CE 13 mai 2025 n° 499031 (Sté Chabé) upheld this against the trade's largest operator. ⚑ **This is the founder's decision of 2026-09-02 and reverses the earlier assumption of 10%.** |
+| **Mise à disposition** — hourly, no agreed destination | **taux normal (20%)** | a hire, not a journey. CE 13 mai 2025 n° 499031 (Sté Chabé) upheld this against the trade's largest operator. ⚑ **Founder's decision of 2026-09-02**, reversing the earlier assumption of 10%. ⚑ Reads `mission.standard_vat_rate` since 2026-09-04 ([[d131]]) — its **own** column, no longer the commission's |
 | Waiting time | **follows the ride** | BOI-TVA-LIQ-30-20-60 § 30 (*suppléments de prix* tied to the transport) or CGI art. 257 ter, I (*abstraction des éléments accessoires*). ⚑ **CORRECTED 2026-09-04 — the test is not size.** It is the **absence of a *finalité autonome*** for the customer (BOI-TVA-CHAMP-60-20 § 230). A charge the Business would buy for its own sake stops following the ride however small it is. ⚑ It is also caught by the **deduction** exclusion — CGI ann. II art. 206 IV-2-5° covers *prestations accessoires à ce transport* |
 | No-show fee | **in scope**, ride's rate | ⚑ **CORRECTED 2026-09-04 — not because the Driver travelled.** BOI-TVA-BASE-10-10-50 § 260 taxes the retained price whether the client cancels ahead **or** fails to appear; CE 9 oct. 2024 n° 472257 — the counter-value is the firm **right** to the supply, used or not. Calling it an `indemnité` changes nothing |
 | Cancellation — charged to the Business | **follows what was cancelled** | ⚑ **ANSWERED 2026-09-04** ([[d130]]) — was OPEN. A cancelled transfer bills at the transfer's rate, a cancelled at-disposal block at the standard rate; `taxOf` **delegates** rather than restating a rate. BOI-TVA-BASE-10-10-50 § 260 taxes the retained price whether the client renounces **before** the date or fails to appear. ⚑ No Driver → **hors champ**: `business_cancel_mission` zeroes the fee, so nothing was held |
@@ -552,6 +552,13 @@ adjusts routes relative to that; it never sets the level on its own.
   ⚑ **The transport VAT is snapshot LATER, at acceptance**, because it is the assigned Driver's status and
   does not exist while a trip is pooled. A `before update of driver_id` trigger writes it and clears it on
   re-pool — not `accept_mission`, which would have meant editing four money-critical RPCs to copy one column.
+  ⚑ **AND THE STATUTORY RATE HAS ITS OWN COLUMN SINCE 2026-09-04** ([[d131]]). `standard_vat_rate` is
+  stamped at creation from `commission_rate.standard_vat_rate` and read **only** by an at-disposal
+  line. Until then `taxOf("disposal")` borrowed `commission_vat_rate` — the right number (0,20) under
+  the wrong name. Two unrelated facts shared one column: the VAT on **Kavenue's fee**, and the French
+  **statutory** rate for a supply that is not transport (CGI art. 278). A change to what Kavenue
+  charges would have moved a rate set by law. ⚑ A NULL snapshot resolves `undetermined`, never
+  today's 20 % applied backwards.
 - **Changing a rate never rewrites history.** Add a row with a later `effective_from`.
 - **Numbers live in tables, not in code.** Recalibration is an `INSERT`/`UPDATE` — never a redeploy.
 - **The fare freezes at acceptance.** That frozen figure is the contract price and the basis for

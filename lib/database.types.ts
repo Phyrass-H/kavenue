@@ -526,6 +526,7 @@ export interface Database {
           commission_driver_rate: number | null;
           commission_vat_rate: number | null;
           transport_vat_rate: number | null;
+          standard_vat_rate: number | null;
           cancelled_by: CancellationParty | null;
           cancelled_at: string | null;
           created_at: string;
@@ -619,6 +620,7 @@ export interface Database {
           commission_driver_rate?: number | null;
           commission_vat_rate?: number | null;
           transport_vat_rate?: number | null;
+          standard_vat_rate?: number | null;
           cancelled_by?: CancellationParty | null;
           cancelled_at?: string | null;
           created_at?: string;
@@ -742,6 +744,7 @@ export interface Database {
           driver_rate_ht: number; // 0.10 — deducted from it
           fee_vat_rate: number; // 0.20 — VAT on Kavenue's fee
           transport_vat_rate: number; // 0.10 — what a VAT-registered Driver charges
+          standard_vat_rate: number; // 0.20 — CGI art. 278, for a supply that is NOT transport
           note: string | null;
           created_at: string;
         };

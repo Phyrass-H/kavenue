@@ -432,6 +432,11 @@ export async function createMission(formData: FormData) {
     commission_business_rate: rates?.businessHt ?? null,
     commission_driver_rate: rates?.driverHt ?? null,
     commission_vat_rate: rates?.feeVat ?? null,
+    // ⚑ THE STATUTORY RATE, STAMPED BESIDE THE COMMERCIAL ONES (2026-09-04). Read
+    // straight off the generation rather than through `Rates`: it is not an input
+    // to any split, it is a fact about French law frozen onto this trip so that a
+    // later rate change cannot re-rate it. Only an at-disposal line reads it.
+    standard_vat_rate: rateRow?.standard_vat_rate ?? null,
     pdp_step: null,
     pdp_interval: null,
     speed_win: speedWin,

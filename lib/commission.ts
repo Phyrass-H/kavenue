@@ -45,11 +45,22 @@ export type CommissionRateRow = {
   driver_rate_ht: number;
   fee_vat_rate: number;
   transport_vat_rate: number;
+  /**
+   * The French STANDARD rate (CGI art. 278), for a supply that is not passenger
+   * transport — an at-disposal hour.
+   *
+   * ⚑ NOT `fee_vat_rate`, and the distinction is the whole point of the column.
+   * Both read 0,20 today for two unrelated reasons: a platform fee is a
+   * standard-rated service, and buying a driver's time is a hire rather than a
+   * journey. Until 2026-09-04 `taxOf("disposal")` borrowed the fee's rate, which
+   * would have made a legal rate follow a commercial one.
+   */
+  standard_vat_rate: number;
 };
 
 /** The columns a split needs. Keep in step with CommissionRateRow. */
 export const COMMISSION_RATE_COLS =
-  "id,effective_from,business_rate_ht,driver_rate_ht,fee_vat_rate,transport_vat_rate";
+  "id,effective_from,business_rate_ht,driver_rate_ht,fee_vat_rate,transport_vat_rate,standard_vat_rate";
 
 /**
  * The same card WITHOUT the Driver-side rate — the only shape a browser session
@@ -60,10 +71,13 @@ export const COMMISSION_RATE_COLS =
  */
 export const COMMISSION_RATE_BUSINESS_COLS =
   "id,effective_from,business_rate_ht,fee_vat_rate,transport_vat_rate";
+// ⚑ `standard_vat_rate` is deliberately absent above. It is not walled — it is
+// published law — but the browser prices a TRANSFER, and a rate nobody on that
+// path reads is a column nobody on that path should fetch.
 
 /** The columns snapshot onto `mission`. Select these anywhere money is shown. */
 export const COMMISSION_COLS =
-  "commission_business_rate,commission_driver_rate,commission_vat_rate,transport_vat_rate";
+  "commission_business_rate,commission_driver_rate,commission_vat_rate,transport_vat_rate,standard_vat_rate";
 
 /**
  * The snapshot as it comes back from PostgREST — `numeric` arrives as a STRING,
@@ -74,6 +88,7 @@ export type CommissionSnapshot = {
   commission_driver_rate?: number | string | null;
   commission_vat_rate?: number | string | null;
   transport_vat_rate?: number | string | null;
+  standard_vat_rate?: number | string | null;
 };
 
 export type Rates = {
@@ -220,7 +235,10 @@ export function driverRatesOf(m: CommissionSnapshot | null | undefined): Rates |
  * `businessRatesOf` for why the other half is not a number you may read.
  */
 export function businessRatesFromRow(
-  row: Omit<CommissionRateRow, "driver_rate_ht"> | null | undefined,
+  // ⚑ TWO omissions, for two different reasons. `driver_rate_ht` is REVOKED from a
+  // browser session (money_column_walls part 2). `standard_vat_rate` is readable
+  // but simply not selected on this path — see COMMISSION_RATE_BUSINESS_COLS.
+  row: Omit<CommissionRateRow, "driver_rate_ht" | "standard_vat_rate"> | null | undefined,
 ): Rates | null {
   if (!row) return null;
   const businessHt = num(row.business_rate_ht);

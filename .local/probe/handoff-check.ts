@@ -719,16 +719,35 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
   // ⚑ AND THE MIGRATION FILE, SEPARATELY — it is how the view is rebuilt, so a
   //   column that lives only in the database is a column the next `drop view /
   //   create view` silently deletes.
+  //
+  // ⚑⚑ THIS CHECK READ THE WRONG FILE UNTIL 2026-09-04, and the wrong file was
+  //   not merely older — it was a DIFFERENT VIEW. Two migrations each carried a
+  //   full `drop view / create view public.mission_read`, both headed "safe to
+  //   re-run", and they disagreed on one column: 2026-08-30 emits
+  //   `m.hold_expires_at` raw, while 2026-08-31h masks it
+  //   (`case when m.hold_expires_at > now() then … end`) so a finished hold
+  //   cannot read as a live one. Re-running the older file would have silently
+  //   reverted that S72 decision, and this assertion would have called it fine.
+  //   The 2026-09-04 migration is now the single authoritative rebuild.
+  const VIEW_REBUILD = "docs/migrations/2026-09-04_standard_vat_rate.sql";
   const viewSql = (() => {
-    try { return fs.readFileSync("docs/migrations/2026-08-30_money_column_walls_1_view.sql", "utf8"); }
-    catch { return ""; }
+    try { return fs.readFileSync(VIEW_REBUILD, "utf8"); } catch { return ""; }
   })();
   const notInFile = viewCols.filter((c) => !new RegExp(`\\bm\\.${c}\\b|\\bas ${c}\\b`).test(viewSql));
   t("...and the migration that rebuilds it lists them too",
     viewSql !== "" && viewCols.length > 0 && notInFile.length === 0,
-    notInFile.length
-      ? `⚑ live-only, a rebuild would DROP: ${notInFile.join(", ")} — add to 2026-08-30_money_column_walls_1_view.sql`
+    viewSql === "" ? `⚑ ${VIEW_REBUILD} is missing — the authoritative rebuild is gone`
+    : notInFile.length
+      ? `⚑ live-only, a rebuild would DROP: ${notInFile.join(", ")} — add to ${VIEW_REBUILD}`
       : `${viewCols.length} columns`);
+
+  // ⚑ AND THE MASK ITSELF, because the whole hazard above was a rebuild that
+  //   looked identical and behaved differently. If the authoritative file ever
+  //   stops masking the hold, a finished hold starts reading as a live one to
+  //   every Driver, and no column-name check would notice.
+  t("the authoritative rebuild still MASKS hold_expires_at (the S72 decision)",
+    /case when m\.hold_expires_at > now\(\)/.test(viewSql),
+    "a raw m.hold_expires_at would let a stale instant read as a live hold");
 }
 
 {
@@ -910,6 +929,10 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
       /case "cancellation_business":[\s\S]{0,2000}?return taxOf\(rideKindOf\(m\), m\);/.test(vat)],
     ['...and `position_open`, a state that can no longer occur, is gone', !/position_open/.test(vat)],
     ['the art. 293 B wording is not retyped from memory', vat.includes("TVA non applicable, article 293 B du CGI")],
+    // ⚑ 2026-09-04: `disposal` reads the STATUTORY rate, not the fee's. These are
+    //   two facts that happen to be 0,20 — one about French law, one about what
+    //   Kavenue charges — and the borrow made the first follow the second.
+    ['disposal reads standard_vat_rate, not the commission', /kind === "disposal" \? rateOf\(m\.standard_vat_rate\)/.test(vat)],
   ];
   const broken = need.filter(([, ok]) => !ok).map(([w]) => w);
   t("lib/vat.ts still resolves a rate PER LINE, and 0 % stays unspellable",

@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-09-04 — S75 (part 3) · the standard rate gets its own column ([[d131]]) — ⚑ HELD, NOT MERGED
+
+**Founder: *"give the standard rate its own home."*** `disposal` stopped borrowing the commission's rate.
+
+| | |
+|---|---|
+| migration | `docs/migrations/2026-09-04_standard_vat_rate.sql` — **⚑ NOT YET RUN** |
+| new probe | `.local/probe/standard-rate.mts` · 14 checks · fails until the SQL runs, by design |
+| tests | 929 → **931**; the sweep matrix 504 → **1 512** resolutions |
+| gate | 56 → **57** |
+| branch | `s75/standard-vat-rate` — **held unmerged until the migration is applied** |
+
+### ⚑ Why it is held
+`COMMISSION_RATE_COLS` selects the new column, so the code before the SQL makes `createMission`'s rate
+read return **42703** → `redirect(backTo("rates"))` → **no new booking can be posted.** Measured against
+the live DB, not reasoned about.
+
+### ⚑ The landmine this closed on the way past
+**Two** files carried a full `drop view / create view public.mission_read`, both headed *"safe to
+re-run"*, and they were **different views** — 2026-08-30 emits `m.hold_expires_at` raw, 2026-08-31h
+**masks** it so a finished hold cannot read as live. Re-running the older one silently reverts S72's
+decision, and `handoff-check` was reading the **older** file, so it would have approved the reversion.
+The new migration is the single authoritative rebuild; the gate points at it; a new assertion fails if
+the mask disappears.
+
+### ⚑ The test that had been passing by accident
+`"mise à disposition is 20 %"` fed `commission_vat_rate: 0.2` and read 0,2 back — it could not tell the
+fee's rate from the statutory one. It now feeds a fee of **0,155** and asserts **0,20** comes out.
+
+### ⚑ The silent-failure mode the view edit prevents
+A new `mission` column absent from `mission_read` arrives as `undefined`; `rateOf` reads that as "no
+rate"; the line renders a **plausible wrong treatment** instead of an error. TypeScript cannot catch it
+— `mission_read`'s Row type is declared as the table's Row.
+
 ## 2026-09-04 — S75 (part 2) · the cancellation question is answered, and it delegates ([[d130]])
 
 **The founder closed the one question the module was built to refuse:** *"apply the same rules on what

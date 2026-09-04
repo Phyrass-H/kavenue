@@ -130,6 +130,15 @@ export type BillLineKind =
 export type TaxFacts = Pick<MissionRow, "mission_type"> & {
   transport_vat_rate?: number | string | null;
   commission_vat_rate?: number | string | null;
+  /**
+   * The French standard rate, snapshotted at creation (CGI art. 278).
+   *
+   * ⚑ THIS COLUMN EXISTS SO THAT `disposal` STOPS BORROWING THE FEE'S RATE.
+   * Until 2026-09-04 it read `commission_vat_rate` — the same number, arrived at
+   * for an unrelated reason. A fee arrangement changing would have moved a
+   * statutory rate.
+   */
+  standard_vat_rate?: number | string | null;
   driver_id?: string | null;
 };
 
@@ -235,12 +244,17 @@ export function taxOf(kind: BillLineKind, m: TaxFacts): TaxTreatment {
       if (rateOf(snapshot) == null) return { kind: "franchise" };
       // Registered. Now the rate comes from the KIND of supply, not the mission.
       //
-      // ⚑ `disposal` borrows `commission_vat_rate` because that column holds the
-      // standard French rate, snapshotted per generation — arithmetically right,
-      // under a name that says "fee". A deliberate borrow, and the ONE thing to
-      // replace the day an at-disposal trip becomes bookable; until then nothing
-      // writes `mission_type` and this branch cannot fire in production.
-      const rate = kind === "disposal" ? rateOf(m.commission_vat_rate) : rateOf(snapshot);
+      // ⚑ THE BORROW IS GONE (2026-09-04). `disposal` used to read
+      // `commission_vat_rate`, because that column happens to hold 20 % — the
+      // right number under a name that says "fee". Two facts collided in one
+      // column: the VAT on Kavenue's commission, and the statutory rate for a
+      // supply that is not transport. `standard_vat_rate` separates them, so a
+      // change to what Kavenue charges can no longer move what the law charges.
+      //
+      // ⚑ A MISSING SNAPSHOT IS `undetermined`, NOT 20 %. Rows created before the
+      // column existed carry NULL, and guessing the current rate for them would
+      // be the same retroactive re-rating the snapshot exists to prevent.
+      const rate = kind === "disposal" ? rateOf(m.standard_vat_rate) : rateOf(snapshot);
       return taxable(rate) ?? { kind: "undetermined", why: "no_driver_yet" };
     }
 

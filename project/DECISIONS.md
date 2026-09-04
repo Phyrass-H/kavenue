@@ -3608,6 +3608,45 @@ would have changed what a Driver sees on the strength of the one question nobody
 Named, not fixed by accident.
 
 
+### D131 — The statutory rate gets its own column, because it is not the fee's rate (2026-09-04, S75)
+
+**The founder: *"give the standard rate its own home."*** `taxOf("disposal")` read
+`mission.commission_vat_rate` to find 20 %. Arithmetically right, structurally wrong: **two unrelated
+facts had collided in one column.**
+
+| | |
+|---|---|
+| `commission_vat_rate` | the VAT on **Kavenue's fee** — a commercial arrangement |
+| `standard_vat_rate` | the **statutory** rate for a supply that is not transport, CGI art. 278 |
+
+Both read **0,20 today, for reasons that have nothing to do with each other.** The day the fee changed,
+a rate set by French law would have followed a decision made by Kavenue — silently, with nothing going
+red. A test even *passed by accident* on it: it fed `commission_vat_rate: 0.2` and read 0,2 back, so it
+could not tell the two apart. It now feeds a fee of **0,155** and asserts 0,20 comes out.
+
+⚑ **A COLUMN, NOT A CONSTANT — the founder chose this deliberately.** `STANDARD_VAT_RATE = 0.20` in
+code would retroactively re-rate every past trip the day France changed the rate. A snapshot is frozen
+at creation, for exactly the reason `transport_vat_rate` is. ⚑ And a **NULL** snapshot resolves
+`undetermined`, never today's rate applied backwards.
+
+⚑ **THE MIGRATION IS ALSO A VIEW REBUILD, AND THAT IS THE REAL HAZARD.** A new `mission` column that is
+not in `mission_read` reaches the app as `undefined` → `rateOf` reads that as "no rate" → the line
+renders a **plausible wrong treatment** rather than failing. Nothing in TypeScript or the suite would
+notice, because `mission_read`'s Row type is *declared as* the table's.
+
+⚑⚑ **AND IT CLOSED A LANDMINE THAT WAS ALREADY ARMED.** **Two** files carried a complete
+`drop view / create view public.mission_read`, both headed *"Idempotent. Safe to re-run"*, and they were
+**not the same view**: `2026-08-30_money_column_walls_1_view.sql` emits `m.hold_expires_at` raw, while
+`2026-08-31h_mission_hold.sql` **masks** it so a finished hold cannot read as a live one. Re-running the
+older file would have silently reverted that S72 decision — and `handoff-check` was checking the
+**older** one, so it would have called the reversion fine. The 2026-09-04 migration is now the single
+authoritative rebuild, the gate points at it, and a new assertion fails if the mask ever disappears.
+
+⚑ **ORDERING, MEASURED NOT ASSUMED.** `COMMISSION_RATE_COLS` now selects the new column, so shipping the
+code before the SQL runs makes `createMission`'s rate read return **42703** → `redirect(backTo("rates"))`
+→ **no new booking can be posted.** Verified against the live database before the branch was cut. The
+branch is therefore held unmerged until the founder confirms the migration ran.
+
 ### D130 — A cancellation is rated by what was cancelled, and the module stops refusing (2026-09-04, S75)
 
 **The founder answered the question `lib/vat.ts` had been built to refuse:** *"It works the same,

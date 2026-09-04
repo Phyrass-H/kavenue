@@ -31,18 +31,32 @@ const COMMISSION = [null, 0.2, "0.20000"] as const;
 // reality it is meant to cover.
 const TYPES = ["transfer", "hourly"] as const;
 const DRIVERS = ["dr-1", null] as const;
+// ⚑ THE FOURTH RATE, ADDED 2026-09-04 WITH ITS OWN COLUMN. `disposal` used to read
+// `commission_vat_rate` — the fee's rate — because it happened to be 20 %. It now
+// reads `standard_vat_rate`, so the two can differ. ⚑ The `null` matters most:
+// a mission created before the column existed carries one, and the honest answer
+// there is `undetermined`, never today's 20 % applied retroactively.
+const STANDARD = [null, 0.2, "0.20000"] as const;
 
 function facts(
   transport: (typeof TRANSPORT)[number],
   commission: (typeof COMMISSION)[number],
   mission_type: (typeof TYPES)[number],
   driver_id: (typeof DRIVERS)[number],
+  standard: (typeof STANDARD)[number] = 0.2,
 ): TaxFacts {
-  return { transport_vat_rate: transport, commission_vat_rate: commission, mission_type, driver_id };
+  return {
+    transport_vat_rate: transport,
+    commission_vat_rate: commission,
+    standard_vat_rate: standard,
+    mission_type,
+    driver_id,
+  };
 }
 
 const EVERY_COMBINATION: TaxFacts[] = TRANSPORT.flatMap((t) =>
-  COMMISSION.flatMap((c) => TYPES.flatMap((ty) => DRIVERS.map((d) => facts(t, c, ty, d)))),
+  COMMISSION.flatMap((c) => TYPES.flatMap((ty) =>
+    DRIVERS.flatMap((d) => STANDARD.map((st) => facts(t, c, ty, d, st))))),
 );
 
 describe("0 % is not expressible", () => {
@@ -68,9 +82,14 @@ describe("0 % is not expressible", () => {
     // instead of quietly covering less.
     //
     // 6 transport shapes × 3 commission shapes × 2 trip types × 2 driver states
-    //   = 72 missions, × 7 line kinds = 504 resolutions.
+    //   × 3 standard-rate shapes
+    //   = 216 missions, × 7 line kinds = 1 512 resolutions.
+    // ⚑ WAS 504 UNTIL 2026-09-04, when `standard_vat_rate` became its own column
+    // and the sweep gained a third axis. The floor going red on that change is
+    // this guard working: the matrix grew, and the number had to be re-stated by
+    // someone who had looked at why.
     expect(checked).toBe(EVERY_COMBINATION.length * KINDS.length);
-    expect(checked).toBe(504);
+    expect(checked).toBe(1512);
   });
 
   it("never puts an amount of zero on a line — it names the regime instead", () => {
@@ -123,6 +142,33 @@ describe("the founder's decisions, 2026-09-02", () => {
 
   it("a transfer is 10 % — a destination agreed in advance is what earns it", () => {
     expect(taxOf("transfer", registered("transfer"))).toEqual({ kind: "taxable", rate: 0.1 });
+  });
+
+  it("an at-disposal line reads the STANDARD rate, not the fee's — they are different columns", () => {
+    // ⚑ 2026-09-04: this is the assertion that used to pass by accident. It fed
+    // `commission_vat_rate: 0.2` and read 0.2 back, so it could not tell the two
+    // apart. Now the fee is 0,20 and the statutory rate is deliberately a
+    // DIFFERENT number, and only the statutory one may come out.
+    expect(taxOf("disposal", facts(0.1, 0.2, "hourly", "dr-1", "0.20000")))
+      .toEqual({ kind: "taxable", rate: 0.2 });
+    // ⚑ The fee moved and the statutory rate did not. Before this column existed
+    // the assertion below would have returned 0,155 — a court's rate silently
+    // following a commercial decision. This is the whole reason for the column.
+    const feeChanged: TaxFacts = {
+      transport_vat_rate: 0.1,
+      commission_vat_rate: 0.155,
+      standard_vat_rate: 0.2,
+      mission_type: "hourly",
+      driver_id: "dr-1",
+    };
+    expect(taxOf("disposal", feeChanged)).toEqual({ kind: "taxable", rate: 0.2 });
+  });
+
+  it("an at-disposal line with no standard-rate snapshot is undetermined, never 20 %", () => {
+    // ⚑ A row created before the column existed. Guessing today's rate for it is
+    // the retroactive re-rating the snapshot exists to prevent.
+    expect(taxOf("disposal", facts(0.1, 0.2, "hourly", "dr-1", null)))
+      .toEqual({ kind: "undetermined", why: "no_driver_yet" });
   });
 
   it("mise à disposition is 20 %, NOT the ride's 10 %", () => {

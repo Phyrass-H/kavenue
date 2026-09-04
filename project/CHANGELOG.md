@@ -5,6 +5,31 @@
 
 ---
 
+## 4 September 2026 — the legal tax rate stopped borrowing the fee's number
+
+**You asked for it and you were right.** When the system needed "20 %" for an hourly hire, it went and
+read **your commission's VAT rate**, because that also happens to be 20 %.
+
+Two completely unrelated things were sharing one box:
+
+- **your fee's VAT** — 20 % because a platform fee is a standard-rated service
+- **the legal rate for an hourly hire** — 20 % because French law says so
+
+Same number, no relationship. If your commission arrangement ever changed, **the tax rate set by French
+law would have quietly followed it.** Nothing would have warned anyone.
+
+Now the legal rate has its own place, stamped onto each trip when it's booked — so a trip booked today
+keeps today's rate even if the law changes next year.
+
+**One thing to know:** this needs a small database change that only you can apply (a few lines to paste).
+Until you do, this work stays on the side — it is deliberately **not** switched on, because turning it on
+first would stop new bookings from being posted. We measured that rather than guessed it.
+
+**A bonus we found on the way.** Two old files both claimed to rebuild the same part of the database
+"safely", but they weren't identical — running the older one would have quietly undone a privacy fix
+from a previous session (a finished booking hold would have looked still-active to other drivers). The
+system now has one official version, and a check that shouts if anyone breaks it again.
+
 ## 4 September 2026 — cancellation fees now follow whatever was cancelled
 
 You decided it: **a cancellation is taxed like the thing that was cancelled.** Cancel a transfer,

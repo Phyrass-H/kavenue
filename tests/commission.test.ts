@@ -39,6 +39,7 @@ const snapshot = {
   commission_driver_rate: 0.1,
   commission_vat_rate: 0.2,
   transport_vat_rate: 0.1,
+    standard_vat_rate: 0.2,
 };
 
 describe("the rates themselves — docs/06 §1", () => {
@@ -224,6 +225,7 @@ describe("a snapshot with the OTHER side masked — the money-column walls", () 
     const card = {
       id: "x", effective_from: "2026-08-17T00:00:00Z",
       business_rate_ht: 0.125, fee_vat_rate: 0.2, transport_vat_rate: 0.1,
+    standard_vat_rate: 0.2,
     };
     expect(businessRatesFromRow(card)).toEqual({ businessHt: 0.125, driverHt: 0, feeVat: 0.2 });
     expect(commissionSplit(190, businessRatesFromRow(card)).businessTotal).toBe(218.5);
@@ -374,6 +376,7 @@ describe("choosing a generation — docs/06 §9", () => {
       driver_rate_ht: 0.1,
       fee_vat_rate: 0.2,
       transport_vat_rate: 0.1,
+    standard_vat_rate: 0.2,
     },
     {
       id: "new",
@@ -382,6 +385,7 @@ describe("choosing a generation — docs/06 §9", () => {
       driver_rate_ht: 0.09,
       fee_vat_rate: 0.2,
       transport_vat_rate: 0.1,
+    standard_vat_rate: 0.2,
     },
   ];
 

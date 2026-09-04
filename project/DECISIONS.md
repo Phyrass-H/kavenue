@@ -3608,6 +3608,52 @@ would have changed what a Driver sees on the strength of the one question nobody
 Named, not fixed by accident.
 
 
+### D130 — A cancellation is rated by what was cancelled, and the module stops refusing (2026-09-04, S75)
+
+**The founder answered the question `lib/vat.ts` had been built to refuse:** *"It works the same,
+apply the same rules on what was canceled based on either it was a transfer or at disposal."*
+
+So `taxOf("cancellation_business")` no longer returns `undetermined`. It **delegates** to the supply
+that was cancelled — exactly as `waiting` and `no_show` already did. A cancelled transfer bills at the
+transfer's rate; a cancelled at-disposal block bills at the standard rate.
+
+⚑ **WHY THIS WAS ACCEPTED RATHER THAN ARGUED.** S75's verification had already found the text that
+supports it, while looking at a different question: **BOI-TVA-BASE-10-10-50 § 260** taxes the retained
+price *« indépendamment »* of whether the client renounces the reserved capacity **before** the date or
+simply fails to appear. It puts a cancellation and a no-show on the same footing — which is the
+founder's rule, stated by the administration. **CE 9 oct. 2024 n° 472257** locates the counter-value in
+the client's firm **right** to the supply, used or not.
+
+⚑ **DELEGATION, NOT A CONSTANT — and that is the whole design.** Writing `10 %` here would have been
+correct today and wrong the day an at-disposal trip is bookable, silently. `return taxOf(rideKindOf(m), m)`
+cannot drift from the thing it copies, because it does not copy it.
+
+⚑ **THE NO-DRIVER CASE STAYS `out_of_scope`**, and it is settled by the SQL rather than by opinion:
+`business_cancel_mission` zeroes the fee while a trip is pooled or Driverless. Nothing was held for
+anyone. Delegating there would answer `undetermined` (no snapshot exists yet) for money that is always
+zero — a worse answer than the true one.
+
+⚑ **`position_open` IS DELETED FROM THE UNION.** It is a state that can no longer occur, and a
+never-firing branch reads as an unused feature within a month. `TaxTreatment["why"]` is now
+`"no_driver_yet"` alone; the compiler rejects any code still testing for the old value.
+
+**What moved on screen: nothing, and it is proven rather than asserted.** `components/mission-run-view.tsx`
+had deliberately asked for the *ride's* treatment on a cancelled trip to avoid acting on an open
+question; it now names the real kind. Because `mission_type` is `transfer` on **377 of 377** live rows,
+delegation resolves to exactly the `"transfer"` it used to hard-code. `.local/probe/cancellation-live.mts`
+asserts the **reason** (every live row is a transfer), not just the result — so the day that stops being
+true, the comment claiming "no number moved" goes red instead of quietly becoming a lie.
+
+⚑ **THE GUARD THAT HAD TO BE DELIBERATELY INVERTED.** `handoff-check` had asserted, since that morning,
+that `docs/01` still called this question OPEN and that `lib/vat.ts` still contained `position_open`.
+Both went red on this change — which is the check working: **a decision could not land in the code while
+the legal document still told a reader the question was unanswered.** They now assert the delegation and
+the absence of the dead state. Red-tested by planting a hand-written rate: the unit sweep, the live probe
+and the gate all named it.
+
+⚑ **STILL OPEN: the hourly question**, and it is a different one. See [[d129]] — an hourly job with an
+agreed itinerary is arguably 10 %, and the founder confirmed the rate rule is what ships today.
+
 ### D129 — Four of the doc's own legal claims were wrong, and the fix is a check, not a correction (2026-09-04, S75)
 
 **The job asked for was three additions to `docs/01`. All three were already there** — commit

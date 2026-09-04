@@ -5,6 +5,44 @@
 
 ---
 
+## 2026-09-04 — S75 (part 2) · the cancellation question is answered, and it delegates ([[d130]])
+
+**The founder closed the one question the module was built to refuse:** *"apply the same rules on what
+was canceled based on either it was a transfer or at disposal."*
+
+| | |
+|---|---|
+| `taxOf("cancellation_business")` | `undetermined` → **`taxOf(rideKindOf(m), m)`** — delegation, like `waiting`/`no_show` |
+| `TaxTreatment` | **`position_open` deleted** — a state that can no longer occur |
+| screens | `mission-run-view` names the real kind; **0 of 377 live rows change treatment**, proven |
+| new probe | `.local/probe/cancellation-live.mts` · **7 checks** |
+| tests | 926 → **929** |
+| gate | 56, with **two assertions deliberately inverted** |
+
+### ⚑ The guard that had to be argued with before it could be changed
+`handoff-check` had asserted **that morning** that `docs/01` still called this question OPEN and that
+`lib/vat.ts` still held `position_open`. Both went red on the change. That is the check working: the
+decision **could not land in the code while the legal doc still told a reader it was unanswered**. Docs
+and code moved in the same commit because the gate would not allow anything else.
+
+### ⚑ Why delegation, not a constant
+`10 %` would be right today and silently wrong the day an at-disposal trip is bookable. `taxOf(rideKindOf(m), m)`
+cannot drift from what it copies, because it does not copy it. Red-tested by planting a hand-written
+`rate: 0.1`: **three unit tests, two live-probe assertions and the gate** all named it — including the
+franchise case, where every one of the 30 live cancelled trips would have printed **10 % for a Driver who
+charges no VAT**.
+
+### ⚑ The claim that is asserted rather than commented
+`mission-run-view` says the change "moves no number today". That is a statement about the **database**,
+not the code, and it decays. `cancellation-live.mts` asserts the **reason** — every live mission is still
+a `transfer` — so the day one is not, the stale comment goes red.
+
+### ⚑ And the source had already agreed, found while looking at something else
+BOI-TVA-BASE-10-10-50 § 260 taxes the retained price *« indépendamment »* of whether the client renounces
+**before** the date or fails to appear — a cancellation and a no-show on the same footing, which is the
+founder's rule stated by the administration. Recorded in [[d129]] as evidence for the accountant; used in
+[[d130]] as the reason to accept the rule rather than argue it.
+
 ## 2026-09-04 — S75 · the doc edits were already done, so we verified them instead ([[d129]])
 
 **Asked for: three additions to `docs/01`. Found: `f03c416` had already made all three** — in the

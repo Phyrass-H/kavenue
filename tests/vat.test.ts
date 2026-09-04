@@ -169,10 +169,41 @@ describe("the founder's decisions, 2026-09-02", () => {
   });
 });
 
-describe("the cancellation this module refuses to answer", () => {
-  it("says `position_open` rather than guessing a rate, once a Driver had accepted", () => {
+describe("the cancellation fee follows whatever was cancelled", () => {
+  // ⚑ ANSWERED 2026-09-04 by the founder — this block used to be called "the
+  // cancellation this module refuses to answer" and asserted `position_open`.
+  // The rule now: "it works the same, apply the same rules on what was
+  // cancelled based on either it was a transfer or at disposal". So it
+  // delegates, exactly like `waiting` and `no_show`.
+  it("a cancelled TRANSFER bills at the transfer's rate", () => {
     expect(taxOf("cancellation_business", facts(0.1, 0.2, "transfer", "dr-1")))
-      .toEqual({ kind: "undetermined", why: "position_open" });
+      .toEqual({ kind: "taxable", rate: 0.1 });
+  });
+
+  it("a cancelled AT-DISPOSAL block bills at the standard rate, not the ride's 10 %", () => {
+    // ⚑ THE CASE THE FOUNDER NAMED, and the reason delegation beats a constant:
+    // the two kinds part company here, and nothing in this branch restates a
+    // rate that could drift from `taxOf("disposal")`.
+    expect(taxOf("cancellation_business", facts(0.1, 0.2, "hourly", "dr-1")))
+      .toEqual({ kind: "taxable", rate: 0.2 });
+  });
+
+  it("agrees with the supply it delegates to, for every shape the columns take", () => {
+    // ⚑ THE REAL GUARANTEE is not either rate above — it is that there is no
+    // SECOND copy of the rule. If someone re-rates a cancellation by hand, this
+    // goes red even for inputs nobody thought to write a case for.
+    for (const m of EVERY_COMBINATION) {
+      if (m.driver_id == null) continue;
+      const ride = m.mission_type === "hourly" ? "disposal" : "transfer";
+      expect(taxOf("cancellation_business", m)).toEqual(taxOf(ride, m));
+    }
+  });
+
+  it("a franchise Driver's cancellation is still franchise, not a rate", () => {
+    // ⚑ Delegation carries the REGISTRATION question across too: a 0 snapshot
+    // means the Driver charges no VAT, and that must not become "0 %".
+    expect(taxOf("cancellation_business", facts(0, 0.2, "transfer", "dr-1")))
+      .toEqual({ kind: "franchise" });
   });
 
   it("resolves cleanly when no Driver ever held it — nothing was supplied", () => {

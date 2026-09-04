@@ -9,6 +9,26 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## ⚑⚑ S75 (2026-09-04) — THE CANCELLATION QUESTION IS ANSWERED ([[d130]])
+
+**The founder closed it:** *"it works the same, apply the same rules on what was canceled based on
+either it was a transfer or at disposal."* `taxOf("cancellation_business")` no longer returns
+`undetermined` — it **delegates** to the cancelled supply, like `waiting` and `no_show`.
+`position_open` is **deleted** from the union. **0 of 377 live rows** change treatment, proven by
+`.local/probe/cancellation-live.mts` (7 checks) — every live mission is still a `transfer`, and the
+probe asserts that *reason* so the claim cannot rot. 926 → **929 tests**.
+
+⚑ **THE HOURLY QUESTION IS A DIFFERENT ONE AND IT IS SETTLED TOO** — the founder confirmed the rate
+rule as it now stands: agreed route → 10 %, no agreed route → standard. ⚑ **Neither needs the
+expert-comptable any more** (founder, 2026-09-04): *"no need accountant we have the infos it's
+enough."* Do not re-open either as a blocker.
+
+⚑ **THE ONLY VAT THING LEFT IS STILL § 3:** `disposal` borrows `commission_vat_rate`. It is now
+**more** load-bearing, because a cancelled at-disposal block reaches that same borrowed column
+through the delegation. Replace it the day `mission_type` can be `hourly`.
+
+---
+
 ## ⚑⚑ S75 (2026-09-04) — THE DOC EDITS WERE ALREADY DONE; WE VERIFIED THEM INSTEAD ([[d129]])
 
 **`docs/01` item 4 below is CLOSED — and it was closed before it was written.** `f03c416` added
@@ -129,11 +149,12 @@ trip that needs it, not before.
   *« avec un kilométrage illimité ou plafonné »* — a cap did not save it. **This decides whether
   Kavenue can sell an hourly product at 10 % at all**, and an agreed itinerary is the likeliest way
   to yes.
-- **Does publishing a cancellation grid** (free before T−X h, then 50 %, then 100 %) pull the fee
-  **into** VAT or keep it **out**? Same BOFiP paragraph, opposite conclusions. This is what
-  `taxOf("cancellation_business")` is waiting for. ⚑ Half is already settled **by the SQL, not by
-  opinion**: `business_cancel_mission` zeroes the fee when no Driver had accepted, so a fee above
-  zero always implies capacity was held.
+- ⚑⚑ **ANSWERED 2026-09-04 — NOT A BLOCKER ANY MORE ([[d130]]).** The fee **follows whatever was
+  cancelled**: a cancelled transfer at the transfer's rate, a cancelled at-disposal block at the
+  standard rate. `taxOf` delegates rather than restating a rate. BOI-TVA-BASE-10-10-50 § 260 backs
+  it — it taxes the retained price *« indépendamment »* of whether the client renounces **before**
+  the date or fails to appear. ⚑ No Driver → **hors champ**, settled by the SQL: `business_cancel_mission`
+  zeroes the fee when nobody had accepted, so nothing was held.
 
 **3 · `disposal` BORROWS `commission_vat_rate`** (`lib/vat.ts`, the `transfer`/`disposal` case).
 That column holds the standard French rate snapshotted per generation — arithmetically right,
@@ -738,6 +759,7 @@ about that point — **fix the file before you build on it.** Then:
     npx tsx .local/probe/accept-floor.mts                                #   6 · the § H2 residual
     npx tsx .local/probe/column-leak.mts                                 #   S72 · expect 0 LEAK(S) OPEN
     npx tsx .local/probe/hold-live.mts                                   #  31 · § 7 end to end (⚑ uses accept_mission_call)
+    npx tsx .local/probe/cancellation-live.mts                            #   7 · [[d130]] delegation, live
     npx tsx .local/probe/sweep-orphans.mts                               #  ⚑ after any live-probe session
 
 **If a probe fails, that is the job** — not whatever is queued above.

@@ -900,7 +900,15 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
     ['rateOf refuses a non-positive rate', /n\s*>\s*0\s*\?\s*n\s*:\s*null/.test(vat)],
     ['taxOf has an exhaustive never', /const\s+never:\s*never\s*=\s*kind/.test(vat)],
     ['disposal is a kind of its own', /"disposal"/.test(vat)],
-    ['cancellation_business still refuses to guess', /position_open/.test(vat)],
+    // ⚑ WAS `/position_open/` UNTIL 2026-09-04 — it asserted that this module
+    //   REFUSED to rate a cancellation. The founder answered the question
+    //   ([[d130]]), so the property worth guarding inverted: the fee must now
+    //   DELEGATE to the supply that was cancelled, and must never restate a
+    //   rate of its own. A literal here would drift from `taxOf("disposal")`
+    //   the day an at-disposal trip is bookable, and nothing would say so.
+    ['cancellation_business delegates instead of restating a rate',
+      /case "cancellation_business":[\s\S]{0,2000}?return taxOf\(rideKindOf\(m\), m\);/.test(vat)],
+    ['...and `position_open`, a state that can no longer occur, is gone', !/position_open/.test(vat)],
     ['the art. 293 B wording is not retyped from memory', vat.includes("TVA non applicable, article 293 B du CGI")],
   ];
   const broken = need.filter(([, ok]) => !ok).map(([w]) => w);
@@ -968,20 +976,21 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
           ? `⚑ undocumented: ${missing.join(" · ")} — say what VAT each carries, do not delete the check`
           : `${kinds.length}/${kinds.length} kinds`);
   }
-  // ⚑ The two open questions are held OPEN on purpose. If either doc ever states
-  //   a settled rate for them without the expert-comptable having answered, that
-  //   is someone's guess hardening into doctrine — which is the exact failure
-  //   `taxOf` refuses to commit by returning `undetermined`.
-  // ⚑ AND THIS ONE WAS A FALSE GREEN TOO on its first run: it searched the WHOLE
-  //   file for an open-marker and matched "awaiting the accountant", which is the
-  //   HOURLY question, not this one. It now reads only the sentences that mention
-  //   a Business cancellation, so it is answering the question it asks.
-  const cancelPassage = legal.split(/\n(?=[-#])/).filter((para) => /cancellation/i.test(para) && /business/i.test(para)).join("\n");
-  t("the cancellation-grid question is still held OPEN in docs/01",
-    cancelPassage.length > 0 && /\bOPEN\b|unanswered|not answered|awaiting|undetermined|has not answered/i.test(cancelPassage),
+  // ⚑ INVERTED 2026-09-04. This used to assert the cancellation question was
+  //   held OPEN, so that nobody's guess could harden into doctrine. The founder
+  //   answered it ([[d130]]) and the assertion had to change deliberately —
+  //   which is the check working: a decision could not quietly land in the code
+  //   while the legal doc still told a reader the question was open.
+  // ⚑ AND IT WAS A FALSE GREEN ON ITS FIRST RUN: it searched the WHOLE file for
+  //   an open-marker and matched "awaiting the accountant", which is the HOURLY
+  //   question, not this one. It reads only the sentences about a Business
+  //   cancellation, so it answers the question it asks.
+  const cancelPassage = legal.split(/\n(?=[-#|])/).filter((para) => /cancellation/i.test(para) && /business/i.test(para)).join("\n");
+  t("docs/01 says a Business cancellation FOLLOWS what was cancelled",
+    cancelPassage.length > 0 && /follows|delegat/i.test(cancelPassage) && !/\bOPEN\b|not answered|undetermined/i.test(cancelPassage),
     cancelPassage.length === 0
       ? "⚑ docs/01 says nothing about a Business cancellation"
-      : "taxOf(\"cancellation_business\") returns undetermined — the doc must not pre-empt the expert-comptable");
+      : "the hourly question is still open; THIS one was answered 2026-09-04 — the doc must not still call it open");
 }
 
 console.log("\n── the repo the handoff describes ──");

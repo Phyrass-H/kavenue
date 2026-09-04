@@ -186,14 +186,22 @@ export function MissionRunView({
   // exists in France. `lib/vat.ts` holds all three apart; this used to be one
   // hand-written `vatKnown` boolean, in this component only.
   //
-  // ⚑ ASKS FOR THE RIDE'S TREATMENT, ON PURPOSE, EVEN ON A CANCELLED TRIP.
-  // Today a cancelled trip's compensation is shown carrying the transport rate,
-  // and that is preserved here byte for byte rather than quietly re-rated: the
-  // VAT on a cancellation is the one position the research left CONTESTED, and
-  // `taxOf("cancellation_business")` deliberately refuses to answer it. Wiring
-  // it in here would have changed what a Driver sees on the strength of a
-  // question nobody has answered. Open item, named — not fixed by accident.
-  const supply = taxOf(m.no_show ? "no_show" : "transfer", m);
+  // ⚑ NAMES WHAT THE MONEY IS, INCLUDING ON A CANCELLED TRIP (2026-09-04).
+  // This used to ask for the ride's treatment even on a cancellation, because
+  // `taxOf("cancellation_business")` refused to answer and wiring it in would
+  // have changed a Driver's screen on the strength of an open question. The
+  // founder answered it: a cancellation follows whatever was cancelled. So the
+  // kind is now stated honestly, and `taxOf` does the delegating.
+  //
+  // ⚑ AND THIS MOVES NO NUMBER TODAY, which is why it ships as a one-line
+  // change rather than a migration: `cancellation_business` delegates through
+  // `rideKindOf`, and `mission_type` is `transfer` on every live row — so it
+  // resolves to exactly the `"transfer"` this line used to hard-code. It starts
+  // to differ only on an at-disposal trip, which cannot yet be booked.
+  const supply = taxOf(
+    m.status === "cancelled" ? "cancellation_business" : m.no_show ? "no_show" : "transfer",
+    m,
+  );
   const vat = taxLineFor(payment.course, supply);
 
   return (

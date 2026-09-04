@@ -5,6 +5,26 @@
 
 ---
 
+## 4 September 2026 — cancellation fees now follow whatever was cancelled
+
+You decided it: **a cancellation is taxed like the thing that was cancelled.** Cancel a transfer,
+it's taxed like a transfer. Cancel an hourly booking, it's taxed like an hourly booking.
+
+Until today the system genuinely refused to answer this — it would say "we don't know" rather than
+guess, because nobody had decided. Now it knows.
+
+**The clever bit:** it doesn't store "10 %" anywhere. It **asks** what the cancelled trip was worth
+and copies that answer. So if the hourly rate ever changes, cancellations follow automatically —
+there's no second number sitting somewhere waiting to go stale.
+
+**Nothing on any screen changed.** We checked all 377 real trips: not one of them displays anything
+different. That's because every trip today is a transfer, and the new rule gives the same answer as
+the old one for those. We also wrote a check that will **warn us** the day that stops being true.
+
+**One thing worth knowing:** all 30 cancelled trips in the system belong to drivers who don't charge
+VAT. If we'd hard-coded "10 %" instead of asking, every one of them would have shown 10 % VAT for a
+driver who charges none. The way we built it, that can't happen.
+
 ## 4 September 2026 — we checked our own legal homework, and four things were wrong
 
 The plan was to add three missing points to the legal document. They turned out to be **already

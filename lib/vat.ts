@@ -54,7 +54,7 @@ export type TaxTreatment =
   | { kind: "franchise" }
   | { kind: "out_of_scope" }
   | { kind: "exempt" }
-  | { kind: "undetermined"; why: "no_driver_yet" | "position_open" };
+  | { kind: "undetermined"; why: "no_driver_yet" };
 
 /**
  * The mandatory wording on a franchise line — CGI art. 293 E. Not a label we
@@ -112,7 +112,10 @@ export type BillLineKind =
    * The narrow escape is genuine *arrhes* (C. civ. art. 1590).
    */
   | "no_show"
-  /** ⚑ CONTESTED — never resolved to a rate here. See `taxOf`. */
+  /**
+   * The Business's cancellation fee. Follows whatever was cancelled — see
+   * `taxOf`. ⚑ ANSWERED 2026-09-04 (founder); it used to refuse to resolve.
+   */
   | "cancellation_business"
   /** The Driver's penalty for dropping an accepted trip. An indemnity. */
   | "cancellation_driver"
@@ -182,19 +185,28 @@ export function taxOf(kind: BillLineKind, m: TaxFacts): TaxTreatment {
       return { kind: "out_of_scope" };
 
     case "cancellation_business":
-      // ⚑ THE ONE THIS MODULE REFUSES TO ANSWER. Taxable if it pays for
-      // capacity actually held; arguably outside the scope if the Business
-      // merely used a cancellation right we granted it. Two readings of the
-      // same paragraph, and the expert-comptable has not answered yet.
+      // ⚑ ANSWERED 2026-09-04 by the founder, and this module used to refuse:
+      // "it works the same — apply the same rules on what was cancelled, based
+      // on whether it was a transfer or at-disposal". So the fee is not rated
+      // on its own head; it DELEGATES to the supply that was cancelled, exactly
+      // as `waiting` and `no_show` do. A cancelled transfer bills at the
+      // transfer's rate, a cancelled at-disposal block at the standard rate.
       //
-      // ⚑ But half of it IS settled, by the SQL rather than by anyone's
-      // opinion: `business_cancel_mission` sets the fee percentage to 0 when
-      // the trip is still pooled or has no Driver. So a fee above zero ALWAYS
-      // implies a Driver had accepted — and the no-Driver case, where nothing
-      // was ever held for anyone, bills nothing and resolves cleanly.
-      return m.driver_id == null
-        ? { kind: "out_of_scope" }
-        : { kind: "undetermined", why: "position_open" };
+      // ⚑ AND THE PRIMARY SOURCE AGREES, which is why this was accepted rather
+      // than argued: BOI-TVA-BASE-10-10-50 § 260 taxes the retained price
+      // "indépendamment" of whether the client renounces the reserved capacity
+      // BEFORE the date or simply fails to appear — i.e. it puts a cancellation
+      // and a no-show on the same footing, which is precisely this rule. CE
+      // 9 oct. 2024 n° 472257 locates the counter-value in the client's firm
+      // RIGHT to the supply, used or not.
+      //
+      // ⚑ THE NO-DRIVER CASE STAYS OUT OF SCOPE, and it is settled by the SQL
+      // rather than by anyone's opinion: `business_cancel_mission` sets the fee
+      // percentage to 0 while a trip is pooled or Driverless. Nothing was held
+      // for anyone, so nothing was supplied — and delegating here would answer
+      // `undetermined` (no snapshot exists yet) for money that is always zero.
+      if (m.driver_id == null) return { kind: "out_of_scope" };
+      return taxOf(rideKindOf(m), m);
 
     case "waiting":
     case "no_show":

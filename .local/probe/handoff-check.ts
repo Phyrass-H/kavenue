@@ -12,6 +12,10 @@
 // project/NEXT_SESSION.md before you build, and add an assertion for whatever bit you.
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
+// ⚑ TYPE-ONLY, and it must stay that way: this file runs under
+// `node --experimental-strip-types`, which erases the import entirely. It is
+// what makes the Record below a COMPILE-time exhaustiveness check.
+import type { BillLineKind } from "../../lib/vat.ts";
 import { execSync } from "node:child_process";
 
 const env = Object.fromEntries(
@@ -884,7 +888,7 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
   // ⚑ AND THE PROPERTY WORTH GUARDING IS THE ODD ONE: there is no way to spell
   //   a 0 % rate. France has 20 / 10 / 5,5 / 2,1 and nothing else, so a line
   //   carrying no VAT is in one of three OTHER states, legally distinct, and
-  //   machine-read per line on an e-invoice since 1 September 2026. `rate` lives
+  //   written per line on an e-invoice (CGI ann. II art. 242 nonies A). `rate` lives
   //   only inside the `taxable` variant. If a future edit adds a rate field at
   //   the top level, or lets `rateOf` return 0, that guarantee is gone in
   //   silence — and the invoice is wrong rather than the screen.
@@ -913,6 +917,71 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
   console.log(placed
     ? "note  lib/vat.ts now mentions a place of supply — check the handoff's § 1 is still accurate"
     : "note  lib/vat.ts has NO place of supply (known gap, § 1 of the next session — Monaco is 28% of live trips)");
+}
+
+// ── S75 · the docs must describe every line the code decides ──────────────
+{
+  console.log("\n── the legal doc vs the code (S75) ──");
+  // ⚑ WRITTEN BECAUSE THE GAP WAS INVISIBLE. `lib/vat.ts` resolves SEVEN kinds of
+  //   bill line. Until 2026-09-04 `docs/01` — the canonical legal doc, the one an
+  //   expert-comptable would be handed — described TWO of them: the ride and the
+  //   commission. Nothing said what a no-show, a waiting charge or either
+  //   cancellation carries, even though the code had already decided all four.
+  //   No check could go red, because nothing here guarded a claim about coverage.
+  //
+  // ⚑ AND THE SECOND HALF OF THE PROBLEM IS DUPLICATION: `docs/06` carries the
+  //   same treatments in its own table. Two documents stating one rule is how
+  //   they drift, so BOTH are asserted — a kind may not quietly fall out of
+  //   either one.
+  //
+  // ⚑ THE MECHANISM IS THE POINT. This is a `Record<BillLineKind, …>`, so adding
+  //   an EIGHTH kind to lib/vat.ts does not merely fail here at run time — it
+  //   fails to COMPILE, and tsc has read .local/probe since S74. The rule is:
+  //   you cannot teach the code a new kind of money without saying, in the legal
+  //   doc, what VAT it carries.
+  const LEGAL = "docs/01_Legal_VAT_Compliance.md";
+  const PRICING = "docs/06_Pricing_Commission_Payments.md";
+  const legal = fs.existsSync(LEGAL) ? fs.readFileSync(LEGAL, "utf8") : "";
+  const pricing = fs.existsSync(PRICING) ? fs.readFileSync(PRICING, "utf8") : "";
+  const DESCRIBED: Record<BillLineKind, RegExp> = {
+    transfer: /destination\s+(?:being\s+)?(?:is\s+)?(?:agreed|fixed)\s+in\s+advance/i,
+    disposal: /mise\s+à\s+disposition/i,
+    // ⚑ NOT /waiting/ — that matched "aWAITING the accountant" and reported a
+    //   green for a line docs/01 never mentioned. Name the concept, not the
+    //   substring.
+    waiting: /\bwaiting\s+(?:time|charge|line)/i,
+    no_show: /no-show/i,
+    cancellation_business: /cancellation[\s\S]{0,120}?business/i,
+    cancellation_driver: /cancellation[\s\S]{0,120}?driver/i,
+    // ⚑ The word alone proves nothing — docs/01 discusses the commission
+    //   constantly. What must be present is its RATE.
+    commission: /commission[\s\S]{0,100}?(?:20\s?%|VAT|TVA)/i,
+  };
+  const kinds = Object.keys(DESCRIBED) as BillLineKind[];
+  for (const [doc, text, name] of [[LEGAL, legal, "docs/01 (legal)"], [PRICING, pricing, "docs/06 (pricing)"]] as const) {
+    const missing = kinds.filter((k) => !DESCRIBED[k].test(text));
+    t(`${name} describes the VAT treatment of every line lib/vat.ts decides`,
+      text.length > 0 && missing.length === 0,
+      text.length === 0
+        ? `⚑ ${doc} is MISSING`
+        : missing.length
+          ? `⚑ undocumented: ${missing.join(" · ")} — say what VAT each carries, do not delete the check`
+          : `${kinds.length}/${kinds.length} kinds`);
+  }
+  // ⚑ The two open questions are held OPEN on purpose. If either doc ever states
+  //   a settled rate for them without the expert-comptable having answered, that
+  //   is someone's guess hardening into doctrine — which is the exact failure
+  //   `taxOf` refuses to commit by returning `undetermined`.
+  // ⚑ AND THIS ONE WAS A FALSE GREEN TOO on its first run: it searched the WHOLE
+  //   file for an open-marker and matched "awaiting the accountant", which is the
+  //   HOURLY question, not this one. It now reads only the sentences that mention
+  //   a Business cancellation, so it is answering the question it asks.
+  const cancelPassage = legal.split(/\n(?=[-#])/).filter((para) => /cancellation/i.test(para) && /business/i.test(para)).join("\n");
+  t("the cancellation-grid question is still held OPEN in docs/01",
+    cancelPassage.length > 0 && /\bOPEN\b|unanswered|not answered|awaiting|undetermined|has not answered/i.test(cancelPassage),
+    cancelPassage.length === 0
+      ? "⚑ docs/01 says nothing about a Business cancellation"
+      : "taxOf(\"cancellation_business\") returns undetermined — the doc must not pre-empt the expert-comptable");
 }
 
 console.log("\n── the repo the handoff describes ──");

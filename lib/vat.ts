@@ -13,9 +13,14 @@
 // ⚑ AND THE TRAP THAT MADE THIS URGENT: "0 %" IS NOT A THING IN FRANCE.
 // The rates are 20 · 10 · 5,5 · 2,1. Zero is not among them. A line carrying no
 // VAT is in one of three OTHER states, and they are legally distinct — an
-// e-invoice carries a category code per line, machine-read by the tax office
-// since 1 September 2026, so picking the wrong one is a validation error rather
-// than a cosmetic one:
+// e-invoice carries a rate and amount per line (CGI ann. II art. 242 nonies A,
+// I, 8°), so picking the wrong one is written down rather than merely displayed.
+// ⚑ CORRECTED 2026-09-04: this comment used to say the codes were "machine-read
+// by the tax office since 1 September 2026". That date is when every business
+// must be able to RECEIVE an e-invoice, and when large companies must EMIT; a
+// company this size emits from 1 September 2027. And the platform validates
+// presence and arithmetic, not legal correctness — a wrong-but-well-formed
+// treatment passes and surfaces in an audit instead:
 //
 //   franchise     the Driver is under *franchise en base*. In scope, no VAT
 //                 charged, and the invoice MUST say so in those exact words.
@@ -74,9 +79,18 @@ export type BillLineKind =
   | "transfer"
   /**
    * *Mise à disposition* — the car and Driver by the hour, no agreed
-   * destination. **20 %**, not 10 %: buying a driver's time is closer to a hire
-   * than to transport, and the Conseil d'État upheld exactly that on
-   * 13 May 2025 (n° 499031, Sté Chabé) against the trade's largest operator.
+   * destination. The **standard rate**, not 10 %: buying a driver's time is
+   * closer to a hire than to transport, and the Conseil d'État upheld exactly
+   * that on 13 mai 2025 (n° 499031, Sté Chabé) against the trade's largest
+   * operator.
+   *
+   * ⚑ THE TEST IS THE AGREEMENT, NOT THE CLOCK (verified 2026-09-04). What
+   * defeats the 10 % is the absence of an *accord préalable sur les trajets à
+   * effectuer* — the hourly tariff is the EVIDENCE of that absence, not the
+   * rule. Chabé bites where the price is *totalement indépendant de la distance
+   * parcourue*. So an hourly job WITH an agreed itinerary is arguably still
+   * 10 %, and `rideKindOf` keying on `mission_type` alone would not see the
+   * difference. ⚑ The ruling says *taux normal*; 20 % is CGI art. 278.
    *
    * ⚑ UNREACHABLE TODAY and deliberately so. `mission_type` is `transfer` on
    * 370 of 370 live rows and nothing writes the column. This case is the
@@ -87,7 +101,16 @@ export type BillLineKind =
   | "disposal"
   /** Accessory to the ride. Follows it — never rated on its own. */
   | "waiting"
-  /** The ride WAS supplied; the Guest was absent. A taxable line, not damages. */
+  /**
+   * The Guest did not appear. A taxable line, not damages.
+   *
+   * ⚑ NOT BECAUSE THE DRIVER TURNED UP (corrected 2026-09-04 — that was the
+   * reason given here and it is not the French test). BOI-TVA-BASE-10-10-50
+   * § 260 taxes the retained price *indépendamment* of whether the client
+   * cancels ahead or simply fails to appear, and CE 9 oct. 2024 n° 472257 says
+   * the counter-value is the client's firm RIGHT to the supply, used or not.
+   * The narrow escape is genuine *arrhes* (C. civ. art. 1590).
+   */
   | "no_show"
   /** ⚑ CONTESTED — never resolved to a rate here. See `taxOf`. */
   | "cancellation_business"
@@ -181,11 +204,14 @@ export function taxOf(kind: BillLineKind, m: TaxFacts): TaxTreatment {
       // Restating "10 %" here would be a second copy that could drift; calling
       // the ride's own resolver cannot.
       //
-      // ⚑ The risk runs the other way from the obvious one: if the waiting
-      // charge stops being small next to the fare it is no longer accessory,
-      // and the exposure is the standard rate on the WHOLE job, not a 20 %
-      // waiting line. That is a pricing rule, not a code rule — nothing here
-      // can detect it.
+      // ⚑ AND THE TEST IS NOT SIZE — corrected 2026-09-04, it used to say
+      // "if the waiting charge stops being small next to the fare". The
+      // criterion is the absence of a *finalité autonome* for the customer
+      // (BOI-TVA-CHAMP-60-20 § 230): waiting follows the ride because nobody
+      // buys it for its own sake, not because it is a small number. A charge
+      // the Business WOULD buy on its own is a separate supply however small,
+      // and the exposure is then the standard rate on the WHOLE job. That is a
+      // pricing rule, not a code rule — nothing here can detect it.
       return taxOf(rideKindOf(m), m);
 
     case "transfer":

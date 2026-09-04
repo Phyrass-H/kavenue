@@ -9,6 +9,28 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## ⚑⚑ S75 (2026-09-04) — THE DOC EDITS WERE ALREADY DONE; WE VERIFIED THEM INSTEAD ([[d129]])
+
+**`docs/01` item 4 below is CLOSED — and it was closed before it was written.** `f03c416` added
+mise à disposition, the territorial branches and the no-0 % rule in the same commit that wrote the
+note asking for them. ⚑ **`git log -- <file>` before believing any "what is left" list.**
+
+What S75 did instead: **verified 11 load-bearing legal claims** (33 agents, primary sources only,
+each attacked twice). **All three court citations are REAL.** Four claims were materially wrong —
+Air Limousines is a **5,5 %** case, the **e-invoicing deadline was a year early in four files**,
+ViDA is a **window** not a start date, and waiting is not accessory **because it is small**.
+
+⚑ **THE ONE THAT CHANGES A PRODUCT DECISION:** *Chabé* does **not** hold "hourly = 20 %". The test is
+the absence of an *« accord préalable sur les trajets à effectuer »*. **An hourly job with an agreed
+itinerary is arguably still 10 %** — so accountant question (a) is more open, and in Kavenue's
+favour, than this file said. `rideKindOf` keys on `mission_type` alone and cannot see the difference.
+
+`docs/01` now describes **all seven** `BillLineKind`s (it described two), and `handoff-check`
+**53 → 56** asserts both docs do, keyed on `Record<BillLineKind, RegExp>` — **an eighth kind is a
+compile error**, proven by planting one. 926 tests unchanged; comments and docs only.
+
+---
+
 ## ⚑ S74 IS CLOSED — `main` = `1291da7` · 897 → 926 tests · gate 50 → 52 · no migration
 
 Six things, each CI-green on a branch before `main`. Nothing half-built.
@@ -98,10 +120,15 @@ trip that needs it, not before.
 
 **2 · THE TWO ACCOUNTANT QUESTIONS — the only real blockers left.**
 - **An hourly block with kilometres included** ("4 h / 80 km, then per km") — 10 % or 20 %?
-  CE *Air Limousines* (n° 419254) says only billing based **exclusively** on time defeats the
-  10 %; CAA Lyon 26 mars 2026 (n° 25LY01286) applied 20 % even with mileage **capped**. Two
-  verifiers read this in opposite directions. **This decides whether Kavenue can sell an hourly
-  product at 10 % at all.**
+  ⚑ **REFRAMED BY S75's VERIFICATION, and the framing matters.** The test is **not** the tariff, it
+  is the absence of an *« accord préalable sur les trajets à effectuer »* — the tariff is only the
+  evidence. **CE, 9e ch., 14 oct. 2019, Sté Air Limousines, n° 419254** (⚑ a **5,5 %** case on the
+  then-applicable art. 279 b quater, not a 10 % one) holds that billing *principally* on duration is
+  not enough — only **exclusively**. Against it, **CAA Lyon, 2e ch., 26 mars 2026, n° 25LY01286
+  (SCS NTR)**, *inédit*, applied the standard rate where the tariff was distance-independent
+  *« avec un kilométrage illimité ou plafonné »* — a cap did not save it. **This decides whether
+  Kavenue can sell an hourly product at 10 % at all**, and an agreed itinerary is the likeliest way
+  to yes.
 - **Does publishing a cancellation grid** (free before T−X h, then 50 %, then 100 %) pull the fee
   **into** VAT or keep it **out**? Same BOFiP paragraph, opposite conclusions. This is what
   `taxOf("cancellation_business")` is waiting for. ⚑ Half is already settled **by the SQL, not by
@@ -115,10 +142,10 @@ bookable.** Nothing writes `mission_type` (370/370 are `transfer`), so the branc
 production. ⚑ Note the naming: `MissionType` is `"transfer" | "hourly"`, `BillLineKind` says
 `"disposal"` — `rideKindOf` bridges them.
 
-**4 · DOC EDITS.** `docs/01_Legal_VAT_Compliance.md:33-37,51` is **already right** on the
-commission at 20 %, transport at 10 %, and that the Business **cannot reclaim** transport VAT —
-it anticipated the deduction finding. What it does **not** mention: **mise à disposition at
-20 %**, the **territorial branches**, and that "0 %" is not a French state. Add those.
+**4 · DOC EDITS — ⚑ DONE, AND THEY WERE ALREADY DONE WHEN THIS WAS WRITTEN (S75, [[d129]]).**
+All three were added by `f03c416`. S75 verified them instead and corrected four errors; `docs/01`
+now also carries § *What each bill line carries* (all seven kinds) and the deduction citation
+**CGI ann. II art. 206, IV-2-5°** — which also catches the **waiting** line, not just the fare.
 
 ### 🔜 THE SESSION AFTER VAT — ACCESS BADGES (founder, 2026-09-03 · [[d128]])
 Full spec in `docs/05_Roadmap_Backlog_TODOs.md` § Access badges. The founder's brief: a Driver
@@ -691,7 +718,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**52 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**56 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 926 passing · 0 tsc errors

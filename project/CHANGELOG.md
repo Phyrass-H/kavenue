@@ -5,6 +5,39 @@
 
 ---
 
+## 4 September 2026 — we checked our own legal homework, and four things were wrong
+
+The plan was to add three missing points to the legal document. They turned out to be **already
+written** — yesterday's session added them and then wrote a note to itself asking for them. So
+instead we did the thing that was actually left: **we checked whether what it says is true.**
+
+Eleven claims, each looked up in the official French tax texts and court records, then argued
+against twice by people trying to prove it wrong.
+
+**The good news first.** All three court cases we quote are **real** — the numbers, the dates, the
+parties. Nothing was invented. Monaco, Corsica, the overseas rates and the driver-cancellation rule
+all hold up exactly as written.
+
+**Four things were wrong, and one of them matters to the business:**
+
+- **The hourly question is more open in our favour than we thought.** We had written that an hourly
+  job is 20 %. What the court actually said is subtler: what costs you the 10 % is having **no agreed
+  route**, not charging by the hour. An hourly job with a **fixed itinerary** may well still be 10 %.
+  That is exactly the question for the accountant — and our own note was quietly answering it the
+  pessimistic way.
+- **The e-invoicing deadline was wrong.** We said we had to be issuing electronic invoices since
+  1 September 2026. In fact that date is when you must be able to **receive** them; a company our size
+  has until **1 September 2027** to start sending. We had given ourselves a deadline a year early.
+- **One court case is about a 5,5 % rate**, not 10 %. Still relevant, but we were describing it
+  wrongly.
+- **The European platform rule** is a window between 2028 and 2030, not a 2028 start — and a driver
+  who is properly VAT-registered takes us out of it.
+
+**What we changed so this cannot happen again.** The legal document described 2 of the 7 kinds of
+charge the system can bill (a trip, an hourly hire, waiting time, a no-show, two kinds of
+cancellation, and our own fee). It now describes all seven — and the system now **refuses to build**
+if someone adds an eighth kind of charge without writing down what VAT it carries.
+
 ## 3 September 2026 — Monaco is fine for VAT, but you can't pick up there on short notice
 
 **The VAT question: answered, and there's nothing to build.** For tax purposes Monaco counts as

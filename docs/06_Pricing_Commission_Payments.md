@@ -195,9 +195,12 @@ paragraph used to say were wrong, and the code has never done either (corrected 
 - **NOT "0% if not".** ⚑ **There is no 0% rate in France** — the rates are 20, 10, 5,5 and 2,1.
   A Driver who is not VAT-registered is under the **franchise en base**: in scope, charging no
   VAT, and their invoice must carry the exact words **« TVA non applicable, article 293 B du
-  CGI »**. A "0 %" line asserts a taxable supply at a rate that does not exist. Since e-invoicing
-  went live on 1 September 2026 each line carries a machine-read category code, so the two are
-  no longer interchangeable in practice either.
+  CGI »**. A "0 %" line asserts a taxable supply at a rate that does not exist. A per-line VAT
+  breakdown is required by CGI ann. II art. 242 nonies A, I, 8°, so the two are not interchangeable
+  on the document either. ⚑ **CORRECTED 2026-09-04:** this used to say e-invoicing "went live on
+  1 September 2026". That date is when every business must be able to **RECEIVE**, and when large
+  companies must **EMIT**; a PME emits from **1 September 2027**. The platform checks presence and
+  arithmetic, not legal correctness — a wrong category passes and surfaces in an audit.
 - **NOT "read it from the Driver's `vat_number`".** Read the **snapshot on the mission**. A Driver
   who registers in September must not change the VAT on a trip they drove in August; the
   `2026-08-17_transport_vat_snapshot` trigger freezes the answer at acceptance and the code has
@@ -213,8 +216,8 @@ paragraph used to say were wrong, and the code has never done either (corrected 
 |---|---|---|
 | Transfer — destination agreed in advance | **10%** | `transport de voyageurs`, CGI art. 279 b quater |
 | **Mise à disposition** — hourly, no agreed destination | **20%** | a hire, not a journey. CE 13 mai 2025 n° 499031 (Sté Chabé) upheld this against the trade's largest operator. ⚑ **This is the founder's decision of 2026-09-02 and reverses the earlier assumption of 10%.** |
-| Waiting time | **follows the ride** | accessory supply. ⚑ If it stops being small next to the fare the exposure is the standard rate on the **whole job**, not a 20% waiting line |
-| No-show fee | **in scope**, ride's rate | the Driver travelled and held the car available. Calling it an `indemnité` changes nothing |
+| Waiting time | **follows the ride** | BOI-TVA-LIQ-30-20-60 § 30 (*suppléments de prix* tied to the transport) or CGI art. 257 ter, I (*abstraction des éléments accessoires*). ⚑ **CORRECTED 2026-09-04 — the test is not size.** It is the **absence of a *finalité autonome*** for the customer (BOI-TVA-CHAMP-60-20 § 230). A charge the Business would buy for its own sake stops following the ride however small it is. ⚑ It is also caught by the **deduction** exclusion — CGI ann. II art. 206 IV-2-5° covers *prestations accessoires à ce transport* |
+| No-show fee | **in scope**, ride's rate | ⚑ **CORRECTED 2026-09-04 — not because the Driver travelled.** BOI-TVA-BASE-10-10-50 § 260 taxes the retained price whether the client cancels ahead **or** fails to appear; CE 9 oct. 2024 n° 472257 — the counter-value is the firm **right** to the supply, used or not. Calling it an `indemnité` changes nothing |
 | Cancellation — charged to the Business | ⚑ **OPEN** | taxable if it pays for capacity held; arguably out of scope if the Business used a right we granted. Not answered — `taxOf` returns `undetermined` |
 | Cancellation — charged to a Driver | **out of scope** | an indemnity. **No VAT line at all**, on its own document, never netted off a commission invoice |
 | **Kavenue's own commission** | **20%** | its own supply of intermediation; it does NOT inherit the ride's 10% |

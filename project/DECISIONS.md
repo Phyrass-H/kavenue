@@ -3607,3 +3607,42 @@ treatment even on a cancelled trip, exactly as before. Wiring `cancellation_busi
 would have changed what a Driver sees on the strength of the one question nobody has answered.
 Named, not fixed by accident.
 
+
+### D129 — Four of the doc's own legal claims were wrong, and the fix is a check, not a correction (2026-09-04, S75)
+
+**The job asked for was three additions to `docs/01`. All three were already there** — commit
+`f03c416` had made them in the same breath as writing the handoff item that asked for them. So the
+session did the only version of the job that was left: **verify what the previous pass wrote.**
+
+Eleven load-bearing claims, 33 agents, every one required to fetch a primary source and then be
+attacked twice by reviewers told to default to *refuted*. The three court citations that had spread
+into five files are **all real** — nothing was hallucinated. Four claims were materially wrong:
+
+| claim | what it said | what the primary source says |
+|---|---|---|
+| **Air Limousines** n° 419254 | *"says only billing exclusively on time defeats the **10 %**"* | Real case (CE 9e ch., 14 oct. 2019) — but decided on the **5,5 %** version of art. 279 b quater for 2009-2011. The principle transposes; the citation as a *10 % case* does not |
+| **e-invoicing** | *"since **1 September 2026** … machine-read, so the wrong one is a validation error"* | 1 Sept 2026 is **reception** for all + **emission for large companies**. A PME emits **1 Sept 2027**. And the platform checks presence and arithmetic, **not legal correctness** |
+| **ViDA** | *"applies from 1 Jul 2028 (may delay to 1 Jan 2030)"* | A **window** — earliest 2028, latest 2030 — and the deemed-supplier rule is **conditional**, escaped by a Driver who gives a VAT number and declares |
+| **waiting is accessory** | *"if it stops being small next to the fare"* | Size is **not** the test. It is the absence of a *finalité autonome* for the customer (BOI-TVA-CHAMP-60-20 § 230) |
+
+⚑ **AND THE ONE THAT CHANGES A PRODUCT DECISION.** *Chabé* does not hold "hourly = 20 %". The test
+is the absence of an *« accord préalable sur les trajets à effectuer »* — the hourly tariff is the
+**evidence** of that absence, not the rule. **An hourly job with an agreed itinerary is arguably
+still 10 %**, which is precisely the accountant question, and it was being pre-answered the wrong way
+by our own summary. (`rideKindOf` keys on `mission_type` alone and would not see the difference.)
+
+⚑ **THE NO-SHOW REASONING WAS WRONG WHILE THE ANSWER WAS RIGHT.** Not taxable "because the Driver
+travelled" — BOI-TVA-BASE-10-10-50 § 260 taxes the retained price *whether the client cancels ahead
+or fails to appear*, and CE 9 oct. 2024 n° 472257 locates the counter-value in the **right** to the
+supply, used or not. ⚑ That same paragraph is **evidence on the open cancellation-grid question**,
+recorded for the expert-comptable and deliberately **not** used to close it — `taxOf` still returns
+`undetermined`.
+
+**THE DECISION: the durable output is a check, not a corrected paragraph.** `docs/01` described two of
+the seven `BillLineKind`s the code decides. It now describes all seven, and `handoff-check` asserts
+that both `docs/01` and `docs/06` do — keyed on `Record<BillLineKind, RegExp>`, so **an eighth kind
+is a compile error until someone writes down what VAT it carries.** Proven by planting one.
+
+⚑ **THE S74 THREAD, CONTINUED.** Every failure here is a *file about the code* being wrong while the
+code was right — the fourth session running. Prose decays and nothing guards it. This is the first
+assertion that guards a **documentation** claim rather than a code one.

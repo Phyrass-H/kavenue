@@ -5,6 +5,60 @@
 
 ---
 
+## 2026-09-04 — S75 · the doc edits were already done, so we verified them instead ([[d129]])
+
+**Asked for: three additions to `docs/01`. Found: `f03c416` had already made all three** — in the
+same commit that wrote the handoff item requesting them. The fourth consecutive instance of the S74
+thread: *a file about the code is wrong while the code is right.*
+
+### What was actually done
+| | |
+|---|---|
+| **verified** | 11 load-bearing legal claims · 33 agents · 680 fetches · every claim required a **primary** source (BOFiP / Légifrance / ArianeWeb / EUR-Lex) and was then attacked twice by reviewers told to default to *refuted* |
+| **citations** | all three court cases are **REAL** — CE n° 499031 *Chabé*, CE n° 419254 *Air Limousines*, CAA Lyon n° 25LY01286 *SCS NTR* (CETATEXT000053727679). Nothing hallucinated |
+| **corrected** | 4 materially wrong claims, across `docs/01`, `docs/06`, `lib/vat.ts` and `handoff-check` |
+| **added** | `docs/01` § *What each bill line carries* — it described **2 of 7** `BillLineKind`s |
+| **guard** | `handoff-check` 53 → **56**. `Record<BillLineKind, RegExp>` over BOTH docs |
+| tests | **926**, unchanged — comments and docs only, no behaviour touched |
+
+### The four corrections
+1. **Air Limousines n° 419254 is a 5,5 % case** (art. 279 b quater as applicable 2009-2011), not a
+   10 % case. The principle transposes; the citation did not.
+2. **E-invoicing:** 1 Sept 2026 is **reception** for everyone and **emission for GE/ETI**; a PME
+   emits from **1 Sept 2027**. And the platform validates presence and arithmetic, **not legal
+   correctness** — so "the wrong category is a validation error" was false. We had given ourselves a
+   deadline a year early, in four files.
+3. **ViDA** is a **window** (earliest 1 Jul 2028, latest 1 Jan 2030), and the deemed-supplier rule is
+   **conditional** — escaped where the Driver supplies a VAT number and declares. No B2B carve-out.
+4. **Waiting is not accessory because it is small.** The test is the absence of a *finalité autonome*
+   (BOI-TVA-CHAMP-60-20 § 230). `docs/06` and `lib/vat.ts` both stated the size test.
+
+### ⚑ The two that change how we think, not just what we wrote
+- **Chabé does not say "hourly = 20 %".** The test is the absence of an *« accord préalable sur les
+  trajets à effectuer »*; the hourly tariff is the **evidence**. **An hourly job with an agreed
+  itinerary is arguably still 10 %** — the live accountant question, which our own summary had been
+  quietly answering the pessimistic way. `rideKindOf` keys on `mission_type` alone and cannot see it.
+- **The no-show answer was right for the wrong reason.** Not "the Driver travelled" —
+  BOI-TVA-BASE-10-10-50 § 260 taxes the retained price *whether the client cancels ahead or fails to
+  appear* (CE 9 oct. 2024 n° 472257: the counter-value is the **right** to the supply). ⚑ The same
+  paragraph is **evidence on the open cancellation-grid question** — recorded for the
+  expert-comptable, deliberately **not** used to close it. `taxOf` still returns `undetermined`, and
+  a new assertion fails if `docs/01` ever stops saying so.
+
+### ⚑ Traps from this session
+- ⚑ **THE HANDOFF ASKED FOR WORK IT HAD ALREADY DONE.** `git log -- <file>` before believing a "what
+  is left" list. Four sessions running, the failure has been prose about the repo, not the repo.
+- ⚑ **A REGEX THAT MATCHES A SUBSTRING IS NOT A CHECK.** The first version of the new guard passed
+  `waiting` against `docs/01` because `/waiting/i` matched **"a-waiting the accountant"**. A second
+  assertion in the same block matched the same string. Two false greens, in the check written to
+  stop false greens. Name the concept (`/waiting\s+(time|charge)/`), not the letters.
+- ⚑ **VERDICT COUNTS ARE NOT EVIDENCE.** Every one of the 11 claims drew at least one *material*
+  refutation — because the attackers were told to default to refuted. The counts were meaningless;
+  only reading the findings separated the four real errors from the noise. An adversarial pass needs
+  a reader at the end of it.
+- ⚑ **A CASE CITATION IS THE HIGHEST-RISK SENTENCE IN A DOC.** These three had spread to five files
+  before anyone checked them. They survived — but the check cost minutes and the exposure was total.
+
 ## 2026-09-03 — SESSION 74 CLOSED — `main` = `f7b3264` · 897 → 926 tests · gate 50 → 53
 
 **Ten pushes, each CI-green on a branch before `main`. No migration. Nothing half-built.**

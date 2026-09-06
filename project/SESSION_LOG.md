@@ -5,6 +5,44 @@
 
 ---
 
+## 2026-09-04 — SESSION 75 CLOSED — `main` = `d8b0c91` · 926 → 937 tests · gate 53 → 58
+
+**Five pushes, each CI-green on a branch before `main`. Two migrations, both run by the founder the
+same session. Nothing left unmerged.**
+
+| | |
+|---|---|
+| `main` | `d8b0c91` |
+| tests | 926 → **937** · gate 53 → **58** · tsc 0 |
+| migrations | `2026-09-04_standard_vat_rate.sql` · `2026-09-04b_document_review.sql` — **both applied** |
+| deliverable | the founder's **V1 runway**, 59 tickable items — `c0f723f7-b401-4b0b-8f23-87aee18eec2f` |
+
+### ⚑ THE THREAD THROUGH THE DAY: a rule written down is not a rule
+S74's lesson was *a check that says fine when it is not*. S75's is its sibling — **a rule that exists
+only in prose**:
+
+| the rule | where it lived | what it cost |
+|---|---|---|
+| "leave `DEV_LOGIN_KEY` unset in production" | `.env.example` | a live key, published, still working |
+| "grep before you commit" | the S74 handoff | the same class of leak, two days later |
+| "a rejection needs a reason" | a migration comment | five weeks with nothing able to write one |
+| "the doc must mention X" | a handoff item | already done, and asked for anyway |
+
+All four are executable now. That is the session.
+
+### ⚑ What the founder decided
+- A cancellation is rated by **what was cancelled** — and **the accountant is no longer needed**.
+- `driver.verified` is a **separate act**, never derived.
+- The **video interview waits for First class** — the vehicle tier, confirmed, not the first cohort.
+- Verification is not a separate support tool: the doing on the Driver's page, the queue in Activity.
+
+### Open, and named
+- Claude: the *documents waiting* finding · the **first-trip list** the founder asked for · making
+  `verified` gate accepts · the Business side.
+- Founder: the **Mapbox token** (no restrictions) · **pickup-marketplace.vercel.app** (still live).
+- ⚑ Three items on the runway are **overdue, not upcoming**: e-invoicing reception (1 Sept 2026 has
+  passed), DAC7 registration, and the fact that **no terms are recorded as accepted by anyone.**
+
 ## 2026-09-04 — S75 (part 5) · the admin console can write, and it writes documents ([[d132]])
 
 **Founder: build the Driver verification screen.** Previewed first, approved, then built.

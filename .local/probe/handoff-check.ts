@@ -255,7 +255,13 @@ const shq = (c: string) => { try { return execSync(c, { encoding: "utf8" }).trim
 const readers = (needle: string) =>
   shq(`grep -rl "${needle}" app lib components 2>/dev/null | grep -v database.types || true`)
     .split("\n").filter(Boolean)
-    .filter((f) => !f.startsWith("app/admin/") && !/^lib\/(eligibility|activity-findings|admin-activity)\.ts$/.test(f))
+    // ⚑ The console is excluded because it REPORTS these fields — that is the
+    //   opposite of gating on them, and it is the whole point of [[d92]]. Since
+    //   S75 the console's own components live outside app/admin/ too:
+    //   components/admin-document-review.tsx renders `driver.verified` beside a
+    //   button that sets it, and says in its own copy that it stops nothing.
+    .filter((f) => !f.startsWith("app/admin/") && !f.startsWith("components/admin-"))
+    .filter((f) => !/^lib\/(eligibility|activity-findings|admin-activity|document-review)\.ts$/.test(f))
     .filter((f) => !f.includes("settings") && !f.includes("onboarding"));
 t("[[d92]] — operational_zones is still read by NO rule", readers("operational_zones").length === 0,
   readers("operational_zones").join(" ") || "only the screens that collect it + the console");

@@ -5,6 +5,20 @@
 
 ---
 
+## 4 September 2026 — the day's work, in one place
+
+Five things shipped. The thread running through all of them: **a rule written in a document is not a
+rule.** Four times today something was already written down — and nothing enforced it.
+
+- The **legal document was checked**, not just edited. Three court cases we quote are real; four other
+  facts were wrong, including an e-invoicing deadline that gave us a year back.
+- **Cancellation fees** now follow whatever was cancelled — your rule, and the tax office agrees.
+- The **legal tax rate stopped borrowing your commission's number** and got its own place.
+- A **published key that still worked** was killed, and the site now refuses to build if it comes back.
+- You can **approve a driver's papers on a screen** instead of editing the database by hand.
+
+And you have **your V1 list** — 59 things only you can do, ticked off as you go.
+
 ## 4 September 2026 — you can approve a driver's papers without touching the database
 
 Until today, checking a driver's documents meant opening Supabase and editing rows by hand — on the one

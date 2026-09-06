@@ -9,6 +9,128 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## ⚑⚑ S75 IS CLOSED (2026-09-04) — `main` = `d8b0c91` · 926 → 937 tests · gate 53 → 58 · 2 migrations, both applied
+
+**Five pushes, each CI-green on a branch before `main`. Nothing half-built. Nothing left unmerged.**
+
+| | |
+|---|---|
+| `main` | `d8b0c91` |
+| tests | 926 → **937** |
+| `handoff-check` | 53 → **58** |
+| migrations | **2, both run by the founder this session** — `2026-09-04_standard_vat_rate.sql`, `2026-09-04b_document_review.sql` |
+| new probes | `.local/probe/cancellation-live.mts` (7) · `.local/probe/standard-rate.mts` (14) |
+
+### What shipped, in order
+1. **`d236a59`** — the VAT doc **verified**, not edited. Four claims were wrong ([[d129]]).
+2. **`1800eae`** — a cancellation is rated by **what was cancelled** ([[d130]]).
+3. **`27870bd`** — the **statutory rate got its own column**, and a live view landmine closed ([[d131]]).
+4. **`610abf0`** — a **second published credential**, killed, with the rule made executable.
+5. **`d8b0c91`** — the **admin console can write**, and the first thing it writes is a document verdict ([[d132]]).
+
+---
+
+## ⚑ THE FOUNDER'S V1 LIST — THE ARTEFACT THIS SESSION EXISTS TO SERVE
+
+**59 things only the founder can do, live and tickable:**
+**https://claude.ai/code/artifact/c0f723f7-b401-4b0b-8f23-87aee18eec2f**
+
+Swept from every spec, the handoff and the code by 11 agents, each area verified by a second, then a
+completeness pass for what a real marketplace needs that no document had written down. Grouped by
+**when it stops you**: 30 before the first real booking · 8 before launch · 6 on the integration
+green light · 15 rulings only the founder can make.
+
+⚑ **READ ITS TICKS BEFORE PLANNING ANYTHING.** In a later session: *"read the runway"* → fetch that
+URL with the Artifact tool's `read` action. The ticked state lives in the page's own
+`<script id="state">` block. **Do not re-derive the list from the docs — it is already wrong to do so
+once the founder has ticked things.**
+
+⚑ **IT WAS BROKEN ONCE AND IS FIXED.** The first version drew all 59 rows from JavaScript, and the
+final `</script>` was escaped — so the block never closed, the script never ran, and the founder saw
+only the static alert panel. **All 59 rows are now literal HTML**; the script only ticks and saves.
+
+### ⚑⚑ The three things on it that are overdue, not upcoming
+- **E-invoicing reception** — 1 September 2026 has **passed**. Every French VAT-taxable business had
+  to be able to RECEIVE structured e-invoices by then. Emission for a PME is 1 Sept 2027.
+- **DAC7 / art. 242 bis** — a platform-operator obligation with per-seller penalties that appears
+  **nowhere in this repo**. Found by the completeness pass, not by any document.
+- **No terms are recorded as accepted.** The app has no checkbox, no timestamp, no version — so there
+  is no evidence any Driver or Business agreed to anything.
+
+---
+
+## ⚑⚑ WHAT IS OPEN, AND WHO IT IS ON
+
+### On Claude — the honest next jobs, in the order recommended to the founder
+1. **The Activity console finding: *"N documents waiting on you"*.** The review screen exists but you
+   must know to visit a Driver. `lib/activity-findings.ts` already has the machinery (`FindingId`,
+   tones attention/watch/quiet) — this is one more finding. **Founder asked for it.**
+2. **The first-trip list.** Founder, 2026-09-04: *"make a way to list first drive of each driver so I
+   have an easy access to them and then I can call either the driver or the business."* Same console.
+   ⚑ **Design note already agreed:** it must cover **upcoming** first trips AND ones finished in the
+   last day or two — the call you want is often *after*, to the hotel.
+3. **Make `driver.verified` actually gate accepts.** The review screen records a judgement and
+   `lib/eligibility.ts:25-27` still says an unverified Driver can accept work. Needs a change inside
+   `accept_mission` (a migration) **and a date from the founder for when it starts biting.**
+4. **The Business side of document review.** Founder: *"let's finish driver first then we'll see."*
+   One document (`company_registration`), not nine — but ⚑ **`business.verified` DOES NOT EXIST**
+   and zero business documents have ever been uploaded. Sign-up already checks the company against
+   `recherche-entreprises.api.gouv.fr`, so the human check is "does the Kbis match the register".
+
+### On the founder — from the runway, the two that need no one else
+- **The Mapbox token has no URL restrictions at all** (re-probed 2026-09-04: 200 with no referer, 200
+  from `evil-example.com`). It ships in the JS bundle by design. ~30 minutes in the Mapbox dashboard.
+- **`pickup-marketplace.vercel.app` still serves the production build** — live and crawlable, under a
+  name that is a registered trademark of Pickup Services SAS / GeoPost. One click in Vercel → Domains.
+
+### Decided this session — do NOT re-open
+- **A cancellation follows what was cancelled** ([[d130]]). Both accountant questions are **closed**:
+  founder, 2026-09-04, *"no need accountant we have the infos it's enough."*
+- **`driver.verified` is a SEPARATE ACT**, never computed from the documents.
+- **A rejection cannot be saved without a reason.** Not a preference — the note is the only
+  explanation the Driver's surfaces can render.
+- **The video interview is NOT being built.** Founder: *"it's impossible I don't have the staff."*
+  ⚑ **But it is not dropped:** it returns for **First class** — the founder confirmed they meant the
+  vehicle tier, not the opening cohort. That makes it the **second class-dependent rule** in
+  `lib/eligibility.ts` after the airport badge. Not built; recorded.
+- **Verification is not a separate "support" tool.** The *doing* belongs on the Driver's page (you
+  judge a licence with the whole person in front of you); the *queue* belongs in the Activity console.
+  A `support` role does not exist in `user_role` (driver/dispatcher/admin) and is a later question.
+
+---
+
+## ⚑⚑ TRAPS FROM S75 — every one cost real time or nearly cost real damage
+
+1. ⚑⚑ **`ensureUser()` RESETS AN EXISTING ACCOUNT'S PASSWORD.** `/api/dev-login?email=<real user>`
+   does not just sign in — it overwrites that account's password with `DEV_PASSWORD`. Pointing it at
+   `admin@kavenue.fr` would have silently changed the founder's real admin login. **Never point
+   dev-login at a real account.** Create a throwaway, use it, delete it.
+2. ⚑ **AND DEV-LOGIN AS A DEMO ACCOUNT BROKE A PROBE ANYWAY.** After signing in as
+   `?as=business`, `demo.business@pickup.local` could no longer sign in and two gate assertions went
+   red. Fix is documented and worked: `npx tsx .local/seed/seed-probe-accounts.mts`. **Run it after
+   any browser dev-login session.**
+3. ⚑⚑ **THE OBVIOUS RLS POLICY WOULD HAVE BEEN A HOLE.** `create policy … for update … using
+   (app_role()='admin')` on `document` would let anyone with an admin session PATCH it through
+   PostgREST, **skipping the you-must-say-why rule entirely.** The write is a server action instead:
+   authorise on the USER session, write with the service role. `document` still has ONE policy, SELECT.
+4. ⚑ **A `@` SENTINEL IN AN EDIT SCRIPT ATE THE IMPORT PATHS**, rewriting `"@/lib/gender"` to
+   `"⚑/lib/gender"`. Use a placeholder that cannot collide.
+5. ⚑ **`git checkout <file>` REVERTED AN UNCOMMITTED FIX** while restoring a planted test leak,
+   silently putting a live key back. The new secret scan caught it on the next run.
+6. ⚑ **I CLOBBERED `.claude/launch.json`** by writing a dev-server config over one that existed.
+   Restored from git. **Read a config file before writing one.**
+7. ⚑ **`useState` SURVIVES A SERVER REVALIDATE.** After approving a document the open "why are you
+   rejecting it?" box sat under a row now reading Valid. Keyed the row on `id:status` to remount it.
+8. ⚑ **AN ESCAPED FINAL `</script>` KILLS THE WHOLE BLOCK.** It looked like careful escaping and it
+   made a 59-item page render nothing. Only the LAST one is a real tag.
+9. ⚑ **VERDICT COUNTS FROM ADVERSARIAL AGENTS ARE NOT EVIDENCE.** All 11 VAT claims drew a
+   "material" refutation because the attackers were told to default to refuted. Only reading the
+   findings separated the four real errors from the noise. **An adversarial pass needs a reader.**
+10. ⚑ **A REGEX THAT MATCHES A SUBSTRING IS NOT A CHECK.** `/waiting/i` matched "a-WAITING the
+    accountant" and reported a green for a line the doc never contained. Name the concept.
+
+---
+
 ## ⚑⚑ S75 (2026-09-04) — THE CANCELLATION QUESTION IS ANSWERED ([[d130]])
 
 **The founder closed it:** *"it works the same, apply the same rules on what was canceled based on
@@ -739,7 +861,7 @@ A handoff is a *claim about the repo*, and claims decay. Run this first:
 
     node --experimental-strip-types .local/probe/handoff-check.ts
 
-**56 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
+**58 assertions**, ending `The handoff still matches reality. Proceed.` Anything `STALE` means this file lies
 about that point — **fix the file before you build on it.** Then:
 
     npx tsc --noEmit && npx vitest run          # expect 926 passing · 0 tsc errors
@@ -760,6 +882,8 @@ about that point — **fix the file before you build on it.** Then:
     npx tsx .local/probe/column-leak.mts                                 #   S72 · expect 0 LEAK(S) OPEN
     npx tsx .local/probe/hold-live.mts                                   #  31 · § 7 end to end (⚑ uses accept_mission_call)
     npx tsx .local/probe/cancellation-live.mts                            #   7 · [[d130]] delegation, live
+    npx tsx .local/probe/standard-rate.mts                                #  14 · [[d131]] the statutory rate has its own home
+    npx tsx .local/seed/seed-probe-accounts.mts                           #  ⚑ AFTER any browser dev-login session
     npx tsx .local/probe/sweep-orphans.mts                               #  ⚑ after any live-probe session
 
 **If a probe fails, that is the job** — not whatever is queued above.

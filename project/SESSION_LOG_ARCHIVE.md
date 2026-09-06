@@ -1301,7 +1301,8 @@ or real email auth (flip dev-login off), or the observability/admin pillar (BACK
 
 **Key facts for next time**
 - Deploy = push to `main` → Vercel auto-redeploys (~1 min). Vercel env has the 3 Supabase keys
-  + `DEV_LOGIN_KEY=v1a-DbkJHN9Dw3aqWKDGSfZ9`.
+  + `DEV_LOGIN_KEY` (⚑ the value was written here in plain text and this repo is PUBLIC —
+  it was still live on 2026-09-04 and has been revoked; see `project/DOMAIN_MIGRATION.md`).
 - Most remaining KEEP work needs **no schema change** — `document`, `payment`,
   `ledger_transaction`, `payout`, `booking_voucher`, `status_event` tables already exist.
 - Before real beta: switch on email magic-link (one Supabase redirect-URL setting) and turn

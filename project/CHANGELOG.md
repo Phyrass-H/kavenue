@@ -5,6 +5,26 @@
 
 ---
 
+## 4 September 2026 — a password-like key was public again, and now the build stops it
+
+While writing your V1 list I found the dev sign-in key written into two files in the public
+repo — and **I tested it: it still worked.** A wrong key is refused; the published one got
+through the key check. Anyone reading your repo could have signed in as a hotel or a driver.
+
+**You fixed it** by deleting it in Vercel. That is the only real fix — removing it from a
+file changes nothing, because the old version is still in the project's history.
+
+**What I added so it cannot happen a third time:**
+
+- **The site now refuses to build** if that key is set on the live deployment. Not a warning
+  — the deploy fails, with instructions. Your preview and local testing are untouched.
+- **A check that scans every file in the project** for anything shaped like a password or a
+  key, and fails if one is found. It caught a mistake of my own within a minute of being
+  written: restoring a test file quietly put the key back, and the check said so.
+
+This is the second published credential in two days. Both times a document already said not
+to do it. The difference now is that a sentence became something a machine enforces.
+
 ## 4 September 2026 — the legal tax rate stopped borrowing the fee's number
 
 **You asked for it and you were right.** When the system needed "20 %" for an hourly hire, it went and

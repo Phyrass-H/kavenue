@@ -1016,6 +1016,56 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
       : "the hourly question is still open; THIS one was answered 2026-09-04 — the doc must not still call it open");
 }
 
+// ── S75 · no tracked file may carry a live secret ─────────────────────────
+{
+  console.log("\n── secrets in tracked files (S75) ──");
+  // ⚑⚑ TWICE IN TWO DAYS. S74 found a working PASSWORD as a plain literal in
+  //   app/api/dev-login/route.ts. S75 found a working KEY in two prose files —
+  //   project/DOMAIN_MIGRATION.md and project/SESSION_LOG_ARCHIVE.md — and it was
+  //   still live: measured against production, a wrong key returned 403 on both
+  //   hosts and the published one returned 400, which means it MATCHED.
+  //
+  // ⚑ Both times the rule already existed, written down, in prose. ".env.example"
+  //   says "Leave UNSET in real production"; the S74 lesson says "grep before you
+  //   commit". Neither could go red. This can.
+  //
+  // ⚑ IT SCANS TRACKED FILES ONLY, which is the exact population that gets
+  //   published — `git ls-files`, not the working tree, so .env.local and the
+  //   ignored run artifacts are correctly invisible to it.
+  const NAMES = "DEV_LOGIN_KEY|DEV_PASSWORD|SEED_PASSWORD|ADMIN_PASSWORD|SERVICE_ROLE_KEY|ANON_KEY|SUPABASE_[A-Z_]*KEY";
+  // A value that is a reference, a placeholder or an empty slot is not a secret.
+  const INNOCENT = /^(process\.|env\.|import\.|<|\$|\{|your[-_]|xxx|placeholder|changeme|…|\.\.\.)/i;
+  const listed = (() => {
+    try { return execSync("git ls-files", { encoding: "utf8", maxBuffer: 32 * 1024 * 1024 }); }
+    catch { return ""; }
+  })();
+  const tracked = listed.split("\n").map((l) => l.trim()).filter(Boolean)
+    // The lock file is machine-written and full of hash-shaped strings.
+    .filter((f) => !/^package-lock\.json$/.test(f));
+  const hits: string[] = [];
+  for (const f of tracked) {
+    let text = "";
+    try { text = fs.readFileSync(f, "utf8"); } catch { continue; }
+    if (text.length > 2_000_000) continue;
+    for (const line of text.split("\n")) {
+      // NAME = value  ·  and  ?key=value / &key=value in a URL
+      const m = line.match(new RegExp(`(?:${NAMES})\\s*[=:]\\s*["']?([A-Za-z0-9_\\-.]{8,})`))
+             ?? line.match(/[?&]key=([A-Za-z0-9_\-.]{12,})/);
+      if (!m) continue;
+      const value = m[1];
+      if (INNOCENT.test(value)) continue;
+      // A bare env NAME with no value, and a self-reference, are both fine.
+      if (new RegExp(`^(?:${NAMES})$`).test(value)) continue;
+      hits.push(`${f}: ${value.slice(0, 6)}…(${value.length} chars)`);
+    }
+  }
+  t("no tracked file carries a secret-shaped value",
+    hits.length === 0,
+    hits.length
+      ? `⚑ ${hits.length} — ${hits.slice(0, 3).join(" · ")}${hits.length > 3 ? " …" : ""}\n      ⚑ ROTATE IT, do not just delete the line — git history keeps the value.`
+      : `${tracked.length} tracked file(s) scanned`);
+}
+
 console.log("\n── the repo the handoff describes ──");
 const sh = (c: string) => { try { return execSync(c, { encoding: "utf8" }).trim(); } catch { return ""; } };
 t("git is clean", sh("git status --porcelain") === "", sh("git status --porcelain").split("\n")[0] ?? "");

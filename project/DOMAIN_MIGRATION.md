@@ -203,8 +203,18 @@ signed in, address autocomplete returning results.
 
 The key-gated URLs move. Replace your bookmarks:
 
-- Business → `https://dispatch.kavenue.fr/dev-login?key=v1a-DbkJHN9Dw3aqWKDGSfZ9`
-- Driver → `https://driver.kavenue.fr/dev-login?key=v1a-DbkJHN9Dw3aqWKDGSfZ9`
+- Business → `https://dispatch.kavenue.fr/dev-login?key=<DEV_LOGIN_KEY from .env.local>`
+- Driver → `https://driver.kavenue.fr/dev-login?key=<DEV_LOGIN_KEY from .env.local>`
+
+> ⚑⚑ **THE KEY THAT WAS WRITTEN HERE WAS LIVE, AND THIS REPO IS PUBLIC.** Measured
+> 2026-09-04 before it was revoked: a wrong key returned **403** on both hosts and the
+> published key returned **400** — meaning it *matched*, and only the missing `?as=`
+> stopped a real sign-in. Anyone reading GitHub could have signed in as a Business or a
+> Driver. ⚑ **Removing it from this file is NOT the fix** — git history keeps the value.
+> The fix was deleting `DEV_LOGIN_KEY` from Vercel Production. A production build now
+> refuses to compile while it is set (`next.config.mjs`), and `handoff-check` fails if a
+> key value is ever written into a tracked file again. Never paste a key into `docs/` or
+> `project/`; name the env var instead.
 
 ---
 

@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-09-04 — S75 (part 4) · a second published credential, and the rule made executable
+
+⚑⚑ **A LIVE DEV-LOGIN KEY WAS IN TWO TRACKED FILES OF A PUBLIC REPO.** Found while
+compiling the founder's V1 list, not by a check. `v1a-DbkJHN9Dw3aqWKDGSfZ9` sat in
+`project/DOMAIN_MIGRATION.md:206-207` and `project/SESSION_LOG_ARCHIVE.md:1304`.
+
+**Measured against production before it was revoked** — not reasoned about:
+
+| host | wrong key | the published key |
+|---|---|---|
+| dispatch.kavenue.fr | 403 | **400** |
+| driver.kavenue.fr | 403 | **400** |
+
+403 is refusal; **400 means the key MATCHED** and only the missing `?as=` stopped a real
+sign-in as a Business or a Driver.
+
+⚑ **THE POINT: BOTH TIMES THE RULE ALREADY EXISTED IN PROSE.** `.env.example` says "Leave
+UNSET in real production". The S74 lesson says "grep before you commit". Neither could go
+red. S74's password and S75's key are the same failure — *a rule nothing enforces*.
+
+### What shipped
+| | |
+|---|---|
+| `next.config.mjs` | a **production build refuses to compile** while `DEV_LOGIN_KEY` is set. Preview and local untouched — hosted testing still works |
+| `handoff-check` 57 → **58** | scans **`git ls-files`** (the population that gets published, not the working tree) for secret-shaped values; 427 files |
+| the two docs | the value replaced by the env-var name, with the incident recorded beside it |
+| founder's half | deleting the variable in Vercel — nothing built here replaces that |
+
+### ⚑ Traps
+- ⚑ **FOUR CASES, NOT ONE.** The build guard was proved against production+key (refuses),
+  production+no-key (builds — the state after the fix), preview+key and local+key (both
+  build). A guard that fires everywhere would have quietly ended hosted testing.
+- ⚑⚑ **`git checkout <file>` REVERTED AN UNCOMMITTED FIX MID-SESSION.** Restoring a
+  planted leak with `git checkout` also threw away the scrub that had not been committed
+  yet, silently putting the live key back. **The new assertion caught it on the next run** —
+  the check earned its place within a minute of existing.
+- ⚑ **THE SCAN READS TRACKED FILES, NOT THE WORKING TREE.** `.env.local` and the ignored
+  run artifacts are correctly invisible; `.claude/worktrees/` copies of the key are
+  untracked and therefore never published.
+
 ## 2026-09-04 — S75 (part 3) · the standard rate gets its own column ([[d131]]) — ⚑ HELD, NOT MERGED
 
 **Founder: *"give the standard rate its own home."*** `disposal` stopped borrowing the commission's rate.

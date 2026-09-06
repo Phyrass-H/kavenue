@@ -21,6 +21,11 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 | migrations | **2, both run by the founder this session** — `2026-09-04_standard_vat_rate.sql`, `2026-09-04b_document_review.sql` |
 | new probes | `.local/probe/cancellation-live.mts` (7) · `.local/probe/standard-rate.mts` (14) |
 
+⚑ **THE ONE RED IN THE GATE IS EXPECTED AND IS NOT A BUG.** `the seeded live trips are still in the
+future` goes STALE purely because time passed — the seeded Pool aged out. It is not caused by any
+change here. Clear it with `npx tsx .local/seed/seed-live.mts` if you want a populated Pool, or leave
+it. **Everything else in the 58 is green.**
+
 ### What shipped, in order
 1. **`d236a59`** — the VAT doc **verified**, not edited. Four claims were wrong ([[d129]]).
 2. **`1800eae`** — a cancellation is rated by **what was cancelled** ([[d130]]).

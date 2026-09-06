@@ -9,6 +9,9 @@ import { documentMeta } from "@/lib/account";
 import type { DocumentType, DocumentStatus, DocumentSide } from "@/lib/database.types";
 
 export interface DocFile {
+  /** The row's own id — what the reviewer's actions act on (S75). Each SIDE is a
+   *  separate row and is approved or rejected on its own. */
+  id: string;
   side: DocumentSide | null;
   status: DocumentStatus;
   uploadedAt: string;
@@ -33,6 +36,7 @@ export interface DocView {
 }
 
 type Row = {
+  id: string;
   type: DocumentType;
   status: DocumentStatus;
   file_url: string;
@@ -60,7 +64,7 @@ export async function getLatestDocuments(
   const admin = createAdminClient();
   const { data } = await admin
     .from("document")
-    .select("type, status, file_url, uploaded_at, expires_at, side, review_note")
+    .select("id, type, status, file_url, uploaded_at, expires_at, side, review_note")
     .eq("owner_type", ownerType)
     .eq("owner_id", ownerId)
     .order("uploaded_at", { ascending: false });
@@ -107,6 +111,7 @@ export async function getLatestDocuments(
         viewUrl: front ? await signedDocUrl(front.file_url) : null,
         front: front
           ? {
+              id: front.id,
               side: "front" as const,
               status: front.status,
               uploadedAt: front.uploaded_at,
@@ -115,6 +120,7 @@ export async function getLatestDocuments(
           : null,
         back: back
           ? {
+              id: back.id,
               side: "back" as const,
               status: back.status,
               uploadedAt: back.uploaded_at,

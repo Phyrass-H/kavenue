@@ -5,6 +5,26 @@
 
 ---
 
+## 4 September 2026 — you can approve a driver's papers without touching the database
+
+Until today, checking a driver's documents meant opening Supabase and editing rows by hand — on the one
+check that carries a **€300,000** fine. Now it's a screen.
+
+Open a driver, see all nine papers grouped the way the driver sees them, and for each one: look at it,
+approve it, or send it back. Correcting an expiry date is part of approving, not a second job.
+
+**The one thing the screen won't let you do is reject a paper without saying why.** That isn't
+fussiness. If you reject silently, the driver sees "Needs a new photo" and *nothing else* — no reason,
+no idea which side. So the reason is the button.
+
+Two smaller things it does quietly: approving a paper clears the old complaint, so a driver can never
+read a stale "the bottom edge is cut off" under a document that's fine. And every decision now records
+who made it and when — for the day someone asks.
+
+**Marking a driver verified stays your own act**, separate from the papers, exactly as you asked. Note
+that it still doesn't stop anyone working — that's a separate job, and the screen says so out loud
+rather than letting you think you'd blocked someone.
+
 ## 4 September 2026 — a password-like key was public again, and now the build stops it
 
 While writing your V1 list I found the dev sign-in key written into two files in the public

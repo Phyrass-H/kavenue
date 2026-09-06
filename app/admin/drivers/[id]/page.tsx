@@ -11,6 +11,9 @@ import { AdminTripList } from "@/components/admin-trip-list";
 import { pageWindow, pageNote } from "@/lib/admin-list";
 import { serviceClassLabel } from "@/lib/format";
 import { genderSays } from "@/lib/gender";
+import { getLatestDocuments } from "@/lib/documents";
+import { DRIVER_DOC_TYPES } from "@/lib/account";
+import { AdminDocumentReview } from "@/components/admin-document-review";
 
 const PER_PAGE = 40;
 
@@ -31,7 +34,7 @@ export default async function AdminDriverPage({
   const { data: driver } = await db.from("driver").select("*").eq("id", id).maybeSingle();
   if (!driver) notFound();
 
-  const [{ data: vehicles }, { data: trips, count }] = await Promise.all([
+  const [{ data: vehicles }, { data: trips, count }, docs] = await Promise.all([
     db.from("vehicle").select("*").eq("driver_id", id),
     db
       .from("mission_read")
@@ -39,6 +42,12 @@ export default async function AdminDriverPage({
       .eq("driver_id", id)
       .order("pickup_at", { ascending: false })
       .range(win.from, win.to),
+    // ⚑ READ WITH THE SERVICE ROLE, deliberately, and it is the one read on this
+    //   page that does. `getLatestDocuments` signs a short-lived URL per file so
+    //   the reviewer can actually LOOK at the paper — the bucket is private and a
+    //   signed URL cannot be minted from a user session. The admin's right to be
+    //   here is already settled by app/admin/layout.tsx.
+    getLatestDocuments("driver", id, DRIVER_DOC_TYPES),
   ]);
   const car = (vehicles ?? []).find((v) => v.is_active) ?? (vehicles ?? [])[0] ?? null;
   const based = driver.base_lat != null && driver.base_lng != null;
@@ -100,6 +109,8 @@ export default async function AdminDriverPage({
           <span className="adm-check__d">{driver.accepts_luggage_runs ? "takes luggage runs" : ""}</span>
         </div>
       </section>
+
+      <AdminDocumentReview driverId={id} verified={driver.verified} docs={docs} />
 
       <section className="adm-sect">
         {/* ⚑ NO ROLL-UP HERE. This used to read "· 83 of 90 completed" over rows

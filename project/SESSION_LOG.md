@@ -5,6 +5,43 @@
 
 ---
 
+## 2026-09-04 — S75 (part 5) · the admin console can write, and it writes documents ([[d132]])
+
+**Founder: build the Driver verification screen.** Previewed first, approved, then built.
+
+| | |
+|---|---|
+| migration | `2026-09-04b_document_review.sql` — **applied**, `reviewed_at` + `reviewed_by` |
+| new | `lib/document-review.ts` (3 server actions) · `lib/review-note.ts` · `components/admin-document-review.tsx` |
+| tests | 931 → **937** |
+| gate | 58 |
+| ⚑ | the FIRST write path in a console that was 100 % read |
+
+### The rule the screen exists to enforce
+**You cannot save a rejection without a reason.** `review_note` is the only explanation the Driver's
+surfaces can render. Extracted to `lib/review-note.ts` — a pure module with no server imports — because
+a `"use server"` file drags the Supabase client and its env into any test that touches it, and a rule
+nobody can test is a rule that relaxes. Red-tested: dropping the floor fails three tests.
+
+### ⚑ Proven on live data, then put back
+A throwaway admin, then Amine Belkacem's real licence: empty note **refused and wrote nothing**; a real
+note wrote all four fields; approve cleared the note and stamped the reviewer. Both rows restored to
+`pending`, the account and its profile deleted, zero traces.
+
+### ⚑ Traps
+- ⚑⚑ **`ensureUser` RESETS AN EXISTING PASSWORD.** `/api/dev-login?email=admin@kavenue.fr` would
+  have overwritten the founder's real admin password to `DEV_PASSWORD`. Checked before running it.
+  A throwaway account was created instead. **Never point dev-login at a real account.**
+- ⚑ **THE OBVIOUS RLS POLICY WOULD HAVE BEEN A HOLE.** An admin UPDATE policy on `document` lets a
+  browser session PATCH it through PostgREST, skipping the note rule entirely. Server action only.
+- ⚑ **A `@` SENTINEL IN A PYTHON EDIT SCRIPT ATE THE IMPORT PATHS.** Using `@` as the placeholder for
+  the flag glyph rewrote `"@/lib/gender"` to `"⚑/lib/gender"`. Caught by the assert; use `%⚑%`.
+- ⚑ **I CLOBBERED `.claude/launch.json`** writing my own dev-server config over one that already
+  existed with `autoPort`. Restored from git. Look before you write a config file.
+- ⚑ **STATE SURVIVES A SERVER REVALIDATE.** After approving, the open "why are you rejecting it?" box
+  stayed under a row now reading Valid — `useState` persists across the re-render. Keyed the row on
+  `id:status` so the verdict changing remounts it.
+
 ## 2026-09-04 — S75 (part 4) · a second published credential, and the rule made executable
 
 ⚑⚑ **A LIVE DEV-LOGIN KEY WAS IN TWO TRACKED FILES OF A PUBLIC REPO.** Found while

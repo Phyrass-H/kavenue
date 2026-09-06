@@ -446,6 +446,8 @@ export interface Database {
           review_note: string | null; // S48 — why a document was rejected
           vehicle_id: string | null; // S48 — carte grise / insurance belong to a car
           uploaded_at: string;
+          reviewed_at: string | null; // S75 — when a human last ruled on it
+          reviewed_by: string | null; // S75 — auth.uid() of that human
         };
         Insert: {
           id?: string;
@@ -459,6 +461,8 @@ export interface Database {
           review_note?: string | null;
           vehicle_id?: string | null;
           uploaded_at?: string;
+          reviewed_at?: string | null;
+          reviewed_by?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["document"]["Insert"]>;
         Relationships: [];

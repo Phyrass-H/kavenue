@@ -3608,6 +3608,40 @@ would have changed what a Driver sees on the strength of the one question nobody
 Named, not fixed by accident.
 
 
+### D132 — The console can write, for the first time, and only where a rejection carries a reason (2026-09-04, S75)
+
+**The €300,000 check was being done by editing rows in the Supabase table editor.** `/admin` was 100 %
+read — no `actions.ts`, no route handler, no `.update(` anywhere in eight files — while `document`
+had carried `status` and `review_note` since 2026-07-28 and **nothing had ever written either**.
+
+| decision | why |
+|---|---|
+| It lives on `/admin/drivers/[id]`, not a new screen | you judge a licence with the whole person in front of you |
+| **A rejection cannot be saved without a reason** | `review_note` is the ONLY explanation the Driver's four surfaces can render, and only when it exists. Without it they read *"Needs a new photo"* and nothing else |
+| Each SIDE is approved on its own | one rejected side rejects the whole paper for the Driver, so you must be able to say which |
+| The expiry travels with the approve | you are reading the date off the paper anyway |
+| `driver.verified` is a **separate act** | founder, 2026-09-04. "Every paper is valid" and "I'd put this person in front of a Guest" are different questions |
+
+⚑ **APPROVING CLEARS `review_note`, AND THAT IS A BUG FIX.** `lib/documents.ts:106` picks the note as
+the first non-null across [front, back] — so a stale note on an approved FRONT outranks the real reason
+a BACK was rejected, and the Driver reads *"the bottom edge is cut off"* under a document whose bottom
+edge was fine.
+
+⚑⚑ **NO NEW RLS POLICY, AND THAT IS THE SECURITY DECISION.** The obvious move —
+`create policy … for update … using (app_role()='admin')` — would have been worse: it lets anyone
+holding an admin session PATCH `document` straight through PostgREST, with **no server-side check that
+a rejection carries a note.** Keeping the write inside a server action that authorises on the user
+session and then writes with the service role means the rule is enforced in one place that cannot be
+bypassed. `document` still has exactly one policy, SELECT only.
+
+⚑ **PROVEN AGAINST THE LIVE DATABASE, THEN PUT BACK.** A throwaway admin was created, used to reject
+and approve Amine Belkacem's real licence — empty note refused and **wrote nothing**; a real note wrote
+`status`, `review_note`, `reviewed_at` and `reviewed_by`; approving cleared the note — then both rows
+were restored to `pending` and the account deleted. Verified zero traces.
+
+⚑ **STILL GATES NOTHING**, and the screen says so in its own copy. Making `driver.verified` a refuse
+rule needs a change inside `accept_mission` and a date from the founder for when it starts biting.
+
 ### D131 — The statutory rate gets its own column, because it is not the fee's rate (2026-09-04, S75)
 
 **The founder: *"give the standard rate its own home."*** `taxOf("disposal")` read

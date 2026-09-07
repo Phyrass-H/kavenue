@@ -404,8 +404,10 @@ fetched BOI-TVA-GEO-10-10 § 70. Reasoning from a text's silence is not a source
 ### 🧹 SMALL ONES LEFT, all named not hidden
 - **The `.env` parser in 67 scripts is `l.slice(i + 1).trim()`** — strips neither quotes nor a
   trailing `#`, so either would become part of a password, silently. Not hit yet.
-- **18 orphaned `mission_event` rows** point at deleted trips. **NOT from S74** — checked, zero in
-  the newest 400. Audit rows; deleting them was not asked for. `sweep-orphans.mts --delete`.
+- ~~**18 orphaned `mission_event` rows**~~ ⚑ **GONE — re-measured 2026-09-07 (S76):**
+  `sweep-orphans.mts` reports *"0 of 2579 events point at a trip that no longer exists"*. Nothing was
+  deleted this session; the trips they pointed at must have come back, or the rows went with a reseed.
+  The `orphaned_events` finding is therefore silent, correctly.
 - **`handoff-check` drift that is just time passing:** *"the seeded live trips are still in the
   future"*. Re-run `.local/seed/seed-live.mts` if you want a populated Pool.
 

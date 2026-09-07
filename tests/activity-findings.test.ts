@@ -14,6 +14,7 @@ import {
   tripLabel,
   CHECKS,
   FEATURES,
+  splitByUse,
   type ActivitySnapshot,
   type FindingId,
 } from "@/lib/activity-findings";
@@ -26,6 +27,7 @@ function snapshot(over: Partial<ActivitySnapshot> = {}): ActivitySnapshot {
     cancelledWithoutRecord: [],
     passedAround: [],
     neverUsed: [],
+    uncountable: [],
     orphanedEvents: 0,
     ...over,
   };
@@ -381,6 +383,89 @@ describe("documents waiting on you", () => {
     const [f] = findings(snapshot({ documentsWaiting: [waiting({ driverId: "ghost" })] }), NOW);
     expect(f.subject).toBe("A Driver");
     expect(f.sentence).not.toContain("undefined");
+  });
+});
+
+describe("a count that never came back is not a count of zero", () => {
+  // ⚑ THE BUG THIS GUARDS, MEASURED NOT IMAGINED. PostgREST returns `count:
+  // null` for "the table is empty" AND for "you may not ask" — and the refusal
+  // carries an EMPTY error message, so it does not look like a failure at all.
+  // On 2026-09-07 a `select=*` HEAD on `mission` came back 403/null for a
+  // signed-in admin (S72 revoked `select (ceiling)` from `authenticated`). The
+  // old code read `.then((r) => r.count ?? 0)`, which would have published
+  // "nobody has ever filed a document" over 47 live documents.
+  const ids = ["release_request", "driver_documents"] as const;
+
+  it("an empty table is never used", () => {
+    expect(splitByUse(ids, [{ count: 0, error: null }, { count: 3, error: null }])).toEqual({
+      neverUsed: ["release_request"],
+      uncountable: [],
+    });
+  });
+
+  it("a REFUSED count is uncountable, not unused", () => {
+    // The exact live shape: null count, 403, and an error whose message is "".
+    expect(
+      splitByUse(ids, [{ count: null, error: { message: "" } }, { count: 3, error: null }]),
+    ).toEqual({ neverUsed: [], uncountable: ["release_request"] });
+  });
+
+  it("a null count with NO error is still not zero", () => {
+    // ⚑ Belt and braces: `?? 0` did not need an error to do its damage. Any
+    // absent number must fail closed, however innocent it looks.
+    expect(splitByUse(ids, [{ count: null, error: null }, { count: 3, error: null }])).toEqual({
+      neverUsed: [],
+      uncountable: ["release_request"],
+    });
+  });
+
+  it("a missing reply cannot silently become zero either", () => {
+    expect(splitByUse(ids, [{ count: 1, error: null }])).toEqual({
+      neverUsed: [],
+      uncountable: ["driver_documents"],
+    });
+  });
+
+  it("a used feature is neither", () => {
+    expect(splitByUse(ids, [{ count: 47, error: null }, { count: 3, error: null }])).toEqual({
+      neverUsed: [],
+      uncountable: [],
+    });
+  });
+});
+
+describe("a check that could not run says so", () => {
+  it("renders its own quiet finding, not a “never used” one", () => {
+    const f = findings(snapshot({ uncountable: ["driver_documents"] }));
+    expect(f.map((x) => x.id)).toEqual(["feature_uncountable"]);
+    expect(f[0].tone).toBe("quiet");
+    expect(f[0].subject).toBe("Driver documents");
+    expect(f[0].sentence).toBe(
+      "Driver documents couldn’t be counted, so the “never used” check didn’t run for it.",
+    );
+  });
+
+  // ⚑⚑ THE SECOND LIE, AND THE ONE THAT IS EASY TO MISS. Silencing the
+  // "never used" finding is only half the job: the footer then ASSERTS the
+  // opposite — "every shipped feature has been used at least once" — off the
+  // very same missing number. A refusal must withhold both claims, not swap one
+  // for the other.
+  it("stops the footer claiming every feature HAS been used", () => {
+    const s = snapshot({ drivers: [driver()], uncountable: ["driver_documents"] });
+    expect(quietChecks(s, findings(s))).not.toContain(
+      "every shipped feature has been used at least once",
+    );
+  });
+
+  it("and the footer still says it when every count really did come back", () => {
+    const s = snapshot({ drivers: [driver()] });
+    expect(quietChecks(s, findings(s))).toContain(
+      "every shipped feature has been used at least once",
+    );
+  });
+
+  it("is silent when every count came back", () => {
+    expect(findings(snapshot({ uncountable: [] }))).toEqual([]);
   });
 });
 

@@ -19,6 +19,7 @@
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import { firstTrips, DROVE, DROVE_STATUSES, RECENT_DAYS, type FirstTripMission } from "../../lib/first-trips.ts";
+import { splitByUse, findings, quietChecks } from "../../lib/activity-findings.ts";
 import type { MissionStatus } from "../../lib/database.types.ts";
 
 const env = Object.fromEntries(
@@ -124,31 +125,62 @@ t("no row shows an empty route", f.trips.every((x) => x.route.trim().length > 0)
 t("no row shows a blank name", [...f.trips, ...f.neverDriven].every((x) => x.driverName.trim().length > 0));
 t(`the window is still the agreed ${RECENT_DAYS} days`, RECENT_DAYS === 7, `${RECENT_DAYS}`);
 
-console.log("\n── 7 · the trap this probe walked into, kept as a check ──");
-// ⚑ COUNTING `mission` WITH `head: true` IS REFUSED FOR AN ADMIN SESSION, and the
-// error message is the EMPTY STRING — so `r.count ?? 0` turns a 403 into a
-// confident "0". This probe's first run reported two Drivers as holding `null`
-// trips; the same shape inside readNeverUsed's `.then((r) => r.count ?? 0)`
-// would have printed "nobody has ever filed a document" over 47 of them.
+console.log("\n── 7 · a refused count must never read as a count of zero ──");
+// ⚑ THE TRAP THIS PROBE WALKED INTO, NOW THE FIX IT GUARDS. Counting `mission`
+// with `head: true` is REFUSED for an admin session, and the error message is
+// the EMPTY STRING — so `r.count ?? 0` turns a 403 into a confident "0". S72's
+// money walls revoked `select (ceiling)` from `authenticated`, and a HEAD still
+// asks for `select=*`, which asks for a column the role does not hold.
 //
-// The cause is S72's money walls: `revoke select (ceiling) on mission` from
-// `authenticated`. A HEAD request still asks for `select=*`, which asks for a
-// column the role does not hold, so PostgREST refuses the whole request. Naming
-// the columns is the fix — and it is only `mission`, because it is the only
-// table with a revoked column.
+// Two halves to the fix, and this section proves BOTH against the live database:
+//   • ask a question the role can answer — `select("id")`, never `select("*")`
+//   • never let an absent number become zero — splitByUse, never `?? 0`
 const headStar = await as.from("mission").select("*", { count: "exact", head: true });
-const namedCol = await as.from("mission").select("id", { count: "exact" }).limit(1);
-t("a HEAD count on `mission` is still refused, and still says nothing about why",
+t("a `select=*` HEAD on `mission` is still refused, and still says nothing about why",
   headStar.count === null, `status ${headStar.status}, message "${headStar.error?.message ?? ""}"`);
-t("naming a column instead gets the real number",
-  (namedCol.count ?? 0) > 0, `${namedCol.count} trips`);
-// The two tables the console DOES head-count must keep working, or
-// readNeverUsed starts reporting live features as never used.
-for (const table of ["document", "mission_release"] as const) {
-  const r = await as.from(table).select("*", { count: "exact", head: true });
-  t(`readNeverUsed can still count \`${table}\` — a 403 here would read as "never used"`,
-    r.count !== null, `${r.count} row(s)`);
+
+// The exact call readNeverUsed now makes, against every table it could ever be
+// pointed at — including the one that used to 403.
+for (const table of ["document", "mission_release", "mission"] as const) {
+  const r = await as.from(table).select("id", { count: "exact", head: true });
+  t(`\`select("id")\` answers on \`${table}\` — the form readNeverUsed uses`,
+    r.count !== null, `${r.count} row(s), status ${r.status}`);
 }
+
+// ⚑ END TO END, ON REAL REPLIES. The refused reply and the two real ones go
+// through the very function the console uses. `mission` is not a tracked feature
+// — it is here BECAUSE it is the only table that can produce a live refusal, and
+// a rule about refusals that is only ever fed successes is not tested at all.
+const replies = [
+  { id: "release_request", reply: await as.from("mission_release").select("id", { count: "exact", head: true }) },
+  { id: "driver_documents", reply: await as.from("document").select("id", { count: "exact", head: true }) },
+  { id: "release_request", reply: headStar },
+] as const;
+const good = splitByUse(
+  ["release_request", "driver_documents"],
+  [replies[0].reply, replies[1].reply],
+);
+t("the two real counts read as USED — neither is reported as never used",
+  good.neverUsed.length === 0 && good.uncountable.length === 0,
+  `neverUsed [${good.neverUsed}] · uncountable [${good.uncountable}]`);
+
+const refused = splitByUse(["release_request", "driver_documents"], [headStar, replies[1].reply]);
+t("a genuinely refused count lands in `uncountable`, NOT in `neverUsed`",
+  refused.uncountable.includes("release_request") && refused.neverUsed.length === 0,
+  `neverUsed [${refused.neverUsed}] · uncountable [${refused.uncountable}]`);
+
+// And the console must not swap one false claim for the other.
+const fired = findings({
+  pooled: [], drivers: [], documentsWaiting: [], cancelledWithoutRecord: [],
+  passedAround: [], neverUsed: [], uncountable: refused.uncountable, orphanedEvents: 0,
+});
+t("a refusal withholds the footer's “every shipped feature has been used”",
+  !quietChecks(
+    { pooled: [], drivers: [], documentsWaiting: [], cancelledWithoutRecord: [],
+      passedAround: [], neverUsed: [], uncountable: refused.uncountable, orphanedEvents: 0 },
+    fired,
+  ).includes("every shipped feature has been used at least once"),
+  `it says instead: ${fired.map((f) => f.sentence).join(" ") || "(nothing)"}`);
 
 console.log(`\nchecks: ${pass + fail}   ${fail === 0 ? "ALL AGREE" : `⚑ ${fail} FAILED`}`);
 process.exit(fail === 0 ? 0 : 1);

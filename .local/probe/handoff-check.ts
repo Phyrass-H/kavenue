@@ -288,6 +288,32 @@ const ftSrc = fs.readFileSync("lib/first-trips.ts", "utf8");
 t("S76 — a first trip stays callable for seven days after it runs",
   /export const RECENT_DAYS = 7;/.test(ftSrc), "7 days");
 
+// S76 — a refused row count must not read as a count of zero. ⚑ grep, because
+// the bug is an ABSENCE of a distinction: `?? 0` on a PostgREST count folds "you
+// may not ask" into "there are none", and the refusal carries an EMPTY error
+// message so nothing looks wrong. `document` and `mission_release` answer today,
+// so the console is honest by luck — point a tracked feature at `mission` and it
+// publishes "nobody has ever filed a document" over 47 of them.
+const adminActivity = fs.readFileSync("lib/admin-activity.ts", "utf8");
+// ⚑ THE FIRST VERSION OF THIS LINE WAS `/\.count\s*\?\?\s*0/` AND IT WAS DEAD.
+// It only caught the DOTTED form; `count: count ?? 0` walked straight past it,
+// which is the very shape a careless fix would take. Match the word wherever it
+// sits, and ignore comment lines so this file can still describe the bug it
+// forbids. (The two legitimate `?? 0` here are Map lookups, not counts.)
+const countCoerce = adminActivity
+  .split("\n")
+  .filter((l) => !l.trim().startsWith("//"))
+  .filter((l) => /count[^;\n]{0,24}\?\?\s*0/.test(l));
+t("S76 — no row count is read with `?? 0`, which turns a refusal into zero",
+  // ⚑ `.includes("splitByUse")` was ALSO dead — the import line alone satisfied
+  //   it, so gutting readNeverUsed to `return { neverUsed: [], uncountable: [] }`
+  //   stayed green. The call has to be the thing asserted, not the name.
+  countCoerce.length === 0 && /return splitByUse\(/.test(adminActivity),
+  countCoerce[0]?.trim() ?? "counts go through splitByUse, which keeps null and 0 apart");
+t("S76 — usage is counted by naming a column, never `select(\"*\")`",
+  !/from\(FEATURES\[id\][^)]*\)\s*\n?\s*\.select\("\*"/.test(adminActivity),
+  "`select=*` HEAD on a table with a revoked column is a 403 — S72's money walls");
+
 // [[d93]] — six rules refuse, three only hide. Moving one between the groups
 // changes the console's answer from "they were turned down" to "they never saw
 // it", which are different problems with different fixes.

@@ -15,7 +15,7 @@
 //     check fires on many subjects the SCREEN may group them into one line —
 //     but it groups named findings; it never counts anonymous ones.
 import { formatAgo } from "@/lib/format";
-import type { DriverRow, MissionRow } from "@/lib/database.types";
+import type { Database, DriverRow, MissionRow } from "@/lib/database.types";
 
 export type FindingId =
   | "trip_nobody_can_take"
@@ -25,6 +25,7 @@ export type FindingId =
   | "cancelled_without_record"
   | "trip_passed_around"
   | "feature_never_used"
+  | "feature_uncountable"
   | "orphaned_events";
 
 /** How loudly it reads. `quiet` is background truth, not a problem to solve. */
@@ -99,6 +100,17 @@ export const CHECKS: Record<
     tone: "watch",
     groups: false,
   },
+  feature_uncountable: {
+    // ⚑ THE CHECK THAT SAYS A CHECK DID NOT RUN. Its sibling above claims
+    // "nobody has ever used this", and that claim rests entirely on a row count
+    // coming back. When the count does NOT come back, the honest answer is not
+    // zero and it is not silence either — silence would let the footer go on
+    // saying "every shipped feature has been used at least once", which is the
+    // same lie wearing the opposite sign.
+    looksFor: "A feature whose usage could not be counted at all.",
+    tone: "quiet",
+    groups: false,
+  },
   orphaned_events: {
     looksFor: "Log entries whose trip has since been deleted.",
     tone: "quiet",
@@ -133,7 +145,28 @@ export interface Finding {
  */
 export type TrackedFeature = "release_request" | "driver_documents";
 
-export const FEATURES: Record<TrackedFeature, { table: string; name: string; sentence: string }> = {
+/**
+ * A table a feature's usage can be counted on.
+ *
+ * ⚑ DERIVED, NOT `string`, AND ONLY TABLES WITH AN `id`. Two reasons, both paid
+ * for in real time:
+ *   • `table: string` accepted any spelling. A typo would have made the count
+ *     fail, and a failed count used to read as zero — i.e. as "never used".
+ *   • `id` is the column the count asks for, and every table here must have one.
+ *     Counting with `select("*")` asks for EVERY column, including ones the
+ *     `authenticated` role may not hold — S72 revoked `ceiling` on `mission`, so
+ *     a `select=*` HEAD there is a 403 (measured 2026-09-07). Naming a column
+ *     the role certainly has is what keeps the question answerable.
+ */
+type Tables = Database["public"]["Tables"];
+export type CountableTable = {
+  [K in keyof Tables]: Tables[K]["Row"] extends { id: string } ? K : never;
+}[keyof Tables];
+
+export const FEATURES: Record<
+  TrackedFeature,
+  { table: CountableTable; name: string; sentence: string }
+> = {
   release_request: {
     table: "mission_release",
     name: "The release request",
@@ -147,6 +180,43 @@ export const FEATURES: Record<TrackedFeature, { table: string; name: string; sen
       "No Driver has ever filed a single document — no licence, no insurance, no VTC card, for anyone.",
   },
 };
+
+/** One `{ count: "exact" }` reply, as PostgREST hands it back. */
+export interface CountReply {
+  count: number | null;
+  error: unknown;
+}
+
+/**
+ * What a set of usage counts actually proves.
+ *
+ * ⚑ THE RULE THIS FUNCTION EXISTS TO NAME. A null count means TWO different
+ * things and PostgREST does not distinguish them: "the table is empty" and "you
+ * may not ask". The refusal even arrives with an EMPTY error message, so it does
+ * not read as a failure — it reads as an answer. Measured 2026-09-07: a
+ * `select=*` HEAD on `mission` is a 403 for a signed-in admin, because S72
+ * revoked `select (ceiling)` from `authenticated`.
+ *
+ * The old code was `.then((r) => r.count ?? 0)`. That single `?? 0` is the bug:
+ * it turns "I was not allowed to look" into "there are none", which this screen
+ * then publishes as *"nobody has ever filed a document"* — over 47 of them.
+ *
+ * ⚑ A REFUSAL IS NOT SILENCE EITHER. It goes to `uncountable`, which fires its
+ * own quiet finding AND withholds the footer's "every shipped feature has been
+ * used at least once" — because that line is the same claim with the sign
+ * flipped, resting on the same absent number.
+ */
+export function splitByUse(
+  ids: readonly TrackedFeature[],
+  replies: readonly CountReply[],
+): Pick<ActivitySnapshot, "neverUsed" | "uncountable"> {
+  const told = (r: CountReply | undefined): number | null =>
+    !r || r.error || r.count == null ? null : r.count;
+  return {
+    neverUsed: ids.filter((_, i) => told(replies[i]) === 0),
+    uncountable: ids.filter((_, i) => told(replies[i]) === null),
+  };
+}
 
 export interface ActivitySnapshot {
   /** Pooled, future trips, each with how many Drivers can actually take it. */
@@ -174,6 +244,18 @@ export interface ActivitySnapshot {
   passedAround: { id: string; label: string; times: number }[];
   /** Features whose domain table is empty across all time. */
   neverUsed: TrackedFeature[];
+  /**
+   * Features whose count could not be established — the read was REFUSED, not
+   * answered with zero.
+   *
+   * ⚑ THE WHOLE POINT IS THAT THIS IS NOT `neverUsed`. PostgREST returns a null
+   * count both for "no rows" and for "you may not ask", and the second one
+   * arrives with an EMPTY error message (measured 2026-09-07: a `select=*` HEAD
+   * on `mission` is a 403 for an admin session, because S72 revoked `ceiling`
+   * from `authenticated`). Folding the two together with `?? 0` is how a console
+   * comes to print "no Driver has ever filed a document" over 47 of them.
+   */
+  uncountable: TrackedFeature[];
   /** Log entries pointing at a mission row that no longer exists. */
   orphanedEvents: number;
 }
@@ -311,6 +393,20 @@ export function findings(s: ActivitySnapshot, now = new Date()): Finding[] {
     push("feature_never_used", f, FEATURES[f].name, FEATURES[f].sentence, null);
   }
 
+  // ⚑ Deliberately AFTER its sibling and deliberately quiet: it is a fact about
+  // this screen's own reach, not about the marketplace. But it must be said —
+  // an unaskable question that renders as nothing is indistinguishable from an
+  // answered one, and this screen's worth is that its silences mean something.
+  for (const f of s.uncountable) {
+    push(
+      "feature_uncountable",
+      f,
+      FEATURES[f].name,
+      `${FEATURES[f].name} couldn’t be counted, so the “never used” check didn’t run for it.`,
+      null,
+    );
+  }
+
   // ⚑ The one check with no named subject, because its subject was deleted.
   // `mission_event` has no foreign key to `mission` on purpose — the log
   // outlives the trip — so removing a trip strands its history
@@ -338,7 +434,12 @@ export function quietChecks(s: ActivitySnapshot, fired: Finding[]): string[] {
   if (!firedIds.has("driver_unverified")) quiet.push("every Driver is verified");
   if (!firedIds.has("documents_waiting"))
     quiet.push("no Driver is waiting on you to look at a document");
-  if (!firedIds.has("feature_never_used")) quiet.push("every shipped feature has been used at least once");
+  // ⚑ AND NOT WHEN A COUNT WAS REFUSED. Without the second condition a refusal
+  // silences `feature_never_used` and then this line ASSERTS the opposite — the
+  // console would go from "nobody has ever used this" to "everything has been
+  // used", on exactly the same missing number.
+  if (!firedIds.has("feature_never_used") && !firedIds.has("feature_uncountable"))
+    quiet.push("every shipped feature has been used at least once");
   if (!firedIds.has("trip_nobody_can_take") && s.pooled.length > 0)
     quiet.push("every trip in the Pool has someone who could take it");
   return quiet;

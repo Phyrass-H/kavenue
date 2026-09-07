@@ -170,6 +170,11 @@ function summarise(id: FindingId, n: number): string {
       return `${n} cancelled trips don’t say who cancelled them, or why.`;
     case "feature_never_used":
       return `${n} shipped features have never been used, once.`;
+    case "feature_uncountable":
+      // ⚑ Never actually rendered — the check has `groups: false`, so each one
+      // gets its own line. It exists because the switch is exhaustive, which is
+      // the point: a new check cannot ship without someone writing this sentence.
+      return `${n} shipped features couldn’t be counted, so their “never used” checks didn’t run.`;
     case "trip_passed_around":
       return `${n} trips have been taken and given back more than once.`;
     case "orphaned_events":

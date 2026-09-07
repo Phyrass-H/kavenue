@@ -15,7 +15,7 @@ import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { explainEligibility, type EligibilityInput } from "@/lib/eligibility";
 import type { ActivitySnapshot, TrackedFeature } from "@/lib/activity-findings";
-import { FEATURES } from "@/lib/activity-findings";
+import { FEATURES, splitByUse, type CountReply } from "@/lib/activity-findings";
 import { tripLabel } from "@/lib/activity-findings";
 import { tallyActivity, type Activity, type HeldMission } from "@/lib/admin-list";
 import type { MissionEventRow } from "@/lib/mission-events";
@@ -225,7 +225,9 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
     pooled,
     drivers: fleet.map((f) => f.driver),
     documentsWaiting: await readDocumentsWaiting(db, new Set(fleet.map((f) => f.driver.id))),
-    neverUsed: await readNeverUsed(db),
+    // ⚑ Spread, because the count now answers TWO questions — which features are
+    //   unused, and which could not be asked about at all.
+    ...(await readNeverUsed(db)),
     cancelledWithoutRecord,
     passedAround,
     orphanedEvents: await countOrphanedEvents(db),
@@ -325,17 +327,27 @@ export async function readFirstTrips(now = new Date()): Promise<FirstTrips> {
  * two days" — a much weaker claim wearing the same words. `mission_release` and
  * `document` go back to the beginning, so an empty one really does mean never.
  */
-export async function readNeverUsed(db: Db): Promise<TrackedFeature[]> {
+export async function readNeverUsed(
+  db: Db,
+): Promise<Pick<ActivitySnapshot, "neverUsed" | "uncountable">> {
   const ids = Object.keys(FEATURES) as TrackedFeature[];
-  const counts = await Promise.all(
-    ids.map((id) =>
-      db
+  const replies = await Promise.all(
+    ids.map(async (id) => {
+      // ⚑ `select("id")`, NEVER `select("*")`. A HEAD request sends whatever the
+      // select names, and `*` names every column — including ones the
+      // `authenticated` role does not hold. S72 revoked `select (ceiling)` on
+      // `mission`, so `select=*` there is a flat 403 for an admin session
+      // (measured 2026-09-07; `select=id` returns 377).
+      const { count, error } = await db
         .from(FEATURES[id].table as "mission_release")
-        .select("*", { count: "exact", head: true })
-        .then((r) => r.count ?? 0),
-    ),
+        .select("id", { count: "exact", head: true });
+      return { count, error } satisfies CountReply;
+    }),
   );
-  return ids.filter((_, i) => counts[i] === 0);
+  // ⚑ The reading of those numbers lives in lib/activity-findings, not here —
+  // this function does I/O, splitByUse decides what an absent count means. The
+  // `?? 0` that used to sit on this line is the bug the split exists to prevent.
+  return splitByUse(ids, replies);
 }
 
 /** The one sentence explaining why a pooled trip has no takers at all. */

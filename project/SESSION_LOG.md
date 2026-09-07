@@ -5,16 +5,16 @@
 
 ---
 
-## 2026-09-07 — SESSION 76 — `main` = `96785d1` · 937 → 962 tests · gate 58 → 60 · no migration
+## 2026-09-07 — SESSION 76 — `main` = `afe7766` · 937 → 971 tests · gate 58 → 62 · no migration
 
-**The two jobs the founder picked off S75's open list, both on the Activity console. CI-green on
-`s76-console-eyes` before `main`.**
+**The two jobs the founder picked off S75's open list, plus the hazard they turned up. Three pushes,
+each CI-green on a branch before `main`.**
 
 | | |
 |---|---|
-| `main` | `96785d1` |
-| tests | 937 → **962** · gate 58 → **60** · tsc 0 · build clean |
-| new probe | `.local/probe/first-trips-live.mts` — **19 checks, ALL AGREE** |
+| `main` | `afe7766` |
+| tests | 937 → **971** · gate 58 → **62** · tsc 0 · build clean |
+| new probe | `.local/probe/first-trips-live.mts` — **22 checks, ALL AGREE** |
 | new module | `lib/first-trips.ts` (242 lines) |
 | migrations | **none** |
 
@@ -47,6 +47,48 @@ which. `DROVE_STATUSES` is derived from it, so the query cannot drift from the r
 
 ⚑ **The window is 7 days, and that is a decision** (founder, 2026-09-06, arguing down from their own
 "a day or two"): the after-call goes to the hotel, and two days loses a Friday trip over a weekend.
+
+### 3 · `readNeverUsed` — a refused count is not a count of zero (`afe7766`)
+The hazard S76 found in passing, taken from "harmless by luck" to "cannot happen". `962 → 971 tests ·
+gate 60 → 62 · probe 19 → 22`.
+
+```
+document         select(*) head → 47    ✓
+mission_release  select(*) head →  3    ✓
+mission          select(*) head → null, HTTP 403, error.message = ""
+```
+
+**Both halves, because either alone still leaves it fragile:**
+1. **Ask an answerable question** — `select("id")`, never `select("*")`. Verified live: `select=id`
+   returns **377** on the same table `select=*` 403s on.
+2. **Never let an absent number become zero** — the decision left the I/O function for
+   **`splitByUse`** in `lib/activity-findings.ts`, where it is a pure rule with a name and five tests.
+   `null → uncountable`, never `neverUsed`. (Same seam as [[d132]]'s `checkReviewNote`: the rule is
+   unit-tested, the wire is probe-tested.)
+
+⚑⚑ **THE SECOND LIE, AND A NAIVE FIX WOULD HAVE LEFT IT STANDING.** Silencing the false
+`feature_never_used` is only half the job — `quietChecks` then **asserts the opposite**, *"every
+shipped feature has been used at least once"*, off the very same missing number. A refusal now
+withholds **both** claims and files its own quiet finding: *"Driver documents couldn't be counted, so
+the 'never used' check didn't run for it."*
+
+⚑ **`FEATURES[].table` is no longer `string`.** `CountableTable` is derived from the `Database` type as
+*"tables whose Row has an `id`"* — a typo (`"missin_release"`) and a table lacking the counted column
+(`"profile"`) are both **compile errors**, each proven by planting it.
+
+### ⚑⚑ THE SHARPEST THING IN THIS SESSION: TWO OF MY OWN GATE ASSERTIONS WERE DEAD ON ARRIVAL
+Eight breaks were planted for this fix and every one was watched go red — but **two of the checks
+written to catch them caught nothing**, and only planting revealed it:
+
+| the assertion | why it was dead |
+|---|---|
+| `/\.count\s*\?\?\s*0/` | matches only the **dotted** form. `count: count ?? 0` — *the exact shape a careless fix takes* — walked straight past it |
+| `.includes("splitByUse")` | satisfied by the **import line alone**, so gutting `readNeverUsed` to `return { neverUsed: [], uncountable: [] }` stayed green |
+
+**The rule: assert the CALL, not the NAME — and plant the break in the form someone would actually
+write, not the form you are picturing.** This is the third time in two sessions that a check written to
+catch a specific bug could not catch that bug (S75's `/waiting/i` matching "a-WAITING"; S76's
+`RECENT_DAYS ± 1`).
 
 ### ⚑⚑ TRAPS — one dead alarm, one silent 403
 1. ⚑⚑ **A TEST WRITTEN AS `RECENT_DAYS ± 1` IS GREEN AT EVERY VALUE OF `RECENT_DAYS`.** Widening the

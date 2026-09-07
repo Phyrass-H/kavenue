@@ -9,15 +9,16 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
-## ⚑⚑ S76 (2026-09-07) — `main` = `96785d1` · 937 → 962 tests · gate 58 → 60 · NO MIGRATION
+## ⚑⚑ S76 (2026-09-07) — `main` = `afe7766` · 937 → 971 tests · gate 58 → 62 · NO MIGRATION
 
-**The two jobs the founder picked off S75's open list. One push, CI-green on `s76-console-eyes` first.**
+**The two jobs the founder picked off S75's open list, plus the hazard they turned up. Three pushes,
+each CI-green on a branch first.**
 
 | | |
 |---|---|
-| `main` | `96785d1` |
-| tests | 937 → **962** · gate 58 → **60** · tsc 0 · build clean |
-| new probe | `.local/probe/first-trips-live.mts` — **19 checks, ALL AGREE** |
+| `main` | `afe7766` |
+| tests | 937 → **971** · gate 58 → **62** · tsc 0 · build clean |
+| new probe | `.local/probe/first-trips-live.mts` — **22 checks, ALL AGREE** |
 | new module | `lib/first-trips.ts` |
 
 1. **`documents_waiting`** — Activity's eighth named check. *"Amine Belkacem has 2 documents waiting
@@ -26,27 +27,38 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 2. **First trips** — a section of its own on `/admin`. One row per Driver whose first drive is
    **upcoming** or **ran in the last 7 days**, with `tel:` links for the Driver and the Business, plus
    the Drivers who signed up and **never drove**. Full reasoning in [[d133]].
+3. **`readNeverUsed` — a refused count is no longer a count of zero** (`afe7766`). `select("id")`
+   instead of `select("*")`, and the null-vs-zero decision moved into **`splitByUse`**
+   (`lib/activity-findings.ts`), a pure rule with five tests. A refusal now files its own quiet
+   finding AND withholds the footer's opposite claim. `FEATURES[].table` is typed `CountableTable`
+   (derived: tables whose Row has an `id`), so a typo or a column-less table is a compile error.
 
 ⚑ **THE GATE'S ONE EXPECTED RED IS STILL THE SAME ONE** — *"the seeded live trips are still in the
 future"* goes STALE because time passed, not because anything broke. `npx tsx .local/seed/seed-live.mts`
-clears it. Everything else in the 60 is green.
+clears it. Everything else in the 62 is green.
 
-### ⚑⚑ TRAPS FROM S76 — read these two before you trust any count or any window
-1. ⚑⚑ **`{ count: "exact", head: true }` ON `mission` IS A 403 FOR AN ADMIN SESSION, WITH AN EMPTY
-   ERROR MESSAGE.** S72 revoked `select (ceiling)` from `authenticated`; a HEAD still asks `select=*`,
-   so the whole request is refused. **This codebase's idiom is `.then((r) => r.count ?? 0)`, which
-   turns a refusal into a confident `0`.** `readNeverUsed` uses that exact shape — it happens to count
-   only `document` (47) and `mission_release` (3), both of which answer, so nothing is wrong today.
-   Point it at `mission` and the console prints *"nobody has ever filed a document"* over 47 of them.
-   **Name the columns.** § 7 of `first-trips-live.mts` asserts all three, permanently.
-2. ⚑⚑ **A TEST WRITTEN AS `CONSTANT ± 1` IS GREEN FOR EVERY VALUE OF THE CONSTANT.** All three window
+### ⚑⚑ TRAPS FROM S76 — read these before you trust any count, any window, or any check you wrote
+1. ⚑⚑ **`{ count: "exact", head: true }` WITH `select("*")` ON `mission` IS A 403 FOR AN ADMIN SESSION,
+   WITH AN EMPTY ERROR MESSAGE.** S72 revoked `select (ceiling)` from `authenticated`; a HEAD still
+   asks `select=*`, so the whole request is refused. **`r.count ?? 0` turns that into a confident `0`.**
+   ⚑ **FIXED in `afe7766`** — but the shape is everywhere in this codebase, so: **name the column, and
+   never coerce an absent count.** `select("id", { count: "exact", head: true })` answers on all three
+   tables (`mission` → 377). § 7 of `first-trips-live.mts` proves the split end to end on a real 403.
+2. ⚑⚑ **A CHECK YOU WROTE TO CATCH A BUG OFTEN CANNOT CATCH THAT BUG. Three times in two sessions.**
+   S75: `/waiting/i` matched *"a-WAITING the accountant"*. S76: `RECENT_DAYS ± 1` (below). S76 again:
+   **two gate assertions written for `afe7766` were dead on arrival** — `/\.count\s*\?\?\s*0/` missed
+   `count: count ?? 0`, *the exact shape a careless fix takes*, and `.includes("splitByUse")` was
+   satisfied by the **import line alone**, so gutting the function stayed green.
+   ⚑ **Assert the CALL, not the NAME. And plant the break in the form someone would actually write,
+   not the form you are picturing.**
+3. ⚑⚑ **A TEST WRITTEN AS `CONSTANT ± 1` IS GREEN FOR EVERY VALUE OF THE CONSTANT.** All three window
    tests passed at `RECENT_DAYS = 200`. They prove the comparison, never the number — and the number
    was the decision. Pin a decided value in **absolute units**, in the suite AND the gate. Found only
    by planting the break; reading the tests would never have shown it.
-3. ⚑ **PRINT THE QUERY ERROR OR AN EMPTY RESULT IS INDISTINGUISHABLE FROM AN ANSWER.** A recon
+4. ⚑ **PRINT THE QUERY ERROR OR AN EMPTY RESULT IS INDISTINGUISHABLE FROM AN ANSWER.** A recon
    returned zero first-trips for the whole fleet because the select named `dropoff_at`, which does not
    exist on `mission`. The error was discarded; the empty array looked like data.
-4. ⚑ **A grep for `\.verified` flags a file that only RENDERS it.** [[d92]]'s check caught
+5. ⚑ **A grep for `\.verified` flags a file that only RENDERS it.** [[d92]]'s check caught
    `lib/first-trips.ts` printing *"· not verified"*. Excluded alongside the four console modules —
    and then Rule Zero'd: a real gate planted in `lib/geo.ts` still goes red and names the file.
 

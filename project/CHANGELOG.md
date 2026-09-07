@@ -5,6 +5,38 @@
 
 ---
 
+## 7 September 2026 — "I couldn't check" no longer comes out as "there are none"
+
+The near-miss from earlier today, fixed properly.
+
+The Activity screen can tell you a feature has never been used — *"no driver has ever filed a single
+document."* That sentence rests entirely on asking the database to count the rows. The problem: when
+the database **refuses** the question, it answers with an empty space, and so does an empty table.
+The code treated both as zero. So a refused question would have been published as a confident fact.
+
+Nothing was wrong on your screen — the two things it counts happen to be questions the database allows.
+But it was right by luck, not by design.
+
+Two changes, because either one alone still leaves it fragile:
+
+- **Ask a question that can be answered.** The old count asked for *every* column, including one that
+  was locked away in August for money-safety reasons. Now it asks for a single harmless column.
+- **A missing number is never treated as zero.** If the count doesn't come back, the screen says so —
+  *"Driver documents couldn't be counted, so the 'never used' check didn't run for it"* — instead of
+  guessing.
+
+⚑ **And a second lie, hiding behind the first.** Silencing the false alarm would not have been enough.
+The footer of that screen says *"Quiet: every shipped feature has been used at least once."* With the
+alarm silenced, that line would have started claiming the exact opposite — off the same missing number.
+It now stays quiet too. A screen that can't check something must not reassure you about it.
+
+⚑ **Two of the new safety checks I wrote were themselves dead** and only turned up because I broke
+things on purpose to watch them react. One was looking for the problem written one particular way and
+missed the way a careless fix would actually write it; the other was satisfied by a word appearing
+anywhere in the file. Both fixed. This is what "press the test button" is for.
+
+---
+
 ## 7 September 2026 — the console tells you who is waiting, and whose first drive it is
 
 Two things you asked for, both on the Activity screen.

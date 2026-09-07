@@ -3608,6 +3608,42 @@ would have changed what a Driver sees on the strength of the one question nobody
 Named, not fixed by accident.
 
 
+### D134 — A refused count is not a count of zero, and a refusal withholds BOTH claims (2026-09-07, S76)
+
+**`readNeverUsed` read every row count as `.then((r) => r.count ?? 0)`.** PostgREST returns a null
+count for *"the table is empty"* **and** for *"you may not ask"* — and the refusal arrives with an
+**empty error message**, so it does not read as a failure. It reads as an answer.
+
+Measured live as `admin@kavenue.fr`, 2026-09-07:
+
+| table | `select("*")` HEAD | `select("id")` HEAD |
+|---|---|---|
+| `document` | 47 | 47 |
+| `mission_release` | 3 | 3 |
+| `mission` | **null · HTTP 403 · `error.message === ""`** | **377** |
+
+The cause is S72's money walls — `revoke select (ceiling) on mission` from `authenticated`. A HEAD
+request still sends `select=*`, which asks for a column the role does not hold, so PostgREST refuses
+the whole request.
+
+| decision | why |
+|---|---|
+| Count by **naming a column**, never `select("*")` | a `*` count asks for columns a role may not hold, and the revocation that causes it was a deliberate security decision that will happen again |
+| The null-vs-zero rule lives in **`splitByUse`**, not in the I/O function | same seam as [[d132]]'s `checkReviewNote` — the rule gets a name and unit tests, the wire gets a probe |
+| A refusal goes to **`uncountable`**, never to `neverUsed` | "I could not look" and "there are none" must not share a value. That is the whole decision |
+| A refusal is **not silence** — it files its own quiet finding | a question that cannot be asked, rendering as nothing, is indistinguishable from one that was answered |
+| `FEATURES[].table` is `CountableTable`, derived from `Database` | `string` accepted any spelling, and a typo failed the count — which used to read as "never used" |
+
+⚑⚑ **THE SECOND LIE, WHICH A NAIVE FIX WOULD HAVE LEFT STANDING.** Silencing the false
+`feature_never_used` is only half the job: `quietChecks` then **asserts the opposite** — *"every
+shipped feature has been used at least once"* — resting on the very same absent number. The console
+would have swapped one confident falsehood for another. A refusal now withholds **both**.
+
+⚑ **NOTHING WAS ACTUALLY WRONG ON SCREEN**, and that is the point worth keeping. `FEATURES` names only
+`document` and `mission_release`, both of which answer. The console was **honest by luck, not by
+design** — one tracked feature pointed at `mission` and it would have published *"no Driver has ever
+filed a single document"* over 47 live documents.
+
 ### D133 — A cancelled trip is not a first drive, and the window is seven days (2026-09-07, S76)
 
 **The founder: *"list first drive of each driver so I have an easy access to them and then I can call

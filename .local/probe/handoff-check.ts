@@ -261,12 +261,32 @@ const readers = (needle: string) =>
     //   components/admin-document-review.tsx renders `driver.verified` beside a
     //   button that sets it, and says in its own copy that it stops nothing.
     .filter((f) => !f.startsWith("app/admin/") && !f.startsWith("components/admin-"))
-    .filter((f) => !/^lib\/(eligibility|activity-findings|admin-activity|document-review)\.ts$/.test(f))
+    //   ⚑ lib/first-trips.ts joined them in S76: it prints "· not verified"
+    //   beside a Driver who has never driven. Reporting the flag, never reading
+    //   it to decide anything — the same reason the four beside it are here.
+    .filter((f) => !/^lib\/(eligibility|activity-findings|admin-activity|document-review|first-trips)\.ts$/.test(f))
     .filter((f) => !f.includes("settings") && !f.includes("onboarding"));
 t("[[d92]] — operational_zones is still read by NO rule", readers("operational_zones").length === 0,
   readers("operational_zones").join(" ") || "only the screens that collect it + the console");
 t("[[d92]] — driver.verified still gates nothing", readers("\\.verified").length === 0,
   readers("\\.verified").join(" ") || "only /settings + the console");
+
+// S76 — the console now POINTS at the review screen that shipped in S75. Before
+// this, a filed document could only be found by thinking to visit the Driver;
+// Amine Belkacem's licence sat pending 40 days that way. If the check is ever
+// removed the screen goes back to being unreachable, and nothing else would say so.
+const checksSrc = fs.readFileSync("lib/activity-findings.ts", "utf8");
+t("S76 — a Driver waiting on a document review is a named check",
+  /documents_waiting/.test(checksSrc) && checksSrc.includes("`/admin/drivers/${w.driverId}`"),
+  "Activity → the Driver's page, where the review actually happens");
+
+// S76 — the window is a DECISION (founder, 2026-09-06: two days loses a Friday
+// trip over the weekend), not an implementation detail. ⚑ The unit tests around
+// it are written as `RECENT_DAYS ± 1`, so they stay green for ANY value — this
+// and tests/first-trips.test.ts are the only two places the number itself is pinned.
+const ftSrc = fs.readFileSync("lib/first-trips.ts", "utf8");
+t("S76 — a first trip stays callable for seven days after it runs",
+  /export const RECENT_DAYS = 7;/.test(ftSrc), "7 days");
 
 // [[d93]] — six rules refuse, three only hide. Moving one between the groups
 // changes the console's answer from "they were turned down" to "they never saw

@@ -15,10 +15,18 @@
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { readActivitySnapshot, readHomeNumbers } from "@/lib/admin-activity";
+import { readActivitySnapshot, readFirstTrips, readHomeNumbers } from "@/lib/admin-activity";
+import { RECENT_DAYS, type FirstTrips } from "@/lib/first-trips";
 import { curveNote, monthsNote, type HomeNumbers } from "@/lib/admin-numbers";
 import { formatMonth } from "@/lib/format";
-import { findings, quietChecks, CHECKS, type Finding, type FindingId } from "@/lib/activity-findings";
+import {
+  findings,
+  quietChecks,
+  whenLabel,
+  CHECKS,
+  type Finding,
+  type FindingId,
+} from "@/lib/activity-findings";
 
 export const dynamic = "force-dynamic";
 
@@ -150,6 +158,12 @@ function summarise(id: FindingId, n: number): string {
       return `${n} Drivers have never set a base, so their Pool has always been empty.`;
     case "driver_unverified":
       return `${n} Drivers aren’t verified, and can accept work anyway.`;
+    case "documents_waiting":
+      // ⚑ No wait in the group line, on purpose: the Drivers below it have been
+      // waiting different lengths of time, and picking one number to stand for
+      // all of them would be the roll-up this screen refuses. Each name is a
+      // link to the page that says how long.
+      return `${n} Drivers are waiting for you to look at their documents.`;
     case "trip_nobody_can_take":
       return `${n} trips in the Pool can’t be taken by anyone in the fleet.`;
     case "cancelled_without_record":
@@ -169,6 +183,115 @@ function summarise(id: FindingId, n: number): string {
 }
 
 
+
+/**
+ * One number to ring, with what it belongs to.
+ *
+ * ⚑ A `tel:` LINK, WHICH IS THE POINT OF THE WHOLE SECTION. The founder reads
+ * this console on a phone; a number you have to retype is a number you don't
+ * ring. ⚑ And a MISSING number is said out loud rather than left blank — a gap
+ * where a phone number should be reads as a rendering bug, not as "we never got
+ * one from them".
+ */
+function Call({ label, phone }: { label: string; phone: string | null }) {
+  return (
+    <span className="adm-ft__call">
+      <span className="adm-ft__call-l">{label}</span>
+      {phone ? (
+        <a href={`tel:${phone.replace(/[^\d+]/g, "")}`}>{phone}</a>
+      ) : (
+        <span className="adm-ft__call-none">no number on file</span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * First trips — the one drive per Driver that is worth a phone call.
+ *
+ * ⚑ NOT A FINDING, AND IT DOES NOT OBEY THE SILENT-BY-DEFAULT RULE. That rule is
+ * about checks that interrupt you (lib/activity-findings.ts). This is a working
+ * list you come to on purpose, so when it is empty it says so — a tool that
+ * renders nothing looks broken rather than quiet.
+ *
+ * ⚑ THE BUSINESS COLUMN SAYS "Business", NOT "Hotel", even though every one of
+ * them is a hotel today. CLAUDE.md hard rule #1: hotels are the first vertical,
+ * not the shape of the market, and one of the nine business types is a VTC
+ * operator posting its own overflow.
+ */
+function FirstTripsSection({ f }: { f: FirstTrips }) {
+  return (
+    <section className="adm-sect">
+      <h2 className="adm-sect__h">First trips</h2>
+      <p className="adm-quiet">
+        The first drive is the one worth a phone call — the Driver before it, the Business
+        after. Upcoming, and anything that ran in the last {RECENT_DAYS} days.
+      </p>
+
+      {f.trips.map((t) => (
+        <div key={t.driverId} className="adm-ft">
+          <div className="adm-ft__when">{t.whenLabel}</div>
+          <div className="adm-ft__who">
+            <Link href={`/admin/drivers/${t.driverId}`} className="adm-ft__name">
+              {t.driverName}
+            </Link>
+            <Link href={`/admin/trips/${t.tripId}`} className="adm-ft__line">
+              {t.at} · {t.route}
+            </Link>
+            {t.businessName && (
+              <span className="adm-ft__line">
+                {t.businessId ? (
+                  <Link href={`/admin/businesses/${t.businessId}`}>{t.businessName}</Link>
+                ) : (
+                  t.businessName
+                )}
+              </span>
+            )}
+          </div>
+          <div className="adm-ft__calls">
+            <Call label="Driver" phone={t.driverPhone} />
+            <Call label="Business" phone={t.businessPhone} />
+          </div>
+        </div>
+      ))}
+
+      {f.trips.length === 0 && (
+        <p className="adm-none">
+          {/* ⚑ Names BOTH halves of the window. "Nothing here" would leave the
+              reader unable to tell an empty week from a broken query. */}
+          Nobody’s first trip is coming up, and none has run in the last {RECENT_DAYS} days.
+        </p>
+      )}
+
+      {f.neverDriven.length > 0 && (
+        <div className="adm-ft__never">
+          <p className="adm-ft__never-h">
+            {f.neverDriven.length === 1
+              ? "1 Driver has signed up and never driven once."
+              : `${f.neverDriven.length} Drivers have signed up and never driven once.`}
+          </p>
+          {f.neverDriven.map((d) => (
+            <div key={d.driverId} className="adm-ft">
+              <div className="adm-ft__when">{d.waited} waiting</div>
+              <div className="adm-ft__who">
+                <Link href={`/admin/drivers/${d.driverId}`} className="adm-ft__name">
+                  {d.driverName}
+                </Link>
+                <span className="adm-ft__line">
+                  signed up {whenLabel(d.signedUpAt)}
+                  {!d.verified && " · not verified"}
+                </span>
+              </div>
+              <div className="adm-ft__calls">
+                <Call label="Driver" phone={d.driverPhone} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 /**
  * A headline total, to the euro. `formatMoney` keeps cents because an invoice
@@ -287,13 +410,14 @@ export default async function AdminPage({
 }) {
   const { q = "" } = await searchParams;
   const now = new Date();
-  const [found, snapshot, numbers] = await Promise.all([
+  const [found, snapshot, numbers, first] = await Promise.all([
     search(q),
     readActivitySnapshot(now),
     readHomeNumbers(now),
+    readFirstTrips(now),
   ]);
   const { hits, more } = found;
-  const fired = findings(snapshot);
+  const fired = findings(snapshot, now);
   const quiet = quietChecks(snapshot, fired);
 
   // Keep the declared order of the checks; group each check's findings together.
@@ -354,6 +478,8 @@ export default async function AdminPage({
           <p className="adm-quiet">Quiet: {quiet.join(" · ")}.</p>
         )}
       </section>
+
+      <FirstTripsSection f={first} />
     </main>
   );
 }

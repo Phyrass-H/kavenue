@@ -3779,6 +3779,52 @@ a.dxs-w.is-on .dxs-w__l { color: var(--accent); }
 }
 .adm-f:hover .adm-f__go { color: var(--accent); }
 
+/* ── first trips: the one drive per Driver worth a phone call ───────────── */
+/* ⚑ Quieter than a finding and louder than the numbers band: no dot and no
+   colour, but a name and two live phone numbers. It is a tool you come to, not
+   an alarm that comes to you. */
+.adm-ft {
+  display: grid; grid-template-columns: 132px minmax(0, 1fr) auto; gap: 0 16px;
+  align-items: baseline; padding: 13px 0; border-top: 1px solid var(--border);
+}
+.adm-ft__when {
+  font-size: 13px; color: var(--text-muted); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.adm-ft__who { min-width: 0; }
+.adm-ft__name { font-size: 14.5px; color: var(--accent); text-decoration: none; }
+.adm-ft__name:hover { text-decoration: underline; }
+.adm-ft__line {
+  display: block; margin-top: 2px; font-size: 13px; color: var(--text-muted);
+  text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+a.adm-ft__line:hover, .adm-ft__line a:hover { color: var(--accent); }
+.adm-ft__line a { color: inherit; text-decoration: none; }
+
+.adm-ft__calls {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  font-size: 13px; line-height: 1.55; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.adm-ft__call-l { font-size: 11.5px; color: var(--text-faint); margin-right: 6px; }
+.adm-ft__call a { color: var(--accent); text-decoration: none; }
+.adm-ft__call a:hover { text-decoration: underline; }
+.adm-ft__call-none { color: var(--text-faint); }
+
+/* Signed up, never drove. Set apart because the row has no trip and no Business
+   to ring — it is the same question with the answer "nowhere yet". */
+.adm-ft__never { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--border); }
+.adm-ft__never-h { margin: 0; font-size: 13.5px; color: var(--text); }
+.adm-ft__never .adm-ft { border-top: 0; padding: 11px 0 0; }
+
+@media (max-width: 640px) {
+  /* The phone numbers move under the name rather than off the edge — on a phone
+     they are the whole point of the row. */
+  .adm-ft { grid-template-columns: 1fr; gap: 2px; }
+  .adm-ft__calls { align-items: flex-start; margin-top: 4px; }
+  .adm-ft__when { order: -1; }
+}
+
 /* ── search hits + list rows ────────────────────────────────────────────── */
 .adm-hit, .adm-row {
   display: grid; grid-template-columns: auto 1fr auto auto; gap: 14px;

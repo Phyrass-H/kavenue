@@ -14,10 +14,12 @@
 //     trip it is about, so nothing is ever reported as a bare number. Where a
 //     check fires on many subjects the SCREEN may group them into one line —
 //     but it groups named findings; it never counts anonymous ones.
+import { formatAgo } from "@/lib/format";
 import type { DriverRow, MissionRow } from "@/lib/database.types";
 
 export type FindingId =
   | "trip_nobody_can_take"
+  | "documents_waiting"
   | "driver_without_base"
   | "driver_unverified"
   | "cancelled_without_record"
@@ -51,6 +53,16 @@ export const CHECKS: Record<
 > = {
   trip_nobody_can_take: {
     looksFor: "A pooled trip that not one Driver in the fleet is able to take.",
+    tone: "attention",
+    groups: true,
+  },
+  documents_waiting: {
+    // ⚑ THE ONLY CHECK THAT IS WAITING ON *YOU*, and the reason it is second
+    // rather than last: the review screen shipped in S75 but nothing points at
+    // it, so the only way to find a filed document was to think of visiting the
+    // Driver. Amine Belkacem's licence sat pending for 40 days that way — on the
+    // one check that carries a €300,000 fine (docs/01:24).
+    looksFor: "A Driver whose filed papers nobody has looked at yet.",
     tone: "attention",
     groups: true,
   },
@@ -144,7 +156,18 @@ export interface ActivitySnapshot {
     /** Why nobody can, when nobody can — one sentence from lib/eligibility. */
     reason: string | null;
   }[];
-  drivers: Pick<DriverRow, "id" | "first_name" | "last_name" | "base_lat" | "base_lng" | "verified">[];
+  // ⚑ `phone` and `created_at` are here for the First trips list, which needs a
+  // number to ring and a signup date to say how long someone has been waiting.
+  drivers: Pick<
+    DriverRow,
+    "id" | "first_name" | "last_name" | "base_lat" | "base_lng" | "verified" | "phone" | "created_at"
+  >[];
+  /**
+   * Drivers holding documents still marked `pending` — one entry per DRIVER, not
+   * per document, because the action is one visit to one page however many
+   * papers are on it.
+   */
+  documentsWaiting: { driverId: string; count: number; oldestUploadedAt: string }[];
   /** Cancelled trips carrying no row in `mission_cancellation`. */
   cancelledWithoutRecord: Pick<MissionRow, "id" | "pickup_label" | "dropoff_label" | "cancelled_at">[];
   /** Trips whose log holds two or more `repooled` entries. */
@@ -188,7 +211,7 @@ export function tripLabel(
  * Run every check. Order is the order they are read in: what is broken now,
  * then what will bite later, then background truth.
  */
-export function findings(s: ActivitySnapshot): Finding[] {
+export function findings(s: ActivitySnapshot, now = new Date()): Finding[] {
   const out: Finding[] = [];
   const push = (
     id: FindingId,
@@ -214,6 +237,26 @@ export function findings(s: ActivitySnapshot): Finding[] {
         ? `Nobody in the fleet can take ${label} — ${p.reason}.`
         : `Nobody in the fleet can take ${label}.`,
       `/admin/trips/${p.mission.id}`,
+    );
+  }
+
+  for (const w of s.documentsWaiting) {
+    const d = s.drivers.find((x) => x.id === w.driverId);
+    const who = d ? nameOf(d) : "A Driver";
+    const waited = formatAgo(Math.max(0, now.getTime() - new Date(w.oldestUploadedAt).getTime()));
+    push(
+      "documents_waiting",
+      w.driverId,
+      who,
+      // ⚑ THE WAIT IS THE FINDING, not the count. "2 documents" is a fact about
+      // the paperwork; "40 days" is a fact about the Driver sitting there. The
+      // types are deliberately NOT named — the page you land on shows them, and
+      // the labels are proper nouns ("RC Pro", "Kbis or SIRENE notice") that
+      // read wrong mid-sentence.
+      w.count === 1
+        ? `${who} has a document waiting for you — filed ${waited} ago.`
+        : `${who} has ${w.count} documents waiting for you — the oldest filed ${waited} ago.`,
+      `/admin/drivers/${w.driverId}`,
     );
   }
 
@@ -293,6 +336,8 @@ export function quietChecks(s: ActivitySnapshot, fired: Finding[]): string[] {
   if (!firedIds.has("trip_passed_around"))
     quiet.push("no trip has been taken and given back twice");
   if (!firedIds.has("driver_unverified")) quiet.push("every Driver is verified");
+  if (!firedIds.has("documents_waiting"))
+    quiet.push("no Driver is waiting on you to look at a document");
   if (!firedIds.has("feature_never_used")) quiet.push("every shipped feature has been used at least once");
   if (!firedIds.has("trip_nobody_can_take") && s.pooled.length > 0)
     quiet.push("every trip in the Pool has someone who could take it");

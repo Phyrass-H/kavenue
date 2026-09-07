@@ -22,6 +22,7 @@ function snapshot(over: Partial<ActivitySnapshot> = {}): ActivitySnapshot {
   return {
     pooled: [],
     drivers: [],
+    documentsWaiting: [],
     cancelledWithoutRecord: [],
     passedAround: [],
     neverUsed: [],
@@ -37,6 +38,8 @@ const driver = (over: Partial<ActivitySnapshot["drivers"][number]> = {}) => ({
   base_lat: 43.7 as number | null,
   base_lng: 7.26 as number | null,
   verified: true,
+  phone: "+33 6 00 00 00 00" as string | null,
+  created_at: "2026-05-26T09:00:00Z",
   ...over,
 });
 
@@ -315,12 +318,79 @@ describe("every finding is uniquely identified", () => {
   });
 });
 
+describe("documents waiting on you", () => {
+  // The live case this was built for: Amine Belkacem filed a licence and a VTC
+  // card on 29 July 2026 and nobody looked at either for 40 days, because the
+  // review screen existed and nothing on the console pointed at it.
+  const NOW = new Date("2026-09-07T12:00:00Z");
+  const filed = (daysAgo: number) =>
+    new Date(NOW.getTime() - daysAgo * 86_400_000).toISOString();
+
+  const waiting = (over: Partial<ActivitySnapshot["documentsWaiting"][number]> = {}) => ({
+    driverId: "dr-1",
+    count: 2,
+    oldestUploadedAt: filed(40),
+    ...over,
+  });
+
+  it("names the Driver and how long they have been waiting", () => {
+    const [f] = findings(
+      snapshot({ drivers: [driver({ id: "dr-1", first_name: "Amine", last_name: "Belkacem" })], documentsWaiting: [waiting()] }),
+      NOW,
+    );
+    expect(f.id).toBe("documents_waiting");
+    expect(f.subject).toBe("Amine Belkacem");
+    expect(f.sentence).toBe(
+      "Amine Belkacem has 2 documents waiting for you — the oldest filed 40 days ago.",
+    );
+    expect(f.href).toBe("/admin/drivers/dr-1");
+  });
+
+  // ⚑ "the oldest" is a claim about more than one thing. With a single document
+  // it would be a small lie, and this screen's whole worth is that its sentences
+  // are exactly true.
+  it("drops “the oldest” when there is only one document", () => {
+    const [f] = findings(
+      snapshot({ drivers: [driver({ id: "dr-1" })], documentsWaiting: [waiting({ count: 1 })] }),
+      NOW,
+    );
+    expect(f.sentence).toBe("Marc Fontaine has a document waiting for you — filed 40 days ago.");
+  });
+
+  it("says hours, not “0 days”, for something filed this morning", () => {
+    const [f] = findings(
+      snapshot({ drivers: [driver({ id: "dr-1" })], documentsWaiting: [waiting({ count: 1, oldestUploadedAt: filed(0.25) })] }),
+      NOW,
+    );
+    expect(f.sentence).toContain("filed 6 hours ago");
+  });
+
+  it("is silent when nothing is pending", () => {
+    expect(findings(snapshot({ drivers: [driver()] }), NOW)).toEqual([]);
+  });
+
+  it("groups, so three Drivers read as one line with three names", () => {
+    expect(CHECKS.documents_waiting.groups).toBe(true);
+    expect(CHECKS.documents_waiting.tone).toBe("attention");
+  });
+
+  // Defensive: the read already drops documents whose Driver is gone, because
+  // document.owner_id has no foreign key. The sentence must still be a sentence
+  // if one ever slips through.
+  it("does not render a blank subject for a Driver it cannot name", () => {
+    const [f] = findings(snapshot({ documentsWaiting: [waiting({ driverId: "ghost" })] }), NOW);
+    expect(f.subject).toBe("A Driver");
+    expect(f.sentence).not.toContain("undefined");
+  });
+});
+
 describe("the quiet footer", () => {
   it("only names checks that actually ran and found nothing", () => {
     const s = snapshot({ drivers: [driver()], pooled: [pooledTrip()] });
     expect(quietChecks(s, findings(s))).toEqual([
       "no trip has been taken and given back twice",
       "every Driver is verified",
+      "no Driver is waiting on you to look at a document",
       "every shipped feature has been used at least once",
       "every trip in the Pool has someone who could take it",
     ]);

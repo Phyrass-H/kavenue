@@ -26,6 +26,13 @@ import {
   type NumbersRow,
 } from "@/lib/admin-numbers";
 import { readAll } from "@/lib/admin-list";
+import {
+  firstTrips,
+  DROVE_STATUSES,
+  type FirstTrips,
+  type FirstTripMission,
+  type FirstTripBusiness,
+} from "@/lib/first-trips";
 import type { DriverRow, VehicleRow, MissionRow } from "@/lib/database.types";
 
 type Db = Awaited<ReturnType<typeof createClient>>;
@@ -217,11 +224,97 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
   return {
     pooled,
     drivers: fleet.map((f) => f.driver),
+    documentsWaiting: await readDocumentsWaiting(db, new Set(fleet.map((f) => f.driver.id))),
     neverUsed: await readNeverUsed(db),
     cancelledWithoutRecord,
     passedAround,
     orphanedEvents: await countOrphanedEvents(db),
   };
+}
+
+/**
+ * Drivers holding a document nobody has judged yet — one entry per DRIVER.
+ *
+ * ⚑ AN ADMIN SESSION CAN READ THIS, and it is worth saying why out loud, because
+ * `2026-09-04b_document_review.sql` says `document` has "exactly one policy,
+ * SELECT only" and that sentence is easy to misread as owner-only. The policy's
+ * FIRST branch is `app_role()='admin'` (docs/kavenue_schema.sql:301) — so the
+ * console reads every Driver's papers on the admin's own session, and does NOT
+ * need the service role. What `document` has no policy for is UPDATE, which is
+ * why the review WRITE goes through a server action instead.
+ *
+ * ⚑ DRIVERS ONLY. The Business side of review is not built (founder,
+ * 2026-09-04: *"let's finish driver first"*), `business.verified` does not exist
+ * and zero business documents have ever been uploaded. Firing on one would point
+ * at a review screen that isn't there.
+ *
+ * ⚑ AND ONLY FOR A DRIVER WHO STILL EXISTS. `document.owner_id` has no foreign
+ * key — it is polymorphic — so a deleted Driver leaves their papers behind. A
+ * finding about them would carry no name and link to a 404.
+ */
+export async function readDocumentsWaiting(
+  db: Db,
+  liveDriverIds: ReadonlySet<string>,
+): Promise<ActivitySnapshot["documentsWaiting"]> {
+  // ⚑ PAGED, like every other read here. A truncated list would UNDER-report the
+  // one check that is waiting on a person, and there is nothing on screen that
+  // would look wrong — the missing Driver simply never appears.
+  const rows = await readAll<{ owner_id: string; uploaded_at: string }>((from, to) =>
+    db
+      .from("document")
+      .select("owner_id, uploaded_at")
+      .eq("owner_type", "driver")
+      .eq("status", "pending")
+      .range(from, to),
+  );
+  const byDriver = new Map<string, { driverId: string; count: number; oldestUploadedAt: string }>();
+  for (const r of rows) {
+    if (!liveDriverIds.has(r.owner_id)) continue;
+    const held = byDriver.get(r.owner_id);
+    if (!held) byDriver.set(r.owner_id, { driverId: r.owner_id, count: 1, oldestUploadedAt: r.uploaded_at });
+    else {
+      held.count++;
+      if (r.uploaded_at < held.oldestUploadedAt) held.oldestUploadedAt = r.uploaded_at;
+    }
+  }
+  // Longest wait first, so the founder reads the most embarrassing one first.
+  return [...byDriver.values()].sort((a, b) => a.oldestUploadedAt.localeCompare(b.oldestUploadedAt));
+}
+
+/**
+ * The first drive of every Driver — see lib/first-trips.ts for what counts as one.
+ *
+ * ⚑ FLAGGED DEBT, the same one `readHomeNumbers` carries: finding the EARLIEST
+ * trip per Driver means reading every trip a Driver has ever held, because there
+ * is no way to ask for "the first" without them. Correct and fast at 267 rows;
+ * the day this hurts it becomes a SQL view (`distinct on (driver_id) … order by
+ * pickup_at`), which is a migration the founder runs. Nothing about the list's
+ * shape changes then — only where the sorting happens.
+ */
+export async function readFirstTrips(now = new Date()): Promise<FirstTrips> {
+  const db = await createClient();
+  const [drivers, missions, businesses] = await Promise.all([
+    readAll<DriverRow>((from, to) =>
+      db.from("driver").select("*").order("created_at").range(from, to),
+    ),
+    // ⚑ The status filter comes from the type-keyed map in lib/first-trips, not
+    // from a list typed out here — a new mission status is a compile error there
+    // and would otherwise be silently dropped from this read.
+    readAll<FirstTripMission>((from, to) =>
+      db
+        .from("mission")
+        .select(
+          "id, driver_id, status, pickup_at, pickup_label, dropoff_label, pickup_address, dropoff_address, business_id",
+        )
+        .not("driver_id", "is", null)
+        .in("status", DROVE_STATUSES)
+        .range(from, to),
+    ),
+    readAll<FirstTripBusiness>((from, to) =>
+      db.from("business").select("id, name, reception_phone").range(from, to),
+    ),
+  ]);
+  return firstTrips(drivers, missions, businesses, now);
 }
 
 /**

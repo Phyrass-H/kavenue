@@ -5,6 +5,46 @@
 
 ---
 
+## 7 September 2026 — the console tells you who is waiting, and whose first drive it is
+
+Two things you asked for, both on the Activity screen.
+
+**"Amine Belkacem has 2 documents waiting for you — the oldest filed 40 days ago."**
+
+The screen for approving a driver's papers shipped on 4 September. Nothing pointed at it. So the only
+way to find a filed document was to *think of* visiting that driver — and Amine's licence and VTC card
+had been sitting there since 29 July. Forty days, on the one check that carries a €300,000 fine.
+
+Now it's one of the named lines on Activity, in red. It says who, and how long they've been waiting —
+because the wait is the embarrassing part, not the number of papers. Click it and you land on their
+page, where you actually do the judging.
+
+**First trips — one row per driver, with both numbers to ring.**
+
+Your words: *"list first drive of each driver so I have an easy access to them and then I can call
+either the driver or the business."* It covers the first drives coming up, and the ones that ran in
+the last week — because the call you want is often *after*, to the hotel. Every row carries the
+driver's number and the hotel's, and on your phone tapping one dials it.
+
+Three things worth knowing about it:
+
+- **A cancelled trip is not a first drive.** Two of your drivers have a cancelled trip sitting earlier
+  than the one they actually drove. Counting it would have had you ringing a hotel about a journey
+  that never happened.
+- **A week, not "a day or two."** You said a day or two. At two days a Friday trip is gone before you
+  look on Monday. Every row says how long ago it ran, so nothing is hidden by the wider window.
+- **Drivers who have never driven are on the list too.** Clara Vidal signed up a month ago and has
+  never taken a single trip. That is the same question — where is this driver's first drive? — with the
+  answer "nowhere yet", and it's the row most worth a phone call.
+
+**One near-miss worth recording.** While checking this against the real database, a query came back
+saying two drivers held `null` trips. Not zero — nothing. The database was quietly refusing the
+question and returning an empty error message, and the usual way of writing that code turns "refused"
+into a confident **0**. The same shape elsewhere on this screen would have printed *"no driver has ever
+filed a document"* over 47 of them. It's now a permanent check.
+
+---
+
 ## 4 September 2026 — the day's work, in one place
 
 Five things shipped. The thread running through all of them: **a rule written in a document is not a

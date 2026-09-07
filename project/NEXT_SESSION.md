@@ -9,6 +9,65 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## ⚑⚑ S76 (2026-09-07) — `main` = `96785d1` · 937 → 962 tests · gate 58 → 60 · NO MIGRATION
+
+**The two jobs the founder picked off S75's open list. One push, CI-green on `s76-console-eyes` first.**
+
+| | |
+|---|---|
+| `main` | `96785d1` |
+| tests | 937 → **962** · gate 58 → **60** · tsc 0 · build clean |
+| new probe | `.local/probe/first-trips-live.mts` — **19 checks, ALL AGREE** |
+| new module | `lib/first-trips.ts` |
+
+1. **`documents_waiting`** — Activity's eighth named check. *"Amine Belkacem has 2 documents waiting
+   for you — the oldest filed 40 days ago."* Links to `/admin/drivers/[id]`, where S75's review screen
+   already lives. **The wait is the finding, not the count.**
+2. **First trips** — a section of its own on `/admin`. One row per Driver whose first drive is
+   **upcoming** or **ran in the last 7 days**, with `tel:` links for the Driver and the Business, plus
+   the Drivers who signed up and **never drove**. Full reasoning in [[d133]].
+
+⚑ **THE GATE'S ONE EXPECTED RED IS STILL THE SAME ONE** — *"the seeded live trips are still in the
+future"* goes STALE because time passed, not because anything broke. `npx tsx .local/seed/seed-live.mts`
+clears it. Everything else in the 60 is green.
+
+### ⚑⚑ TRAPS FROM S76 — read these two before you trust any count or any window
+1. ⚑⚑ **`{ count: "exact", head: true }` ON `mission` IS A 403 FOR AN ADMIN SESSION, WITH AN EMPTY
+   ERROR MESSAGE.** S72 revoked `select (ceiling)` from `authenticated`; a HEAD still asks `select=*`,
+   so the whole request is refused. **This codebase's idiom is `.then((r) => r.count ?? 0)`, which
+   turns a refusal into a confident `0`.** `readNeverUsed` uses that exact shape — it happens to count
+   only `document` (47) and `mission_release` (3), both of which answer, so nothing is wrong today.
+   Point it at `mission` and the console prints *"nobody has ever filed a document"* over 47 of them.
+   **Name the columns.** § 7 of `first-trips-live.mts` asserts all three, permanently.
+2. ⚑⚑ **A TEST WRITTEN AS `CONSTANT ± 1` IS GREEN FOR EVERY VALUE OF THE CONSTANT.** All three window
+   tests passed at `RECENT_DAYS = 200`. They prove the comparison, never the number — and the number
+   was the decision. Pin a decided value in **absolute units**, in the suite AND the gate. Found only
+   by planting the break; reading the tests would never have shown it.
+3. ⚑ **PRINT THE QUERY ERROR OR AN EMPTY RESULT IS INDISTINGUISHABLE FROM AN ANSWER.** A recon
+   returned zero first-trips for the whole fleet because the select named `dropoff_at`, which does not
+   exist on `mission`. The error was discarded; the empty array looked like data.
+4. ⚑ **A grep for `\.verified` flags a file that only RENDERS it.** [[d92]]'s check caught
+   `lib/first-trips.ts` printing *"· not verified"*. Excluded alongside the four console modules —
+   and then Rule Zero'd: a real gate planted in `lib/geo.ts` still goes red and names the file.
+
+### ⚑ PARKED BY THE FOUNDER, MID-SESSION — the "support page"
+Founder, 2026-09-07: *"The documents review is on the support page right? I asked you last session that
+it would make more sense to do it on the support page instead of Activity console"* → then *"finish and
+we'll talk about the support page later."*
+
+**The premise needs correcting before this is discussed, kindly:**
+- ⚑ **There is no support page.** `/admin` has four screens: Activity (home), Trips, Drivers, Businesses.
+- ⚑ **The review is NOT on Activity.** It is on `/admin/drivers/[id]` — decided in [[d132]], for the
+  reason that you judge a licence with the whole person in front of you.
+- What Activity gained in S76 is the **pointer**, not the doing.
+
+**The real question underneath is whether a support screen should exist at all** — one list of
+everything waiting on a human, across Drivers and Businesses. That is a genuine product question, not a
+misunderstanding, and it is **unscoped**. ⚑ Note `support` is **not** a value in `user_role`
+(driver/dispatcher/admin), so a support *role* is a separate and later question again.
+
+---
+
 ## ⚑⚑ S75 IS CLOSED (2026-09-04) — `main` = `d8b0c91` · 926 → 937 tests · gate 53 → 58 · 2 migrations, both applied
 
 **Five pushes, each CI-green on a branch before `main`. Nothing half-built. Nothing left unmerged.**

@@ -5,6 +5,93 @@
 
 ---
 
+## 2026-09-07 — SESSION 76 — `main` = `96785d1` · 937 → 962 tests · gate 58 → 60 · no migration
+
+**The two jobs the founder picked off S75's open list, both on the Activity console. CI-green on
+`s76-console-eyes` before `main`.**
+
+| | |
+|---|---|
+| `main` | `96785d1` |
+| tests | 937 → **962** · gate 58 → **60** · tsc 0 · build clean |
+| new probe | `.local/probe/first-trips-live.mts` — **19 checks, ALL AGREE** |
+| new module | `lib/first-trips.ts` (242 lines) |
+| migrations | **none** |
+
+### 1 · `documents_waiting` — the console points at the screen S75 built
+`lib/activity-findings.ts` gains an eighth check. `attention`, groups, one entry per **Driver** (the
+action is one visit, however many papers). The sentence carries **who** and **how long**, never a bare
+count; the document types are deliberately unnamed because their labels are proper nouns (*"RC Pro"*,
+*"Kbis or SIRENE notice"*) that read wrong mid-sentence, and the page you land on lists them anyway.
+Live today: **Amine Belkacem, 2 documents, oldest filed 40 days ago** — 45 verified, 0 rejected.
+
+⚑ **The read runs on the ADMIN's session, and that needed proving.**
+`2026-09-04b_document_review.sql` says `document` has *"exactly one policy, SELECT only"*, which reads
+like owner-only. It is not — `app_role()='admin'` is the policy's **first branch**
+(`docs/kavenue_schema.sql:301`). Had it been owner-only the finding would have returned zero rows
+**forever, with no error**: a permanently silent check on the obligation carrying a €300,000 fine. The
+probe asks the same question as the admin and as the service role and fails if the two disagree.
+
+### 2 · First trips — `lib/first-trips.ts` + a section on `/admin`
+Founder's brief: *"list first drive of each driver so I have an easy access to them and then I can call
+either the driver or the business."* One row per Driver: **upcoming**, or **ran in the last 7 days**,
+each with `tel:` links for the Driver AND the Business. Below it, the Drivers who signed up and never
+drove — *the same question with the answer "nowhere yet"*, and the founder kept it when offered the cut.
+
+⚑ **A CANCELLED TRIP IS NOT A FIRST DRIVE, and this is not hypothetical.** Inès Lefranc and Amine
+Belkacem both hold a cancelled trip EARLIER than the one they drove. Counting it names the wrong date,
+the wrong route and the wrong hotel — the founder would ring a Business about a journey that never
+happened. `DROVE` is a `Record<MissionStatus, boolean>`: an allow-list would silently DROP a new
+status, a deny-list would silently INCLUDE it, and the map is a **compile error** until someone says
+which. `DROVE_STATUSES` is derived from it, so the query cannot drift from the rule.
+
+⚑ **The window is 7 days, and that is a decision** (founder, 2026-09-06, arguing down from their own
+"a day or two"): the after-call goes to the hotel, and two days loses a Friday trip over a weekend.
+
+### ⚑⚑ TRAPS — one dead alarm, one silent 403
+1. ⚑⚑ **A TEST WRITTEN AS `RECENT_DAYS ± 1` IS GREEN AT EVERY VALUE OF `RECENT_DAYS`.** Widening the
+   window 7 → 200 left all three window tests passing: they prove the *comparison* works, never the
+   *number*. The number was a decision made with the founder. It is now pinned in **absolute days** in
+   `tests/first-trips.test.ts` **and** in `handoff-check`. Found only by planting the break.
+2. ⚑⚑ **`{ count: "exact", head: true }` ON `mission` IS A 403 FOR AN ADMIN SESSION, AND THE ERROR
+   MESSAGE IS THE EMPTY STRING.** S72's money walls revoked `select (ceiling)` from `authenticated`; a
+   HEAD request still asks for `select=*`, so PostgREST refuses the whole thing. The idiom in this
+   codebase is `.then((r) => r.count ?? 0)` — **which turns "refused" into a confident 0.**
+   `readNeverUsed` uses exactly that shape; it happens to count only `document` (47) and
+   `mission_release` (3), both of which still answer, so nothing is wrong today. Had it counted
+   `mission`, the console would have printed *"nobody has ever filed a document"* over 47 of them.
+   § 7 of the new probe asserts all three. **Name the columns; never HEAD-count `mission`.**
+3. ⚑ **A `.verified` grep caught a file that only REPORTS it.** `lib/first-trips.ts` prints
+   *"· not verified"* beside a never-driven Driver, and [[d92]]'s check flagged it as a gate. Added to
+   the same narrow exclusion as the four console modules — then **Rule Zero'd**: a real gate planted in
+   `lib/geo.ts` still goes red and names the file, so the exclusion is not an amnesty.
+4. ⚑ **A silently swallowed query error looked like an empty database.** The first recon returned zero
+   first-trips because the select named `dropoff_at`, a column that does not exist — and the error was
+   never printed. **Print the error, or an empty result is indistinguishable from an answer.**
+5. ⚑ **Two "failing" tests were my expectations, not the code.** `shortPlaceLabel` correctly drops a
+   town the name already carries, and en-GB abbreviates September to **"Sept"**. Read what the red
+   says before changing what it tests.
+
+### Verified, not asserted
+`handoff-check` **60** (2 STALE, both expected: the seeded Pool aged out by time passing; and a dirty
+tree during the run). `npx tsc --noEmit` 0 · `npx vitest run` **962** · `npm run build` clean ·
+`first-trips-live.mts` **19 ALL AGREE**. Every new check was planted-and-broken first — five in the
+unit suite, two in the gate, one in the [[d92]] exclusion.
+
+### Open, and named
+- **Still on Claude:** `driver.verified` gating accepts (needs a migration inside `accept_mission` +
+  **a date from the founder**) · the Business side of document review (⚑ `business.verified` does not
+  exist; zero business documents ever uploaded).
+- **Asked by the founder this session, parked to next:** *"the documents review… on the support page
+  instead of Activity console"*. ⚑ **There is no support page**, and the review is not on Activity — it
+  is on `/admin/drivers/[id]` ([[d132]]). What Activity gained today is the *pointer*. The real
+  question underneath is whether a **support screen** should exist: one list of everything waiting on a
+  human, across Drivers and Businesses. Not scoped; the founder said *"we'll talk about it later"*.
+- **Still on the founder:** the Mapbox token has no URL restrictions · `pickup-marketplace.vercel.app`
+  still serves production.
+
+---
+
 ## 2026-09-04 — SESSION 75 CLOSED — `main` = `d8b0c91` · 926 → 937 tests · gate 53 → 58
 
 **Five pushes, each CI-green on a branch before `main`. Two migrations, both run by the founder the

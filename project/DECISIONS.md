@@ -3608,6 +3608,32 @@ would have changed what a Driver sees on the strength of the one question nobody
 Named, not fixed by accident.
 
 
+### D133 — A cancelled trip is not a first drive, and the window is seven days (2026-09-07, S76)
+
+**The founder: *"list first drive of each driver so I have an easy access to them and then I can call
+either the driver or the business."*** Two calls at two moments — the Driver *before*, the Business
+*after* — so the list reaches in both directions from now.
+
+| decision | why |
+|---|---|
+| The first drive is the earliest **non-cancelled** trip | ⚑ Inès Lefranc and Amine Belkacem each hold a cancelled trip EARLIER than the one they drove. Counting it names the wrong date, route and hotel — the founder rings a Business about a journey that never happened |
+| `DROVE` is a `Record<MissionStatus, boolean>` | an allow-list silently DROPS a new status; a deny-list silently INCLUDES it. The map is a compile error until someone says which |
+| **7 days** back, not the founder's own "a day or two" | the after-call goes to the hotel, and two days loses a Friday trip over a weekend. Every row says how long ago, so the wider window hides nothing |
+| Drivers who have **never driven** are on the same list | the same question — *where is this Driver's first drive?* — with the answer "nowhere yet". Offered as a cut; the founder kept it. It is the row most worth a call |
+| It is **not** a finding, and does not go silent when empty | findings interrupt you (`lib/activity-findings.ts`); this is a tool you come to. An empty tool that renders nothing looks broken rather than quiet |
+| The column says **"Business"**, not "Hotel" | `CLAUDE.md` hard rule #1 — every one is a hotel today, and that is the vertical, not the shape of the market |
+
+⚑ **THE 7 IS PINNED IN ABSOLUTE DAYS, IN TWO PLACES, BECAUSE THE OBVIOUS TEST CANNOT SEE IT.** The
+window tests were written as `RECENT_DAYS ± 1` — green at 7, green at 200, green at 2. They prove the
+comparison, never the number, and the number is the decision. Caught by planting the break, not by
+reading the code.
+
+⚑ **THE DOCUMENTS FINDING CARRIES THE WAIT, NOT THE COUNT.** *"Amine Belkacem has 2 documents waiting
+for you — the oldest filed 40 days ago."* "2 documents" is a fact about paperwork; "40 days" is a fact
+about a person sitting there. The document TYPES are deliberately unnamed: their labels are proper
+nouns (*"RC Pro"*, *"Kbis or SIRENE notice"*) that read wrong mid-sentence, and the page the finding
+links to lists them anyway.
+
 ### D132 — The console can write, for the first time, and only where a rejection carries a reason (2026-09-04, S75)
 
 **The €300,000 check was being done by editing rows in the Supabase table editor.** `/admin` was 100 %

@@ -185,7 +185,10 @@ export default async function AdminTripPage({
                   </div>
                 ))}
               {/* ⚑ Shown, never omitted: a reader who doesn't see these assumes
-                  they matter. `verified` in particular stops nothing today. */}
+                  they matter. ⚑ `verified` LEFT THIS GROUP on 2026-09-07 — it is
+                  the `approved` refusal now and appears in the list above. What
+                  is left here is operational_zones, which really does decide
+                  nothing (and has since 2026-06-17). */}
               {selected.eligibility.decidesNothing.map((d) => (
                 <div key={d.says} className="adm-check adm-check--dead">
                   <span className="adm-check__ic" aria-hidden="true">

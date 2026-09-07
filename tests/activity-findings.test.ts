@@ -170,10 +170,18 @@ describe("Drivers", () => {
     );
   });
 
-  it("an unverified Driver is reported, and the sentence says it changes nothing", () => {
+  // ⚑ THIS TEST USED TO ASSERT THE OPPOSITE, and the inversion is the change.
+  // Until 2026-09-07 the sentence ended "and can accept work anyway", because the
+  // flag decided nothing. It is now the door: accept_mission and place_hold both
+  // refuse an unverified Driver, so the finding reports someone who cannot earn.
+  it("an unverified Driver is reported, and the sentence says what it costs them", () => {
     const f = findings(snapshot({ drivers: [driver({ verified: false })] }));
     expect(f[0].id).toBe("driver_unverified");
-    expect(f[0].sentence).toBe("Marc Fontaine isn’t verified, and can accept work anyway.");
+    expect(f[0].sentence).toBe("Marc Fontaine isn’t verified, so they can’t take any work.");
+  });
+
+  it("and it interrupts — it stopped being a footnote when it started refusing work", () => {
+    expect(CHECKS.driver_unverified.tone).toBe("attention");
   });
 });
 
@@ -276,9 +284,11 @@ describe("ordering — what is broken now comes first", () => {
       }),
     );
     expect(f.map((x) => x.tone)).toEqual([
+      // ⚑ THREE attentions now, not two: driver_unverified was promoted from
+      // `watch` on 2026-09-07 when the flag began refusing work.
       "attention",
       "attention",
-      "watch",
+      "attention",
       "watch",
       "quiet",
     ]);
@@ -474,7 +484,7 @@ describe("the quiet footer", () => {
     const s = snapshot({ drivers: [driver()], pooled: [pooledTrip()] });
     expect(quietChecks(s, findings(s))).toEqual([
       "no trip has been taken and given back twice",
-      "every Driver is verified",
+      "every Driver is verified and can work",
       "no Driver is waiting on you to look at a document",
       "every shipped feature has been used at least once",
       "every trip in the Pool has someone who could take it",

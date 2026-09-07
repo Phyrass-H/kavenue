@@ -157,7 +157,7 @@ function summarise(id: FindingId, n: number): string {
     case "driver_without_base":
       return `${n} Drivers have never set a base, so their Pool has always been empty.`;
     case "driver_unverified":
-      return `${n} Drivers aren’t verified, and can accept work anyway.`;
+      return `${n} Drivers aren’t verified, so they can’t take any work.`;
     case "documents_waiting":
       // ⚑ No wait in the group line, on purpose: the Drivers below it have been
       // waiting different lengths of time, and picking one number to stand for

@@ -73,8 +73,12 @@ export const CHECKS: Record<
     groups: true,
   },
   driver_unverified: {
-    looksFor: "A Driver you have not verified — which stops nothing today.",
-    tone: "watch",
+    // ⚑ WAS `watch`, IS NOW `attention` (2026-09-07). It used to describe a flag
+    // that decided nothing, so it could wait. Since the verified gate landed it
+    // describes a Driver sitting in the fleet unable to earn a euro — which is
+    // urgent for them and, in a marketplace this size, for Kavenue.
+    looksFor: "A Driver you have not verified — who therefore cannot take any work.",
+    tone: "attention",
     groups: true,
   },
   cancelled_without_record: {
@@ -359,7 +363,7 @@ export function findings(s: ActivitySnapshot, now = new Date()): Finding[] {
       "driver_unverified",
       d.id,
       nameOf(d),
-      `${nameOf(d)} isn’t verified, and can accept work anyway.`,
+      `${nameOf(d)} isn’t verified, so they can’t take any work.`,
       `/admin/drivers/${d.id}`,
     );
   }
@@ -431,7 +435,7 @@ export function quietChecks(s: ActivitySnapshot, fired: Finding[]): string[] {
   const quiet: string[] = [];
   if (!firedIds.has("trip_passed_around"))
     quiet.push("no trip has been taken and given back twice");
-  if (!firedIds.has("driver_unverified")) quiet.push("every Driver is verified");
+  if (!firedIds.has("driver_unverified")) quiet.push("every Driver is verified and can work");
   if (!firedIds.has("documents_waiting"))
     quiet.push("no Driver is waiting on you to look at a document");
   // ⚑ AND NOT WHEN A COUNT WAS REFUSED. Without the second condition a refusal

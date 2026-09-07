@@ -211,12 +211,13 @@ export function AdminDocumentReview({
           <span className={`adm-pill ${verified ? "adm-pill--ok" : "adm-pill--warn"}`}>
             {verified ? "Verified" : "Not verified"}
           </span>
-          {/* ⚑ SAYS WHAT IT DOES AND WHAT IT DOES NOT. `driver.verified` gates
-              nothing today (lib/eligibility.ts:25-27), and a reviewer who
-              assumes otherwise would think they had stopped someone. */}
+          {/* ⚑ SAYS WHAT IT DOES, AND SINCE 2026-09-07 IT DOES SOMETHING. This copy
+              used to warn the reviewer that the switch stopped nobody. It is now
+              the door: accept_mission and place_hold both refuse an unverified
+              Driver, so flipping it off takes someone's work away today. */}
           <span className="adm-verify__say">
-            Your own judgement, not a total of the papers — and it stops nothing yet: an unverified
-            Driver can still accept work.
+            Your own judgement, not a total of the papers. Until you set it, this Driver cannot take
+            or hold a single trip.
           </span>
           <form action={vAction}>
             <input type="hidden" name="driverId" value={driverId} />

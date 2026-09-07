@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { NOT_APPROVED_RAISE, UNDER_REVIEW } from "@/lib/driver-review";
 import { createClient } from "@/lib/supabase/server";
 import { courseForAccept } from "@/lib/pool-fares";
 import { recordMissionEvent } from "@/lib/mission-events-server";
@@ -57,6 +58,13 @@ export async function releaseMissionHold(missionId: string): Promise<void> {
 
 /** The Driver-facing wording. The raw Postgres message is never shown. */
 function holdMessage(raw: string): string {
+  // ⚑ FIRST, because it outranks every other reason. A Driver who is not approved
+  // cannot take ANY trip — telling them this one clashes with their diary, or
+  // isn't a match for their car, sends them to fix the wrong thing.
+  // ⚑ AND THE NEEDLE IS ALL-LOWERCASE ON PURPOSE: this function does NOT lowercase
+  // `raw` (its siblings' needles are capitalised: "Not eligible", "Slot conflict"),
+  // so the constant has to match the raise verbatim.
+  if (raw.includes(NOT_APPROVED_RAISE)) return UNDER_REVIEW.refused;
   if (raw.includes("Another Driver is reviewing")) {
     return "Another Driver is looking at this one right now.";
   }
@@ -132,6 +140,12 @@ export async function acceptMission(missionId: string): Promise<AcceptResult> {
 
 function friendlyAcceptError(raw: string): string {
   const m = raw.toLowerCase();
+  // ⚑ FIRST, for the same reason as holdMessage: "may you work at all" outranks
+  // "does this trip suit you". ⚑ It must also come before the `not a driver`
+  // test — not because the strings collide (they don't: "not yet approved" has
+  // no "not a driver" in it) but because the ordering IS the priority, and a
+  // later reader adding a rule should see that.
+  if (m.includes(NOT_APPROVED_RAISE)) return UNDER_REVIEW.refused;
   // § P — checked before "no longer available" so the Driver gets the real
   // reason: this one isn't a race they lost, it's a trip that died unfilled.
   if (m.includes("expired"))

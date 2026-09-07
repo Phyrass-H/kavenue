@@ -18,21 +18,35 @@
 // reading "refused" and an admin reading "never seen it" are looking at two
 // different problems, and a single "not eligible" would hide that.
 //
-// ⚑ AND TWO THINGS KAVENUE RECORDS ABOUT EVERY DRIVER DECIDE NOTHING (2026-08-26).
+// ⚑ ONE THING KAVENUE RECORDS ABOUT EVERY DRIVER STILL DECIDES NOTHING.
 //    `driver.operational_zones` — the towns a Driver says they work — is read by
 //    no code path in the app or the schema; the Pool matches on base + radius
 //    (lib/geo.ts), which is the spine's rule ("matching is by location, not a
-//    town list"). `driver.verified` is rendered once, on the Driver's own
-//    settings page, and gates nothing: an unverified Driver can accept work
-//    today. Both are reported as `decides-nothing` rather than omitted, because
-//    a console that silently left them out would let a reader assume they matter.
+//    town list"). It is reported as `decides-nothing` rather than omitted,
+//    because a console that silently left it out would let a reader assume it
+//    matters.
+//
+// ⚑⚑ `driver.verified` WAS THE SECOND ONE AND IS NOT ANY MORE (S76, 2026-09-07).
+//    It is the `approved` REFUSAL below, enforced in BOTH accept_mission and
+//    place_hold (docs/migrations/2026-09-07_verified_gates_accept.sql). Anything
+//    still saying "an unverified Driver can accept work today" is out of date.
+//
+// ⚑ AND IT BREAKS THE SUPERSET INVARIANT ABOVE, DELIBERATELY. The Pool query does
+//    NOT filter on `verified` — the founder chose (2026-09-07) to keep the trips
+//    visible to a Driver in review, with a notice above them
+//    (lib/driver-review.ts), because an empty screen reads as broken and a
+//    professional who can see the work knows what they are waiting for. So this is
+//    the one rule where the SQL refuses something the Pool offered. The mitigation
+//    is that the Driver is told BEFORE they tap: the trip page replaces the accept
+//    button with the same sentence (app/(app)/missions/[id]/page.tsx).
 import { haversineKm, withinRadius } from "@/lib/geo";
 import { carMatches } from "@/lib/vehicle-catalog";
 import type { DriverRow, VehicleRow, MissionRow } from "@/lib/database.types";
 
 /** Every rule that can stand between a Driver and a trip. */
 export type EligibilityRuleId =
-  // enforced in accept_mission — these REFUSE
+  // enforced in accept_mission AND place_hold — these REFUSE
+  | "approved"
   | "still_pooled"
   | "not_past_due"
   | "vehicle_class"
@@ -57,6 +71,11 @@ export type RuleKind = "refuse" | "hide";
  * that fires becomes a rule nobody can see (D86, D87, D90).
  */
 export const RULES: Record<EligibilityRuleId, { kind: RuleKind; passed: string }> = {
+  // ⚑ FIRST, and the order is the point: this is the only rule about the PERSON
+  // rather than about the fit between a person and a trip. A Driver who is not
+  // approved cannot take anything, so reporting a vehicle mismatch above it
+  // sends an admin — and the Driver — to fix the wrong thing.
+  approved: { kind: "refuse", passed: "A person has approved them to work" },
   still_pooled: { kind: "refuse", passed: "The trip is still in the Pool" },
   not_past_due: { kind: "refuse", passed: "Its pickup time hasn’t passed" },
   vehicle_class: { kind: "refuse", passed: "Their car is the class asked for" },
@@ -183,6 +202,11 @@ export function explainEligibility(input: EligibilityInput): Eligibility {
 
   // The two time-dependent rules. Omitted entirely under asIfPooled — never
   // faked as passing, which would claim the trip is in the Pool when it is not.
+  // ⚑ EVALUATED FIRST, and unlike the two below it is NOT skipped under
+  // `asIfPooled`: whether a Driver may work at all does not depend on the trip's
+  // status, and a past-tense replay must still say they were unapproved.
+  add("approved", d.verified, "a person hasn’t approved them to work yet", null);
+
   if (!input.asIfPooled) {
   add(
     "still_pooled",
@@ -322,9 +346,6 @@ export function explainEligibility(input: EligibilityInput): Eligibility {
         says: "Towns they say they work",
         detail: (d.operational_zones ?? []).join(", ") || "none set",
       },
-      // No detail: the row already ends "— never consulted", and repeating it
-      // read as "Verified by you — never consulted · never consulted".
-      { says: d.verified ? "Verified by you" : "Not verified by you", detail: null },
     ],
   };
 }

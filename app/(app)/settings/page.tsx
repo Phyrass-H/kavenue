@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { isUnderReview, UNDER_REVIEW } from "@/lib/driver-review";
 import Link from "next/link";
 import {
   Bell,
@@ -114,6 +115,19 @@ export default async function DriverAccountPage() {
           </div>
         </div>
       </div>
+
+      {/* ⚑ THE HOLE THIS FILLS IS A SILENCE, NOT A LIE. The readiness card renders
+          only when there are gaps — so a Driver who has filed everything and is
+          waiting on a human saw NOTHING here, on the one screen that exists to
+          answer "what's left before I can work?". Once `verified` refuses work
+          (2026-09-07), that silence is the difference between a professional
+          waiting calmly and a professional ringing the founder. */}
+      {ready.gaps.length === 0 && isUnderReview(driver) && (
+        <div className="dready">
+          <div className="dready__h">{UNDER_REVIEW.title}</div>
+          <p className="dready__say">{UNDER_REVIEW.body}</p>
+        </div>
+      )}
 
       {ready.gaps.length > 0 && (
         <div className={`dready${ready.blockers > 0 ? " dready--block" : ""}`}>

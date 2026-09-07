@@ -100,11 +100,16 @@ export default async function AdminDriverPage({
           <span>Towns they say they work — never consulted</span>
           <span className="adm-check__d">{(driver.operational_zones ?? []).join(", ") || "none set"}</span>
         </div>
-        <div className="adm-check adm-check--dead">
-          <span className="adm-check__ic" aria-hidden="true">–</span>
+        {/* ⚑ NO LONGER IN THE DEAD GROUP. Until 2026-09-07 this row sat beside
+            `operational_zones` under "recorded, decides nothing". It decides
+            everything now: accept_mission and place_hold both refuse an
+            unverified Driver. */}
+        <div className={`adm-check${driver.verified ? "" : " adm-check--bad"}`}>
+          <span className="adm-check__ic" aria-hidden="true">{driver.verified ? "✓" : "×"}</span>
           <span>
-            {driver.verified ? "Verified by you" : "Not verified by you"} — never consulted, so it
-            stops nothing today
+            {driver.verified
+              ? "Verified by you — they can take work"
+              : "Not verified by you — they cannot take or hold any trip"}
           </span>
           <span className="adm-check__d">{driver.accepts_luggage_runs ? "takes luggage runs" : ""}</span>
         </div>

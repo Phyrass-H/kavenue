@@ -2510,6 +2510,16 @@ textarea::placeholder {
 }
 
 /* ---- What accepting unlocks: a discreet row, not a sentence in the flow ---- */
+/* The account hub's under-review body. Sits in the readiness card's own slot,
+   without the segment bar — there is no progress to draw, the Driver has done
+   everything they can and the next move is a person's. */
+.dready__say {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
 .dlock {
   display: flex;
   gap: 10px;
@@ -3921,6 +3931,10 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 .adm-check:first-of-type { margin-top: 8px; }
 .adm-check__ic { color: var(--tone-success-fg); font-size: 12px; text-align: center; }
 .adm-check--dead .adm-check__ic { color: var(--text-faint); }
+/* A check that is FAILING, not merely inert. Added when driver.verified stopped
+   being a footnote and became a refusal (2026-09-07) — the row had no way to
+   look like a problem, only like a fact. */
+.adm-check--bad .adm-check__ic { color: var(--tone-danger-fg); }
 .adm-check__d { font-size: 12.5px; color: var(--text-faint); white-space: nowrap; }
 
 /* ── the story ──────────────────────────────────────────────────────────── */

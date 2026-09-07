@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isUnderReview, UNDER_REVIEW } from "@/lib/driver-review";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
@@ -447,7 +448,13 @@ export default async function MissionDetailPage({
         </p>
       )}
 
-      {isPooled && eligible ? (
+      {/* ⚑ ABOVE the vehicle test, because it outranks it. A Driver who is not
+          approved cannot take ANY trip, so telling them this one doesn't suit
+          their car sends them to change a car that is fine. The SQL agrees:
+          both accept_mission and place_hold raise this before § B. */}
+      {isPooled && isUnderReview(driver) ? (
+        <div className="notice info">{UNDER_REVIEW.beforeTap}</div>
+      ) : isPooled && eligible ? (
         <HoldControls
           missionId={mission.id}
           myHoldExpiresAt={myLiveHoldEndsAt}

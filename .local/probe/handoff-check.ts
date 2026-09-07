@@ -251,6 +251,7 @@ console.log("\n── S68 · the Activity console ──");
 // still renders perfectly. grep is the only honest check: an ABSENCE cannot be
 // queried out of a database. (The full version, with the live fleet, is
 // .local/probe/eligibility-live.mts — run it with tsx, not node.)
+const elig0 = fs.readFileSync("lib/eligibility.ts", "utf8");
 const shq = (c: string) => { try { return execSync(c, { encoding: "utf8" }).trim(); } catch { return ""; } };
 const readers = (needle: string) =>
   shq(`grep -rl "${needle}" app lib components 2>/dev/null | grep -v database.types || true`)
@@ -268,8 +269,28 @@ const readers = (needle: string) =>
     .filter((f) => !f.includes("settings") && !f.includes("onboarding"));
 t("[[d92]] — operational_zones is still read by NO rule", readers("operational_zones").length === 0,
   readers("operational_zones").join(" ") || "only the screens that collect it + the console");
-t("[[d92]] — driver.verified still gates nothing", readers("\\.verified").length === 0,
-  readers("\\.verified").join(" ") || "only /settings + the console");
+// ⚑⚑ INVERTED ON 2026-09-07, AND THE INVERSION IS THE POINT. For a year this
+// asserted that NOTHING read `driver.verified`. It is now the `approved` refusal
+// in lib/eligibility.ts and a raise in two SQL functions — so the old assertion
+// would be green only while the gate was broken. What must stay true is the
+// SHAPE: the flag is read where the rules live, and the Driver is told about it.
+t("S76 — driver.verified is a REFUSAL now, named in the rules",
+  /approved: \{ kind: "refuse"/.test(elig0) && /add\("approved", d\.verified/.test(elig0),
+  "lib/eligibility.ts — `approved`, kind refuse");
+t("S76 — and the Driver is told, in one place all four surfaces import",
+  fs.existsSync("lib/driver-review.ts") &&
+    /NOT_APPROVED_RAISE/.test(fs.readFileSync("app/(app)/missions/[id]/actions.ts", "utf8")),
+  "lib/driver-review.ts → both translators");
+// ⚑ THE RAISE TEXT AND THE NEEDLE MUST AGREE, or both translators fall through to
+// their generic line and the Driver reads "Please try again" and learns nothing.
+// This is a string contract across a language boundary; nothing else checks it.
+const migSql = fs.existsSync("docs/migrations/2026-09-07_verified_gates_accept.sql")
+  ? fs.readFileSync("docs/migrations/2026-09-07_verified_gates_accept.sql", "utf8") : "";
+const needle = (fs.readFileSync("lib/driver-review.ts", "utf8")
+  .match(/NOT_APPROVED_RAISE = "([^"]+)"/) ?? [])[1] ?? "";
+t("S76 — the SQL raise still contains the needle the app matches on",
+  !!needle && (migSql.match(new RegExp(`raise exception '[^']*${needle}`, "g")) ?? []).length === 2,
+  `"${needle}" — expected in BOTH accept_mission and place_hold`);
 
 // S76 — the console now POINTS at the review screen that shipped in S75. Before
 // this, a filed document could only be found by thinking to visit the Driver;
@@ -317,10 +338,13 @@ t("S76 — usage is counted by naming a column, never `select(\"*\")`",
 // [[d93]] — six rules refuse, three only hide. Moving one between the groups
 // changes the console's answer from "they were turned down" to "they never saw
 // it", which are different problems with different fixes.
-const elig = fs.readFileSync("lib/eligibility.ts", "utf8");
-const refusals = (elig.match(/kind: "refuse"/g) ?? []).length;
-const hides = (elig.match(/kind: "hide"/g) ?? []).length;
-t("[[d93]] — still six refusals and three hiding rules", refusals === 6 && hides === 3,
+const refusals = (elig0.match(/kind: "refuse"/g) ?? []).length;
+const hides = (elig0.match(/kind: "hide"/g) ?? []).length;
+// ⚑ SEVEN, NOT SIX, SINCE 2026-09-07 — `approved` joined the refusals. The count
+// is pinned rather than merely "more than five" because moving a rule between the
+// two groups changes the console's answer from "they were turned down" to "they
+// never saw it", which are different problems with different fixes.
+t("[[d93]] — seven refusals and three hiding rules", refusals === 7 && hides === 3,
   `${refusals} refuse · ${hides} hide`);
 
 // ⚑ The story is ordered by occurred_at, never by seq. The live log genuinely

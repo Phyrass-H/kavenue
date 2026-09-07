@@ -57,7 +57,11 @@ describe("the two groups are the two authorities", () => {
   // wrong KIND of problem — the one thing this split exists to prevent.
   it("refusals are exactly what accept_mission raises on", () => {
     expect(idsOfKind("refuse").sort()).toEqual(
-      ["luggage_opt_in", "not_past_due", "slot_free", "still_pooled", "vehicle_body", "vehicle_class"],
+      // ⚑ `approved` joined this list on 2026-09-07 and it is the only one that
+      // is about the PERSON rather than the fit between a person and a trip.
+      // It is raised by accept_mission AND place_hold — see
+      // docs/migrations/2026-09-07_verified_gates_accept.sql.
+      ["approved", "luggage_opt_in", "not_past_due", "slot_free", "still_pooled", "vehicle_body", "vehicle_class"],
     );
   });
 
@@ -260,25 +264,67 @@ describe("the past-tense question", () => {
 });
 
 describe("recorded, but decides nothing", () => {
-  // ⚑ These two are reported, never omitted. A console that quietly left them out
-  // would let a reader assume they matter — and one of them is `verified`.
-  it("names the towns and the verified flag, on a Driver who can take the trip", () => {
+  // ⚑ Reported, never omitted. A console that quietly left it out would let a
+  // reader assume it matters.
+  //
+  // ⚑⚑ THERE USED TO BE TWO ROWS HERE. `verified` was the second, and on
+  // 2026-09-07 it stopped deciding nothing and became the `approved` refusal —
+  // so this list is now one row long, and the tests below assert the OPPOSITE of
+  // what they asserted for a year. That inversion is the change, not a
+  // regression: see docs/migrations/2026-09-07_verified_gates_accept.sql.
+  it("names the towns, on a Driver who can take the trip", () => {
     const e = explainEligibility(input());
-    expect(e.decidesNothing.map((d) => d.says)).toEqual([
-      "Towns they say they work",
-      "Verified by you",
-    ]);
+    expect(e.decidesNothing.map((d) => d.says)).toEqual(["Towns they say they work"]);
     expect(e.decidesNothing[0].detail).toBe("Nice, Cannes");
   });
 
-  it("an unverified Driver is still allowed to take the trip", () => {
+  it("no longer lists `verified` — it is a refusal now, not a footnote", () => {
+    const e = explainEligibility(input());
+    expect(e.decidesNothing.map((d) => d.says).join(" ")).not.toMatch(/verified/i);
+  });
+});
+
+describe("an unverified Driver is refused, and told which rule did it", () => {
+  const unverified = () => {
     const base = input();
-    const e = explainEligibility({ ...base, driver: { ...base.driver, verified: false } });
-    expect(e.verdict).toBe("can_take");
-    expect(e.decidesNothing[1].says).toBe("Not verified by you");
-    // ⚑ Null, not "never consulted": the row template already says that, and
-    // repeating it printed the phrase twice on one line.
-    expect(e.decidesNothing[1].detail).toBeNull();
+    return explainEligibility({ ...base, driver: { ...base.driver, verified: false } });
+  };
+
+  it("is refused, not merely hidden — the SQL turns the accept down", () => {
+    const e = unverified();
+    expect(e.verdict).toBe("refused");
+    expect(e.blocker?.id).toBe("approved");
+    expect(e.blocker?.kind).toBe("refuse");
+  });
+
+  // ⚑ THE ORDER IS THE POINT. A Driver awaiting approval usually ALSO has
+  // something else wrong — no car on file, the wrong class. If the console leads
+  // with the vehicle, the founder rings them about a car that is fine.
+  it("outranks a vehicle mismatch, so the console names the real problem", () => {
+    const base = input();
+    const e = explainEligibility({
+      ...base,
+      driver: { ...base.driver, verified: false },
+      vehicle: null,
+    });
+    expect(e.blocker?.id).toBe("approved");
+  });
+
+  it("says something a person can act on", () => {
+    expect(unverified().blocker?.says).toBe("a person hasn’t approved them to work yet");
+  });
+
+  // ⚑ NOT skipped under asIfPooled, unlike the two time-dependent rules. Whether
+  // someone may work at all does not depend on a trip's status, and a past-tense
+  // replay must still say they were unapproved at the time.
+  it("still fires in a past-tense replay", () => {
+    const base = input();
+    const e = explainEligibility({
+      ...base,
+      driver: { ...base.driver, verified: false },
+      asIfPooled: true,
+    });
+    expect(e.rules.find((r) => r.id === "approved")?.ok).toBe(false);
   });
 });
 

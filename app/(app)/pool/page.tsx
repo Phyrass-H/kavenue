@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
+import { isUnderReview, UNDER_REVIEW } from "@/lib/driver-review";
 import type { PoolMissionRow } from "@/lib/database.types";
 import Link from "next/link";
-import { MapPin, Radar, Settings } from "lucide-react";
+import { Clock, MapPin, Radar, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getDriverContext } from "@/lib/driver";
 import { sweepExpiredMissions, sweepLapsedHolds } from "@/lib/expiry";
@@ -171,6 +172,18 @@ export default async function PoolPage({
           )
         }
       />
+
+      {/* ⚑ THE TRIPS STAY VISIBLE — the founder's call, 2026-09-07. A professional
+          who can see the work knows what they are waiting for; an empty screen
+          just looks broken. So this is a notice ABOVE the Pool, not a screen
+          instead of it. The `.dlock` idiom is the house's quiet aside: flat, no
+          colour, no alarm — a fact, not a warning. */}
+      {isUnderReview(driver) && (
+        <div className="dlock">
+          <Clock size={15} strokeWidth={2} aria-hidden="true" />
+          <span>{UNDER_REVIEW.pool}</span>
+        </div>
+      )}
 
       {/* Dev-only testing switch — never rendered in production. */}
       {!hosted && (

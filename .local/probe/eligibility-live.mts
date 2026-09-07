@@ -78,17 +78,36 @@ t(
   zoneFiles.length === 0,
   zoneFiles.join(" ") || "only the screens that collect it and the console that reports it",
 );
-const verifiedFiles = greppedIn("\\.verified").filter((f) => !allowed(f));
+// ⚑⚑ INVERTED ON 2026-09-07. For a year this asserted that NOTHING branched on
+// `driver.verified`. It is a REFUSAL now — enforced in accept_mission and
+// place_hold — so the old assertion could only be green while the gate was
+// broken. What replaces it is the shape that still has to hold: the flag is read
+// where the RULES live, and the Driver is told about it in one shared place.
+const elig = fs.readFileSync("lib/eligibility.ts", "utf8");
 t(
-  "driver.verified still gates nothing — rendered, never branched on",
-  verifiedFiles.length === 0,
-  verifiedFiles.join(" ") || "only /settings and the console",
+  "driver.verified is a REFUSAL now, evaluated in lib/eligibility",
+  /approved: \{ kind: "refuse"/.test(elig) && /add\("approved", d\.verified/.test(elig),
+  "`approved`, kind refuse",
+);
+t(
+  "…and every Driver-facing surface takes its wording from one module",
+  fs.existsSync("lib/driver-review.ts") &&
+    /NOT_APPROVED_RAISE/.test(fs.readFileSync("app/(app)/missions/[id]/actions.ts", "utf8")),
+  "lib/driver-review.ts → friendlyAcceptError + holdMessage",
 );
 
 // ── the rule set the console claims accept_mission enforces ────────────────
 console.log("\n── the refusals mirror accept_mission ──");
-const sql = fs.readFileSync("docs/migrations/2026-08-22_accepted_fare.sql", "utf8");
-const body = sql.slice(sql.indexOf("create or replace function accept_mission"));
+// ⚑⚑ THIS READ THE WRONG FILE FOR MONTHS. It pointed at 2026-08-22_accepted_fare.sql,
+// which was superseded by 2026-08-31i (the § 7 hold gate) and again by
+// 2026-09-07 (the verified gate) — so every green below was about a body the
+// database had not run since August. A probe that checks a stale file is not a
+// check. The newest definition of accept_mission is the one to read.
+const ACCEPT_SQL = "docs/migrations/2026-09-07_verified_gates_accept.sql";
+const sql = fs.readFileSync(ACCEPT_SQL, "utf8");
+const body = sql.slice(sql.toUpperCase().indexOf("CREATE OR REPLACE FUNCTION PUBLIC.ACCEPT_MISSION"));
+t("the accept_mission body being checked is the NEWEST one", body.length > 0 && !/2026-08-22/.test(ACCEPT_SQL), ACCEPT_SQL);
+t("…and it carries the verified refusal", /raise exception 'Driver account not yet approved'/.test(body));
 t("still raises 'Mission no longer available' on a non-pooled trip", /Mission no longer available/.test(body));
 t("still raises 'Mission has expired' past the pickup (§ P)", /Mission has expired/.test(body));
 t("still raises 'Not eligible for this mission' on class/body/luggage", /Not eligible for this mission/.test(body));
@@ -117,8 +136,11 @@ t("…still matches pickup OR dropoff within the radius", /withinRadius[\s\S]{0,
 t("…still sends a Driver with no base to set one", /base_lat == null \|\| driver\.base_lng == null/.test(pool));
 t("…still applies the specific-car rule", /carMatches\(/.test(pool));
 t(
-  "the console names the same nine rules and no more",
-  Object.keys(RULES).length === 9,
+  // ⚑ TEN since 2026-09-07 — `approved` joined the refusals. Pinned rather than
+  // ">= 9" because a rule appearing or vanishing silently is the exact failure
+  // this whole probe exists to catch.
+  "the console names the same ten rules and no more",
+  Object.keys(RULES).length === 10,
   `${Object.keys(RULES).length} rules`,
 );
 
@@ -167,26 +189,32 @@ for (const m of pooled ?? []) {
   );
 }
 
-// ⚑ The counter-check for D92: an unverified Driver must still be able to take
-// work. If this ever goes red, `verified` became a gate and the console's
-// "never consulted" is now wrong.
+// ⚑⚑ INVERTED 2026-09-07, AND THIS IS THE ONE THAT MATTERS MOST. It used to
+// assert that an unverified Driver could still take work — the live counter-check
+// for [[d92]]. The founder turned the flag into a door, so the live fleet must now
+// answer the opposite: NO unverified Driver may take ANY pooled trip, and the
+// reason they are given must be the approval rule rather than their car.
 const unverified = (drivers ?? []).filter((d: any) => !d.verified);
+const verdicts = unverified.flatMap((d: any) => {
+  const v = (vehicles ?? []).find((x: any) => x.driver_id === d.id);
+  return (pooled ?? []).map((m: any) => ({
+    who: `${d.first_name} ${d.last_name}`.trim(),
+    e: explainEligibility({ mission: m, driver: d, vehicle: v ?? null, otherPickupsAt: [] }),
+  }));
+});
 t(
-  "an unverified Driver is still allowed to take work (verified gates nothing)",
-  unverified.length === 0 ||
-    unverified.some((d: any) => {
-      const v = (vehicles ?? []).find((x: any) => x.driver_id === d.id);
-      return (pooled ?? []).some(
-        (m: any) =>
-          explainEligibility({
-            mission: m,
-            driver: d,
-            vehicle: v ?? null,
-            otherPickupsAt: [],
-          }).verdict === "can_take",
-      );
-    }),
-  `${unverified.length} unverified`,
+  "no unverified Driver can take any pooled trip",
+  verdicts.every((x) => x.e.verdict !== "can_take"),
+  verdicts.filter((x) => x.e.verdict === "can_take").map((x) => x.who).join(", ") ||
+    `${unverified.length} unverified · ${verdicts.length} Driver×trip pairs, none can take`,
+);
+t(
+  // ⚑ The reason, not just the refusal. An unverified Driver usually ALSO has
+  // something else wrong; naming the car would send the founder to fix a car
+  // that is fine.
+  "…and each is told it is the approval, not their vehicle",
+  verdicts.length === 0 || verdicts.every((x) => x.e.blocker?.id === "approved"),
+  verdicts.map((x) => `${x.who}: ${x.e.blocker?.id}`).join(" · ") || "no unverified Drivers live",
 );
 
 console.log(`\nchecks: ${pass + fail} · ${fail} failed`);

@@ -3789,6 +3789,98 @@ a.dxs-w.is-on .dxs-w__l { color: var(--accent); }
 }
 .adm-f:hover .adm-f__go { color: var(--accent); }
 
+/* ── the document reviewer: thumbnails, and a viewer you can read in ─────── */
+/* ⚑ The list is thumbnails, not links. Nine papers used to mean nine browser
+   tabs, and the verdict buttons sat on a screen you had navigated away from. */
+.adm-doc__thumbs { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; }
+.adm-th {
+  display: flex; flex-direction: column; gap: 5px; padding: 0;
+  background: none; border: 0; cursor: pointer; font: inherit; text-align: left;
+}
+.adm-th__box {
+  width: 118px; height: 78px; border-radius: 7px; overflow: hidden;
+  border: 1px solid var(--border-strong); background: var(--surface-2);
+  display: grid; place-items: center;
+}
+.adm-th:hover .adm-th__box { border-color: var(--accent); }
+/* ⚑ `contain`, never `cover`. A permis is a wide card and a Kbis is A4 portrait;
+   cropping to fill would cut the licence number off the one and the header off
+   the other — and the number is the thing being checked. */
+.adm-th__box img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.adm-th__pdf {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-size: 11px; color: var(--text-muted);
+}
+.adm-th__none { font-size: 11.5px; color: var(--text-faint); }
+.adm-th__box--gap {
+  border-style: dashed; color: var(--text-faint); font-size: 11px;
+  text-align: center; line-height: 1.35;
+}
+.adm-th--gap { cursor: default; }
+.adm-th__cap { display: flex; align-items: baseline; gap: 7px; font-size: 11.5px; }
+.adm-th__side { color: var(--text-muted); }
+.adm-th__st--pending { color: var(--tone-warn-fg); }
+.adm-th__st--verified { color: var(--tone-success-fg); }
+.adm-th__st--rejected { color: var(--tone-danger-fg); }
+
+/* The viewer. Dark, because a document is the only thing that should be lit. */
+.dv {
+  position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column;
+  background: #1e293b; color: #f1f5f9;
+}
+.dv__bar {
+  display: flex; align-items: center; gap: 12px; padding: 11px 16px;
+  border-bottom: 1px solid #334155; flex-wrap: wrap;
+}
+.dv__title { font-size: 13.5px; font-weight: 500; }
+.dv__sub { font-size: 12.5px; color: #94a3b8; }
+.dv__nav { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.dv__count { font-size: 12.5px; color: #94a3b8; font-variant-numeric: tabular-nums; }
+.dv button { background: none; border: 0; color: inherit; cursor: pointer; padding: 4px; border-radius: 6px; }
+.dv__nav button, .dv__zoom button { border: 1px solid #475569; padding: 4px 9px; }
+.dv__nav button:hover, .dv__zoom button:hover, .dv__x:hover { background: #334155; }
+.dv__stage {
+  flex: 1; min-height: 0; overflow: auto; background: #0f172a;
+  display: grid; place-items: center; padding: 18px;
+}
+/* ⚑ transform-origin CENTER so zooming keeps the middle of the paper in view;
+   the scroll container is what lets you reach the edges once it is bigger. */
+.dv__img { max-width: 100%; max-height: 100%; transition: transform 120ms ease; transform-origin: center; }
+.dv__pdf { width: 100%; height: 100%; min-height: 60vh; border: 0; background: #fff; border-radius: 4px; }
+.dv__none { text-align: center; max-width: 420px; }
+.dv__none-t { margin: 0; font-size: 14px; }
+.dv__none-s { margin: 6px 0 0; font-size: 12.5px; color: #94a3b8; line-height: 1.6; }
+.dv__tools {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px;
+  border-top: 1px solid #334155; flex-wrap: wrap;
+}
+.dv__zoom { display: flex; align-items: center; gap: 8px; }
+.dv__pct { font-size: 12.5px; min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
+.dv__note { font-size: 12.5px; color: #94a3b8; }
+.dv__ok, .dv__no { display: flex; align-items: center; gap: 9px; margin-left: auto; flex-wrap: wrap; }
+.dv__no { width: 100%; margin-left: 0; }
+.dv__no label { font-size: 12.5px; color: #94a3b8; }
+.dv__no input, .dv__exp input {
+  background: #0f172a; border: 1px solid #475569; border-radius: 6px;
+  color: #f1f5f9; font: inherit; font-size: 13px; padding: 6px 10px;
+}
+.dv__no input { flex: 1; min-width: 240px; }
+.dv__exp { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: #94a3b8; }
+.dv__btn {
+  border: 1px solid #475569; border-radius: 7px; padding: 6px 16px; font-size: 13px;
+}
+.dv__btn--go { background: #f1f5f9; color: #0f172a; border-color: #f1f5f9; font-weight: 500; }
+.dv__btn--no { background: var(--tone-danger-fg); border-color: var(--tone-danger-fg); color: #fff; }
+.dv__btn:disabled { background: #334155; color: #64748b; border-color: #334155; cursor: not-allowed; }
+.dv__why { font-size: 12px; color: #94a3b8; }
+.dv__err { margin: 0; padding: 10px 16px; font-size: 13px; background: var(--tone-danger-fg); color: #fff; }
+.dv__prev { margin: 0; padding: 9px 16px; font-size: 12.5px; color: #94a3b8; border-top: 1px solid #334155; }
+
+@media (max-width: 640px) {
+  .dv__ok, .dv__no { margin-left: 0; width: 100%; }
+  .adm-th__box { width: 96px; height: 66px; }
+}
+
 /* ── first trips: the one drive per Driver worth a phone call ───────────── */
 /* ⚑ Quieter than a finding and louder than the numbers band: no dot and no
    colour, but a name and two live phone numbers. It is a tool you come to, not

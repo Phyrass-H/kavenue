@@ -9,7 +9,10 @@
 // only appears when you have decided to reject. Everything else here is a plain
 // form posting a server action — no fetch, no client-side state about documents.
 import { useActionState, useState } from "react";
-import type { DocView } from "@/lib/documents";
+import { FileText } from "lucide-react";
+import { fileKind } from "@/lib/document-kind";
+import type { DocFile, DocView } from "@/lib/documents";
+import { DocumentViewer, type ViewerItem } from "@/components/document-viewer";
 import type { DocumentType } from "@/lib/database.types";
 import {
   DOC_GROUP_LABEL,
@@ -22,12 +25,7 @@ import {
   documentMeta,
   driverDocTypes,
 } from "@/lib/account";
-import {
-  approveDocument,
-  rejectDocument,
-  setDriverVerified,
-  type ReviewResult,
-} from "@/lib/document-review";
+import { setDriverVerified, type ReviewResult } from "@/lib/document-review";
 
 const TONE_CLASS: Record<"success" | "warn" | "error" | "neutral", string> = {
   success: "adm-pill--ok",
@@ -40,101 +38,53 @@ function dateInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "";
 }
 
-/** One side of one document: view it, approve it, or reject it with a reason. */
-function SideRow({
-  driverId,
-  docId,
-  label,
-  viewUrl,
-  status,
-  expiresAt,
-  asksExpiry,
-}: {
-  driverId: string;
-  docId: string;
-  label: string | null;
-  viewUrl: string | null;
-  status: string;
-  expiresAt: string | null;
-  asksExpiry: boolean;
-}) {
-  const [rejecting, setRejecting] = useState(false);
-  const [okState, okAction] = useActionState<ReviewResult | null, FormData>(approveDocument, null);
-  const [noState, noAction] = useActionState<ReviewResult | null, FormData>(rejectDocument, null);
-
+/** One side, as a thumbnail you click to open properly. */
+function Thumb({ label, file, onOpen }: { label: string | null; file: DocFile; onOpen: () => void }) {
+  const state = file.status;
+  const kind = fileKind(file);
   return (
-    <div className="adm-doc__side">
-      <div className="adm-doc__sideline">
-        {label && <span className="adm-doc__sidename">{label}</span>}
-        {viewUrl ? (
-          <a className="adm-doc__view" href={viewUrl} target="_blank" rel="noreferrer">
-            View
-          </a>
+    <button type="button" className="adm-th" onClick={onOpen}>
+      <span className="adm-th__box">
+        {/* ⚑ MISSING IS CHECKED BEFORE PDF, and getting that backwards is what
+            this screen was already wrong about. `isPdf` is the stored path's
+            extension, and a row whose upload never happened still HAS a path —
+            every `seed://…/x.pdf` row is one — so a PDF badge appeared over a
+            document that does not exist. The reviewer must be able to tell those
+            two apart from the list, without opening either.
+
+            ⚑ A PDF that DOES exist gets no thumbnail, and that is not worth
+            fixing: rendering page 1 needs a renderer on the server, and the
+            reviewer only needs to know it is a PDF and be able to open it. */}
+        {kind === "missing" ? (
+          <span className="adm-th__none">no file</span>
+        ) : kind === "pdf" ? (
+          <span className="adm-th__pdf"><FileText size={20} strokeWidth={1.75} aria-hidden="true" />PDF</span>
         ) : (
-          <span className="adm-doc__view adm-doc__view--none">no file</span>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={file.viewUrl!} alt="" loading="lazy" />
         )}
-
-        <form action={okAction} className="adm-doc__form">
-          <input type="hidden" name="documentId" value={docId} />
-          <input type="hidden" name="driverId" value={driverId} />
-          {/* ⚑ The expiry travels with the APPROVE, so correcting a date and
-              accepting the paper is one act rather than two. A type that asks
-              for no expiry sends no field at all — see approveDocument. */}
-          {asksExpiry && (
-            <label className="adm-doc__exp">
-              Expires
-              <input type="date" name="expiresAt" defaultValue={dateInput(expiresAt)} />
-            </label>
-          )}
-          <button type="submit" className="adm-btn" disabled={status === "verified"}>
-            {status === "verified" ? "Approved" : "Approve"}
-          </button>
-        </form>
-
-        {!rejecting && (
-          <button type="button" className="adm-btn" onClick={() => setRejecting(true)}>
-            Reject
-          </button>
-        )}
-      </div>
-
-      {rejecting && (
-        <form action={noAction} className="adm-doc__reject">
-          <input type="hidden" name="documentId" value={docId} />
-          <input type="hidden" name="driverId" value={driverId} />
-          <label className="adm-doc__why" htmlFor={`why-${docId}`}>
-            Why are you rejecting it? The Driver reads this word for word.
-          </label>
-          <input
-            id={`why-${docId}`}
-            name="reviewNote"
-            className="adm-doc__note"
-            placeholder="The bottom edge is cut off — send the whole card."
-            maxLength={400}
-            autoFocus
-          />
-          <div className="adm-doc__rejectrow">
-            <button type="submit" className="adm-btn adm-btn--bad">
-              Reject and tell them
-            </button>
-            <button type="button" className="adm-btn" onClick={() => setRejecting(false)}>
-              Cancel
-            </button>
-          </div>
-          {noState && !noState.ok && <p className="adm-doc__err">{noState.message}</p>}
-        </form>
-      )}
-
-      {okState && !okState.ok && <p className="adm-doc__err">{okState.message}</p>}
-    </div>
+      </span>
+      <span className="adm-th__cap">
+        {label && <span className="adm-th__side">{label}</span>}
+        <span className={`adm-th__st adm-th__st--${state}`}>
+          {state === "verified" ? "Valid" : state === "rejected" ? "Rejected" : "Pending"}
+        </span>
+      </span>
+    </button>
   );
 }
 
-function DocRow({ driverId, doc }: { driverId: string; doc: DocView }) {
+function DocRow({
+  doc,
+  onOpen,
+}: {
+  doc: DocView;
+  onOpen: (docId: string) => void;
+}) {
   const meta = documentMeta(doc.type);
   const state = docState({ status: doc.status, expiresAt: doc.expiresAt });
   const tone = docStateTone(state);
-  const sides = [doc.front, doc.back].filter(Boolean) as NonNullable<DocView["front"]>[];
+  const sides = [doc.front, doc.back].filter(Boolean) as DocFile[];
 
   return (
     <div className="adm-doc">
@@ -162,28 +112,25 @@ function DocRow({ driverId, doc }: { driverId: string; doc: DocView }) {
       {sides.length === 0 ? (
         <p className="adm-doc__none">Nothing uploaded — there is nothing to review yet.</p>
       ) : (
-        sides.map((s) => (
-          <SideRow
-            /* ⚑ KEYED ON THE STATUS TOO, so the row remounts when the verdict
-               changes and the open "why are you rejecting it?" box closes itself.
-               Without it, approving a document left the rejection form sitting
-               underneath a row that now reads Valid. */
-            key={`${s.id}:${s.status}`}
-            driverId={driverId}
-            docId={s.id}
-            label={meta.twoSided ? (s.side === "back" ? "Back" : "Front") : null}
-            viewUrl={s.viewUrl}
-            status={s.status}
-            expiresAt={doc.expiresAt}
-            asksExpiry={meta.expiry === "required" && s.side !== "back"}
-          />
-        ))
-      )}
-
-      {doc.incomplete && sides.length > 0 && (
-        <p className="adm-doc__none">
-          Only one side is on file. Both are needed before this paper is complete.
-        </p>
+        <div className="adm-doc__thumbs">
+          {sides.map((f) => (
+            <Thumb
+              key={`${f.id}:${f.status}`}
+              label={meta.twoSided ? (f.side === "back" ? "Back" : "Front") : null}
+              file={f}
+              onOpen={() => onOpen(f.id)}
+            />
+          ))}
+          {/* ⚑ The missing half of a two-sided paper is drawn, not omitted — an
+              absent slot is easy to scroll past; an empty frame is not. */}
+          {meta.twoSided && doc.incomplete && (
+            <span className="adm-th adm-th--gap">
+              <span className="adm-th__box adm-th__box--gap">
+                {doc.front ? "back" : "front"}<br />missing
+              </span>
+            </span>
+          )}
+        </div>
       )}
     </div>
   );
@@ -191,15 +138,50 @@ function DocRow({ driverId, doc }: { driverId: string; doc: DocView }) {
 
 export function AdminDocumentReview({
   driverId,
+  driverName,
   verified,
   docs,
 }: {
   driverId: string;
+  driverName: string;
   verified: boolean;
   docs: DocView[];
 }) {
   const [vState, vAction] = useActionState<ReviewResult | null, FormData>(setDriverVerified, null);
   const byType = new Map<DocumentType, DocView>(docs.map((d) => [d.type, d]));
+
+  // ⚑ ONE FLAT LIST ACROSS EVERY PAPER, in the order they are read on screen, so
+  // the viewer's "3 of 11" and its arrows walk a Driver's whole file in one pass.
+  // The founder reviews a PERSON, not a document at a time.
+  const queue: ViewerItem[] = [];
+  for (const group of DRIVER_DOC_GROUPS) {
+    for (const t of driverDocTypes(group)) {
+      const doc = byType.get(t);
+      if (!doc) continue;
+      const meta = documentMeta(t);
+      for (const f of [doc.front, doc.back]) {
+        if (!f) continue;
+        queue.push({
+          docId: f.id,
+          title: meta.twoSided
+            ? `${documentLabel(t)} · ${f.side === "back" ? "Back" : "Front"}`
+            : documentLabel(t),
+          viewUrl: f.viewUrl,
+          isPdf: f.isPdf,
+          status: f.status,
+          uploadedAt: f.uploadedAt,
+          expiresAt: doc.expiresAt,
+          asksExpiry: meta.expiry === "required" && f.side !== "back",
+          reviewNote: doc.reviewNote,
+        });
+      }
+    }
+  }
+  const [openAt, setOpenAt] = useState<number | null>(null);
+  const openDoc = (docId: string) => {
+    const i = queue.findIndex((q) => q.docId === docId);
+    if (i >= 0) setOpenAt(i);
+  };
   const uploaded = docs.filter((d) => d.status != null).length;
   const waiting = docs.filter((d) => d.status === "pending").length;
 
@@ -252,12 +234,23 @@ export function AdminDocumentReview({
               </h3>
               {types.map((t) => {
                 const doc = byType.get(t);
-                return doc ? <DocRow key={t} driverId={driverId} doc={doc} /> : null;
+                return doc ? <DocRow key={t} doc={doc} onOpen={openDoc} /> : null;
               })}
             </div>
           );
         })}
       </section>
+
+      {openAt !== null && (
+        <DocumentViewer
+          items={queue}
+          index={openAt}
+          driverId={driverId}
+          driverName={driverName}
+          onIndex={setOpenAt}
+          onClose={() => setOpenAt(null)}
+        />
+      )}
     </>
   );
 }

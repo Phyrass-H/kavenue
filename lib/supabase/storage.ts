@@ -74,6 +74,20 @@ export async function signedDocUrl(
   return data?.signedUrl ?? null;
 }
 
+/**
+ * Is there actually a file behind this path?
+ *
+ * ⚑ THE ANSWER IS `createSignedUrl` FAILING, AND THAT IS MEASURED, NOT ASSUMED.
+ * Supabase returns `{ data: null, error: "Object not found" }` for a path with no
+ * object — checked on 2026-09-09 against both a plausible-but-absent path and the
+ * `seed://…` paths the old seed script wrote. So a null signed URL means no file,
+ * which is what lets the reviewer refuse to approve a paper nobody can open.
+ */
+export async function docFileExists(path: string | null | undefined): Promise<boolean> {
+  if (!path) return false;
+  return (await signedDocUrl(path, 60)) !== null;
+}
+
 /** Stable public URL for an avatars-bucket path (+ cache-buster). */
 export function publicMediaUrl(path: string, version?: string | number): string {
   const admin = createAdminClient();

@@ -7,6 +7,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { signedDocUrl } from "@/lib/supabase/storage";
 import { documentMeta } from "@/lib/account";
 import type { DocumentType, DocumentStatus, DocumentSide } from "@/lib/database.types";
+// Re-exported so callers that already import from here keep working; the
+// implementation lives outside this server-only module so the client can use it.
+export { fileKind, type FileKind } from "@/lib/document-kind";
 
 export interface DocFile {
   /** The row's own id — what the reviewer's actions act on (S75). Each SIDE is a
@@ -16,6 +19,13 @@ export interface DocFile {
   status: DocumentStatus;
   uploadedAt: string;
   viewUrl: string | null;
+  /**
+   * ⚑ A PDF CANNOT BE ZOOMED WITH A CSS TRANSFORM — scaling an <iframe> blurs it
+   * rather than magnifying it. The reviewer's viewer needs to know which kind of
+   * thing it is holding so it can hand a PDF to the browser's own reader instead
+   * of offering zoom buttons that would make the page worse.
+   */
+  isPdf: boolean;
 }
 
 export interface DocView {
@@ -45,6 +55,9 @@ type Row = {
   side: DocumentSide | null;
   review_note: string | null;
 };
+
+/** Extension of the stored path, not of a user-supplied name. */
+const isPdfPath = (p: string) => p.toLowerCase().endsWith(".pdf");
 
 // Worst-first, so one rejected side makes the whole document rejected.
 function rollUp(a: DocumentStatus, b: DocumentStatus): DocumentStatus {
@@ -116,6 +129,7 @@ export async function getLatestDocuments(
               status: front.status,
               uploadedAt: front.uploaded_at,
               viewUrl: await signedDocUrl(front.file_url),
+              isPdf: isPdfPath(front.file_url),
             }
           : null,
         back: back
@@ -125,6 +139,7 @@ export async function getLatestDocuments(
               status: back.status,
               uploadedAt: back.uploaded_at,
               viewUrl: await signedDocUrl(back.file_url),
+              isPdf: isPdfPath(back.file_url),
             }
           : null,
         incomplete: !!meta.twoSided && (!front || !back),

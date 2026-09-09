@@ -115,7 +115,12 @@ export default async function AdminDriverPage({
         </div>
       </section>
 
-      <AdminDocumentReview driverId={id} verified={driver.verified} docs={docs} />
+      <AdminDocumentReview
+        driverId={id}
+        driverName={`${driver.first_name ?? ""} ${driver.last_name ?? ""}`.trim() || "This Driver"}
+        verified={driver.verified}
+        docs={docs}
+      />
 
       <section className="adm-sect">
         {/* ⚑ NO ROLL-UP HERE. This used to read "· 83 of 90 completed" over rows

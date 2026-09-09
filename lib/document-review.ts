@@ -22,6 +22,7 @@
 import { revalidatePath } from "next/cache";
 import { getAppContext } from "@/lib/app-context";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { docFileExists } from "@/lib/supabase/storage";
 import type { Database } from "@/lib/database.types";
 import { checkReviewNote } from "@/lib/review-note";
 
@@ -79,6 +80,27 @@ export async function approveDocument(_prev: ReviewResult | null, form: FormData
   if (!expiry.ok) return { ok: false, message: expiry.message };
 
   const admin = createAdminClient();
+
+  // ⚑⚑ YOU CANNOT APPROVE A PAPER YOU CANNOT SEE, AND THIS IS THE RULE, NOT THE
+  // GREYED-OUT BUTTON. The founder hit this on 2026-09-08: the review screen
+  // showed "no file" where the View link belongs — the seed script had written
+  // `seed://…` paths that were never uploaded — and Approve worked anyway. They
+  // approved a driving licence they had no way to read, on the one check that
+  // carries a €300,000 fine (docs/01:24).
+  //
+  // ⚑ The disabled button in the UI is a courtesy. THIS is the enforcement: a
+  // stale tab, a second device, or a re-render race would all get past the
+  // button, and none of them gets past here.
+  const { data: row } = await admin.from("document").select("file_url").eq("id", id).maybeSingle();
+  if (!row) return { ok: false, message: "That document is no longer there." };
+  if (!(await docFileExists(row.file_url))) {
+    return {
+      ok: false,
+      message:
+        "There is no file behind this paper, so there is nothing to approve. Ask the Driver to upload it again.",
+    };
+  }
+
   const patch: Database["public"]["Tables"]["document"]["Update"] = {
     status: "verified",
     review_note: null,

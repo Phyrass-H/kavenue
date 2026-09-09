@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test-driver": "npx tsx .local/seed/seed-test-driver.mts",
-    "dev:lan": "npx tsx .local/seed/where.mts && next dev -H 0.0.0.0"
+    "dev:lan": "npx tsx .local/seed/where.mts && next dev -H 0.0.0.0",
+    "test-app": "npx tsx .local/seed/open-app.mts & next dev"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

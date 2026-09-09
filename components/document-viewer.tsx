@@ -21,6 +21,7 @@ import { useActionState, useCallback, useEffect, useRef, useState } from "react"
 import { RotateCcw, RotateCw, X, ChevronLeft, ChevronRight, Minus, Plus } from "lucide-react";
 import { approveDocument, rejectDocument, type ReviewResult } from "@/lib/document-review";
 import { fileKind } from "@/lib/document-kind";
+import { checkReviewNote, MAX_NOTE } from "@/lib/review-note";
 
 export interface ViewerItem {
   docId: string;
@@ -61,6 +62,7 @@ export function DocumentViewer({
   const [zoom, setZoom] = useState(2); // index into ZOOMS; 2 → 100 %
   const [deg, setDeg] = useState(0);
   const [rejecting, setRejecting] = useState(false);
+  const [note, setNote] = useState("");
   const [okState, okAction, okPending] = useActionState<ReviewResult | null, FormData>(approveDocument, null);
   const [noState, noAction, noPending] = useActionState<ReviewResult | null, FormData>(rejectDocument, null);
   const stage = useRef<HTMLDivElement>(null);
@@ -75,6 +77,7 @@ export function DocumentViewer({
     setDeg(0);
     setPan({ x: 0, y: 0 });
     setRejecting(false);
+    setNote("");
   }, [index]);
 
   // ⚑ A NEW ZOOM OR ROTATION RE-CENTRES. Keeping an old offset after the paper
@@ -193,6 +196,9 @@ export function DocumentViewer({
     el.addEventListener("pointercancel", up);
   };
 
+  // The one rule, shared with the server action.
+  const sayable = checkReviewNote(note);
+
   if (!item) return null;
   const scale = ZOOMS[zoom];
   // ⚑ ONE QUESTION, ASKED ONCE — see lib/documents.ts:fileKind for why the order
@@ -295,12 +301,31 @@ export function DocumentViewer({
             <input type="hidden" name="documentId" value={item.docId} />
             <input type="hidden" name="driverId" value={driverId} />
             <label htmlFor={`why-${item.docId}`}>Why are you rejecting it? The Driver reads this word for word.</label>
-            <input id={`why-${item.docId}`} name="reviewNote" autoFocus
-                   placeholder="The bottom edge is cut off — send the whole card." />
-            <button type="submit" className="dv__btn dv__btn--no" disabled={noPending}>
+            <input
+              id={`why-${item.docId}`}
+              name="reviewNote"
+              autoFocus
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              maxLength={MAX_NOTE}
+              placeholder="The bottom edge is cut off — send the whole card."
+            />
+            {/* ⚑ DISABLED FROM THE SAME RULE THE SERVER ENFORCES, not from a
+                second `length > 0` written here. `checkReviewNote` is the one
+                authority (lib/review-note.ts) and it trims first — so a box
+                holding three spaces is empty to both, and the button and the
+                action can never disagree about what counts as a reason.
+                ⚑ The server still refuses independently: this is the courtesy,
+                not the rule. */}
+            <button type="submit" className="dv__btn dv__btn--no" disabled={noPending || !sayable.ok}>
               {noPending ? "Saving…" : "Send"}
             </button>
             <button type="button" className="dv__btn" onClick={() => setRejecting(false)}>Cancel</button>
+            {/* Silent until they have typed something — telling someone what is
+                wrong with a box they have not filled in yet is nagging. */}
+            {note.trim().length > 0 && !sayable.ok && (
+              <span className="dv__why">{sayable.message}</span>
+            )}
           </form>
         )}
       </div>

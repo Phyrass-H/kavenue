@@ -9,6 +9,72 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
+## 🎯 START HERE — WHAT THE FOUNDER WANTS NEXT (asked 2026-09-09)
+
+> **"Next session I want to improve the documents verification page, few things are wrong."**
+
+⚑⚑ **ASK THEM WHICH THINGS. DO NOT GUESS.** They used the screen for real on 2026-09-09 and found
+faults Claude did not — that is exactly how the "approve a paper with no file" bug surfaced. A list
+invented from reading the code will fix the wrong things. Open
+`/admin/drivers/<id>`, ask what they hit, then work their list in their order.
+
+**The screen is `components/admin-document-review.tsx` + `components/document-viewer.tsx`**
+([[d135]]). ⚑ **Show a preview before rebuilding any of it** — the founder's standing rule, and it is
+how the current viewer got signed off.
+
+**To have something to test on, in one command:** `npm run test-driver` resets **Théo Essai** — ten
+specimen papers back to pending, verification off. Reviewing is one-way, so without this a second
+pass is impossible.
+
+⚑ **Known and already recorded, so do not "discover" them as new:**
+- PDFs use the browser's own zoom, deliberately — a CSS transform blurs a PDF instead of magnifying
+  it. If the founder dislikes it, the fix is a real PDF renderer, not a transform.
+- A two-sided paper missing its back is drawn as an empty frame, not omitted.
+- `driver.verified` is a **separate act** from the papers ([[d132]]) — never compute one from the other.
+- Flipping `verified` off is now a **suspension** and still leaves no record: no reason, no timestamp,
+  no actor (`lib/document-review.ts:151-165`). `BACKLOG § O`. Worth raising while in this area.
+
+---
+
+## 🧪 HOW THE FOUNDER TESTS — settled 2026-09-09, do not re-litigate
+
+**They test on the Mac. Not on a phone. Not on the live site.** One command:
+
+    npm run test-app        # starts the app AND opens Safari on the sign-in menu
+
+⚑ **`localhost` NEEDS NO KEY** — `hosted` is false there, so `/dev-login` is simply two buttons.
+⚑ **One browser window = one role.** Both sides share one origin locally, so signing in as Driver
+signs you out as Business, and the app bounces you to your own side (verified: as Business `/pool`
+→ `/dispatch`). **A Safari Private Window (⌘⇧N) holds a second, independent session** — Business in
+one, Driver in the other, both live at once. That is the trick to teach, not a workaround.
+
+Other commands: `npm run test-driver` (reset Théo) · `npm run dev:lan` (same app on a phone over
+wifi, prints the address) · `npm run dev` (plain).
+
+### ⚑⚑ THE HOUR THIS COST, AND HOW TO NOT REPEAT IT
+The founder asked for *"dev access like we used to"*. Claude read it as **the live site**, and spent
+an hour on Vercel variables, a hosted-key restriction, a phone-over-wifi script, and a failed
+production deploy — before establishing they never leave the Mac. **The question that would have
+saved all of it: "on the Mac, or on your phone?"**
+
+Three specific errors inside that hour, all worth carrying:
+1. ⚑⚑ **`next.config.mjs` WAS NEVER READ.** It has thrown on any production build carrying
+   `DEV_LOGIN_KEY` since 2026-09-06 ([[d132]]-era, commit `610abf0`) — because the key had been
+   published in two tracked files and was **measured still working** on the live domains. The
+   founder's redeploy failed against a wall a previous session built on purpose. **Read the config
+   before advising anything about env vars.**
+2. ⚑ **`vercel env ls` CANNOT TELL "never set" FROM "deleted".** Claude saw no `DEV_LOGIN_KEY`, said
+   it had *"never been set"*, and was wrong — the founder had deleted both, deliberately, days
+   earlier. **A missing row is not evidence of absence-forever.**
+3. ⚑ **curl WITHOUT A COOKIE JAR looks exactly like a broken sign-in** — it follows the redirect,
+   arrives with no session, and lands on `/login`. Happened twice. Use `-c`/`-b`.
+
+**State now:** `DEV_LOGIN_KEY` and `DEV_PASSWORD` are **deleted from Vercel again** (founder,
+2026-09-09). Production deploys work. ⚑ The § BEFORE REAL LAUNCH note about rotating the key is now
+moot unless someone re-adds it — but the guard in `next.config.mjs` stands and should not be removed.
+
+---
+
 ## ⚑⚑ S76 IS CLOSED (2026-09-09) — `main` = `cabd26d` · 937 → 982 tests · gate 58 → **64, FULLY GREEN** · 1 migration, applied
 
 **Seven pushes, each CI-green on a branch before `main`. Nothing half-built.**

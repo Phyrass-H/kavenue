@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-09-09 — SESSION 76 (close) — `main` = `759cbde` · 989 tests · gate 64
+
+**The reviewer's polish, and an hour lost to a question nobody asked.**
+
+### Shipped after the reviewer
+- `f8d0b65` — **Send is dead until the rejection says something.** Disabled from `checkReviewNote`,
+  the same rule the server enforces, so button and action cannot drift. Silent until they type.
+- `04452cd` — **`npm run dev:lan`** (app on a phone over wifi) — and it caught a real bug:
+  `NextResponse.redirect(new URL("/", origin))` builds from the address the SERVER is bound to, so
+  under `-H 0.0.0.0` sign-in redirected to `http://0.0.0.0:3000/`, which no phone can load. Now built
+  from the `Host` header.
+- `759cbde` — **`npm run test-app`** — starts the app and opens Safari on `/dev-login`. **This is what
+  the founder actually needed.**
+
+### ⚑⚑ THE HOUR, AND THE QUESTION THAT WOULD HAVE SAVED IT
+The founder asked for *"dev access like we used to"*. It was read as **the live site**. An hour went
+into Vercel env vars, a fixture-only restriction on hosted dev-login, a phone-over-wifi script, and a
+production deploy that failed — before *"all the tests are on the Mac"* established that `localhost`,
+which needs no key at all, had been the answer the whole time.
+**Ask "on the Mac or on your phone?" before designing anything about access.**
+
+Three errors inside it, each recorded in NEXT_SESSION:
+1. **`next.config.mjs` was never read.** It throws on any production build carrying `DEV_LOGIN_KEY`
+   (since `610abf0`, 2026-09-06, after the key was found published in two tracked files and measured
+   still working live). The founder's redeploy hit that wall.
+2. **`vercel env ls` cannot distinguish "never set" from "deleted".** Claude claimed the former and
+   was wrong; the founder had deleted both on purpose days earlier. Corrected in `24f1b06`.
+3. **curl without a cookie jar reads as a broken sign-in** — twice.
+
+⚑ **The fixture-only guard on hosted dev-login survives and is worth keeping** (`lib/fixture-email.ts`,
+7 tests, Rule Zero'd): if the key is ever re-added, it opens `.local`/`.test` accounts and never
+`admin@kavenue.fr`. `DEV_LOGIN_KEY`/`DEV_PASSWORD` are deleted from Vercel again; deploys work.
+
+### Next
+**The founder's own words: *"improve the documents verification page, few things are wrong."*** ⚑ Ask
+them which — they found the last one by using it, and a list invented from the code would fix the
+wrong things.
+
+---
+
 ## 2026-09-09 — SESSION 76 (second half) — `main` = `cabd26d` · 971 → 982 tests · gate 62 → 64 · **1 migration, applied**
 
 **`driver.verified` became a door, and the document reviewer became usable. Four pushes, each

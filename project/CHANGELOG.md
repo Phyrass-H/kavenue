@@ -5,6 +5,33 @@
 
 ---
 
+## 9 September 2026 — Testing the app, made simple
+
+You said it plainly: *"I don't use my phone, all the tests are on the Mac."* That was the answer to a
+question I had been getting wrong all afternoon.
+
+**You never needed the live site, or a key, or anything in Vercel.** Your own Mac has always been
+trusted — the sign-in menu there is just two buttons. I sent us both round an hour of plumbing
+because I read "test live" as "the live website" instead of asking where you actually work. My fault,
+and worth writing down so it doesn't happen again.
+
+One command now starts the app and opens Safari on the sign-in page:
+
+    npm run test-app
+
+Click **Business** or **Driver**. Nothing to type.
+
+⚑ **The one rule:** one Safari window is one person. Sign in as the driver and you're signed out as
+the hotel — and if you try to visit the other side, the app quietly sends you back to your own. That
+is not a fault, it's the app keeping you where you belong.
+
+⚑ **The trick worth knowing:** open a Private Window (⌘⇧N) and sign in there as the other one. A
+private window keeps its own login, so you can be the hotel in one window and the driver in the
+other, at the same time. Post a trip on one screen and watch it land in the Pool on the next.
+
+**Also:** the Send button on a rejection is now dead until you've actually written a reason, and once
+a paper is zoomed you can grab and drag it with the mouse.
+
 ## 9 September 2026 — A screen you can actually read a licence in
 
 You found this one yourself: you approved a driving licence you had no way to look at. The record

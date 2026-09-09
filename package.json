@@ -9,7 +9,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test-driver": "npx tsx .local/seed/seed-test-driver.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

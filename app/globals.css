@@ -3846,6 +3846,13 @@ a.dxs-w.is-on .dxs-w__l { color: var(--accent); }
 /* ⚑ transform-origin CENTER so zooming keeps the middle of the paper in view;
    the scroll container is what lets you reach the edges once it is bigger. */
 .dv__img { max-width: 100%; max-height: 100%; transition: transform 120ms ease; transform-origin: center; }
+/* ⚑ The hand only appears once there is somewhere to drag TO. */
+.dv__stage--pan { cursor: grab; }
+.dv__stage--pan.is-dragging { cursor: grabbing; }
+/* Dragging a picture is the browser's default; here it fights the pan. */
+.dv__stage--pan .dv__img { user-select: none; -webkit-user-drag: none; }
+/* While a drag is live the transition would lag the finger by 120 ms. */
+.dv__stage.is-dragging .dv__img { transition: none; }
 .dv__pdf { width: 100%; height: 100%; min-height: 60vh; border: 0; background: #fff; border-radius: 4px; }
 .dv__none { text-align: center; max-width: 420px; }
 .dv__none-t { margin: 0; font-size: 14px; }

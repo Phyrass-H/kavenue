@@ -64,14 +64,25 @@ export function DocumentViewer({
   const [okState, okAction, okPending] = useActionState<ReviewResult | null, FormData>(approveDocument, null);
   const [noState, noAction, noPending] = useActionState<ReviewResult | null, FormData>(rejectDocument, null);
   const stage = useRef<HTMLDivElement>(null);
+  const img = useRef<HTMLImageElement>(null);
+  const [dragging, setDragging] = useState(false);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
 
   // ⚑ A NEW PAPER IS A NEW READ. Carrying a 400 % zoom and a 90° rotation from
   // the last document onto this one hides the thing you opened it to look at.
   useEffect(() => {
     setZoom(2);
     setDeg(0);
+    setPan({ x: 0, y: 0 });
     setRejecting(false);
   }, [index]);
+
+  // ⚑ A NEW ZOOM OR ROTATION RE-CENTRES. Keeping an old offset after the paper
+  // changes size can leave the whole thing off the edge of the window, and the
+  // reader has no way to know which direction to drag it back from.
+  useEffect(() => {
+    setPan({ x: 0, y: 0 });
+  }, [zoom, deg]);
 
   const go = useCallback(
     (d: number) => onIndex((index + d + items.length) % items.length),
@@ -97,6 +108,91 @@ export function DocumentViewer({
     return () => window.removeEventListener("keydown", onKey);
   }, [go, onClose]);
 
+  /**
+   * Drag the paper around once it is bigger than the window.
+   *
+   * ⚑ THE FOUNDER ASKED FOR EXACTLY THIS after using it: *"I just need to move
+   * the documents around when it's zoomed in like the pointer becomes a hand to
+   * grab the doc."* Zoom without pan is half a feature — you can magnify a
+   * licence number and then have no way to reach the corner it sits in.
+   *
+   * ⚑ IT PANS THE SCROLL BOX, NOT THE IMAGE. The stage is `overflow: auto`, so
+   * moving `scrollLeft/Top` is the same motion the scrollbars make — it cannot
+   * drift out of bounds, it needs no clamping of its own, and it stays correct
+   * when the zoom or the rotation changes underneath it.
+   *
+   * ⚑ POINTER EVENTS, NOT MOUSE EVENTS, so the same code works under a finger on
+   * the phone the founder actually reads this console on.
+   */
+  /**
+   * How far the paper may be dragged before its edge would leave the window.
+   *
+   * ⚑ FROM THE LAYOUT SIZE × THE SCALE, NEVER FROM getBoundingClientRect().
+   * The rect already has the transform baked in, so feeding it back in makes the
+   * bounds grow every time you drag. `offsetWidth` is the untransformed box.
+   *
+   * ⚑ AND THE SIDES SWAP AT 90° AND 270°: a landscape permis rotated upright is
+   * tall, so its vertical room is its WIDTH. Getting this wrong locks the drag
+   * on the axis that actually overflows.
+   */
+  const bounds = () => {
+    const el = img.current, box = stage.current;
+    if (!el || !box) return { x: 0, y: 0 };
+    const upright = deg % 180 === 0;
+    const w = (upright ? el.offsetWidth : el.offsetHeight) * scale;
+    const h = (upright ? el.offsetHeight : el.offsetWidth) * scale;
+    return {
+      x: Math.max(0, (w - box.clientWidth) / 2),
+      y: Math.max(0, (h - box.clientHeight) / 2),
+    };
+  };
+
+  /**
+   * Drag the paper around once it is bigger than the window.
+   *
+   * ⚑ THE FOUNDER ASKED FOR EXACTLY THIS after using it: *"I just need to move
+   * the documents around when it's zoomed in like the pointer becomes a hand to
+   * grab the doc."* Zoom without pan is half a feature — you can magnify a
+   * licence number and then have no way to reach the corner it sits in.
+   *
+   * ⚑⚑ IT MOVES THE IMAGE, NOT THE SCROLLBOX, AND THE FIRST VERSION GOT THAT
+   * WRONG. Scrolling an `overflow: auto` parent is the obvious approach and it
+   * does nothing here: a CSS transform does not change an element's LAYOUT box,
+   * so a scaled image overflows visually while the scroll container still thinks
+   * it fits — `scrollWidth === clientWidth`, nothing to scroll, cursor promising
+   * a drag that could never happen. Caught by dragging it, not by reading it.
+   *
+   * ⚑ POINTER EVENTS, so the same code works under a finger on the phone the
+   * founder actually reads this console on.
+   */
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = stage.current;
+    const lim = bounds();
+    if (!el || (lim.x === 0 && lim.y === 0)) return;
+    e.preventDefault();
+    el.setPointerCapture(e.pointerId);
+    setDragging(true);
+    const startX = e.clientX, startY = e.clientY;
+    const from = { ...pan };
+    const clamp = (v: number, max: number) => Math.max(-max, Math.min(max, v));
+    const move = (ev: PointerEvent) => {
+      setPan({
+        x: clamp(from.x + (ev.clientX - startX), lim.x),
+        y: clamp(from.y + (ev.clientY - startY), lim.y),
+      });
+    };
+    const up = (ev: PointerEvent) => {
+      setDragging(false);
+      el.releasePointerCapture?.(ev.pointerId);
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+  };
+
   if (!item) return null;
   const scale = ZOOMS[zoom];
   // ⚑ ONE QUESTION, ASKED ONCE — see lib/documents.ts:fileKind for why the order
@@ -120,7 +216,13 @@ export function DocumentViewer({
         <button type="button" className="dv__x" onClick={onClose} aria-label="Close"><X size={18} /></button>
       </div>
 
-      <div className="dv__stage" ref={stage}>
+      {/* ⚑ `pannable` only once the paper overflows — a grab cursor over
+          something that cannot move is a promise the screen does not keep. */}
+      <div
+        className={`dv__stage${scale > 1 && !noFile && !item.isPdf ? " dv__stage--pan" : ""}${dragging ? " is-dragging" : ""}`}
+        ref={stage}
+        onPointerDown={scale > 1 && !noFile && !item.isPdf ? onPointerDown : undefined}
+      >
         {noFile ? (
           // ⚑ Says which of the two it is. "Missing" and "not uploaded yet" send
           // the reviewer to different actions.
@@ -135,10 +237,13 @@ export function DocumentViewer({
           <iframe className="dv__pdf" src={item.viewUrl!} title={item.title} />
         ) : (
           <img
+            ref={img}
             className="dv__img"
             src={item.viewUrl!}
             alt={item.title}
-            style={{ transform: `rotate(${deg}deg) scale(${scale})` }}
+            /* ⚑ translate FIRST so a drag moves the paper the way the hand went,
+               whatever rotation is applied after it. */
+            style={{ transform: `translate(${pan.x}px, ${pan.y}px) rotate(${deg}deg) scale(${scale})` }}
           />
         )}
       </div>

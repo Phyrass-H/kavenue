@@ -103,7 +103,18 @@ export async function GET(request: Request) {
   }
 
   // Land on "/", which routes by role (→ /welcome on first sign-in).
-  return NextResponse.redirect(new URL("/", origin));
+  //
+  // ⚑ BUILT FROM THE `Host` HEADER, NOT FROM `origin`. `origin` comes from
+  // `request.url`, which is the address the SERVER is bound to — so running
+  // `next dev -H 0.0.0.0` (how the founder reaches this from their phone) made
+  // this redirect to `http://0.0.0.0:3000/`, an address no phone can load. The
+  // sign-in succeeded, the cookie was set, and the browser then landed on a dead
+  // page — which reads as "the app is broken" rather than "the redirect is".
+  // The Host header is what the CLIENT asked for, which is what it can reach.
+  const forwardedHost = request.headers.get("host");
+  const proto = request.headers.get("x-forwarded-proto") ?? new URL(origin).protocol.replace(":", "");
+  const landing = forwardedHost ? `${proto}://${forwardedHost}` : origin;
+  return NextResponse.redirect(new URL("/", landing));
 }
 
 async function ensureUser(

@@ -124,7 +124,7 @@ accountant? ⚠️ Keep the **agent/intermediary** framing in the copy: Kavenue 
     the paper, so it's the field most likely to be wrong). Two-sided papers are **one row per `side`**
     (front/back) — approve them independently. The Driver-facing states already render all of this, so the
     back-office is genuinely just the write path. **Doc list to review** (9): licence · VTC card · REVTC ·
-    medical certificate · Kbis · **URSSAF attestation de vigilance** (re-collect every 6 months — the one
+    medical certificate · Kbis · ~~URSSAF attestation de vigilance~~ (**dropped 2026-09-09, [[D136]]** — the one
     with a legal deadline on Kavenue) · RC Pro · carte grise · insurance.
   - **The expiry-reminder job belongs here too**, not in the Driver app: the account copy already promises
     "a month before, and again the week it lapses", which needs a scheduled query over `document.expires_at`

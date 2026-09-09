@@ -99,6 +99,9 @@ else await db.from("vehicle").insert({ driver_id: driverId!, ...vehicleFields })
 // ── 3 · the papers ──────────────────────────────────────────────────────────
 const MIME: Record<string, string> = { jpg: "image/jpeg", png: "image/png", pdf: "application/pdf" };
 const ext = (f: string) => f.slice(f.lastIndexOf(".") + 1);
+// ⚑ COUNTED, NOT ASSERTED. The summary below used to say "10 filed" as a literal,
+// and it was wrong the moment a document type was dropped (urssaf_vigilance, 2026-09-09).
+let filed = 0;
 async function put(type: string, side: string | null, file: string) {
   const bytes = fs.readFileSync(path.join(SPECIMENS, file));
   const key = `driver/${driverId}/${type}${side ? `-${side}` : ""}-specimen.${ext(file)}`;
@@ -110,6 +113,7 @@ async function put(type: string, side: string | null, file: string) {
     owner_type: "driver", owner_id: driverId!, type, side, file_url: key, status: "pending",
   });
   if (error) throw new Error(`insert ${type}: ${error.message}`);
+  filed++;
 }
 
 // ⚑ A REALISTIC HALF-FINISHED FILE, not a tidy one. A Driver uploads over days,
@@ -123,7 +127,7 @@ await put("vehicle_registration", null, "cartegrise-dark-blurry.jpg"); // reject
 await put("insurance", null, "insurance.pdf");
 await put("kbis", null, "kbis.pdf");
 await put("medical_certificate", null, "medical-large.png");
-// ⚑ FILED, NOT OMITTED — and that is a deliberate reversal. These two were left
+// ⚑ FILED, NOT OMITTED — and that is a deliberate reversal. This was left
 // out at first to show the "Not added yet" state, and it cost the thing that
 // matters more: an unfiled document is a GAP, a gap makes the readiness count
 // non-zero, and a non-zero count hides "Your file is with us" for ever. A
@@ -131,11 +135,29 @@ await put("medical_certificate", null, "medical-large.png");
 // keeps the file complete AND leaves them in the review queue.
 // ⚑ The "Not added yet" state is still reachable — Clara Vidal has it.
 await put("revtc", null, "kbis.pdf");
-await put("urssaf_vigilance", null, "insurance.pdf");
+
+// ⚑ SWEEP AWAY ANY PAPER THE APP NO LONGER KNOWS. A document type can be dropped
+// (urssaf_vigilance was, 2026-09-09) but its rows do not vanish with it — and a row
+// whose type has no metadata renders in the reviewer as a card with no label. put()
+// only clears the types it files, so a dropped one would sit here for ever.
+{
+  const { DRIVER_DOC_TYPES } = await import("../../lib/account.ts");
+  const known = new Set<string>(DRIVER_DOC_TYPES);
+  const { data: mine } = await db.from("document").select("id,type,file_url")
+    .eq("owner_id", driverId!).eq("owner_type", "driver");
+  for (const r of mine ?? []) {
+    if (known.has(r.type as string)) continue;
+    if (r.file_url && !r.file_url.startsWith("seed://")) {
+      await db.storage.from("documents").remove([r.file_url]);
+    }
+    await db.from("document").delete().eq("id", r.id);
+    console.log(`  swept a dropped document type: ${r.type}`);
+  }
+}
 
 console.log(`
 Driver            ${FIRST} ${LAST}  ·  not verified  ·  Business / Sedan, based in Cannes
-Papers            10 filed and pending · VTC card has no back (still not a gap)
+Papers            ${filed} filed and pending · VTC card has no back (still not a gap)
 File              COMPLETE — nothing left for the Driver, so their Account hub
                   reads "Your file is with us", the message signed off 2026-09-07
 

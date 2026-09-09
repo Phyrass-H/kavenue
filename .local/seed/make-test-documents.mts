@@ -95,7 +95,13 @@ PX_PER_MM = 12          # ~300 dpi
 def mm(w_mm, h_mm, dpmm=PX_PER_MM):
     return int(w_mm * dpmm), int(h_mm * dpmm)
 ID1      = mm(85.6, 54)          # a card, landscape
-CARTE_GRISE = mm(254, 125, 8)    # the long strip, landscape
+# ⚑ PORTRAIT — 125 WIDE, 254 TALL. This said mm(254, 125) until 2026-09-09: the
+# same numbers, the wrong way round, so the specimen came out rotated 90° from the
+# real document while the comment six lines above correctly said "125 x 254".
+# The founder spotted it on sight — they hold one of these every day — and a code
+# reading had missed it twice, because the file contradicted itself and the prose
+# was the half that was right.
+CARTE_GRISE = mm(125, 254, 8)    # the long strip, PORTRAIT, folded in three
 A4       = mm(210, 297, 6)       # portrait
 
 def card(w, h, title, lines, bg=(238,242,248), tiny=False):

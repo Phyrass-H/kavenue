@@ -20,7 +20,6 @@ const ICONS: Record<DocumentType, typeof FileText> = {
   revtc: BookMarked,
   medical_certificate: Stethoscope,
   kbis: Building2,
-  urssaf_vigilance: ShieldCheck,
   rc_pro: Umbrella,
   vehicle_registration: FileText,
   insurance: Shield,

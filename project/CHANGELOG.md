@@ -5,6 +5,27 @@
 
 ---
 
+## 9 September 2026 — Two fixes to the papers screen
+
+**The carte grise was the wrong way round.** Our test copy was drawn lying on its side — 254 wide by
+125 tall, when the real document is 125 wide by 254 tall. You spotted it on sight; I'd read that code
+twice and missed it, because the file's own note said the right thing and only the line underneath
+was wrong. Fixed, and your test papers regenerated.
+
+**The URSSAF attestation de vigilance is gone.** You said nobody had ever asked you for one and
+renewing it every six months was too heavy for a drivers' platform. You were right, and it fits what
+Kavenue is: that duty belongs to whoever *hires* the driver, and Kavenue introduces, it doesn't hire.
+
+Only one had ever existed anywhere — on the test driver, filed minutes earlier. No real driver ever
+saw it. The company section now asks for **Kbis and RC Pro** only, and Théo's file is **9 papers**
+instead of 10.
+
+One thing I put in behind it: if we ever drop a document type again, the old ones **don't disappear
+by themselves** — they'd sit in your review queue as a card with no name on it. There's now an
+automatic check for that, and the test-driver reset cleans them up on its own.
+
+---
+
 ## 9 September 2026 — The app kept breaking, and it was the command's fault
 
 You couldn't get in: *"internal server error"*. Here's what was actually happening, because it was

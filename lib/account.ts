@@ -6,7 +6,7 @@ import type { DocumentType, DocumentStatus } from "@/lib/database.types";
 
 // ---------------------------------------------------------------------------
 // What a Driver has to file, in three piles (S48). The piles matter: a Driver
-// asked for "your papers" thinks of their licence, not of an URSSAF attestation,
+// asked for "your papers" thinks of their licence, not of a Kbis, and the
 // and the company pile only exists so Kavenue can pay them legally.
 // ---------------------------------------------------------------------------
 export type DocGroup = "personal" | "company" | "vehicle";
@@ -73,14 +73,6 @@ const DOC_META: Record<DocumentType, DocMeta> = {
     blurb: "Proof your company exists. An avis de situation SIRENE works too.",
     expiry: "none",
   },
-  urssaf_vigilance: {
-    group: "company",
-    label: "URSSAF attestation de vigilance",
-    blurb:
-      "Proof your social contributions are up to date. We’re legally required to hold a current one — it’s the single most common reason a payout stalls.",
-    expiry: "required",
-    renews: "every 6 months",
-  },
   rc_pro: {
     group: "company",
     label: "Professional liability (RC Pro)",
@@ -125,7 +117,6 @@ export const DRIVER_DOC_TYPES: readonly DocumentType[] = [
   "revtc",
   "medical_certificate",
   "kbis",
-  "urssaf_vigilance",
   "rc_pro",
   "vehicle_registration",
   "insurance",

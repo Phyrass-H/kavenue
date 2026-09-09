@@ -973,6 +973,46 @@ a no-show (which pays them the full fare), a Business cancelling on them — and
 negative**. The founder was asked whether penalties belong in Earnings and kept them: it's the only place a Driver sees
 what walking away cost.
 
+## D136 — The URSSAF attestation de vigilance is not Kavenue's paper (2026-09-09)
+
+**Dropped from the Driver's file entirely**, founder's call, on two grounds they gave in one line:
+*"no one ever asked me the attestation de vigilance and it would be too heavy to update every 6
+months I don't think it is meant for drivers platform."*
+
+⚑ **They are right on the market fact and it also fits Kavenue's own legal position.** The
+*obligation de vigilance* falls on the **donneur d'ordre** — the party contracting the service, for
+contracts of €5,000 or more excl. tax, renewed every six months
+([urssaf.fr](https://www.urssaf.fr/accueil/attestation-vigilance.html)). **Kavenue is an agent, never
+the principal** (hard rule #2), so the duty sits with whoever *is* the donneur d'ordre, not with the
+intermediary. D125-era notes called it *"a legal obligation on us"*; that reading is superseded here.
+⚑ Legal remains the founder's to own — this is recorded as their decision, not as advice.
+
+**What that cost, and why it was cheap:** exactly **one** row existed in the live `document` table —
+Théo Essai's, created by the test seed minutes earlier. No Driver had ever filed one.
+
+**How it was removed**
+- `lib/account.ts` — the `DOC_META` entry and the `DRIVER_DOC_TYPES` line. The company pile is now
+  Kbis + RC Pro.
+- `lib/database.types.ts` — taken out of the `DocumentType` union. ⚑ **The value REMAINS in the
+  Postgres enum** and always will: dropping one requires recreating the type, which hard rule #4
+  forbids. Leaving it out of the union is what makes the compiler refuse any new use.
+- `components/document-icon.tsx`, `app/(app)/settings/company/page.tsx` — icon and copy.
+- `.local/seed/seed-test-driver.mts` — no longer files one, **and now sweeps any document whose type
+  the app has dropped**, so `npm run test-driver` heals the state instead of preserving it.
+- **`handoff-check` +2 (68 → 70)** — "no filed document has a type the app dropped" and
+  "urssaf_vigilance is gone from the app's list". ⚑ The first went **red on its own** against Théo's
+  live row before the cleanup ran — Rule Zero satisfied without staging anything.
+
+⚑ **A DROPPED TYPE DOES NOT DROP ITS ROWS.** `put()` in the seeds only clears the types it files, so
+the orphan would have sat in the review queue for ever, rendering as a card with **no label** —
+`DOC_META[t]` undefined. That is the failure this removal could have shipped, and the tripwire is
+aimed squarely at it.
+
+⚑ **The seed's summary now COUNTS the papers** rather than asserting "10 filed", which was wrong the
+moment a type was removed.
+
+---
+
 ## Open decisions inherited from the spec (not ours to close — track only)
 From Doc 05 / Data Spine — values, not structure; don't let them block the build:
 - Commission split exact numbers (~12.5% Business / ~10% Driver, teaser).

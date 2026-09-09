@@ -65,8 +65,16 @@ export type DocumentType =
   | "company_registration"
   // Added 2026-07-28 (S48): a Driver is a company, and Kavenue is the donneur d'ordre.
   | "kbis"
-  | "urssaf_vigilance"
   | "medical_certificate";
+// ⚑ `urssaf_vigilance` IS STILL IN THE DATABASE ENUM AND IS DELIBERATELY NOT HERE.
+// Dropped from the app on 2026-09-09 (founder): nobody had ever been asked for one,
+// and re-collecting it every six months is a weight a Driver platform should not
+// carry. It also sits oddly with Kavenue's own position — the vigilance duty is on
+// the donneur d'ordre, and Kavenue is an intermediary, never the principal.
+// Postgres cannot drop an enum value without recreating the type, which hard rule #4
+// forbids, so the value stays in `document_type` unused and unwritten. Leaving it out
+// of this union is what makes the compiler refuse any new use of it.
+// ⚑ A row carrying it would now have no metadata — handoff-check asserts there are none.
 export type DocumentStatus = "pending" | "verified" | "rejected";
 // Two-sided papers (licence, VTC card) file one row per side; everything else is null.
 export type DocumentSide = "front" | "back";

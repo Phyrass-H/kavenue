@@ -117,7 +117,7 @@ export default async function CompanySettingsPage({
         </span>
         <span className="drow__t">
           <b>Company papers</b>
-          <span>Kbis, URSSAF attestation and RC Pro live in Documents</span>
+          <span>Kbis and RC Pro live in Documents</span>
         </span>
       </Link>
     </>

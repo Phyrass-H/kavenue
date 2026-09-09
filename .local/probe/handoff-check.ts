@@ -1142,6 +1142,34 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
       : `${tracked.length} tracked file(s) scanned`);
 }
 
+// ── every filed document is a type the app still knows (S77) ───────────────────
+// ⚑ WHY. `urssaf_vigilance` was dropped from the app on 2026-09-09 (founder: nobody
+// had ever been asked for one, and six-monthly renewal is too heavy for a Driver
+// platform). Postgres cannot drop an enum value without recreating the type, so it
+// is still IN `document_type` — just unused. A row carrying it, or any other type the
+// app no longer lists, has no metadata: `DOC_META[t]` is undefined and the reviewer
+// renders a card with no label. This is the tripwire for exactly that.
+console.log("\n── every filed document is a type the app knows (S77) ──");
+{
+  const { DRIVER_DOC_TYPES, BUSINESS_DOC_TYPES } = await import("../../lib/account.ts");
+  const known = new Set<string>([...DRIVER_DOC_TYPES, ...BUSINESS_DOC_TYPES]);
+  const { data: docRows, error: docErr } = await db.from("document").select("id,type");
+  if (docErr) {
+    t("could read the document table", false, `⚑ ${docErr.message}`);
+  } else {
+    const orphans = (docRows ?? []).filter((r) => !known.has(r.type as string));
+    const kinds = [...new Set(orphans.map((r) => r.type as string))];
+    t("no filed document has a type the app dropped",
+      orphans.length === 0,
+      orphans.length
+        ? `⚑ ${orphans.length} row(s) of type: ${kinds.join(", ")} — the reviewer will draw them with no label`
+        : `${docRows?.length ?? 0} document(s), ${known.size} known types`);
+    t("urssaf_vigilance is gone from the app's list",
+      !known.has("urssaf_vigilance"),
+      known.has("urssaf_vigilance") ? "⚑ it came back — the founder removed it 2026-09-09" : "");
+  }
+}
+
 // ── one dev server, on one port (S77) ──────────────────────────────────────────
 // ⚑ WHY THESE EXIST. On 2026-09-09 the founder lost access to the app entirely:
 // four dev servers were running at once, all writing into the single `.next`

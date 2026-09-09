@@ -9,6 +9,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isFixtureEmail } from "@/lib/fixture-email";
 
 // ⚑ THIS LINE PUBLISHED A WORKING PASSWORD. It was a plain-text literal in a
 // tracked file in a PUBLIC repo (committed 98a89ff), and the key a browser uses
@@ -58,6 +59,34 @@ export async function GET(request: Request) {
     return NextResponse.json(
       { error: "DEV_PASSWORD is not set. Add it to .env.local (and to the Vercel env if you use dev sign-in there)." },
       { status: 500 },
+    );
+  }
+
+  // ⚑⚑ ON THE LIVE SITE, FIXTURES ONLY — AND THIS IS THE ONE THING STANDING
+  // BETWEEN A LEAKED KEY AND admin@kavenue.fr.
+  //
+  // The founder wants one-click sign-in on the hosted app (2026-09-09), which is
+  // what the two buttons on /dev-login do: `?as=business` and `?as=driver`, both
+  // fixtures. Nothing about that changes. What is refused is `?email=` pointed at
+  // a REAL account.
+  //
+  // ⚑ WHY IT MATTERS MORE THAN THE KEY DOES. `ensureUser` below does not just
+  // sign in — it OVERWRITES the account's password with DEV_PASSWORD (S75 trap
+  // #1). So without this guard, one URL would both open `admin@kavenue.fr` AND
+  // silently change the founder's real admin password. This repo has already lost
+  // six real accounts to a published dev credential; the key now opens nothing
+  // that matters even if it leaks.
+  //
+  // ⚑ LOCAL IS UNTOUCHED. `hosted` is false on localhost, where pointing
+  // dev-login at any address is a normal part of testing.
+  if (hosted && !isFixtureEmail(email)) {
+    return NextResponse.json(
+      {
+        error:
+          "On the live site this only signs in test accounts (@pickup.local, @kavenue.test). " +
+          "For a real account, use the normal sign-in — it emails you a link.",
+      },
+      { status: 403 },
     );
   }
 

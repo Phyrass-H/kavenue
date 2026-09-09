@@ -1008,6 +1008,18 @@ Everything in the S66 table below, plus:
 - Notifications / payments / real auth / flight tracking — the founder's standing phase rule.
 
 ### 🧹 BEFORE REAL LAUNCH
+⚑⚑ **ROTATE `DEV_LOGIN_KEY` (and remove it, if hosted sign-in is no longer wanted).** The founder
+set it on 2026-09-09 to get one-click Business/Driver sign-in back on `*.kavenue.fr`, on the explicit
+plan *"we can use the current key and just before posting the app live we can generate a new one"*
+— and the value they are using has been pasted into a chat transcript, so treat it as public. ⚑ The
+blast radius is already small by design: since 2026-09-09 hosted dev-login refuses any address
+outside `.local` / `.test` (`lib/fixture-email.ts`), so the key opens fixtures and never
+`admin@kavenue.fr`. **But the moment there is a real Driver or a real hotel on the live site, a key
+that opens the demo accounts is a key that reads a real Pool.** Change it in Vercel → Settings →
+Environment Variables, or delete it and the door is gone.
+⚑ **`DEV_PASSWORD` in Vercel must equal the one in `.env.local`** — hosted sign-in REWRITES the
+fixture passwords (`ensureUser`), so a divergent value silently breaks every local probe.
+
 `.local/seed/bleach.mts --confirm` — ran 2026-08-26, removed 3 210 rows. ⚑ Read its KEEP list before running
 it again; that list is the whole safety of the thing. ⚑ It deletes the accounts 15 live probes sign in as —
 run `seed-probe-accounts.mts` straight after. ⚑ **And `.local/seed/backfill-business-places.mts`**, which is

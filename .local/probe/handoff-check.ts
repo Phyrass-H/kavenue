@@ -1142,6 +1142,39 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
       : `${tracked.length} tracked file(s) scanned`);
 }
 
+// ── one dev server, on one port (S77) ──────────────────────────────────────────
+// ⚑ WHY THESE EXIST. On 2026-09-09 the founder lost access to the app entirely:
+// four dev servers were running at once, all writing into the single `.next`
+// folder, each deleting what the others had just built. Every page 500'd with
+// `ENOENT .next/server/app/<route>/page.js` while the source was perfectly fine.
+// The cause was that `npm run test-app` did not stop an existing server, and
+// `next dev` silently moves to the next free port instead of refusing a busy one.
+// If any of these three drift back, the whole failure returns.
+console.log("\n── one dev server, on one port (S77) ──");
+{
+  const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+  const devScripts = ["dev", "dev:lan", "test-app"] as const;
+  const unguarded = devScripts.filter((s) => !/dev-guard\.mts/.test(pkg.scripts?.[s] ?? ""));
+  t("every dev script stops an existing server first (dev-guard)",
+    unguarded.length === 0,
+    unguarded.length ? `⚑ NOT guarded: ${unguarded.join(", ")}` : devScripts.join(", "));
+
+  // `next dev` with no -p drifts to 3001, 3002 … and open-app.mts only knows 3000.
+  const unpinned = devScripts.filter((s) => !/next dev[^&|]*-p 3000/.test(pkg.scripts?.[s] ?? ""));
+  t("every dev script pins port 3000, so next dev cannot drift",
+    unpinned.length === 0,
+    unpinned.length ? `⚑ NOT pinned: ${unpinned.join(", ")}` : devScripts.join(", "));
+
+  t("dev-guard.mts is present", fs.existsSync(".local/seed/dev-guard.mts"));
+
+  // It opened Safari onto a 500 once; "the port answers" is not "the app works".
+  const openApp = fs.existsSync(".local/seed/open-app.mts")
+    ? fs.readFileSync(".local/seed/open-app.mts", "utf8") : "";
+  t("open-app.mts waits for a 200, not for any response",
+    /status === 200/.test(openApp),
+    openApp ? "" : "⚑ .local/seed/open-app.mts is missing");
+}
+
 console.log("\n── the repo the handoff describes ──");
 const sh = (c: string) => { try { return execSync(c, { encoding: "utf8" }).trim(); } catch { return ""; } };
 t("git is clean", sh("git status --porcelain") === "", sh("git status --porcelain").split("\n")[0] ?? "");

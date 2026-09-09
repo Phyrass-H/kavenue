@@ -5,6 +5,65 @@
 
 ---
 
+## 2026-09-09 — SESSION 77 — one dev server, on one port · gate 64 → 68
+
+**The founder lost access to the app entirely. The cause was the command they were told to use.**
+
+### The outage
+Four `next dev` servers were running (3000, 3001, 3002, 3003), all writing into the single `.next`.
+`/dev-login` 500'd with `ENOENT .next/server/app/dev-login/page.js` — the file one server had built,
+another had just deleted. Root `/` on :3000 returned a 404 error page while :3001–:3003 answered 307.
+
+⚑ **`npm run test-app` produced this by itself, in two runs.** `next dev` does not refuse a busy
+port — it moves quietly to the next one — and `.local/seed/open-app.mts` hard-coded `localhost:3000`
+*and* accepted any status at all from its readiness poll. So the second run left the first server
+alive, started a second on 3001, and opened Safari on the **old, now-broken** server.
+
+### Shipped
+- **`.local/seed/dev-guard.mts`** — runs before every dev server. Stops any Next dev server whose
+  **cwd is this project** (on any port), waits for 3000 to clear, and removes `.next` if it stopped
+  anything, because a folder two servers were writing to cannot be trusted.
+  ⚑ **It refuses rather than guessing:** anything on 3000 that is *not* ours stops the script with
+  the PID and command line printed, and is left alone. Proven with a Python squatter on 3000 — exit 1,
+  process untouched.
+- **`package.json`** — `dev`, `dev:lan`, `test-app` all run the guard first and all pin `-p 3000`.
+- **`open-app.mts`** — waits for a **200**, not for any response; prints the `rm -rf .next` recovery
+  line instead of opening Safari onto a 500.
+- **`handoff-check.ts` +4 (64 → 68)** — the three scripts stay guarded, stay pinned, the guard exists,
+  and open-app still demands a 200. All four **Rule Zero'd**: reverting `test-app` to its old body
+  turned three STALE and restoring turned them green again.
+
+### Verification
+`npx tsc --noEmit` 0 · `npx vitest run` **989 passing / 43 files** · guard exercised against a
+squatter (refuses), 3 live servers (stops all, clears `.next`), 2 servers (honest count), a clean
+start, and a seeded conflict-copy folder. **`npm run test-app` run twice back to back** — one
+listener, `/dev-login` 200, `/login` 200, `/admin/drivers/[id]` compiles (1039 modules), zero ENOENT.
+
+### ⚑⚑ THE SECOND CAUSE, NOT YET FIXED — THE PROJECT IS INSIDE iCLOUD DRIVE
+`~/Documents/02_Cactus` and `~/Library/Mobile Documents/com~apple~CloudDocs/Documents/02_Cactus` are
+**the same inode**. The repo — `node_modules` (415 MB) and `.next` (81 MB) included — is in the iCloud
+container, with **no** `.nosync` exclusion, and `com.apple.bird` has **`optimize-storage = 1`**, so
+iCloud may evict local copies.
+
+⚑ **`realpath` DOES NOT REVEAL THIS.** With Desktop & Documents sync on, `~/Documents` is a firmlink,
+not a symlink; the path reads as an ordinary local path. The inode comparison is the only reliable
+test, and `dev-guard.mts` now performs it and warns.
+
+**Evidence it is already acting on the build folder:** empty `server 2`, `static 2`, `types 2`
+directories (mode 700, unlike Next's 755) appeared inside a freshly created `.next` — iCloud conflict
+copies. Next.js never writes such names.
+
+⚑ **Do not overstate it: the four-server clobbering fully explains today's outage on its own.** iCloud
+is an independent, live hazard that has not yet been shown to have caused a specific failure.
+**Left untouched — moving the founder's folders is their decision, and it is on their desk.**
+
+### Next
+- The founder's actual queue is unchanged: **improve the document verification page**. They were asked
+  which faults they hit and had not answered when the app broke; the question stands.
+- The iCloud decision above.
+
+---
+
 ## 2026-09-09 — SESSION 76 (close) — `main` = `759cbde` · 989 tests · gate 64
 
 **The reviewer's polish, and an hour lost to a question nobody asked.**

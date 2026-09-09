@@ -26,6 +26,20 @@ how the current viewer got signed off.
 specimen papers back to pending, verification off. Reviewing is one-way, so without this a second
 pass is impossible.
 
+⛑ **S77 (2026-09-09) interrupted this before it started: the founder could not open the app at all.**
+Four `next dev` servers were running at once, overwriting each other's `.next`, and every page 500'd
+with `ENOENT`. **Fixed — `npm run test-app` now stops any running server first and pins port 3000**
+(`.local/seed/dev-guard.mts`, gate 64 → 68). The founder's list of faults on the verification page was
+never given: **the question above still stands, and is still the job.**
+
+⛑⛑ **AND THE PROJECT LIVES INSIDE iCLOUD DRIVE** — `~/Documents/02_Cactus` is the *same inode* as the
+one in `~/Library/Mobile Documents/com~apple~CloudDocs/`. 415 MB of `node_modules` and 81 MB of
+`.next` are synced, with `optimize-storage = 1` (iCloud may evict local copies). Empty `server 2` /
+`static 2` folders — iCloud conflict copies — were found inside a fresh `.next`. ⛑ `realpath` does
+**not** reveal this: `~/Documents` is a firmlink, not a symlink, so the path looks perfectly local.
+`dev-guard.mts` warns about it every run. **Untouched — moving the founder's folders is their call,
+and the decision is on their desk.**
+
 ⚑ **Known and already recorded, so do not "discover" them as new:**
 - PDFs use the browser's own zoom, deliberately — a CSS transform blurs a PDF instead of magnifying
   it. If the founder dislikes it, the fix is a real PDF renderer, not a transform.

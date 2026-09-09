@@ -5,6 +5,42 @@
 
 ---
 
+## 9 September 2026 — The app kept breaking, and it was the command's fault
+
+You couldn't get in: *"internal server error"*. Here's what was actually happening, because it was
+never anything you did wrong.
+
+**The app can only have one server running at a time.** They all write their compiled pages into the
+same folder, so a second one starts deleting what the first just built. You end up with pages that
+500 while the code behind them is perfectly fine.
+
+You had **four** running. Not because you did anything odd — because `npm run test-app` did this to
+itself. Run it a second time and it left the first server going, quietly started a new one on a
+different port, and pointed Safari at the old broken one. Two runs was all it took.
+
+**Fixed.** `npm run test-app` now stops anything already running before it starts, always uses the
+same address, and clears out the half-written files. Run it ten times in a row if you like — you get
+one clean app every time. It also won't open Safari onto a broken page any more: it waits until the
+sign-in page genuinely works, and tells you in plain words if it doesn't.
+
+It will never touch a program that isn't ours. If something else is using the address, it stops and
+shows you what, rather than closing something of yours.
+
+### ⚑ One thing I found that needs your decision
+
+**The whole Kavenue folder is inside iCloud Drive**, and iCloud is syncing it — about **500 MB** of
+build files and libraries, constantly uploading and downloading while the app is writing to them. I
+found iCloud's own duplicate folders sitting inside the app's build directory.
+
+Your Mac is also set to *"Optimise Mac Storage"*, which means iCloud is allowed to **delete local
+copies of files** when space runs low. If it ever does that to this project mid-work, you get exactly
+the kind of error you saw today, and no obvious reason for it.
+
+This is worth twenty minutes to fix properly. I haven't touched it — moving your project folder is
+your call, not mine. Ask me and I'll walk you through it.
+
+---
+
 ## 9 September 2026 — Testing the app, made simple
 
 You said it plainly: *"I don't use my phone, all the tests are on the Mac."* That was the answer to a

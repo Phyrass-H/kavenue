@@ -4,15 +4,15 @@
   "private": true,
   "description": "Kavenue — Driver PWA (B2B VTC booking marketplace). V1 vertical slice.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "npx tsx .local/seed/dev-guard.mts && next dev -p 3000",
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "test-driver": "npx tsx .local/seed/seed-test-driver.mts",
-    "dev:lan": "npx tsx .local/seed/where.mts && next dev -H 0.0.0.0",
-    "test-app": "npx tsx .local/seed/open-app.mts & next dev"
+    "dev:lan": "npx tsx .local/seed/dev-guard.mts && npx tsx .local/seed/where.mts && next dev -H 0.0.0.0 -p 3000",
+    "test-app": "npx tsx .local/seed/dev-guard.mts && (npx tsx .local/seed/open-app.mts &) && next dev -p 3000"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.0",

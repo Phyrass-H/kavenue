@@ -5,6 +5,35 @@
 
 ---
 
+## 9 September 2026 — I got that block wrong, and had it checked
+
+I shipped the "Will trips reach them?" box and then had it reviewed. **Two of its lines were
+overstating things** — on a screen whose entire job is to tell you the truth about who sees what.
+
+**"Their car is Business · Van — only trips asking for that reach them."** Wrong. The Pool insists on
+the *class* (Business, Eco, First) but only checks sedan-vs-van **when the trip actually asks for
+one** — and "any" is the default on your dispatch form. So most Business trips **do** reach a
+Business van. My line said they couldn't.
+
+**"driving up to 40 km for a pickup."** Also wrong, and this one was there before I arrived. A trip
+reaches a driver when **either end** is in range. A Marseille → Nice job is already in a Nice
+driver's list, because it *finishes* near them. Your drivers are told this correctly on their own
+screen; the admin screen was telling you something narrower.
+
+**And one rule was missing entirely** — a trip can name a specific car, and that hides it from
+everyone else. Now listed.
+
+The box now has one line per rule, in the Pool's own order, and nothing else.
+
+⚑ **One thing the review got wrong, and I checked before believing it.** It said luggage runs are
+always Business, so a First van would never see one. The live data says otherwise — 7 luggage runs,
+Business **and** First. I left that line alone.
+
+There's now an automatic check that the box still matches the Pool: **add a new rule to who-sees-what
+and it goes red**, so nobody can quietly leave this screen lying again.
+
+---
+
 ## 9 September 2026 — "Can the Pool reach them?" now asks one honest question
 
 You said the phrase was confusing, sitting above papers you hadn't approved yet. You were right, and

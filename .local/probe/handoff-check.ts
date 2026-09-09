@@ -1142,6 +1142,44 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
       : `${tracked.length} tracked file(s) scanned`);
 }
 
+// ── the admin "Will trips reach them?" block still matches the Pool (S77) ──────
+// ⚑ WHY. That block's whole job is to state the Pool's filter and nothing else, and
+// the first version of it shipped on 2026-09-09 overstating two rules and omitting a
+// third — within the hour. It is prose describing code in another file, which is the
+// shape that rots silently. This asserts the Pool still applies exactly the rules the
+// block describes: if someone adds a fourth hide rule, this goes red and whoever
+// added it has to say so on the screen.
+console.log("\n── the admin reach block still matches the Pool (S77) ──");
+{
+  const pool = fs.readFileSync("app/(app)/pool/page.tsx", "utf8");
+  const admin = fs.readFileSync("app/admin/drivers/[id]/page.tsx", "utf8");
+
+  // The rules, as they appear in the Pool's own filter.
+  const RULES: [string, RegExp][] = [
+    ["tier is filtered in SQL, exactly", /query\.eq\("category", vehicle\.category\)/],
+    ["radius accepts EITHER end", /withinRadius\([^)]*pickup[^)]*\)\s*\|\|\s*[\s\S]{0,80}?withinRadius\([^)]*dropoff/],
+    ["luggage-only needs the opt-in", /m\.luggage_only && !driver\.accepts_luggage_runs/],
+    ["body is checked ONLY when demanded", /m\.required_body_type && m\.required_body_type !== vehicle\.body_type/],
+    ["a named car must match", /m\.required_make && m\.required_model/],
+  ];
+  for (const [says, re] of RULES) t(`Pool: ${says}`, re.test(pool));
+
+  // ⚑ THE COUNT IS THE POINT. A new `return false` in that filter is a new way for a
+  // trip to be hidden, and the admin block would go on claiming to be complete.
+  const filter = pool.slice(pool.indexOf("pooled.filter("), pool.indexOf("// What each of these banks"));
+  const hides = (filter.match(/return false/g) ?? []).length;
+  t("the Pool has exactly 4 hide rules — add one and the admin block must say so",
+    hides === 4, `${hides} \`return false\` in the filter`);
+
+  // ⚑ THE TWO SENTENCES THE FIRST VERSION GOT WRONG — asserted POSITIVELY only.
+  // A "does it still say the wrong thing" check cannot work here: the block's own
+  // comment quotes the old wording on purpose, so any search for it always hits.
+  t("the admin lede says pickup OR drop-off, not just pickup",
+    /pickup <strong>or<\/strong> its drop-off/.test(admin));
+  t("the admin class row states the TIER, not tier+body fused",
+    /Only \{categoryLabel\(car\.category\)\} trips reach them/.test(admin));
+}
+
 // ── every filed document is a type the app still knows (S77) ───────────────────
 // ⚑ WHY. `urssaf_vigilance` was dropped from the app on 2026-09-09 (founder: nobody
 // had ever been asked for one, and six-monthly renewal is too heavy for a Driver

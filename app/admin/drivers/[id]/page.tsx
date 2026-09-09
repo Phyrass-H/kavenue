@@ -16,7 +16,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTripList } from "@/components/admin-trip-list";
 import { pageWindow, pageNote } from "@/lib/admin-list";
-import { serviceClassLabel } from "@/lib/format";
+import { serviceClassLabel, categoryLabel } from "@/lib/format";
 import { genderSays } from "@/lib/gender";
 import { getLatestDocuments } from "@/lib/documents";
 import { DRIVER_DOC_TYPES } from "@/lib/account";
@@ -106,42 +106,80 @@ export default async function AdminDriverPage({
             whether they may ACCEPT, which is a different question.
           · AND IT PRE-JUDGED THE PAPERS. The row sat ABOVE the document review, so
             the screen delivered a verdict before the reviewer had looked at the
-            evidence — and it was the third place on one page to say the same thing
-            (the header pill, here, and the review block that owns the button).
+            evidence — and it was the third place on one page to say the same thing.
 
-          What is left is exactly the Pool's own filter: still open, class matches,
-          and the pickup or dropoff inside base + radius (lib/eligibility.ts). */}
+          ⚑⚑ EVERY ROW BELOW IS ONE RULE FROM app/(app)/pool/page.tsx:117-151, IN ITS
+          ORDER, AND SAYS NO MORE THAN THE RULE DOES. The first version of this block
+          shipped on 2026-09-09 and overstated two of them within the hour:
+            · it read "their car is Business · Van — only trips asking for that reach
+              them", fusing tier and body. The Pool filters TIER exactly (:117) and
+              body ONLY when the trip demands one (:143). "Any" is the dispatch form's
+              default, so most Business trips reach a Business van — the screen said
+              they could not.
+            · the lede said "up to N km for a pickup". The Pool matches the pickup OR
+              the drop-off (:133-135), and the Driver's own screen already says so
+              (app/(app)/settings/area/page.tsx:69). The admin was told the narrower
+              rule; a Marseille → Nice trip is in a Nice Driver's Pool today.
+          A row here is a claim about what the Pool does. If it cannot be traced to a
+          line in that filter, it does not belong. */}
       <section className="adm-sect">
         <h2 className="adm-sect__h">Will trips reach them?</h2>
-        {based ? (
-          <p className="adm-lede">
-            Yes — based in {driver.base_label ?? "a set location"}, driving up to{" "}
-            {driver.service_radius_km ?? 50} km for a pickup.
+        {!car ? (
+          <p className="adm-lede adm-lede--bad">
+            No — there is no car on file, and the Pool matches on the car. Nothing can reach them.
           </p>
-        ) : (
+        ) : !based ? (
           <p className="adm-lede adm-lede--bad">
             No — they have never set a base, so their Pool is empty and always has been. They have
             never been offered a trip.
           </p>
+        ) : (
+          <p className="adm-lede">
+            Yes — based in {driver.base_label ?? "a set location"}. A trip reaches them when its
+            pickup <strong>or</strong> its drop-off is within {driver.service_radius_km ?? 50} km.
+          </p>
         )}
-        {/* ⚑ THE CLASS WAS MISSING, AND IT DECIDES AS MUCH AS THE BASE. accept_mission
-            requires the car's category to equal the trip's exactly, so a Driver with
-            a perfectly good base still never sees a First trip if they drive a
-            Business car — and until now this screen gave no way to know that. */}
-        <div className={`adm-check${car ? "" : " adm-check--bad"}`}>
-          <span className="adm-check__ic" aria-hidden="true">{car ? "✓" : "×"}</span>
-          <span>
-            {car
-              ? `Their car is ${serviceClassLabel(car.category, car.body_type)} — only trips asking for that reach them`
-              : "No car on file — no trip can match them"}
-          </span>
-          <span className="adm-check__d">
-            {car ? [car.make, car.model].filter(Boolean).join(" ") : ""}
-          </span>
-        </div>
+
+        {car && (
+          <>
+            {/* ⚑ TIER ONLY. `query.eq("category", vehicle.category)` — the one hard
+                class filter, applied in SQL before anything else. */}
+            <div className="adm-check">
+              <span className="adm-check__ic" aria-hidden="true">✓</span>
+              <span>Only {categoryLabel(car.category)} trips reach them</span>
+              <span className="adm-check__d">
+                {[car.make, car.model].filter(Boolean).join(" ") ||
+                  serviceClassLabel(car.category, car.body_type)}
+              </span>
+            </div>
+
+            {/* ⚑ CONDITIONAL, NOT A GATE. Body is checked only when the trip names
+                one; a trip that asks for no particular body reaches both. Saying it
+                the other way round is what the first version got wrong. */}
+            <div className="adm-check adm-check--dead">
+              <span className="adm-check__ic" aria-hidden="true">–</span>
+              <span>
+                Of those, one that asks specifically for a{" "}
+                {car.body_type === "van" ? "Sedan" : "Van"} is hidden — theirs is a{" "}
+                {car.body_type === "van" ? "Van" : "Sedan"}. Trips that ask for no particular body
+                still reach them.
+              </span>
+            </div>
+
+            {/* ⚑ THE THIRD HIDE RULE (pool/page.tsx:146-150), and it was missing while
+                the comment above claimed this block was the whole filter. It fires
+                only when a Dispatcher names a car; `carMatches` is tolerant because
+                the Driver types their make free-text. */}
+            <div className="adm-check adm-check--dead">
+              <span className="adm-check__ic" aria-hidden="true">–</span>
+              <span>And one that names a specific car reaches them only if theirs matches</span>
+            </div>
+          </>
+        )}
+
         {/* ⚑ THE OTHER CARS ARE INVISIBLE TO THE POOL, so they are named here rather
-            than left to look like they count. getDriverContext takes one car and
-            only one; a Driver who added a second is matched on their first. */}
+            than left to look like they count. getDriverContext takes one car and only
+            one; a Driver who added a second is matched on their first. */}
         {fleet.length > 1 && (
           <div className="adm-check adm-check--dead">
             <span className="adm-check__ic" aria-hidden="true">–</span>
@@ -154,14 +192,18 @@ export default async function AdminDriverPage({
             </span>
           </div>
         )}
-        {/* ⚑ A REAL FILTER THAT WAS HIDING AS A FOOTNOTE. Until now this was the
-            trailing detail string on the `verified` row — "takes luggage runs" —
-            beside a fact it has nothing to do with. It is its own rule: the Pool
-            drops a luggage-only run for a Driver who has not opted in
-            (app/(app)/pool/page.tsx:141, lib/eligibility.ts:244).
-            ⚑ ONLY FOR A VAN. Opting in is offered to van Drivers alone
-            (app/onboarding/actions.ts:47), so for a sedan this row would be noise
-            about a choice they were never given. */}
+
+        {/* ⚑ A REAL FILTER THAT WAS HIDING AS A FOOTNOTE — until 2026-09-09 this was
+            the trailing detail string on the `verified` row, beside a fact it has
+            nothing to do with. The Pool drops a luggage-only run for a Driver who has
+            not opted in (app/(app)/pool/page.tsx:141).
+            ⚑ ONLY FOR A VAN, because only a van Driver is offered the choice
+            (app/onboarding/actions.ts:47).
+            ⚑ AND THE TIER STILL APPLIES ON TOP. pool/page.tsx:139 claims luggage runs
+            are "category=business"; the live data says otherwise — 7 luggage runs,
+            categories business AND luxury, required_body_type null on every one
+            (measured 2026-09-09). So the honest sentence names no tier, and that
+            stale comment in the Pool is worth correcting separately. */}
         {car?.body_type === "van" && (
           <div className={`adm-check${driver.accepts_luggage_runs ? "" : " adm-check--dead"}`}>
             <span className="adm-check__ic" aria-hidden="true">
@@ -169,14 +211,14 @@ export default async function AdminDriverPage({
             </span>
             <span>
               {driver.accepts_luggage_runs
-                ? "Takes luggage-only runs — those reach them too"
+                ? `Luggage-only runs reach them too, when they are ${categoryLabel(car.category)}`
                 : "Hasn’t opted into luggage-only runs — those never reach them"}
             </span>
           </div>
         )}
+
         {/* ⚑ Named, not hidden. Collected, shown to the Driver, and never consulted
-            when Kavenue decides who sees a trip. Leaving it off would let a reader
-            assume otherwise. */}
+            when Kavenue decides who sees a trip. */}
         <div className="adm-check adm-check--dead">
           <span className="adm-check__ic" aria-hidden="true">–</span>
           <span>Towns they say they work — never consulted</span>

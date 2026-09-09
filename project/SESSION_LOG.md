@@ -39,6 +39,36 @@ squatter (refuses), 3 live servers (stops all, clears `.next`), 2 servers (hones
 start, and a seeded conflict-copy folder. **`npm run test-app` run twice back to back** — one
 listener, `/dev-login` 200, `/login` 200, `/admin/drivers/[id]` compiles (1039 modules), zero ENOENT.
 
+### ⚑⚑ THE REVIEW FOUND WHAT THE HAND-WRITTEN TESTS COULD NOT
+A 27-agent adversarial review (three lenses, each finding verified by refutation attempts) confirmed
+**six verdicts reducing to three defects** in `dev-guard.mts` — all in code that had passed a full
+manual test pass, because the tests only walked the paths the author already had in mind.
+
+1. ⚑⚑ **THE WRONG KILL.** `isOurDevServer` tested `/next-server|next dev|[/ ]next\b/` — *the word
+   "next" anywhere in a command line*. With cwd as the only other gate, and the founder running
+   everything from the project folder, that included `npm run build`, `vim next.config.ts`,
+   `tail -f next.log` and `grep -rn next lib/`. A verifier reproduced it live: a decoy `tail` landed
+   in the would-SIGTERM list. Closed by `lib`-style extraction to `.local/seed/next-process.mts`
+   with **10 tests**, every "must not match" case being a command the first version killed.
+2. ⚑ **THE WAIT WATCHED THE WRONG THING.** Grace period, SIGKILL escalation and the final gate were
+   all keyed to `listenersOn(3000)`. A server on 3001 that ignored SIGTERM was reported stopped and
+   went on sharing `.next` — **the original bug, surviving its own fix.** Now keyed to the PIDs.
+3. ⚑ **PID REUSE.** `stillOurs()` asked `kill(pid, 0)` — liveness, not identity. A recycled PID in
+   the SIGTERM→SIGKILL gap would have been force-killed by a script whose header promises never to
+   touch a stranger's program. Now re-derives ownership from command + cwd.
+
+Plus: `.next` removal unguarded against EPERM (live risk on an iCloud volume); the conflict-copy scan
+running *after* the folder was deleted; `servers.length || ours.length` restoring the over-count; the
+iCloud twin test comparing inode without device.
+
+⚑ **A TEST THAT CANNOT REACH ITS BRANCH IS NOT A PASS.** Freezing a server with SIGSTOP to simulate
+"will not die" proves nothing — SIGKILL cannot be blocked, so the guard legitimately succeeds. The
+refusal branch was proven instead by injecting a survivor PID into a copy of the script: exit 1,
+naming the PID and the exact `kill -9`. Same trap as S75/S76, now four sessions running.
+
+⚑ **`lsof … | grep -i node` COUNTS THE HEADER** — lsof's column titles end "NODE NAME". Several
+listener counts in this session read one too high. Use `awk 'NR>1 && $1 ~ /node/'`.
+
 ### ⚑⚑ THE SECOND CAUSE, NOT YET FIXED — THE PROJECT IS INSIDE iCLOUD DRIVE
 `~/Documents/02_Cactus` and `~/Library/Mobile Documents/com~apple~CloudDocs/Documents/02_Cactus` are
 **the same inode**. The repo — `node_modules` (415 MB) and `.next` (81 MB) included — is in the iCloud

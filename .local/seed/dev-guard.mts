@@ -74,7 +74,11 @@ function listenersOn(port: number): number[] {
 
 /** Every Next dev server for this project, on any port. */
 function ourDevServers(): number[] {
-  const out = sh("pgrep", ["-f", "next"]);
+  // ⚑ NARROW HERE TOO, NOT ONLY IN THE FILTER. `pgrep -f next` hands back every
+  // process with the word anywhere in its arguments; the filter below then has to be
+  // right about every one of them. Asking the OS a smaller question means a mistake in
+  // the filter has less to be wrong about — defence in depth, not a second opinion.
+  const out = sh("pgrep", ["-f", "next-server|next dev"]);
   const self = process.pid;
   return out
     .split("\n")
@@ -148,7 +152,13 @@ if (ours.length > 0) {
   // ⚑ WAIT ON THE SERVERS, NOT ON PORT 3000. Keying the grace period to one port let
   // a server on 3001 that ignored SIGTERM be reported as stopped — and it would go on
   // writing into the same `.next`, which is the entire bug this file exists to kill.
-  const stillOurs = () => ours.filter((pid) => { try { process.kill(pid, 0); return true; } catch { return false; } });
+  // ⚑ IDENTITY, NOT LIVENESS. Asking only "does this pid still exist" (`kill(pid, 0)`)
+  // trusts a number the OS is free to hand to somebody else the moment the server
+  // exits. Between the SIGTERM and the SIGKILL below that number could belong to a
+  // fresh, unrelated process — and this script would force-kill it while promising in
+  // its own header never to touch a stranger's program. Re-deriving ownership from the
+  // command line and the working directory costs two `ps` calls and closes it.
+  const stillOurs = () => ours.filter((pid) => isOurDevServer(pid));
   for (let i = 0; i < 20 && stillOurs().length > 0; i++) await sleep(150);
 
   // ⚑ SIGKILL ONLY WHAT WE ALREADY IDENTIFIED AS OURS. The first version force-killed
@@ -181,7 +191,23 @@ if (ours.length > 0) {
   }
 }
 
-// ── 3 · the port really is free ─────────────────────────────────────────────────
+// ── 3 · the port really is free, and nothing of ours survived on any port ───────
+// ⚑ BOTH HALVES. Checking only port 3000 let a server on 3001 that ignored SIGTERM be
+// reported as stopped — and it would go straight back to sharing `.next` with the
+// server about to start, which is the whole bug. Refusing is right here: a second
+// server is the failure this file exists to prevent, so it must not start one.
+const survivors = ourDevServers();
+if (survivors.length > 0) {
+  console.log(`
+  A dev server of this project would not stop (pid ${survivors.join(", ")}).
+  Nothing has been started — a second server would share the same .next and break
+  the app, which is exactly what this guard exists to prevent. Quit it with:
+
+      kill -9 ${survivors.join(" ")}
+`);
+  process.exit(1);
+}
+
 if (listenersOn(PORT).length > 0) {
   console.log(`
   Port ${PORT} is still busy after trying to clear it. Nothing has been started.

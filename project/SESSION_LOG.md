@@ -5,6 +5,93 @@
 
 ---
 
+## 2026-09-09 — SESSION 76 (second half) — `main` = `cabd26d` · 971 → 982 tests · gate 62 → 64 · **1 migration, applied**
+
+**`driver.verified` became a door, and the document reviewer became usable. Four pushes, each
+CI-green on a branch before `main`.**
+
+| | |
+|---|---|
+| `main` | `cabd26d` |
+| tests | 971 → **982** |
+| `handoff-check` | 62 → **64**, and **fully green** — the "seeded live trips" red that stood for three sessions is cleared |
+| migration | **`2026-09-07_verified_gates_accept.sql`, pasted by the founder and verified live** |
+| new probes | `.local/probe/verified-gate.mts` (11) |
+| new seeds | `.local/seed/make-test-documents.mts` · `.local/seed/seed-test-driver.mts` (`npm run test-driver`) |
+
+### What shipped
+1. **`8d2a413`** — the app side of the verified gate, deliberately **ahead of the SQL**, so a refused
+   Driver never sees the generic "Please try again".
+2. **`8cd05e2`** — the gate verified live, and a probe caught reading a **superseded migration file**.
+3. **`8794112`** — the reviewer: thumbnails, a viewer, and the server-side no-file refusal ([[d135]]).
+4. **`f2b3be6`** — Théo Essai, a re-runnable test Driver.
+5. **`cabd26d`** — grab-and-drag once zoomed.
+
+### ⚑⚑ The security hole, found because the founder asked for the gate
+`p_driver_self_update` (`docs/kavenue_schema.sql:285`) was `for update using (auth_user_id =
+auth.uid())` — **which row**, never **which columns**. Measured live as an ordinary Driver:
+`PATCH driver.verified -> true` returned **200, rows=1**. Harmless while the flag decided nothing;
+the moment it is a door, any Driver lets themselves in. `reliability_marks` was self-writable too.
+§ 3 of the migration revokes UPDATE at the **table** level (a column-level revoke does not bite
+against a table-level grant — S72 lost three migrations to exactly that) **and** drops the policy, so
+two things must fail, not one. Nothing in the app lost anything: every write to `driver` already goes
+through the service role.
+
+### ⚑⚑ Gating accept alone would have been worse than nothing
+`place_hold` carries the same § B guards and takes a trip off the market for **everyone** for 15 s.
+Gate only `accept_mission` and an unverified Driver can freeze every trip in the Pool while never
+being able to take one. `app/(app)/missions/[id]/actions.ts:22-23` states the invariant in capitals.
+
+### ⚑ Traps from this half — every one cost real time
+1. ⚑⚑ **A PROBE THAT FAILS BEFORE A MIGRATION MUST NOT DO DAMAGE WHEN IT FAILS.** The first
+   `verified-gate.mts` ran the accept immediately; without the gate it was not refused, it
+   **succeeded**, and took a real pooled trip (Cannes → Valberg) out of the Pool and confirmed it to
+   a fixture Driver. Restored column-by-column against an untouched sibling. It now asks a **harmless
+   canary** first and refuses to touch a trip until it can see the gate.
+2. ⚑⚑ **THE VERIFIED CHECK MUST SIT AFTER `select * into v_driver`.** One line higher, `v_driver` is
+   an unpopulated record, `v_driver.verified` is NULL, `not NULL` is NULL — and plpgsql's
+   `if NULL then` **does not fire**. The migration would run perfectly and refuse nobody, for ever.
+3. ⚑ **A PROBE HAD BEEN READING A DEAD FILE SINCE AUGUST.** `eligibility-live.mts` checked
+   `accept_mission`'s raises against `2026-08-22_accepted_fare.sql`, superseded by 31i and again by
+   the new one. Every green about the accept path was about a body the database had not run in weeks.
+4. ⚑ **"IS THERE A FILE" IS ASKED BEFORE "WHAT KIND OF FILE"** — shipped wrong twice in one
+   afternoon; see [[d135]].
+5. ⚑ **`lib/documents.ts` IS `server-only`**, so a client component importing one function from it
+   fails the build. `fileKind` lives in `lib/document-kind.ts` for that reason alone.
+6. ⚑ **PANNING BY `scrollLeft` DOES NOTHING against a CSS transform** — a transform does not change
+   the layout box, so the scroll container still thinks the image fits.
+7. ⚑⚑ **A HIDDEN BROWSER PANE DOES NOT LAY THE PAGE OUT.** Three attempts to verify the pan read
+   `offsetWidth: 0` and `stage: 36×36` and looked exactly like a broken feature.
+   `window.innerWidth` was **0**. Nothing layout-dependent is testable until `resize_window` gives
+   the tab a real viewport — **and a zero from a hidden pane is indistinguishable from a bug**.
+8. ⚑ **`npm run build` OVERWRITES THE DEV SERVER'S `.next`**, and the running dev server then throws
+   `Cannot find module './vendor-chunks/@supabase.js'` on unrelated pages. Not a code fault: stop the
+   server, `rm -rf .next`, restart.
+9. ⚑ **`tsx` IS NOT A DEPENDENCY** of this project — it is fetched on demand, so a package.json
+   script must say `npx tsx`, never bare `tsx`.
+
+### ⚑ The founder's own findings, both real
+- **They approved a licence they could not see** — the bug behind [[d135]].
+- **`https://driver.kavenue.fr/dev-login?key=…` 404s.** ⚑ **Correct behaviour, and nothing to fix.**
+  `DEV_LOGIN_KEY` is **not set in Vercel** (5 env vars total; `DEV_PASSWORD` is absent too), so
+  `!process.env.DEV_LOGIN_KEY` is always true and the page 404s **whatever key is in the URL**. The
+  subdomains themselves are healthy (307 on root). ⚑ **Advised against fitting that door**: it means
+  a permanent password-free master sign-in on production, the shape of thing that already cost this
+  project six real accounts.
+
+### Still open
+- **Job 2 — the Business side of document review.** Founder deferred it twice; still queued.
+- **45 documents on the nine older Drivers point at files that do not exist.** ⚑ **Do not fix** —
+  founder, 2026-09-09: the demo Drivers and Businesses are about to be deleted for a fresh test.
+- **A suspension leaves no record.** `setDriverVerified` writes no event, no timestamp, no actor —
+  and now that the flag refuses work, flipping it off takes someone's living away. `BACKLOG § O`.
+- **Expiry nudges: build, don't buy.** A date subtraction on a column that already exists; the only
+  missing piece is notifications, which are deferred. **Document scanning: buy, later** — and the
+  higher-value check is probably an official register lookup, not OCR. Not researched with sources
+  yet; do not name vendors from memory.
+
+---
+
 ## 2026-09-07 — SESSION 76 — `main` = `afe7766` · 937 → 971 tests · gate 58 → 62 · no migration
 
 **The two jobs the founder picked off S75's open list, plus the hazard they turned up. Three pushes,

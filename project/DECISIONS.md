@@ -3644,6 +3644,69 @@ would have swapped one confident falsehood for another. A refusal now withholds 
 design** — one tracked feature pointed at `mission` and it would have published *"no Driver has ever
 filed a single document"* over 47 live documents.
 
+### D135 — Missing outranks kind, and a paper you cannot see cannot be approved (2026-09-09, S76)
+
+**The founder approved a driving licence they had no way to look at.** The review screen showed
+*"no file"* where the View link belongs — the seed script had written `seed://…` paths that were
+never uploaded — and the Approve button worked anyway. On the one check that carries a €300,000
+fine (`docs/01:24`).
+
+| decision | why |
+|---|---|
+| The refusal is **server-side**, in `approveDocument` | A disabled button is a courtesy. A stale tab, a second device or a re-render race all get past it; nothing gets past the action. **Proven** by re-enabling the button in the DOM and submitting — the server refused |
+| **Reject stays available** on a paper with no file | "Send it again" is exactly the right verdict on a missing upload. Only approving is nonsense |
+| The list shows **thumbnails**, not a View link | Nine papers meant nine browser tabs, and the verdict buttons sat on a screen you had navigated away from — so you approved from memory |
+| Zoom + rotate + pan live **beside the verdict** | The founder's words: *"check each papers to zoom and give feedback for each of them, refuse or validate individually"* |
+| PDFs get the **browser's** zoom, and the toolbar says so | A CSS transform on an `<iframe>` blurs a PDF instead of magnifying it. An honest absence beats a control that makes the page worse |
+
+⚑⚑ **`fileKind` EXISTS BECAUSE I SHIPPED THE SAME BUG TWICE IN ONE AFTERNOON.** `isPdf` is only the
+stored path's **extension**, and a row whose upload never happened still HAS a path — every
+`seed://…/drivers_licence.pdf` ends in `.pdf`. Asking *"is it a PDF?"* before *"is there a file?"*
+put a PDF badge on a document that does not exist, and told a reviewer staring at nothing to *"use
+the PDF reader's own zoom"*. Both call sites now switch on `lib/document-kind.ts`, where **missing
+outranks kind** and the order is no longer the caller's to get wrong. Found by opening a real seeded
+Driver, not by reading the code.
+
+⚑ **AND IT IS ITS OWN MODULE FOR A BUILD REASON, NOT A TIDINESS ONE.** `lib/documents.ts` opens with
+`import "server-only"`; a client component importing one function from it fails the build. The test
+suite caught that before the browser did.
+
+⚑ **THE PAN MOVES THE IMAGE, NOT THE SCROLLBOX** — and the obvious version shipped first and did
+nothing. A CSS transform does not change an element's **layout** box, so a scaled image overflows
+visually while `overflow: auto` still believes it fits: `scrollWidth === clientWidth`, nothing to
+scroll, and a grab cursor promising a drag that could never happen. Bounds come from
+`offsetWidth × scale`, never `getBoundingClientRect()` (which has the transform already baked in, so
+the limit would grow on every drag), and **the axes swap at 90°/270°**.
+
+---
+
+### D134 — Test papers are stamped specimens at the real French formats, never plausible fakes (2026-09-09, S76)
+
+**The founder offered to make fake documents.** Refused, and the alternative is better.
+
+| | |
+|---|---|
+| No **real** papers | Real personal data in a test system, for no gain |
+| No **realistic fakes** | A convincing fake *permis* or *carte VTC* is a forged government document whatever it is labelled for. Every specimen carries an edge-to-edge "SPECIMEN · NOT A REAL DOCUMENT" stamp and obviously fake data |
+| Synthetic, but the **real shapes** | Real papers only test one case: a good scan. These test fine print, a sideways scan, a dark blurry reject, two PDFs, a 3.3 MB file, front-without-back, and a row with no file at all |
+
+⚑ **THE FORMATS WERE CHECKED AGAINST SOURCES BECAUSE THE FOUNDER ASKED, AND ONE WAS WRONG.** The
+first version drew the **carte grise** as a credit card — wrong by 2× in aspect ratio, and a shape
+the viewer's layout had therefore never been tested against.
+
+| document | format | source |
+|---|---|---|
+| Permis de conduire | **85,6 × 54 mm** — ID-1, ISO/IEC 7810 | ants.gouv.fr, "format carte bancaire" |
+| Carte grise | **125 × 254 mm**, folded in three — **not A4** | carte-grise.org / caroom.fr |
+| Carte VTC | a secure Imprimerie nationale card; recto photo + 2D-DOC + expiry + number, verso nom, prénom, naissance, signature | Arrêté du 7 sept. 2017, JORFTEXT000035600968 |
+| Assurance · Kbis · URSSAF · médical | A4, 210 × 297 mm | — |
+
+⚑ **ONE HONEST GAP, RECORDED RATHER THAN GUESSED:** the arrêté fixes what is **on** the VTC card but
+puts its **dimensions in an image annexe, not the text**. ID-1 is used as the closest standard and is
+flagged unconfirmed in `make-test-documents.mts`. Do not upgrade that to a fact without the annexe.
+
+---
+
 ### D133 — A cancelled trip is not a first drive, and the window is seven days (2026-09-07, S76)
 
 **The founder: *"list first drive of each driver so I have an easy access to them and then I can call

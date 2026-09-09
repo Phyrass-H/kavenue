@@ -9,7 +9,93 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
-## ⚑⚑ S76 (2026-09-07) — `main` = `afe7766` · 937 → 971 tests · gate 58 → 62 · NO MIGRATION
+## ⚑⚑ S76 IS CLOSED (2026-09-09) — `main` = `cabd26d` · 937 → 982 tests · gate 58 → **64, FULLY GREEN** · 1 migration, applied
+
+**Seven pushes, each CI-green on a branch before `main`. Nothing half-built.**
+
+| | |
+|---|---|
+| `main` | `cabd26d` |
+| tests | 937 → **982** |
+| `handoff-check` | 58 → **64** — and for the first time in months **there is no expected red**. The "seeded live trips" drift that stood for three sessions is cleared |
+| migration | **`2026-09-07_verified_gates_accept.sql` — pasted by the founder 2026-09-08 and verified live** |
+| new probes | `.local/probe/verified-gate.mts` (11) · `first-trips-live.mts` (22) |
+| new seeds | `make-test-documents.mts` · `seed-test-driver.mts` → **`npm run test-driver`** |
+
+⚑ **`driver.verified` IS NOW A DOOR, NOT A NOTE.** `accept_mission` AND `place_hold` both raise
+`'Driver account not yet approved'`, and a Driver can no longer write their own `driver` row. Live
+today: Clara Vidal and Amine Belkacem are refused, both on the `approved` rule; the other 11 are
+untouched.
+
+### ⚑⚑ THE SECURITY HOLE — found only because the founder asked for the gate
+`p_driver_self_update` said **which row** a Driver may edit and never **which columns**. Measured
+live as an ordinary Driver: `PATCH driver.verified -> true` → **200, rows=1**. Harmless while the
+flag decided nothing; the moment it is a door, any Driver lets themselves in. Closed by a
+**table-level** revoke (a column-level one does not bite against a table-level grant — S72's scar)
+**plus** dropping the policy, so two things must fail. **Do not re-add an UPDATE grant on `driver`.**
+
+### ⚑⚑ READ THESE BEFORE TRUSTING ANYTHING YOU WROTE
+1. ⚑⚑ **A PROBE THAT FAILS BEFORE A MIGRATION MUST BE HARMLESS WHEN IT FAILS.** The first
+   `verified-gate.mts` ran the accept immediately; with no gate it **succeeded** and took a real
+   pooled trip out of the Pool. It now asks a canary that cannot change anything, first.
+2. ⚑⚑ **A GUARD ABOVE `select * into v_driver` SILENTLY PASSES.** `v_driver.verified` is NULL there,
+   `not NULL` is NULL, and plpgsql's `if NULL then` does not fire. The migration would run perfectly
+   and refuse nobody.
+3. ⚑⚑ **A HIDDEN BROWSER PANE REPORTS EVERY SIZE AS ZERO** — `window.innerWidth` 0, elements 36×36.
+   Three attempts to verify the pan looked exactly like a broken feature. Use `resize_window` before
+   testing anything layout-dependent.
+4. ⚑ **`eligibility-live.mts` HAD BEEN READING A SUPERSEDED MIGRATION SINCE AUGUST** — every green
+   about the accept path was about a body the database had not run in weeks. Fixed, and it now
+   asserts the file it reads is not the old one.
+5. ⚑ **"IS THERE A FILE" BEFORE "WHAT KIND OF FILE"** — shipped wrong twice in an afternoon. See
+   [[d135]]; the order now lives in `lib/document-kind.ts` where no caller can get it wrong.
+6. ⚑ **`npm run build` CLOBBERS THE DEV SERVER'S `.next`** → `Cannot find module './vendor-chunks/…'`
+   on unrelated pages. Stop the server, `rm -rf .next`, restart.
+7. ⚑ **`tsx` IS NOT A DEPENDENCY** — package.json scripts must say `npx tsx`.
+
+### ⚑ THE 404 THE FOUNDER HIT IS NOT A BUG — DO NOT "FIX" IT
+`https://driver.kavenue.fr/dev-login?key=…` 404s because **`DEV_LOGIN_KEY` is not set in Vercel**
+(5 env vars total; `DEV_PASSWORD` is absent too), so `!process.env.DEV_LOGIN_KEY` is always true and
+the page 404s **whatever key is in the URL**. The subdomains are healthy (307 on root). ⚑ **Advised
+against setting it**: it is a permanent password-free master sign-in on production — the shape of
+thing that already cost this project six real accounts. Founder has not overruled that.
+
+### 🎯 WHAT IS OPEN, AND WHO IT IS ON
+**On Claude, in the founder's own order:**
+1. **The Business side of document review** — deferred twice, still queued. One document (the Kbis),
+   not nine. ⚑ `business.verified` **does not exist** and zero business documents have ever been
+   uploaded, so this is a review screen for an empty queue until sign-up starts asking.
+2. **A suspension leaves no record.** `setDriverVerified` writes no event, no timestamp, no actor
+   (`lib/document-review.ts:151-165`) — and now that the flag refuses work, flipping it off takes
+   someone's living away. Contrast `rejectDocument`, which stamps both. `BACKLOG § O`.
+3. **The expiry nudge** — a date subtraction on a column that already exists; the only missing piece
+   is notifications, which are deferred by the founder's own sequencing.
+
+**Decided, do NOT re-open:**
+- **The support screen is parked** (founder, 2026-09-07). The review lives on the Driver's page; the
+  queue is the Activity finding. If it returns, the useful version gives rows a **memory**
+  (done / snooze / a note), not a new location.
+- **45 documents on the nine older Drivers point at files that do not exist.** ⚑ Leave them —
+  founder, 2026-09-09: the demo Drivers and Businesses are about to be deleted for a fresh test.
+- **Document scanning / OCR: buy, later, and probably not OCR.** The higher-value check is likely an
+  official **register lookup**, like sign-up already does for companies. ⚑ **Not researched with
+  sources yet — do not name vendors or APIs from memory** ([[check-sources-not-reasoning]]).
+
+### 🧪 THE TEST DRIVER — how the founder exercises all of this
+**Théo Essai** · unverified · Business/Sedan · Cannes, 40 km · **10 papers, all pending**.
+- review `/admin/drivers/91a98570-3634-4bf8-8f9e-8a0d9161b52c`
+- be him `/api/dev-login?email=test.driver@kavenue.test`
+- **reset** `npm run test-driver` — puts every paper back to pending. ⚑ Reviewing is one-way, so
+  without this a second test is impossible.
+
+⚑ **HIS FILE IS DELIBERATELY COMPLETE.** `driverReadiness` renders *"Your file is with us"* **only**
+when the gap count is zero — so leaving one field blank makes the founder's own chosen message
+unreachable. That was the first version's bug, found by signing in as him. A **pending** document is
+not a gap, so all ten can sit in the review queue with the file still complete.
+
+---
+
+## ⚑ S76 (first half, 2026-09-07) — the two Activity jobs
 
 **The two jobs the founder picked off S75's open list, plus the hazard they turned up. Three pushes,
 each CI-green on a branch first.**

@@ -5,6 +5,53 @@
 
 ---
 
+## 9 September 2026 — A screen you can actually read a licence in
+
+You found this one yourself: you approved a driving licence you had no way to look at. The record
+existed, but the file behind it had never been uploaded — so the screen showed "no file" where the
+View link belongs, and the Approve button worked anyway. On the one check that carries a €300,000
+fine.
+
+**It is refused at the server now, not just greyed out.** A greyed-out button is a courtesy — a
+stale tab or a second phone gets past it. So the rule lives where nothing can get past it, and it
+was proved by switching the button back on in the browser and pressing it anyway. The server said
+no. **Reject still works**, because "send it again" is the right answer to a missing upload.
+
+**And the screen is now one you can work in.** Every paper shows as a thumbnail instead of a link
+that dumps the file in a new tab — nine papers used to mean nine tabs, with the Approve button on a
+screen you had navigated away from, so you were deciding from memory. Click one and it opens
+properly: zoom to 600 %, rotate for the ones photographed sideways, drag it around with your hand
+once it is bigger than the window, and arrow through the whole driver in one pass. The verdict
+buttons are right there beside the paper.
+
+⚑ PDFs use your browser's own zoom rather than ours, and the toolbar says so — scaling a PDF the way
+we scale a photo blurs it instead of magnifying it.
+
+## 9 September 2026 — Test papers, and a driver to try them on
+
+You offered to make fake documents. I'd rather you didn't, and there's a better way.
+
+I generated eight papers instead. Every one carries a large **"SPECIMEN · NOT A REAL DOCUMENT"**
+stamp across it and obviously false details. They are deliberately not convincing — a realistic fake
+*permis* is a forged government document however it is labelled.
+
+They also test more than real papers would. A real licence only tests one thing: a good scan. These
+cover the awkward cases — fine print you need to zoom into, one photographed sideways, one too dark
+to read that you should reject, two PDFs, a heavy 3.3 MB file, a two-sided card with the back
+missing, and a row with no file behind it at all.
+
+⚑ **You were right to send me to check the sizes — one was wrong.** I had drawn the carte grise as a
+credit card. It is 125 × 254 mm, folded in three: neither A4 nor a card, and twice the shape I'd
+used. The permis and the VTC card really are credit-card sized (85,6 × 54 mm). Now correct.
+
+**And there is a driver to practise on: Théo Essai**, unverified, with ten papers waiting. To reset
+him and start the test again, from the project folder:
+
+    npm run test-driver
+
+Everything goes back to pending. Reviewing is one-way — once you have approved a paper you cannot
+approve it again — so being able to start over is most of the point.
+
 ## 7 September 2026 — "I couldn't check" no longer comes out as "there are none"
 
 The near-miss from earlier today, fixed properly.

@@ -25,6 +25,7 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import { isNextDevCommand } from "./next-process.mts";
 
 const PORT = 3000;
 const ROOT = process.cwd();
@@ -52,11 +53,14 @@ function commandOf(pid: number): string {
   return sh("ps", ["-o", "command=", "-p", String(pid)]).trim();
 }
 
+// ⚑ NARROW ON PURPOSE — AN ADVERSARIAL REVIEW CAUGHT THE FIRST VERSION KILLING TOO
+// MUCH, and the rule now lives in `next-process.mts` with tests of its own. Two things
+// must be true: the command is a Next SERVER or a literal `next dev` invocation, AND
+// its working directory is this project.
+
 /** Is this PID a Next dev server belonging to THIS project? */
 function isOurDevServer(pid: number): boolean {
-  const cmd = commandOf(pid);
-  const looksLikeNext = /next-server|next dev|[/ ]next\b/.test(cmd);
-  if (!looksLikeNext) return false;
+  if (!isNextDevCommand(commandOf(pid))) return false;
   // The command line says "next-server (v15.5.19)" — it carries no path, so the
   // working directory is the only thing that ties a server to this project.
   return cwdOf(pid) === ROOT;
@@ -84,6 +88,20 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// ⚑ iCloud names a conflict copy "server 2" / "page 2.js" — a space and a number
+// before the extension. Recorded BEFORE `.next` is removed, because the removal is
+// what used to make this list empty exactly when it had something to say.
+let conflicts: string[] = [];
+function recordConflicts(): void {
+  try {
+    conflicts = fs
+      .readdirSync(NEXT_DIR)
+      .filter((n) => / \d+$/.test(n) || / \d+\.[A-Za-z0-9]+$/.test(n));
+  } catch {
+    conflicts = [];
+  }
+}
+
 // ── 1 · anything on 3000 that is NOT ours is a hard stop ────────────────────────
 const squatters = listenersOn(PORT).filter((pid) => !isOurDevServer(pid));
 if (squatters.length > 0) {
@@ -107,8 +125,18 @@ if (ours.length > 0) {
   // wrappers is right; telling the founder "9 dev servers were running" when there
   // were three is not. Only `next-server` is a server.
   const servers = ours.filter((pid) => /next-server/.test(commandOf(pid)));
-  const n = servers.length || ours.length;
+  // ⚑ NO `||` FALLBACK. It used to say `servers.length || ours.length`, which quietly
+  // put the process count back the moment no process called itself `next-server` —
+  // the exact over-count the paragraph above forbids. If we matched wrappers only,
+  // "0 servers" is the honest number and the kills below still happen.
+  const n = servers.length;
   console.log(`\n  ${n} dev ${n === 1 ? "server is" : "servers are"} already running — stopping ${n === 1 ? "it" : "them"}.`);
+
+  // ⚑ NOTE THE CONFLICT COPIES BEFORE `.next` GOES. The scan used to run at the end
+  // of the script, by which point this block had already deleted the folder — so the
+  // iCloud tripwire could only ever report an empty list on the one run that mattered.
+  recordConflicts();
+
   for (const pid of ours) {
     try {
       process.kill(pid, "SIGTERM");
@@ -116,22 +144,40 @@ if (ours.length > 0) {
       // already gone
     }
   }
-  // Give them a moment to close the port, then insist.
-  for (let i = 0; i < 20 && listenersOn(PORT).length > 0; i++) await sleep(150);
-  for (const pid of listenersOn(PORT)) {
+
+  // ⚑ WAIT ON THE SERVERS, NOT ON PORT 3000. Keying the grace period to one port let
+  // a server on 3001 that ignored SIGTERM be reported as stopped — and it would go on
+  // writing into the same `.next`, which is the entire bug this file exists to kill.
+  const stillOurs = () => ours.filter((pid) => { try { process.kill(pid, 0); return true; } catch { return false; } });
+  for (let i = 0; i < 20 && stillOurs().length > 0; i++) await sleep(150);
+
+  // ⚑ SIGKILL ONLY WHAT WE ALREADY IDENTIFIED AS OURS. The first version force-killed
+  // "whatever holds port 3000" at this point, with no ownership check — so anything
+  // that happened to bind 3000 in the gap between the SIGTERM and here was killed by
+  // a script that promises never to touch a stranger's program. Ownership was decided
+  // in step 2 and is not re-derived from the port.
+  for (const pid of stillOurs()) {
     try {
       process.kill(pid, "SIGKILL");
     } catch {
       // already gone
     }
   }
-  for (let i = 0; i < 20 && listenersOn(PORT).length > 0; i++) await sleep(150);
+  for (let i = 0; i < 20 && stillOurs().length > 0; i++) await sleep(150);
 
   // ⚑ A build folder that two servers were writing to is not trustworthy. Removing
   // it costs one slower first page load and removes the whole class of ENOENT.
+  // ⚑ AND IT IS ALLOWED TO FAIL. An unguarded rmSync throwing EPERM (iCloud holding a
+  // file open is a live possibility here) would abort the guard and take `npm run
+  // test-app` down with it — turning a slow build folder into no app at all.
   if (fs.existsSync(NEXT_DIR)) {
-    fs.rmSync(NEXT_DIR, { recursive: true, force: true });
-    console.log("  Cleared .next — a stopped server may have left it half-written.");
+    try {
+      fs.rmSync(NEXT_DIR, { recursive: true, force: true });
+      console.log("  Cleared .next — a stopped server may have left it half-written.");
+    } catch (err) {
+      console.log(`  ⚑ Could not clear .next (${(err as Error).message}).
+    If the app 500s with ENOENT, quit it and run:  rm -rf .next`);
+    }
   }
 }
 
@@ -159,20 +205,24 @@ try {
   // looks entirely local. The only reliable test is whether the very same directory
   // (same inode) is also reachable under the iCloud container.
   const home = process.env.HOME ?? "";
-  const docs = path.join(home, "Documents");
-  const cloudDocs = path.join(home, "Library/Mobile Documents/com~apple~CloudDocs/Documents");
+  const container = path.join(home, "Library/Mobile Documents/com~apple~CloudDocs");
+  // Desktop & Documents sync covers both of these; check each.
+  const SYNCED = ["Documents", "Desktop"];
   let inCloud = false;
-  if (home && ROOT.startsWith(docs + path.sep)) {
-    const twin = path.join(cloudDocs, path.relative(docs, ROOT));
+  for (const folder of SYNCED) {
+    const local = path.join(home, folder);
+    if (!home || !ROOT.startsWith(local + path.sep)) continue;
+    const twin = path.join(container, folder, path.relative(local, ROOT));
     try {
-      inCloud = fs.statSync(twin).ino === fs.statSync(ROOT).ino;
+      const a = fs.statSync(twin), b = fs.statSync(ROOT);
+      // ⚑ DEVICE AS WELL AS INODE — an inode number is only unique per volume.
+      if (a.ino === b.ino && a.dev === b.dev) { inCloud = true; break; }
     } catch {
-      inCloud = false;
+      // no twin under the container: not synced by this route.
     }
   }
-  const conflicts = fs.existsSync(NEXT_DIR)
-    ? fs.readdirSync(NEXT_DIR).filter((n) => / \d+$/.test(n))
-    : [];
+  // Anything the pre-removal scan saw, plus whatever is there now.
+  if (conflicts.length === 0) recordConflicts();
   if (inCloud || conflicts.length > 0) {
     console.log(`
   ⚑ This project is inside a folder that iCloud Drive syncs.

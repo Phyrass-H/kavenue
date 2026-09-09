@@ -1008,10 +1008,20 @@ Everything in the S66 table below, plus:
 - Notifications / payments / real auth / flight tracking — the founder's standing phase rule.
 
 ### 🧹 BEFORE REAL LAUNCH
-⚑⚑ **ROTATE `DEV_LOGIN_KEY` (and remove it, if hosted sign-in is no longer wanted).** The founder
-set it on 2026-09-09 to get one-click Business/Driver sign-in back on `*.kavenue.fr`, on the explicit
-plan *"we can use the current key and just before posting the app live we can generate a new one"*
-— and the value they are using has been pasted into a chat transcript, so treat it as public. ⚑ The
+⚑⚑ **ROTATE `DEV_LOGIN_KEY` (and remove it, if hosted sign-in is no longer wanted).**
+
+⚑ **THE HISTORY MATTERS, AND CLAUDE GOT IT WRONG ONCE ALREADY.** `DEV_LOGIN_KEY` and `DEV_PASSWORD`
+WERE set in Vercel and hosted dev-login DID work. A session a few days before 2026-09-09 had the
+founder **delete both, deliberately, because the key had been exposed.** On 2026-09-09 Claude read
+`vercel env ls`, saw neither, and told the founder they had *"never been set"* — **a deleted variable
+leaves no trace in that list, so the evidence could not tell "never set" from "removed on purpose",
+and the weaker reading was stated as fact.** The founder corrected it. ⚑ Do not re-derive this from
+the env list; it cannot answer the question.
+
+The founder re-added a key on 2026-09-09 to get one-click Business/Driver sign-in back, on the
+explicit plan *"we can use the current key and just before posting the app live we can generate a new
+one"*. ⚑ Claude advised **a NEW value, not the leaked one** — the old string is public twice over
+(the original exposure, and this session's transcript). ⚑ The
 blast radius is already small by design: since 2026-09-09 hosted dev-login refuses any address
 outside `.local` / `.test` (`lib/fixture-email.ts`), so the key opens fixtures and never
 `admin@kavenue.fr`. **But the moment there is a real Driver or a real hotel on the live site, a key

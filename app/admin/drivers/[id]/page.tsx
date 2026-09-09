@@ -1,10 +1,17 @@
-// One Driver: who they are, what the Pool can reach them with, and their trips.
+// One Driver: who they are, whether trips reach them, and their trips.
 //
 // ⚑ THE "REACHABLE" BLOCK IS THE POINT OF THIS PAGE. Six of the nine Drivers on
 // the live fleet have never set a base, so their Pool is empty and always has
 // been — they have never been offered a single trip and nothing in the app tells
 // anyone that. Everything here is read straight from the rules the Pool applies
 // (lib/eligibility.ts), so it can't drift into flattery.
+//
+// ⚑ AND THAT IS THE WHOLE OF ITS JOB (2026-09-09). The block answers ONE question
+// — will a trip ever appear on this Driver's screen — and therefore carries only
+// the Pool's own filter: base + radius, the car's class, and the luggage opt-in.
+// `verified` was in here and is not any more: it decides whether they may ACCEPT,
+// not whether they are shown anything, and the founder's 2026-09-07 rule keeps the
+// Pool visible to a Driver still in review. It belongs to the papers below.
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { AdminTripList } from "@/components/admin-trip-list";
@@ -35,7 +42,12 @@ export default async function AdminDriverPage({
   if (!driver) notFound();
 
   const [{ data: vehicles }, { data: trips, count }, docs] = await Promise.all([
-    db.from("vehicle").select("*").eq("driver_id", id),
+    // ⚑ ORDERED, AND THE ORDER IS NOT COSMETIC. getDriverContext picks the Driver's
+    //   car as the OLDEST by created_at and ignores is_active (lib/driver.ts:29-35),
+    //   and that is the car the Pool matches trips against. This query had no order
+    //   at all, so `vehicles[0]` was whatever Postgres returned — and the block below
+    //   claims to state the Pool's own rule.
+    db.from("vehicle").select("*").eq("driver_id", id).order("created_at", { ascending: true }),
     db
       .from("mission_read")
       .select("*", { count: "exact" })
@@ -49,7 +61,12 @@ export default async function AdminDriverPage({
     //   here is already settled by app/admin/layout.tsx.
     getLatestDocuments("driver", id, DRIVER_DOC_TYPES),
   ]);
-  const car = (vehicles ?? []).find((v) => v.is_active) ?? (vehicles ?? [])[0] ?? null;
+  // ⚑ THE POOL'S CAR, NOT THE ACTIVE ONE. This used to prefer `is_active`, which
+  //   disagrees with getDriverContext the moment a Driver's oldest car is paused —
+  //   the screen would name one car while the Pool matched on another. Same rule,
+  //   same answer, by construction.
+  const fleet = vehicles ?? [];
+  const car = fleet[0] ?? null;
   const based = driver.base_lat != null && driver.base_lng != null;
 
   return (
@@ -67,7 +84,7 @@ export default async function AdminDriverPage({
                 Kavenue, not about the Driver — printing nothing would make an
                 optional question look like one nobody answers. It decides
                 nothing, which is why it sits in the identity line and not in
-                "Can the Pool reach them?". */}
+                "Will trips reach them?". */}
             {` · ${genderSays(driver.gender)}`}
           </p>
         </div>
@@ -78,8 +95,24 @@ export default async function AdminDriverPage({
         </div>
       </header>
 
+      {/* ⚑ ONE QUESTION, AND ONLY THE THINGS THAT ANSWER IT (2026-09-09, founder).
+          This was headed "Can the Pool reach them?" and carried a `verified` row
+          reading "they cannot take or hold any trip". Both were wrong here:
+
+          · THE POOL DOES REACH AN UNVERIFIED DRIVER. The Pool query does not filter
+            on `verified` — the founder chose that on 2026-09-07 so a Driver in
+            review still sees the work, with a notice above it, because an empty
+            screen reads as broken (lib/eligibility.ts:34). `verified` decides
+            whether they may ACCEPT, which is a different question.
+          · AND IT PRE-JUDGED THE PAPERS. The row sat ABOVE the document review, so
+            the screen delivered a verdict before the reviewer had looked at the
+            evidence — and it was the third place on one page to say the same thing
+            (the header pill, here, and the review block that owns the button).
+
+          What is left is exactly the Pool's own filter: still open, class matches,
+          and the pickup or dropoff inside base + radius (lib/eligibility.ts). */}
       <section className="adm-sect">
-        <h2 className="adm-sect__h">Can the Pool reach them?</h2>
+        <h2 className="adm-sect__h">Will trips reach them?</h2>
         {based ? (
           <p className="adm-lede">
             Yes — based in {driver.base_label ?? "a set location"}, driving up to{" "}
@@ -91,27 +124,63 @@ export default async function AdminDriverPage({
             never been offered a trip.
           </p>
         )}
-        {/* ⚑ Named, not hidden. Both of these are collected, both are shown to the
-            Driver, and neither is consulted when Kavenue decides who sees a trip
-            or who may take one. Leaving them off this page would let a reader
-            assume otherwise — and one of them is `verified`. */}
+        {/* ⚑ THE CLASS WAS MISSING, AND IT DECIDES AS MUCH AS THE BASE. accept_mission
+            requires the car's category to equal the trip's exactly, so a Driver with
+            a perfectly good base still never sees a First trip if they drive a
+            Business car — and until now this screen gave no way to know that. */}
+        <div className={`adm-check${car ? "" : " adm-check--bad"}`}>
+          <span className="adm-check__ic" aria-hidden="true">{car ? "✓" : "×"}</span>
+          <span>
+            {car
+              ? `Their car is ${serviceClassLabel(car.category, car.body_type)} — only trips asking for that reach them`
+              : "No car on file — no trip can match them"}
+          </span>
+          <span className="adm-check__d">
+            {car ? [car.make, car.model].filter(Boolean).join(" ") : ""}
+          </span>
+        </div>
+        {/* ⚑ THE OTHER CARS ARE INVISIBLE TO THE POOL, so they are named here rather
+            than left to look like they count. getDriverContext takes one car and
+            only one; a Driver who added a second is matched on their first. */}
+        {fleet.length > 1 && (
+          <div className="adm-check adm-check--dead">
+            <span className="adm-check__ic" aria-hidden="true">–</span>
+            <span>
+              {fleet.length - 1} other car{fleet.length > 2 ? "s" : ""} on file — the Pool never
+              looks at {fleet.length > 2 ? "them" : "it"}
+            </span>
+            <span className="adm-check__d">
+              {fleet.slice(1).map((v) => serviceClassLabel(v.category, v.body_type)).join(", ")}
+            </span>
+          </div>
+        )}
+        {/* ⚑ A REAL FILTER THAT WAS HIDING AS A FOOTNOTE. Until now this was the
+            trailing detail string on the `verified` row — "takes luggage runs" —
+            beside a fact it has nothing to do with. It is its own rule: the Pool
+            drops a luggage-only run for a Driver who has not opted in
+            (app/(app)/pool/page.tsx:141, lib/eligibility.ts:244).
+            ⚑ ONLY FOR A VAN. Opting in is offered to van Drivers alone
+            (app/onboarding/actions.ts:47), so for a sedan this row would be noise
+            about a choice they were never given. */}
+        {car?.body_type === "van" && (
+          <div className={`adm-check${driver.accepts_luggage_runs ? "" : " adm-check--dead"}`}>
+            <span className="adm-check__ic" aria-hidden="true">
+              {driver.accepts_luggage_runs ? "✓" : "–"}
+            </span>
+            <span>
+              {driver.accepts_luggage_runs
+                ? "Takes luggage-only runs — those reach them too"
+                : "Hasn’t opted into luggage-only runs — those never reach them"}
+            </span>
+          </div>
+        )}
+        {/* ⚑ Named, not hidden. Collected, shown to the Driver, and never consulted
+            when Kavenue decides who sees a trip. Leaving it off would let a reader
+            assume otherwise. */}
         <div className="adm-check adm-check--dead">
           <span className="adm-check__ic" aria-hidden="true">–</span>
           <span>Towns they say they work — never consulted</span>
           <span className="adm-check__d">{(driver.operational_zones ?? []).join(", ") || "none set"}</span>
-        </div>
-        {/* ⚑ NO LONGER IN THE DEAD GROUP. Until 2026-09-07 this row sat beside
-            `operational_zones` under "recorded, decides nothing". It decides
-            everything now: accept_mission and place_hold both refuse an
-            unverified Driver. */}
-        <div className={`adm-check${driver.verified ? "" : " adm-check--bad"}`}>
-          <span className="adm-check__ic" aria-hidden="true">{driver.verified ? "✓" : "×"}</span>
-          <span>
-            {driver.verified
-              ? "Verified by you — they can take work"
-              : "Not verified by you — they cannot take or hold any trip"}
-          </span>
-          <span className="adm-check__d">{driver.accepts_luggage_runs ? "takes luggage runs" : ""}</span>
         </div>
       </section>
 

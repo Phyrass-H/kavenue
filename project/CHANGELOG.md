@@ -5,6 +5,38 @@
 
 ---
 
+## 9 September 2026 — "Can the Pool reach them?" now asks one honest question
+
+You said the phrase was confusing, sitting above papers you hadn't approved yet. You were right, and
+for a better reason than either of us started with.
+
+**It was answering two different questions in one box** — and getting one of them wrong. The
+"not verified" line said *they cannot take any trip*, under a heading about whether trips **reach**
+them. But an unverified driver **does** see the work. That was your own decision in June: keep the
+trips visible to someone still in review, with a notice, because a blank screen looks broken. What
+they can't do is *accept*. Two different things.
+
+It was also the **third** place on that one page saying the same thing — the badge at the top, that
+line, and the papers section with the actual button.
+
+**Now the box answers exactly one question: will a trip ever appear on this driver's screen?**
+- where they're based and how far they'll drive
+- **what class of car they have** — new, and it matters as much as the base. A driver with a
+  Business car will never see a First trip, and until now this screen gave you no way to know that
+- whether they take luggage-only runs — only shown for vans, the only ones who get the choice
+- the towns they list, still greyed out, still deciding nothing
+
+Verification moved down to the papers, where you actually decide it.
+
+### ⚑ And it turned up a quiet bug while I was in there
+The screen picked a driver's car as *"the active one"*. The Pool picks *"the oldest one"* and doesn't
+care whether it's active. Same answer today — everyone has one car — but the day a driver adds a
+second and pauses the first, **the screen would have named a car the Pool wasn't using**. Now both
+use the same rule. And if a driver has more than one car, the extra ones are named on screen as what
+they are: **invisible to the Pool**.
+
+---
+
 ## 9 September 2026 — Two fixes to the papers screen
 
 **The carte grise was the wrong way round.** Our test copy was drawn lying on its side — 254 wide by

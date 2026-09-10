@@ -291,6 +291,11 @@ export interface Database {
           city: string | null; // INSEE commune label, e.g. NICE
           departement: string | null; // INSEE code, e.g. 06
           region: string | null; // INSEE code, e.g. 93
+          // ⚑ ADDED 2026-09-10 (docs/migrations/2026-09-10_business_country.sql). NULL
+          // means nobody has established where this Business is — NOT that it is abroad.
+          // Mirrors driver.base_country. The Businesses screen groups a non-French row
+          // under "C:" + this code and names the country.
+          country: string | null; // ISO-3166-1 alpha-2, e.g. FR / MC
           created_at: string;
         };
         Insert: {
@@ -317,6 +322,7 @@ export interface Database {
           city?: string | null;
           departement?: string | null;
           region?: string | null;
+          country?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["business"]["Insert"]>;

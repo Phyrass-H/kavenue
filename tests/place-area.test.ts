@@ -6,7 +6,7 @@
 // number the founder will one day read on a screen.
 import { describe, it, expect } from "vitest";
 import { resolveArea, areaFromComponents, encodeArea, decodeArea, areaLabel, EMPTY_AREA } from "../lib/place-area";
-import { regionCodeFromName, regionKeyLabel } from "../lib/france-geo";
+import { regionCodeFromName, regionKeyLabel, placeKey } from "../lib/france-geo";
 
 describe("regionCodeFromName", () => {
   it("finds the INSEE code for a région Google names", () => {
@@ -61,8 +61,18 @@ describe("resolveArea — outside France", () => {
     expect(monaco.country).toBe("MC");
   });
 
-  it("renders a null région as Outside France, not as a gap", () => {
-    expect(regionKeyLabel(resolveArea({ city: "Monaco", country: "MC" }).region)).toBe("Outside France");
+  // ⚑ THE FOUNDER'S RULE, 2026-09-10: "if it's outside of France then you name the
+  // country, period". A Monaco row groups under "C:MC" and reads "Monaco".
+  it("names the country rather than saying Outside France", () => {
+    const a = resolveArea({ city: "Monaco", country: "MC" });
+    expect(regionKeyLabel(placeKey(a.region, a.country))).toBe("Monaco");
+  });
+
+  it("keeps 'nobody established it' separate from 'abroad'", () => {
+    // A row with neither a région nor a country has not been looked up. Calling that
+    // abroad would be an invention.
+    expect(placeKey(null, null)).toBeNull();
+    expect(regionKeyLabel(null)).toBe("Location not established");
   });
 
   it("does the same for Italy, the other side of the same market", () => {

@@ -39,8 +39,23 @@ export const REGIONS: Record<string, string> = {
  * it by filing Monaco under 06.
  */
 export function regionKeyLabel(key: string | null): string {
-  if (key === null) return "Outside France";
+  // ⚑ "IF IT'S OUTSIDE OF FRANCE THEN YOU NAME THE COUNTRY, PERIOD" — founder,
+  // 2026-09-10. A Business or Driver outside France arrives here as "C:" + its ISO
+  // code, because INSEE has no région for it and a bare two-letter code could collide
+  // with a two-digit région. This used to read "Outside France" for all of them, which
+  // put Monaco — a large part of this market — in an everywhere-else bucket.
+  if (key?.startsWith("C:")) return countryKeyLabel(key.slice(2));
+  // ⚑ AND A BARE NULL IS STILL NOT "ABROAD". It means nobody has established where
+  // this one is — the Carlton Cannes seed row, which has no register lookup behind it.
+  // Merging the two would be an invention.
+  if (key === null) return "Location not established";
   return REGIONS[key] ?? `Région ${key}`;
+}
+
+/** The key a Business or Driver groups under: its région, or its country abroad. */
+export function placeKey(region: string | null, country: string | null): string | null {
+  if (region) return region;
+  return country ? `C:${country}` : null;
 }
 
 /** Accents off, punctuation off, lower case — so "Ile de France" finds "Île-de-France". */
@@ -111,9 +126,10 @@ export const DEPARTEMENTS: Record<string, string> = {
   "976": "Mayotte",
 };
 
-/** The département's name. A null code is another country, which is not a gap. */
+/** The département's name. A null code is another country or an unfilled row —
+ *  neither is a French département, and `areaLabel` is what tells them apart. */
 export function departementKeyLabel(key: string | null): string {
-  if (key === null) return "Outside France";
+  if (key === null) return "Not a French département";
   return DEPARTEMENTS[key] ?? `Département ${key}`;
 }
 

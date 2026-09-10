@@ -1194,6 +1194,46 @@ console.log("\n── where a Driver's base is (S77) ──");
       : `${cars?.length ?? 0} car(s)`);
 }
 
+// ── every Business has a country, so Monaco is called Monaco (S77) ────────────
+// ⚑ FOUNDER, 2026-09-10: "if it's outside of France then you name the country, period".
+// The migration is docs/migrations/2026-09-10_business_country.sql.
+console.log("\n── every Business has a country (S77) ──");
+{
+  const { error: cErr } = await db.from("business").select("country").limit(1);
+  const applied = !cErr;
+  t("business.country exists",
+    applied,
+    applied ? "" : `⚑ run docs/migrations/2026-09-10_business_country.sql — ${cErr?.message ?? ""}`);
+
+  if (applied) {
+    const { data: biz } = await db
+      .from("business")
+      .select("name,business_address,registered_address,city,departement,region,country");
+    const addressed = (biz ?? []).filter((b) => b.business_address || b.registered_address);
+    const named = addressed.filter((b) => b.country);
+    t("every Business with an address has a country on file",
+      addressed.length > 0 && named.length === addressed.length,
+      `${named.length}/${addressed.length}` +
+        (named.length === addressed.length ? "" : " — run .local/seed/backfill-business-country.mts --write"));
+
+    // ⚑ THE SAME MONACO GUARD AS THE DRIVER SIDE. A French code on a non-French row
+    // means somebody derived the département from a postcode without checking country.
+    const wrong = (biz ?? []).filter((b) => b.country && b.country !== "FR" && (b.departement || b.region));
+    t("no Business outside France carries a French département or région",
+      wrong.length === 0,
+      wrong.length ? `⚑ ${wrong.map((b) => `${b.name} (${b.country})`).join(", ")}` : "");
+
+    // ⚑ NOT AN ERROR, A LIST. A Business with no address cannot have a country
+    // established and must never have one guessed. Naming them is the point.
+    const rootless = (biz ?? []).filter((b) => !b.business_address && !b.registered_address);
+    t("every Business has an address to establish it from",
+      rootless.length === 0,
+      rootless.length
+        ? `⚑ ${rootless.map((b) => b.name).join(", ")} — no address, so no country. Needs a decision, not a guess.`
+        : "");
+  }
+}
+
 // ── the admin "Will trips reach them?" block still matches the Pool (S77) ──────
 // ⚑ WHY. That block's whole job is to state the Pool's filter and nothing else, and
 // the first version of it shipped on 2026-09-09 overstating two rules and omitting a

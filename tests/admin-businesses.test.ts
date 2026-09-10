@@ -82,10 +82,19 @@ describe("labels", () => {
     expect(regionKeyLabel("11")).toBe("Île-de-France");
   });
 
-  it("calls a null région 'Outside France', because that is what it is", () => {
-    // ⚑ Monaco. Not missing data — a real slice of this market. Calling it
-    // "unknown" is what would tempt someone to "fix" it by filing it under 06.
-    expect(regionKeyLabel(null)).toBe("Outside France");
+  // ⚑ CHANGED 2026-09-10, founder: "if it's outside of France then you name the
+  // country, period". A non-French row now arrives keyed "C:" + its ISO code, so the
+  // label can say Monaco instead of lumping it into an everywhere-else bucket.
+  it("names the country for a row outside France", () => {
+    expect(regionKeyLabel("C:MC")).toBe("Monaco");
+    expect(regionKeyLabel("C:IT")).toBe("Italy");
+  });
+
+  // ⚑ AND A BARE NULL IS A DIFFERENT FACT. It means nobody has looked this Business
+  // up — the Carlton Cannes seed row. Calling that "abroad" would be an invention,
+  // which is exactly what the founder asked us not to do.
+  it("keeps 'not established' apart from 'abroad'", () => {
+    expect(regionKeyLabel(null)).toBe("Location not established");
   });
 
   it("un-shouts the register's upper-case towns", () => {
@@ -122,7 +131,7 @@ describe("nestCities", () => {
       [paca],
       [row({ key: "MONACO", parent: null, trips: 46, businesses: 1 })],
     );
-    const outside = groups.find((g) => g.label === "Outside France");
+    const outside = groups.find((g) => g.label === "Location not established");
     expect(outside).toBeDefined();
     expect(outside!.cities.map((c) => c.label)).toEqual(["Monaco"]);
   });

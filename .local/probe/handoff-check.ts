@@ -1163,9 +1163,12 @@ console.log("\n── where a Driver's base is (S77) ──");
       .select("first_name,last_name,base_lat,base_city,base_departement,base_region,base_country");
     const withBase = (rows ?? []).filter((r) => r.base_lat != null);
     const filled = withBase.filter((r) => r.base_city);
+    const allFilled = withBase.length > 0 && filled.length === withBase.length;
     t("every Driver with a base has a city on file",
-      withBase.length > 0 && filled.length === withBase.length,
-      `${filled.length}/${withBase.length} — run .local/seed/backfill-driver-area.mts --write`);
+      allFilled,
+      allFilled
+        ? `${filled.length}/${withBase.length}`
+        : `${filled.length}/${withBase.length} — run .local/seed/backfill-driver-area.mts --write`);
 
     // ⚑ MONACO IS THE ONE TO GUARD. The département rule is "first two digits of the
     // postcode", which turns 98000 into "980" — a département that does not exist. A

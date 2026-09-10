@@ -18,7 +18,7 @@
 // Driver row on a live database.
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
-import { resolveArea, type RawPlaceArea } from "../../lib/place-area.ts";
+import { resolveArea, areaFromComponents, type RawPlaceArea } from "../../lib/place-area.ts";
 import { canonicalMake } from "../../lib/vehicle-catalog.ts";
 import { departementKeyLabel, countryKeyLabel } from "../../lib/france-geo.ts";
 
@@ -28,43 +28,61 @@ const env = Object.fromEntries(
   fs.readFileSync(".env.local", "utf8").split("\n")
     .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
     .map((l) => { const i = l.indexOf("="); return [l.slice(0, i).trim(), l.slice(i + 1).trim()]; }));
-const KEY = env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? env.GOOGLE_MAPS_API_KEY;
+// ⚑ THE NAME THE APP ACTUALLY USES — components/address-autocomplete.tsx:18.
+const KEY = env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
 if (!env.SUPABASE_SERVICE_ROLE_KEY) throw new Error("SUPABASE_SERVICE_ROLE_KEY missing from .env.local");
-if (!KEY) throw new Error("No Google Maps key in .env.local (NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)");
+if (!KEY) throw new Error("NEXT_PUBLIC_GOOGLE_MAPS_KEY missing from .env.local");
 const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL!, env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
 
 /**
- * Coordinates → the same four raw fields the address box reports.
+ * The stored address → the same four raw fields the address box reports.
  *
- * ⚑ THE GEOCODING API, NOT PLACES. Places answers "which place is this id"; there is no
- * id here, only a point the Driver dropped. Reverse geocoding is the call that takes a
- * point — and its `address_components` carry exactly the same type names, so
- * `resolveArea` needs no second version of the rules.
+ * ⚑⚑ THE GEOCODING API IS NOT ENABLED ON THIS GOOGLE PROJECT. The first version of
+ * this script reverse-geocoded base_lat/base_lng and every row came back empty:
+ * `REQUEST_DENIED — This API is not activated on your API project`. Only the Places
+ * API (New) is on, which is the one the address box already uses and the founder
+ * already pays for. Rather than ask for another API to be switched on, this asks
+ * Places the same question in its own language.
+ *
+ * ⚑ AND IT IS MORE FAITHFUL, NOT A WORKAROUND. `base_label` is the formattedAddress
+ * Google itself returned when the Driver picked their base, so searching it re-finds
+ * THE SAME PLACE. Reverse geocoding a point returns whatever is nearest to it, which
+ * for a base dropped on a street corner can be the wrong side of a commune boundary.
+ * The coordinates are still used, as a location bias, to break ties between towns
+ * that share a name.
  */
-async function areaOf(lat: number, lng: number): Promise<RawPlaceArea | null> {
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&language=fr&key=${KEY}`;
-  const r = await fetch(url);
-  const j = (await r.json()) as {
-    status?: string;
-    results?: { address_components?: { types?: string[]; long_name?: string; short_name?: string }[] }[];
+async function areaOf(label: string, lat: number, lng: number): Promise<RawPlaceArea | null> {
+  const res = await fetch("https://places.googleapis.com/v1/places:searchText", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": KEY!,
+      // ⚑ THE KEY IS BROWSER-RESTRICTED, so a server-side call arrives with no referer
+      //   and is refused: "Requests from referer <empty> are blocked." This is the
+      //   founder's own key, their own Google project, and their own app's origin —
+      //   the restriction exists to stop OTHER sites using the key, not to stop the
+      //   owner running a one-off from their own machine. Named here rather than
+      //   quietly done, and it is the same origin the app itself sends.
+      Referer: "http://localhost:3000/",
+      // The same mask the address box uses — asking for fewer fields is a cheaper SKU.
+      "X-Goog-FieldMask": "places.addressComponents,places.formattedAddress",
+    },
+    body: JSON.stringify({
+      textQuery: label,
+      languageCode: "fr",
+      maxResultCount: 1,
+      locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: 5000 } },
+    }),
+  });
+  const j = (await res.json()) as {
+    error?: { message?: string };
+    places?: { addressComponents?: { types?: string[]; longText?: string; shortText?: string }[] }[];
   };
-  if (j.status !== "OK" || !j.results?.length) return null;
-  // The first result is the most specific; the components we want (locality, postcode,
-  // admin level 1, country) may sit on a later, broader one, so search them all.
-  const pick = (type: string, short = false): string | null => {
-    for (const res of j.results ?? []) {
-      const c = res.address_components?.find((x) => x.types?.includes(type));
-      const v = (short ? c?.short_name : c?.long_name)?.trim();
-      if (v) return v;
-    }
-    return null;
-  };
-  return {
-    city: pick("locality") ?? pick("postal_town"),
-    postcode: pick("postal_code"),
-    regionName: pick("administrative_area_level_1"),
-    country: pick("country", true),
-  };
+  if (j.error) throw new Error(`Places: ${j.error.message ?? "unknown error"}`);
+  const components = j.places?.[0]?.addressComponents;
+  if (!components) return null;
+  // ⚑ THE SAME EXTRACTOR THE LIVE SAVE USES. One rule, not a second copy that drifts.
+  return areaFromComponents(components);
 }
 
 console.log(WRITE ? "── BACKFILL (writing) ──\n" : "── BACKFILL (dry run — nothing is written) ──\n");
@@ -89,7 +107,12 @@ for (const d of drivers ?? []) {
     already++;
     continue;
   }
-  const raw = await areaOf(d.base_lat, d.base_lng);
+  if (!d.base_label) {
+    console.log(`  ${who} — a base with coordinates but no address on file, skipped`);
+    skipped++;
+    continue;
+  }
+  const raw = await areaOf(d.base_label, d.base_lat, d.base_lng);
   const area = resolveArea(raw);
   const where = [
     area.city ?? "—",

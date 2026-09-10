@@ -16,7 +16,7 @@
 // region as INSEE values (lib/database.types.ts:291-293); a Driver now stores the same
 // shapes, so "who is in PACA" is one question rather than two that cannot be added up.
 import { departementFromPostcode } from "@/lib/company-register";
-import { regionCodeFromName, departementKeyLabel, countryKeyLabel } from "@/lib/france-geo";
+import { regionCodeFromName, departementCodeFromName, departementKeyLabel, countryKeyLabel } from "@/lib/france-geo";
 
 /** Exactly what Google gives us, before any Kavenue rule is applied. */
 export interface RawPlaceArea {
@@ -26,6 +26,8 @@ export interface RawPlaceArea {
   postcode: string | null;
   /** `administrative_area_level_1` long name, e.g. "Provence-Alpes-Côte d'Azur". */
   regionName: string | null;
+  /** `administrative_area_level_2` long name — in France, the département. */
+  departementName: string | null;
   /** `country` SHORT name — the ISO-2 code, e.g. "FR", "MC", "IT". */
   country: string | null;
 }
@@ -74,7 +76,12 @@ export function resolveArea(raw: Partial<RawPlaceArea> | null | undefined): Plac
   return {
     city: clean(raw.city),
     postcode,
-    departement: inFrance ? departementFromPostcode(postcode) : null,
+    // ⚑ POSTCODE FIRST, NAME SECOND. The postcode is unambiguous; the name is the
+    // fallback for a place resolved at town level, which carries no postal_code at all
+    // (7 of 14 live Drivers, 2026-09-10) and would otherwise store a null département.
+    departement: inFrance
+      ? departementFromPostcode(postcode) ?? departementCodeFromName(clean(raw.departementName))
+      : null,
     region: inFrance ? regionCodeFromName(clean(raw.regionName)) : null,
     country,
   };
@@ -99,6 +106,7 @@ export function areaFromComponents(
     city: pick("locality") ?? pick("postal_town"),
     postcode: pick("postal_code"),
     regionName: pick("administrative_area_level_1"),
+    departementName: pick("administrative_area_level_2"),
     // ⚑ SHORT name: the ISO-2 code. The long name is "France" / "Monaco", which would
     // make the country a word to be matched rather than a code to be compared.
     country: pick("country", true),
@@ -107,7 +115,7 @@ export function areaFromComponents(
 
 /** Serialise for a hidden form field; "" when there is nothing worth carrying. */
 export function encodeArea(raw: RawPlaceArea | null): string {
-  if (!raw || (!raw.city && !raw.postcode && !raw.regionName && !raw.country)) return "";
+  if (!raw || (!raw.city && !raw.postcode && !raw.regionName && !raw.departementName && !raw.country)) return "";
   return JSON.stringify(raw);
 }
 
@@ -121,6 +129,7 @@ export function decodeArea(value: string | null | undefined): RawPlaceArea | nul
       city: clean(o.city),
       postcode: clean(o.postcode),
       regionName: clean(o.regionName),
+      departementName: clean(o.departementName),
       country: clean(o.country),
     };
   } catch {

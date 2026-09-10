@@ -101,6 +101,7 @@ describe("areaFromComponents", () => {
     { types: ["locality", "political"], longText: "Cannes", shortText: "Cannes" },
     { types: ["postal_code"], longText: "06400", shortText: "06400" },
     { types: ["administrative_area_level_1", "political"], longText: "Provence-Alpes-Côte d'Azur", shortText: "PACA" },
+    { types: ["administrative_area_level_2", "political"], longText: "Alpes-Maritimes", shortText: "Alpes-Maritimes" },
     { types: ["country", "political"], longText: "France", shortText: "FR" },
   ];
 
@@ -109,6 +110,7 @@ describe("areaFromComponents", () => {
       city: "Cannes",
       postcode: "06400",
       regionName: "Provence-Alpes-Côte d'Azur",
+      departementName: "Alpes-Maritimes",
       country: "FR",
     });
   });
@@ -123,21 +125,22 @@ describe("areaFromComponents", () => {
   });
 
   it("never throws on a shape Google did not promise", () => {
-    expect(areaFromComponents(undefined)).toEqual({ city: null, postcode: null, regionName: null, country: null });
-    expect(areaFromComponents([])).toEqual({ city: null, postcode: null, regionName: null, country: null });
-    expect(areaFromComponents([{}])).toEqual({ city: null, postcode: null, regionName: null, country: null });
+    const nothing = { city: null, postcode: null, regionName: null, departementName: null, country: null };
+    expect(areaFromComponents(undefined)).toEqual(nothing);
+    expect(areaFromComponents([])).toEqual(nothing);
+    expect(areaFromComponents([{}])).toEqual(nothing);
   });
 });
 
 describe("encode / decode across the form field", () => {
-  const raw = { city: "Cannes", postcode: "06400", regionName: "Provence-Alpes-Côte d'Azur", country: "FR" };
+  const raw = { city: "Cannes", postcode: "06400", regionName: "Provence-Alpes-Côte d'Azur", departementName: "Alpes-Maritimes", country: "FR" };
 
   it("round-trips", () => {
     expect(decodeArea(encodeArea(raw))).toEqual(raw);
   });
 
   it("carries nothing when there is nothing to carry", () => {
-    expect(encodeArea({ city: null, postcode: null, regionName: null, country: null })).toBe("");
+    expect(encodeArea({ city: null, postcode: null, regionName: null, departementName: null, country: null })).toBe("");
     expect(encodeArea(null)).toBe("");
   });
 
@@ -146,7 +149,7 @@ describe("encode / decode across the form field", () => {
     expect(decodeArea("not json")).toBeNull();
     expect(decodeArea("")).toBeNull();
     expect(decodeArea(null)).toBeNull();
-    expect(decodeArea("[1,2,3]")).toEqual({ city: null, postcode: null, regionName: null, country: null });
+    expect(decodeArea("[1,2,3]")).toEqual({ city: null, postcode: null, regionName: null, departementName: null, country: null });
     expect(decodeArea("null")).toBeNull();
   });
 
@@ -185,5 +188,36 @@ describe("areaLabel — the phrase a screen shows", () => {
   it("reads a Monaco base end to end", () => {
     const a = resolveArea({ city: "Monaco", postcode: "98000", regionName: "Monaco", country: "MC" });
     expect(areaLabel(a)).toBe("Monaco");
+  });
+});
+
+describe("département without a postcode — the town-level case", () => {
+  // ⚑ 7 OF 14 LIVE DRIVERS HIT THIS on 2026-09-10. A base resolved at town level
+  // ("Antibes") carries no postal_code at all, and the postcode rule alone stored null.
+  it("falls back to the département's NAME when there is no postcode", () => {
+    const a = resolveArea({
+      city: "Antibes",
+      postcode: null,
+      departementName: "Alpes-Maritimes",
+      regionName: "Provence-Alpes-Côte d'Azur",
+      country: "FR",
+    });
+    expect(a.departement).toBe("06");
+    expect(a.region).toBe("93");
+    expect(areaLabel(a)).toBe("Alpes-Maritimes");
+  });
+
+  it("still prefers the postcode when both are there", () => {
+    // A postcode is unambiguous; a name can be mistyped or translated.
+    expect(resolveArea({ postcode: "13001", departementName: "Alpes-Maritimes", country: "FR" }).departement)
+      .toBe("13");
+  });
+
+  it("does not use the name outside France", () => {
+    expect(resolveArea({ departementName: "Alpes-Maritimes", country: "MC" }).departement).toBeNull();
+  });
+
+  it("is null for a name that is not a département", () => {
+    expect(resolveArea({ departementName: "Liguria", country: "FR" }).departement).toBeNull();
   });
 });

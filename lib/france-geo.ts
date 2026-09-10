@@ -144,3 +144,24 @@ export function countryKeyLabel(key: string | null): string {
   if (key === null) return "No country on file";
   return COUNTRIES[key] ?? key;
 }
+
+const DEPT_BY_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(DEPARTEMENTS).map(([code, name]) => [norm(name), code]),
+);
+
+/**
+ * The INSEE code for a département NAME, or null when it is not one of the 101.
+ *
+ * ⚑ THE POSTCODE IS NOT ALWAYS THERE. The department is normally derived from the
+ * postcode, which is the better source because it is unambiguous. But a place resolved
+ * at TOWN level — "Antibes" rather than "12 rue X, 06600 Antibes" — comes back from
+ * Google with no `postal_code` component at all, and 7 of the 14 live Drivers hit
+ * exactly that on 2026-09-10. Google does send `administrative_area_level_2`, which in
+ * France IS the département, by name. This turns that into the code, so a base without
+ * a postcode still lands in the right column instead of a null.
+ */
+export function departementCodeFromName(name: string | null | undefined): string | null {
+  const n = norm(name ?? "");
+  if (!n) return null;
+  return DEPT_BY_NAME[n] ?? null;
+}

@@ -378,6 +378,17 @@ export interface Database {
           revtc_number: string | null;
           registered_address: string | null;
           pro_card_number: string | null;
+          // ⚑ WHERE THE BASE IS — added 2026-09-09
+          // (docs/migrations/2026-09-09_driver_base_area.sql). Captured from the Places
+          // response we were already paying for and discarding. Same INSEE vocabulary as
+          // `business.city/departement/region`, so the two screens can be added up.
+          // ⚑ A CITY AND A POSTCODE WITH NO DÉPARTEMENT AND NO RÉGION MEANS ANOTHER
+          // COUNTRY, not missing data — Monaco. `base_country` is what says which.
+          base_city: string | null;
+          base_postcode: string | null;
+          base_departement: string | null; // INSEE code, e.g. 06 · NULL outside France
+          base_region: string | null; // INSEE code, e.g. 93 · NULL outside France
+          base_country: string | null; // ISO-3166-1 alpha-2, e.g. FR / MC / IT
           created_at: string;
         };
         Insert: {
@@ -406,6 +417,11 @@ export interface Database {
           revtc_number?: string | null;
           registered_address?: string | null;
           pro_card_number?: string | null;
+          base_city?: string | null;
+          base_postcode?: string | null;
+          base_departement?: string | null;
+          base_region?: string | null;
+          base_country?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["driver"]["Insert"]>;

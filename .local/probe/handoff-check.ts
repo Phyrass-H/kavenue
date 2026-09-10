@@ -1142,6 +1142,55 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
       : `${tracked.length} tracked file(s) scanned`);
 }
 
+// ── where a Driver's base is (S77) ─────────────────────────────────────────────
+// ⚑ THE MIGRATION IS docs/migrations/2026-09-09_driver_base_area.sql. Until the
+// founder pastes it these go STALE, and that is the correct reading — the app writes
+// these columns on every base save, so a missing column is a silent write failure.
+console.log("\n── where a Driver's base is (S77) ──");
+{
+  const { error: colErr } = await db
+    .from("driver")
+    .select("base_city,base_postcode,base_departement,base_region,base_country")
+    .limit(1);
+  const applied = !colErr;
+  t("the base-area columns exist on driver",
+    applied,
+    applied ? "" : `⚑ run docs/migrations/2026-09-09_driver_base_area.sql — ${colErr?.message ?? ""}`);
+
+  if (applied) {
+    const { data: rows } = await db
+      .from("driver")
+      .select("first_name,last_name,base_lat,base_city,base_departement,base_region,base_country");
+    const withBase = (rows ?? []).filter((r) => r.base_lat != null);
+    const filled = withBase.filter((r) => r.base_city);
+    t("every Driver with a base has a city on file",
+      withBase.length > 0 && filled.length === withBase.length,
+      `${filled.length}/${withBase.length} — run .local/seed/backfill-driver-area.mts --write`);
+
+    // ⚑ MONACO IS THE ONE TO GUARD. The département rule is "first two digits of the
+    // postcode", which turns 98000 into "980" — a département that does not exist. A
+    // French code on a non-French row means place-area.ts's country gate has been lost.
+    const wrong = (rows ?? []).filter(
+      (r) => r.base_country && r.base_country !== "FR" && (r.base_departement || r.base_region));
+    t("no Driver outside France carries a French département or région",
+      wrong.length === 0,
+      wrong.length
+        ? `⚑ ${wrong.map((r) => `${r.first_name} ${r.last_name} (${r.base_country} → ${r.base_departement})`).join(", ")}`
+        : `${(rows ?? []).filter((r) => r.base_country && r.base_country !== "FR").length} outside France`);
+  }
+
+  // ⚑ ONE SPELLING PER BRAND. "Mercedes" and "Mercedes-Benz" are one marque; stored
+  // apart they are two rows on any brands breakdown the founder reads.
+  const { canonicalMake } = await import("../../lib/vehicle-catalog.ts");
+  const { data: cars } = await db.from("vehicle").select("id,make");
+  const uncanonical = (cars ?? []).filter((v) => v.make && canonicalMake(v.make) !== v.make);
+  t("every car make is stored in its canonical spelling",
+    uncanonical.length === 0,
+    uncanonical.length
+      ? `⚑ ${[...new Set(uncanonical.map((v) => `${v.make} → ${canonicalMake(v.make)}`))].join(", ")}`
+      : `${cars?.length ?? 0} car(s)`);
+}
+
 // ── the admin "Will trips reach them?" block still matches the Pool (S77) ──────
 // ⚑ WHY. That block's whole job is to state the Pool's filter and nothing else, and
 // the first version of it shipped on 2026-09-09 overstating two rules and omitting a

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { areaFromComponents, encodeArea } from "@/lib/place-area";
 
 // ⚑ GOOGLE FOR THE ADDRESS BOX, MAPBOX FOR ROUTING (founder, 2026-08-24, [[d89]]).
 // This file is the ONLY thing that moved. `lib/directions.ts` still calls Mapbox
@@ -131,6 +132,7 @@ export function AddressAutocomplete({
   latName,
   lngName,
   placeLabelName,
+  areaName,
   defaultValue,
   placeholder,
   proximity = [7.2619, 43.7102], // Nice
@@ -142,6 +144,12 @@ export function AddressAutocomplete({
   latName?: string;
   lngName?: string;
   placeLabelName?: string; // hidden input carrying the short glance label (phase 2)
+  // ⚑ RAW FIELDS ONLY. This carries what Google said — town, postcode, région NAME,
+  // country code — as JSON, and NOT what Kavenue makes of it. Every rule (which digits
+  // are a département, what counts as France, which INSEE code a name is) lives in
+  // lib/place-area.ts, on the server, where it is pure and has tests. A rule inside a
+  // browser component is a rule nobody can check, and this one has Monaco in it.
+  areaName?: string;
   defaultValue?: DefaultPlace | null;
   placeholder?: string;
   proximity?: [number, number];
@@ -155,6 +163,7 @@ export function AddressAutocomplete({
   // Short glance label captured on pick (empty until a fresh pick, so a resumed
   // draft that isn't re-picked submits "" and the server keeps the stored label).
   const [placeLabel, setPlaceLabel] = useState("");
+  const [area, setArea] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -278,6 +287,9 @@ export function AddressAutocomplete({
         setPicked(place);
         setQuery(label);
         setPlaceLabel(glanceLabelFromDetails(d)); // short label for the schedule
+        // The town / postcode / région / country Google already sent us. Free — it is
+        // in the field mask above — and thrown away on every save until 2026-09-09.
+        setArea(encodeArea(areaFromComponents(d.addressComponents)));
         onChange?.({ text: label, place });
       }
       session.current = newSession(); // fresh session for the next search
@@ -295,7 +307,7 @@ export function AddressAutocomplete({
     // Editing the text after a pick invalidates the chosen coords + glance label.
     const next = picked && v === picked.label ? picked : null;
     if (next !== picked) setPicked(next);
-    if (!next) setPlaceLabel("");
+    if (!next) { setPlaceLabel(""); setArea(""); }
     onChange?.({ text: v, place: next });
   }
 
@@ -356,6 +368,7 @@ export function AddressAutocomplete({
       {latName && <input type="hidden" name={latName} value={picked?.lat ?? ""} />}
       {lngName && <input type="hidden" name={lngName} value={picked?.lng ?? ""} />}
       {placeLabelName && <input type="hidden" name={placeLabelName} value={placeLabel} />}
+      {areaName && <input type="hidden" name={areaName} value={area} />}
 
       {listOpen && (
         <ul className="ac-list" id={listId} role="listbox" ref={listRef}>

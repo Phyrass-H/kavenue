@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidLatLng } from "@/lib/geo";
-import { categorize } from "@/lib/vehicle-catalog";
+import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
@@ -34,7 +34,9 @@ export async function createDriverProfile(formData: FormData) {
   // Plate matters for the legally-required VTC verification, not just display.
   const bodyRaw = String(formData.get("body_type") ?? "");
   const bodyType: BodyType = bodyRaw === "van" ? "van" : "sedan";
-  const make = String(formData.get("make") ?? "").trim() || null;
+  // ⚑ CANONICAL ON THE WAY IN — see lib/vehicle-catalog.ts. "Merc", "MB" and
+  //   "Mercedes" are all one marque; storing them apart makes them three.
+  const make = canonicalMake(String(formData.get("make") ?? ""));
   const model = String(formData.get("model") ?? "").trim() || null;
   const colour = String(formData.get("colour") ?? "").trim() || null;
   const plate = String(formData.get("plate") ?? "").trim() || null;

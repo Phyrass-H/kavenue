@@ -185,6 +185,32 @@ function resolveBrand(make: string): string | null {
   return null;
 }
 
+/**
+ * The make as it should be STORED — one spelling per brand.
+ *
+ * ⚑ WHY THIS EXISTS. `vehicle.make` is saved exactly as the Driver typed it
+ * (app/(app)/settings/actions.ts) and this table was only ever used to CLASSIFY a car,
+ * never to clean it. So the live fleet holds "Mercedes" while the canonical brand here
+ * is "Mercedes-Benz", and a brands breakdown — which the founder asked for on
+ * 2026-09-09 — would show one marque as two rows. Every alias already lives in
+ * CHECKED_BRANDS; this simply applies it on the way in.
+ *
+ * ⚑ AN UNKNOWN BRAND IS KEPT, NOT BLANKED. Only its shape is tidied: "peugeot" and
+ * "PEUGEOT" become "Peugeot" so they stop being two makes, while a short all-caps name
+ * (DS, MG, BMW-before-it-is-matched) keeps its capitals, because "Ds" is not a marque.
+ * Losing what a Driver typed would be worse than an untidy row.
+ */
+export function canonicalMake(make: string | null | undefined): string | null {
+  const raw = (make ?? "").trim().replace(/\s+/g, " ");
+  if (!raw) return null;
+  const known = resolveBrand(raw);
+  if (known) return known;
+  return raw
+    .split(" ")
+    .map((w) => (w.length <= 3 && w === w.toUpperCase() ? w : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()))
+    .join(" ");
+}
+
 // Find the exception a typed make+model resolves to (canonical, alias, or trim).
 function findException(make: string, model: string) {
   const brand = resolveBrand(make);

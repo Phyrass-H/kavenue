@@ -46,6 +46,7 @@ export default async function ServiceAreaPage({
               labelName="base_label"
               latName="base_lat"
               lngName="base_lng"
+              areaName="base_area"
               defaultValue={base}
               placeholder="Start typing a town or address…"
             />

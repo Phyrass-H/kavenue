@@ -6,8 +6,9 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidLatLng } from "@/lib/geo";
-import { categorize } from "@/lib/vehicle-catalog";
+import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
+import { resolveArea, decodeArea } from "@/lib/place-area";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 
@@ -104,6 +105,16 @@ export async function updateServiceArea(formData: FormData) {
     redirect("/settings/area?error=nobase");
   }
 
+  // ⚑ CAPTURED AT WRITE TIME, BECAUSE IT CANNOT BE RECOVERED LATER. Google already
+  // sent the town, postcode, région and country with this base — `addressComponents`
+  // is in the Places field mask, so it costs nothing — and until 2026-09-09 all four
+  // were discarded. `base_label` cannot stand in for them: split on the comma and a
+  // Google-picked base gives a STREET, not a town.
+  // ⚑ THE RULES ARE HERE, NOT IN THE BROWSER. The form field carries what Google said;
+  // `resolveArea` decides what Kavenue stores, and it is what knows that Monaco has a
+  // postcode and no département (lib/place-area.ts, tests/place-area.test.ts).
+  const area = resolveArea(decodeArea(String(formData.get("base_area") ?? "")));
+
   const admin = createAdminClient();
   const { error } = await admin
     .from("driver")
@@ -112,6 +123,11 @@ export async function updateServiceArea(formData: FormData) {
       base_lat: baseLat,
       base_lng: baseLng,
       service_radius_km: radius,
+      base_city: area.city,
+      base_postcode: area.postcode,
+      base_departement: area.departement,
+      base_region: area.region,
+      base_country: area.country,
     })
     .eq("id", driverId);
   if (error) redirect("/settings/area?error=db");
@@ -147,7 +163,10 @@ export async function updateVehicle(formData: FormData) {
   const vehicleFields = {
     category: categorize(make, model),
     body_type: bodyType,
-    make: make || null,
+    // ⚑ ONE SPELLING PER BRAND, decided on the way in (2026-09-09). Stored raw until
+    //   now, so the fleet held "Mercedes" while the catalog's canonical is
+    //   "Mercedes-Benz" — a brands breakdown would have split one marque in two.
+    make: canonicalMake(make),
     model: model || null,
     colour: colour || null,
     plate: plate || null,

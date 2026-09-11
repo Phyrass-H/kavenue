@@ -80,6 +80,11 @@ export default async function OnboardingPage({
             labelName="base_label"
             latName="base_lat"
             lngName="base_lng"
+            // ⚑ THE DOOR, NOT JUST THE SETTINGS PAGE (2026-09-11). Area capture shipped
+            // on /settings/area on 2026-09-09 and was missed HERE, on the page every new
+            // Driver actually passes through — so it only filled when someone re-saved
+            // their base, which is the opposite of capturing it at the door.
+            areaName="base_area"
             placeholder="Start typing a town or address…"
           />
         </div>

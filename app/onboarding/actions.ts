@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidLatLng } from "@/lib/geo";
 import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
+import { resolveArea, decodeArea } from "@/lib/place-area";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 
@@ -96,6 +97,19 @@ export async function createDriverProfile(formData: FormData) {
     base_lat: baseLat,
     base_lng: baseLng,
     service_radius_km: radius,
+    // ⚑ SAME RULES AS /settings/area — lib/place-area.ts decides, the browser only
+    // reports what Google said. Missed here on 2026-09-09; every Driver who enrolled
+    // between then and this fix has a base with no city until they re-save it.
+    ...(() => {
+      const area = resolveArea(decodeArea(String(formData.get("base_area") ?? "")));
+      return {
+        base_city: area.city,
+        base_postcode: area.postcode,
+        base_departement: area.departement,
+        base_region: area.region,
+        base_country: area.country,
+      };
+    })(),
     accepts_luggage_runs: acceptsLuggage,
   };
 

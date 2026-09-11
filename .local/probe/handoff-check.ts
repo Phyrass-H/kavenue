@@ -1182,6 +1182,18 @@ console.log("\n── where a Driver's base is (S77) ──");
         : `${(rows ?? []).filter((r) => r.base_country && r.base_country !== "FR").length} outside France`);
   }
 
+  // ⚑ EVERY PAGE THAT SETS A BASE MUST CAPTURE ITS AREA. Shipped on /settings/area
+  // on 2026-09-09 and MISSED on /onboarding — the page every new Driver actually
+  // passes through — for two days. A base box without `areaName` is a base saved with
+  // no city, no département and no country, silently.
+  const baseForms = ["app/onboarding/page.tsx", "app/(app)/settings/area/page.tsx"];
+  const blind = baseForms.filter((f) => {
+    const src = fs.readFileSync(f, "utf8");
+    return /labelName="base_label"/.test(src) && !/areaName="base_area"/.test(src);
+  });
+  t("every page that sets a Driver's base also captures its area",
+    blind.length === 0, blind.length ? `⚑ no areaName on: ${blind.join(", ")}` : baseForms.join(", "));
+
   // ⚑ ONE SPELLING PER BRAND. "Mercedes" and "Mercedes-Benz" are one marque; stored
   // apart they are two rows on any brands breakdown the founder reads.
   const { canonicalMake } = await import("../../lib/vehicle-catalog.ts");

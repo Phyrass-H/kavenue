@@ -19,6 +19,7 @@ import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { canonicalMake } from "../../lib/vehicle-catalog.ts";
 
 const env = Object.fromEntries(
   fs.readFileSync(".env.local", "utf8").split("\n")
@@ -91,7 +92,9 @@ if (driverId) {
 const { data: veh } = await db.from("vehicle").select("id").eq("driver_id", driverId!).maybeSingle();
 const vehicleFields = {
   category: "business" as const, body_type: "sedan" as const,
-  make: "Mercedes", model: "Classe E", colour: "noir", energy: "hybride_rechargeable", first_registration_date: "2023-03-14",  plate: "TE-000-ST", seats: 4, is_active: true,
+  // ⚑ canonicalMake, not a literal: re-running this seed used to write "Mercedes" over
+  //   the canonical "Mercedes-Benz" and turn handoff-check red (2026-09-11).
+  make: canonicalMake("Mercedes"), model: "Classe E", colour: "noir", energy: "hybride_rechargeable", first_registration_date: "2023-03-14",  plate: "TE-000-ST", seats: 4, is_active: true,
 };
 if (veh) await db.from("vehicle").update(vehicleFields).eq("id", veh.id);
 else await db.from("vehicle").insert({ driver_id: driverId!, ...vehicleFields });

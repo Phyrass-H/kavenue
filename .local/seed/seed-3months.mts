@@ -25,6 +25,7 @@ import fs from "node:fs";
 import { PLACES, BASES, LEGS, DRIVERS, BUSINESSES, GUESTS, AIRLINES, NOTES } from "./riviera.mts";
 import { priceFor, isNightPickup, RATE_CARD_COLS } from "../../lib/rate-card.ts";
 import { currentFare, openingPrice } from "../../lib/pdp.ts";
+import { canonicalMake } from "../../lib/vehicle-catalog.ts";
 
 const env = Object.fromEntries(
   fs.readFileSync(".env.local", "utf8").split("\n")
@@ -154,7 +155,9 @@ for (const d of DRIVERS) {
 
   const { error: vErr } = await db.from("vehicle").insert({
     driver_id: drv.id, category: d.category, body_type: d.body,
-    make: d.make, model: d.model, colour: d.colour, plate: d.plate, seats: d.seats,
+    // ⚑ THROUGH THE APP'S OWN RULE. A seed that writes "Mercedes" undoes the canonical
+    //   spelling every time it runs — re-seeding Théo did exactly that on 2026-09-11.
+    make: canonicalMake(d.make), model: d.model, colour: d.colour, plate: d.plate, seats: d.seats,
     energy: d.energy, first_registration_date: d.firstRegistered,
     is_active: true, created_at: iso(joinedAt),
   });

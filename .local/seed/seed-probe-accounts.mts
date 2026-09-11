@@ -16,6 +16,7 @@
 import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import { BASES } from "./riviera.mts";
+import { canonicalMake } from "../../lib/vehicle-catalog.ts";
 
 const env = Object.fromEntries(
   fs.readFileSync(".env.local", "utf8").split("\n")
@@ -71,7 +72,7 @@ async function makeDriver(email: string, first: string, last: string, base: keyo
   // a probe that posts a trip and accepts it does not have to think about tiers.
   const { error: vErr } = await db.from("vehicle").insert({
     driver_id: d.id, category: "business", body_type: "sedan",
-    make: "Mercedes", model: "Classe E", colour: "noir", energy: "hybride_rechargeable", first_registration_date: "2022-04-11", 
+    make: canonicalMake("Mercedes"), model: "Classe E", colour: "noir", energy: "hybride_rechargeable", first_registration_date: "2022-04-11", 
     plate: email.startsWith("demo") ? "ZZ-001-ZZ" : "ZZ-002-ZZ", seats: 4, is_active: true,
   });
   if (vErr) throw new Error(`vehicle ${email}: ${vErr.message}`);

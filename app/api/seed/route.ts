@@ -52,7 +52,34 @@ export async function GET() {
       // that writes the superseded column manufactures exactly the population
       // the S71 gate exists to catch — a Business with no category — and it
       // would be the only one nobody could explain.
-      .insert({ name: SEED_BUSINESS, business_type: "hotel", reception_phone: "+33 4 93 00 00 00" })
+      // ⚑ WHERE IT IS, STATED — NOT LEFT BLANK FOR SOMEONE TO GUESS (2026-09-11).
+      // This insert used to write a name, a type and a phone and nothing else, and
+      // every run of this route manufactured a Business with no city, no département,
+      // no country and no address: the one row the Businesses screen could only file
+      // under "Location not established". The founder deleted it that day and ruled
+      // "no invention, everything has to be clean".
+      // The address is the one this seed ALREADY gives its trips (pickup_address
+      // below), so nothing new is claimed — only put on the row it belongs to. The
+      // codes follow from it: 06400 Cannes is Alpes-Maritimes (06), PACA (93), France.
+      // ⚑ STILL NO SIRET, deliberately. A seed row carrying the real hotel's
+      // registration number would be indistinguishable from a real customer; the
+      // "(seed)" name and the missing SIRET are what keep it obviously a fixture.
+      .insert({
+        name: SEED_BUSINESS,
+        business_type: "hotel",
+        reception_phone: "+33 4 93 00 00 00",
+        business_address: "58 Bd de la Croisette, 06400 Cannes, France",
+        business_address_label: "Carlton, Cannes",
+        // ⚑ FROM PLACES, NOT MEMORY. The first draft of this line was typed from
+        // recall and sat ~140 m off; these are what Google returns for the address
+        // above (verified 2026-09-11).
+        business_address_lat: 43.5496,
+        business_address_lng: 7.0273,
+        city: "CANNES",
+        departement: "06",
+        region: "93",
+        country: "FR",
+      })
       .select("id")
       .single();
     if (bizErr || !business)

@@ -7,6 +7,7 @@ import { isValidLatLng } from "@/lib/geo";
 import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
 import { resolveArea, decodeArea } from "@/lib/place-area";
+import { vehicleProblem, normalisePlate } from "@/lib/vehicle-rules";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 
@@ -31,7 +32,7 @@ export async function createDriverProfile(formData: FormData) {
     ? (gpsRaw as PreferredGps)
     : null;
 
-  // Vehicle identification (optional at signup, editable later in Settings).
+  // Vehicle identification — REQUIRED since 2026-09-11 (validated below).
   // Plate matters for the legally-required VTC verification, not just display.
   const bodyRaw = String(formData.get("body_type") ?? "");
   const bodyType: BodyType = bodyRaw === "van" ? "van" : "sedan";
@@ -39,11 +40,11 @@ export async function createDriverProfile(formData: FormData) {
   //   "Mercedes" are all one marque; storing them apart makes them three.
   const make = canonicalMake(String(formData.get("make") ?? ""));
   const model = String(formData.get("model") ?? "").trim() || null;
-  const colour = String(formData.get("colour") ?? "").trim() || null;
-  const plate = String(formData.get("plate") ?? "").trim() || null;
+  const colour = String(formData.get("colour") ?? "").trim();
+  const plate = String(formData.get("plate") ?? "").trim();
   const seatsRaw = String(formData.get("seats") ?? "").trim();
-  const seatsNum = seatsRaw ? Number.parseInt(seatsRaw, 10) : NaN;
-  const seats = Number.isFinite(seatsNum) ? seatsNum : null;
+  const energy = String(formData.get("energy") ?? "").trim();
+  const firstRegistered = String(formData.get("first_registration_date") ?? "").trim();
   // Tier is DERIVED from make+model (two-step fallback), never self-selected.
   const category = categorize(make ?? "", model ?? "");
   // Van Drivers can opt in to bags-only luggage runs (Sujet B, Phase 1).
@@ -61,6 +62,21 @@ export async function createDriverProfile(formData: FormData) {
   if (!baseLabel || !isValidLatLng(baseLat, baseLng)) {
     redirect("/onboarding?error=nobase");
   }
+
+  // ⚑ ONE AREA, USED TWICE. The base the Driver just picked is both where they work and
+  // — founder, 2026-09-11, "the car is related to the driver's company" — the country
+  // their plate must come from. Resolved once so the two can never disagree.
+  const area = resolveArea(decodeArea(String(formData.get("base_area") ?? "")));
+
+  // ⚑ THE CAR IS REQUIRED NOW. This used to say "optional at signup, editable later in
+  // Settings", and a blank make and model fell through categorize() into Eco. Same rule
+  // as the Settings page (lib/vehicle-rules.ts); one problem named at a time.
+  const problem = vehicleProblem(
+    { make: make ?? "", model: model ?? "", colour, plate, seats: seatsRaw, energy, firstRegistered },
+    area.country,
+    new Date(),
+  );
+  if (problem) redirect(`/onboarding?error=car&why=${problem}`);
 
   const admin = createAdminClient();
 
@@ -100,16 +116,11 @@ export async function createDriverProfile(formData: FormData) {
     // ⚑ SAME RULES AS /settings/area — lib/place-area.ts decides, the browser only
     // reports what Google said. Missed here on 2026-09-09; every Driver who enrolled
     // between then and this fix has a base with no city until they re-save it.
-    ...(() => {
-      const area = resolveArea(decodeArea(String(formData.get("base_area") ?? "")));
-      return {
-        base_city: area.city,
-        base_postcode: area.postcode,
-        base_departement: area.departement,
-        base_region: area.region,
-        base_country: area.country,
-      };
-    })(),
+    base_city: area.city,
+    base_postcode: area.postcode,
+    base_departement: area.departement,
+    base_region: area.region,
+    base_country: area.country,
     accepts_luggage_runs: acceptsLuggage,
   };
 
@@ -139,7 +150,18 @@ export async function createDriverProfile(formData: FormData) {
     .eq("driver_id", driverId!)
     .maybeSingle();
 
-  const vehicleFields = { category, body_type: bodyType, make, model, colour, plate, seats };
+  // Validated above: every value is present and from its list.
+  const vehicleFields = {
+    category,
+    body_type: bodyType,
+    make,
+    model,
+    colour,
+    plate: normalisePlate(plate),
+    seats: Number.parseInt(seatsRaw, 10),
+    energy,
+    first_registration_date: firstRegistered,
+  };
   if (!vehicle) {
     const { error: vErr } = await admin
       .from("vehicle")

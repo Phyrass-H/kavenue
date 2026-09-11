@@ -1206,6 +1206,47 @@ console.log("\n── where a Driver's base is (S77) ──");
       : `${cars?.length ?? 0} car(s)`);
 }
 
+// ── every car is complete, and in the app's own words (S77) ────────────────────
+// ⚑ FOUNDER, 2026-09-11: "those infos has to be mandatories". Migration:
+// docs/migrations/2026-09-11_vehicle_required_fields.sql.
+console.log("\n── every car is complete (S77) ──");
+{
+  // ⚑ BOTH DOORS. Enrollment and Settings each wrote whatever arrived until today; the
+  // failure this guards is one of them quietly dropping the rule again.
+  const doors = ["app/onboarding/actions.ts", "app/(app)/settings/actions.ts"];
+  const open_ = doors.filter((f) => !/vehicleProblem\(/.test(fs.readFileSync(f, "utf8")));
+  t("both car save paths enforce lib/vehicle-rules.ts",
+    open_.length === 0, open_.length ? `⚑ no vehicleProblem() in: ${open_.join(", ")}` : doors.join(", "));
+
+  // ⚑ A SEED THAT WRITES "Noir" CRASHES ON THE COLOUR CHECK once the migration is in.
+  const seedFiles = fs.readdirSync(".local/seed").filter((f) => /\.(mts|mjs)$/.test(f))
+    .map((f) => `.local/seed/${f}`).concat(["app/api/seed/route.ts"]);
+  const capital = seedFiles.filter((f) => /colour: "[A-Z]/.test(fs.readFileSync(f, "utf8")));
+  t("no seed writes a colour outside the list's lower-case codes",
+    capital.length === 0, capital.length ? `⚑ ${capital.join(", ")}` : "");
+
+  const { error: vErr } = await db.from("vehicle").select("energy,first_registration_date").limit(1);
+  const applied = !vErr;
+  t("vehicle.energy and vehicle.first_registration_date exist",
+    applied, applied ? "" : `⚑ run docs/migrations/2026-09-11_vehicle_required_fields.sql — ${vErr?.message ?? ""}`);
+
+  if (applied) {
+    const { COLOURS, ENERGIES } = await import("../../lib/vehicle-rules.ts");
+    const { data: cars } = await db.from("vehicle").select("id,colour,energy,first_registration_date");
+    const offList = (cars ?? []).filter((c) =>
+      (c.colour && !(COLOURS as readonly string[]).includes(c.colour)) ||
+      (c.energy && !(ENERGIES as readonly string[]).includes(c.energy)));
+    t("every stored colour and energy is on the app's list",
+      offList.length === 0, offList.length ? `⚑ ${offList.length} car(s) off-list` : `${cars?.length ?? 0} car(s)`);
+
+    // ⚑ NOT A FAILURE — A COUNT OF WHAT IS STILL TO BE ASKED. The cars enrolled before
+    // 2026-09-11 have no date and no energy, and inventing them was ruled out. Each shows
+    // "Finish your vehicle details" on its Driver's file until they add it.
+    const missing = (cars ?? []).filter((c) => !c.energy || !c.first_registration_date).length;
+    console.log(`note  ${missing} of ${cars?.length ?? 0} car(s) still to give their date + energy — asked on the Driver's file, never invented`);
+  }
+}
+
 // ── every Business has a country, so Monaco is called Monaco (S77) ────────────
 // ⚑ FOUNDER, 2026-09-10: "if it's outside of France then you name the country, period".
 // The migration is docs/migrations/2026-09-10_business_country.sql.

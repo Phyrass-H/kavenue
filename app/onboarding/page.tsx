@@ -3,13 +3,14 @@ import { getAppContext, routeFor } from "@/lib/app-context";
 import { createDriverProfile } from "./actions";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { DriverVehicleFields } from "@/components/driver-vehicle-fields";
+import { VEHICLE_PROBLEM_SAYS, type VehicleProblem } from "@/lib/vehicle-rules";
 
 const RADII = [25, 50, 75, 100, 150, 200, 300];
 
 export default async function OnboardingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; why?: string }>;
 }) {
   const ctx = await getAppContext();
   if (!ctx.user) redirect("/login");
@@ -17,7 +18,7 @@ export default async function OnboardingPage({
   if (ctx.driver && ctx.vehicle) redirect("/pool");
 
   const user = ctx.user;
-  const { error } = await searchParams;
+  const { error, why } = await searchParams;
 
   return (
     <main className="container" style={{ paddingTop: 28 }}>
@@ -35,6 +36,13 @@ export default async function OnboardingPage({
       {error === "nobase" && (
         <div className="notice error">
           Please pick your base address from the suggestions so we can match missions by distance.
+        </div>
+      )}
+      {/* ⚑ ONE PROBLEM, BY NAME — the approved preview. The rule and its words both
+          live in lib/vehicle-rules.ts, so this page cannot drift from Settings. */}
+      {error === "car" && (
+        <div className="notice error">
+          {VEHICLE_PROBLEM_SAYS[why as VehicleProblem] ?? "Please finish your car’s details."}
         </div>
       )}
       {error === "db" && (

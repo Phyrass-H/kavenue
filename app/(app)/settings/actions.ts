@@ -9,6 +9,7 @@ import { isValidLatLng } from "@/lib/geo";
 import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
 import { resolveArea, decodeArea } from "@/lib/place-area";
+import { vehicleProblem, normalisePlate } from "@/lib/vehicle-rules";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 
@@ -147,8 +148,20 @@ export async function updateVehicle(formData: FormData) {
   const colour = String(formData.get("colour") ?? "").trim();
   const plate = String(formData.get("plate") ?? "").trim();
   const seatsRaw = String(formData.get("seats") ?? "").trim();
-  const seatsNum = seatsRaw ? Number.parseInt(seatsRaw, 10) : NaN;
-  const seats = Number.isFinite(seatsNum) ? seatsNum : null;
+  const energy = String(formData.get("energy") ?? "").trim();
+  const firstRegistered = String(formData.get("first_registration_date") ?? "").trim();
+
+  // ⚑ EVERY FIELD REQUIRED, AND THE SAME RULE AS ENROLLMENT (founder, 2026-09-11).
+  // This save path used to write whatever arrived, so a Driver could blank their car
+  // here and drop back into Eco. The plate is checked against the Driver's OWN country
+  // — "the car is related to the driver's company" — which is their base's country.
+  const { data: me } = await admin.from("driver").select("base_country").eq("id", driverId).single();
+  const problem = vehicleProblem(
+    { make, model, colour, plate, seats: seatsRaw, energy, firstRegistered },
+    me?.base_country ?? null,
+    new Date(),
+  );
+  if (problem) redirect(`/settings/vehicle?error=car&why=${problem}`);
 
   // Van Drivers can opt in to bags-only luggage runs (Sujet B, Phase 1). The
   // checkbox only renders for a Van, so a Sedan Driver never submits it.
@@ -168,9 +181,12 @@ export async function updateVehicle(formData: FormData) {
     //   "Mercedes-Benz" — a brands breakdown would have split one marque in two.
     make: canonicalMake(make),
     model: model || null,
-    colour: colour || null,
-    plate: plate || null,
-    seats,
+    // Validated above: every value below is present and from its list.
+    colour,
+    plate: normalisePlate(plate),
+    seats: Number.parseInt(seatsRaw, 10),
+    energy,
+    first_registration_date: firstRegistered,
   };
 
   const { data: vehicle } = await admin

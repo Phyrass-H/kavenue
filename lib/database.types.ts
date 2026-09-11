@@ -445,6 +445,11 @@ export interface Database {
           plate: string | null;
           seats: number | null;
           is_active: boolean; // S48 — a paused car stops pulling trips (one car today)
+          // ⚑ ADDED 2026-09-11 (docs/migrations/2026-09-11_vehicle_required_fields.sql).
+          // Nullable ONLY for the cars enrolled before that day; the app refuses any new
+          // write without them (lib/vehicle-rules.ts), at both enrollment and Settings.
+          first_registration_date: string | null; // carte grise box B, YYYY-MM-DD
+          energy: string | null; // carte grise box P.3 — a code from ENERGIES
           created_at: string;
         };
         Insert: {
@@ -457,6 +462,8 @@ export interface Database {
           colour?: string | null;
           plate?: string | null;
           seats?: number | null;
+          first_registration_date?: string | null;
+          energy?: string | null;
           is_active?: boolean;
           created_at?: string;
         };

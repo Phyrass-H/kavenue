@@ -46,7 +46,17 @@ export function driverReadiness(
   if (driver.base_lat == null || driver.base_lng == null) {
     gaps.push({ label: "Set where you work", href: "/settings/area", tone: "block" });
   }
-  if (!vehicle?.make || !vehicle?.model || !vehicle?.plate) {
+  // ⚑ EVERY CAR FIELD, NOT JUST THREE (2026-09-11). The founder made them all
+  // mandatory; the 14 cars enrolled before that day have no first-registration date and
+  // no energy, and the database cannot require what they never had without inventing it.
+  // This is where they are ASKED for — named, never gating, the same as every gap here.
+  // Presence only: a value that is present was already checked against its list when it
+  // was written (lib/vehicle-rules.ts), and re-validating it here would mean a second
+  // rule to keep in step with the first.
+  if (
+    !vehicle?.make || !vehicle?.model || !vehicle?.plate || !vehicle?.colour ||
+    vehicle?.seats == null || !vehicle?.energy || !vehicle?.first_registration_date
+  ) {
     gaps.push({ label: "Finish your vehicle details", href: "/settings/vehicle", tone: "block" });
   }
   // S72 — the exploitant mentions of the arrêté du 6 août 2025. Without them Kavenue

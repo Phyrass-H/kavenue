@@ -5,6 +5,7 @@ import { getAppContext } from "@/lib/app-context";
 import { DriverVehicleFields } from "@/components/driver-vehicle-fields";
 import { SettingsHeader, SaveNotice } from "@/components/settings-header";
 import { updateVehicle } from "../actions";
+import { VEHICLE_PROBLEM_SAYS, type VehicleProblem } from "@/lib/vehicle-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -15,17 +16,25 @@ const NOTICE: Record<string, string> = {
 export default async function VehicleSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string; why?: string }>;
 }) {
   const ctx = await getAppContext();
   if (!ctx.driver) redirect("/onboarding");
   const { driver, vehicle } = ctx;
-  const { ok, error } = await searchParams;
+  const { ok, error, why } = await searchParams;
 
   return (
     <>
       <SettingsHeader title="Your vehicle" sub="The car a Business is told to expect." />
-      <SaveNotice ok={ok} error={error} messages={NOTICE} />
+      {/* ⚑ The car rule's own words, one problem at a time (lib/vehicle-rules.ts). */}
+      <SaveNotice
+        ok={ok}
+        error={error}
+        messages={{
+          ...NOTICE,
+          car: VEHICLE_PROBLEM_SAYS[why as VehicleProblem] ?? "Please finish your car’s details.",
+        }}
+      />
 
       <form action={updateVehicle}>
         <div className="dcard">
@@ -37,6 +46,8 @@ export default async function VehicleSettingsPage({
               colour: vehicle?.colour,
               plate: vehicle?.plate,
               seats: vehicle?.seats,
+              energy: vehicle?.energy,
+              first_registration_date: vehicle?.first_registration_date,
               accepts_luggage_runs: driver.accepts_luggage_runs,
             }}
           />

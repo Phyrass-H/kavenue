@@ -155,6 +155,7 @@ for (const d of DRIVERS) {
   const { error: vErr } = await db.from("vehicle").insert({
     driver_id: drv.id, category: d.category, body_type: d.body,
     make: d.make, model: d.model, colour: d.colour, plate: d.plate, seats: d.seats,
+    energy: d.energy, first_registration_date: d.firstRegistered,
     is_active: true, created_at: iso(joinedAt),
   });
   if (vErr) throw new Error(`vehicle ${d.email}: ${vErr.message}`);

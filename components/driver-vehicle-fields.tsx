@@ -9,11 +9,18 @@ import {
   suggestedBody,
   type BodyType,
 } from "@/lib/vehicle-catalog";
+import { COLOURS, COLOUR_LABEL, ENERGIES, ENERGY_LABEL } from "@/lib/vehicle-rules";
 
 // The Driver's own vehicle. The service TIER is DERIVED from make+model (the
 // two-step fallback) and shown read-only — Drivers don't self-classify. BODY
 // (Sedan/Van) is captured separately (pre-filled from the recognised model when
 // known). Make/colour/plate matter for the legally-required VTC verification.
+//
+// ⚑ EVERY FIELD IS REQUIRED (founder, 2026-09-11) — "those infos has to be
+// mandatories" for class, category and region distributions to mean anything. The
+// `required` attributes here are a courtesy; the rule itself is lib/vehicle-rules.ts,
+// enforced on the server at both doors, because a browser can always be bypassed.
+// ⚑ Colour and energy are LISTS, not free text — see vehicle-rules.ts for why.
 export function DriverVehicleFields({
   defaults,
 }: {
@@ -24,6 +31,8 @@ export function DriverVehicleFields({
     colour?: string | null;
     plate?: string | null;
     seats?: number | null;
+    energy?: string | null;
+    first_registration_date?: string | null;
     accepts_luggage_runs?: boolean | null;
   };
 }) {
@@ -42,12 +51,17 @@ export function DriverVehicleFields({
 
   return (
     <>
+      <p className="muted small" style={{ margin: "0 0 12px" }}>
+        Every field is needed — it’s what your carte grise says, and it’s how we match you to
+        the right trips.
+      </p>
       <div className="grid-2">
         <label className="field">
           <span>Make</span>
           <input
             type="text"
             name="make"
+            required
             value={make}
             onChange={(e) => setMake(e.target.value)}
             placeholder="Mercedes-Benz"
@@ -58,6 +72,7 @@ export function DriverVehicleFields({
           <input
             type="text"
             name="model"
+            required
             value={model}
             onChange={(e) => setModel(e.target.value)}
             placeholder="Classe E"
@@ -127,14 +142,59 @@ export function DriverVehicleFields({
         </label>
       )}
 
+      {/* ⚑ BOTH FROM THE CARTE GRISE, SO THEY SIT TOGETHER. Box B is the date of first
+          registration; box P.3 is the energy. The date is a DATE, not a year: the VTC age
+          limit is "moins de sept ans", and at that line a year alone is a year out.
+          ⚑ NO `max={today}` on the date, on purpose: this component renders on the server
+          (UTC) and hydrates in Paris, which is already tomorrow for two hours every night
+          — React would flag the attribute mismatch. The server refuses a future date
+          with its own message (vehicle-rules.ts), so nothing is lost. */}
+      <div className="grid-2">
+        <label className="field">
+          <span>First registered</span>
+          <input
+            type="date"
+            name="first_registration_date"
+            required
+            defaultValue={defaults?.first_registration_date ?? ""}
+          />
+          <span className="muted small">On your carte grise, box B</span>
+        </label>
+        <label className="field">
+          <span>Energy</span>
+          <select name="energy" required defaultValue={defaults?.energy ?? ""}>
+            <option value="" disabled>
+              Choose…
+            </option>
+            {ENERGIES.map((e) => (
+              <option key={e} value={e}>
+                {ENERGY_LABEL[e]}
+              </option>
+            ))}
+          </select>
+          <span className="muted small">On your carte grise, box P.3</span>
+        </label>
+      </div>
+
       <div className="grid-2">
         <label className="field">
           <span>Colour</span>
-          <input type="text" name="colour" defaultValue={defaults?.colour ?? ""} placeholder="Noir" />
+          {/* ⚑ A LIST, lower-case codes. The fleet was stored "Noir" / "Gris" before the
+              list existed; lower-casing the default keeps those rows selected. */}
+          <select name="colour" required defaultValue={(defaults?.colour ?? "").toLowerCase()}>
+            <option value="" disabled>
+              Choose…
+            </option>
+            {COLOURS.map((c) => (
+              <option key={c} value={c}>
+                {COLOUR_LABEL[c]}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="field">
           <span>Plate</span>
-          <input type="text" name="plate" defaultValue={defaults?.plate ?? ""} placeholder="AB-123-CD" />
+          <input type="text" name="plate" required defaultValue={defaults?.plate ?? ""} placeholder="AB-123-CD" autoCapitalize="characters" />
         </label>
         <label className="field">
           <span>Seats</span>
@@ -142,6 +202,8 @@ export function DriverVehicleFields({
             type="text"
             inputMode="numeric"
             name="seats"
+            required
+            pattern="[1-9]"
             defaultValue={defaults?.seats ?? ""}
             placeholder="4"
           />

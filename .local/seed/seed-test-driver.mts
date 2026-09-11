@@ -91,7 +91,7 @@ if (driverId) {
 const { data: veh } = await db.from("vehicle").select("id").eq("driver_id", driverId!).maybeSingle();
 const vehicleFields = {
   category: "business" as const, body_type: "sedan" as const,
-  make: "Mercedes", model: "Classe E", colour: "Noir", plate: "TE-000-ST", seats: 4, is_active: true,
+  make: "Mercedes", model: "Classe E", colour: "noir", energy: "hybride_rechargeable", first_registration_date: "2023-03-14",  plate: "TE-000-ST", seats: 4, is_active: true,
 };
 if (veh) await db.from("vehicle").update(vehicleFields).eq("id", veh.id);
 else await db.from("vehicle").insert({ driver_id: driverId!, ...vehicleFields });

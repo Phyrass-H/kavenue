@@ -44,12 +44,12 @@ const round2 = (n) => Math.round(n * 100) / 100;
 
 // ------------------------------------------------------------------- the fleet
 const DRIVERS = [
-  { first: "Marc", last: "Fontaine", cat: "business", body: "sedan", make: "Mercedes", model: "Classe E", colour: "Noir", plate: "AB-482-CD" },
-  { first: "Sofia", last: "Berger", cat: "business", body: "sedan", make: "BMW", model: "Série 5", colour: "Gris", plate: "EF-731-GH" },
-  { first: "Karim", last: "Nasri", cat: "business", body: "van", make: "Mercedes", model: "Classe V", colour: "Noir", plate: "IJ-905-KL", luggage: true },
-  { first: "Élodie", last: "Marchand", cat: "eco", body: "sedan", make: "Peugeot", model: "508", colour: "Bleu", plate: "MN-264-OP" },
-  { first: "Thomas", last: "Rey", cat: "luxury", body: "sedan", make: "Mercedes", model: "Classe S", colour: "Noir", plate: "QR-118-ST" },
-  { first: "Nadia", last: "Bouchard", cat: "business", body: "van", make: "Volkswagen", model: "Multivan", colour: "Gris", plate: "UV-673-WX", luggage: true },
+  { first: "Marc", last: "Fontaine", cat: "business", body: "sedan", make: "Mercedes", model: "Classe E", colour: "noir", plate: "AB-482-CD" },
+  { first: "Sofia", last: "Berger", cat: "business", body: "sedan", make: "BMW", model: "Série 5", colour: "gris", plate: "EF-731-GH" },
+  { first: "Karim", last: "Nasri", cat: "business", body: "van", make: "Mercedes", model: "Classe V", colour: "noir", plate: "IJ-905-KL", luggage: true },
+  { first: "Élodie", last: "Marchand", cat: "eco", body: "sedan", make: "Peugeot", model: "508", colour: "bleu", plate: "MN-264-OP" },
+  { first: "Thomas", last: "Rey", cat: "luxury", body: "sedan", make: "Mercedes", model: "Classe S", colour: "noir", plate: "QR-118-ST" },
+  { first: "Nadia", last: "Bouchard", cat: "business", body: "van", make: "Volkswagen", model: "Multivan", colour: "gris", plate: "UV-673-WX", luggage: true },
 ];
 
 const DESKS = ["Concierge — day", "Concierge — night", "Events desk"];

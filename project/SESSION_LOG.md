@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-09-11 — SESSION 77 (close) — tests 999 → 1137 · gate 64 → 95 · 4 migrations, all applied
+
+**The founder's list, worked in their order, plus two hazards the work turned up.**
+
+### Shipped
+- **Dev server** — `dev-guard.mts` + `next-process.mts`: one server, port 3000. (First half, above.)
+- **Carte grise** specimen portrait. **URSSAF** dropped ([[D136]]).
+- **"Will trips reach them?"** — one row per Pool rule; `verified` removed (the Pool does NOT filter on
+  it). Car selection now matches `getDriverContext` (oldest, not active).
+- **Base area** — `base_city/postcode/departement/region/country` on `driver`, captured at BOTH doors
+  (onboarding was missed on 2026-09-09, fixed 2026-09-11), backfilled for all 14.
+  `lib/place-area.ts` + `lib/france-geo.ts` (18 régions, 101 départements — fetched, not remembered).
+  Département falls back to `administrative_area_level_2` when a town-level place has no postcode.
+- **Business country** — `business.country`; both rollup RPCs group by région in France and by
+  `C:`+ISO outside it; `admin_business_page` accepts the same key. Monaco reads "Monaco".
+- **Carlton Cannes (seed)** deleted (0 money/legal records); its 19 `mission_event` rows KEPT (the log
+  has no FKs by design). `/api/seed` now creates it fully located, coordinates from Places.
+- **`canonicalMake`** — "Mercedes" → "Mercedes-Benz" on every write and in every seed.
+- **Mandatory car** — `lib/vehicle-rules.ts` (85 tests): first registration DATE, energy, colour list,
+  plate by the Driver's country (FR SIV+FNI, MC per arrêté 78-5 art. 6 incl. Z), passengers. Runs in
+  the browser too, so a rejection never wipes the form. DB columns nullable; app requires them;
+  readiness asks the 13 old cars.
+- **Security** — `2026-09-11b`: revoked browser writes on `vehicle`. Measured live beforehand: a Driver
+  could UPDATE their car and INSERT a second, so could relabel Eco as First. Now 42501.
+
+### Research (sourced, saved)
+`project/research/2026-09-11_plate_lookup_and_car_data.md` — plate-lookup vendors, SIV law, colour
+statistics, plate formats. 39 agents; 34 of 36 checked claims held.
+
+### Verified
+tsc 0 · vitest 1137/1137 · gate 95 · browser: the car form refuses a blank plate and a Monaco plate
+for a Cannes Driver without reloading; a valid save stored `AB-123-CD` and passed the DB checks.
+
+---
+
 ## 2026-09-09 — SESSION 77 — one dev server, on one port · gate 64 → 68
 
 **The founder lost access to the app entirely. The cause was the command they were told to use.**

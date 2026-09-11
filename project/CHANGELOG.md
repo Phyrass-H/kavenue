@@ -66,6 +66,29 @@ they are: **invisible to the Pool**.
 
 ---
 
+## 11 September 2026 — Clean data for your analytics, and a hole closed
+
+**Everything you'll want to count now gets recorded properly.**
+
+- **Where every Driver is based** — town, postcode, département, région and country, saved
+  automatically when they set their base. All 14 filled in. Names on screen, not codes:
+  *Alpes-Maritimes*, *Bouches-du-Rhône*.
+- **Monaco is called Monaco** — for Drivers and Businesses alike. Anything outside France is named by
+  its country. A place nobody has looked up says so, instead of pretending to be abroad.
+- **One spelling per car brand** — "Mercedes" and "Mercedes-Benz" are now one make.
+- **Every car detail is required** — make, model, first-registration date, energy, colour (your 10 +
+  Autre), plate and passengers. A typo no longer wipes the form. Your 13 demo cars are missing the date
+  and energy; I didn't make any up — each Driver's file asks for them.
+- **The test Carlton deleted**, and the tool that kept recreating it half-empty fixed.
+
+**A security hole closed.** A Driver could change their own car record straight from the browser —
+enough to relabel an Eco car as First and take First trips. That's now refused by the database.
+
+**Plate lookup: not now.** It exists and it's cheap, but storing the result needs a government licence,
+using an unlicensed service is a criminal offence, and none of them cover Monaco. Full sources saved.
+
+---
+
 ## 9 September 2026 — Two fixes to the papers screen
 
 **The carte grise was the wrong way round.** Our test copy was drawn lying on its side — 254 wide by

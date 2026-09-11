@@ -9,7 +9,72 @@ We're continuing Kavenue (B2B VTC booking marketplace).
 
 ---
 
-## 🎯 START HERE — WHAT THE FOUNDER WANTS NEXT (asked 2026-09-09)
+## 🎯 START HERE — S77 IS CLOSED (2026-09-11)
+
+**Founder's next job, in their words:** *"once we are done we can brainstorm and check if we have
+everything regarding cars, in enrollment and in analytics then step 4"*. Cars are now DONE for
+enrollment (below). **The analytics brainstorm is next, then step 4.** ⚑ Ask before starting.
+
+### The agreed order (founder, 2026-09-09) — where it stands
+1. ✅ Carte grise orientation — specimen was 254×125, now 125×254 (portrait)
+2. ✅ "Can the Pool reach them?" → **"Will trips reach them?"** — one row per Pool rule, in the Pool's
+   order. ⚑ gate pins it to `app/(app)/pool/page.tsx` (exactly 4 hide rules — add one and it goes red)
+3. ✅ **Capture city / département / région / country** at write time + **one spelling per brand**
+4. ⏭ **Search bar + a "Not verified" section on /admin/drivers** (list already pages, 60 at a time)
+5. ⏭ **Vehicles page** with search + analytics — data is now clean enough to build on
+6. ⏭ **Driver analytics by région / city** — fed by #3
+
+### ⚑⚑ DECIDED IN S77 — do NOT re-open
+- **URSSAF attestation de vigilance: dropped entirely** ([[D136]]). Value stays in the Postgres enum.
+- **Monaco is a country and is named as one — "name the country, period."** Drivers AND Businesses.
+  `regionKeyLabel("C:MC")` → "Monaco". A NULL région reads **"Location not established"**, which is
+  NOT the same as abroad.
+- **No invention.** A row with nothing to derive from is left alone and named, never guessed.
+- **Every car field is mandatory** — make, model, first registration (carte grise box B, a DATE),
+  energy (box P.3), colour (10 + Autre), plate, passengers. `lib/vehicle-rules.ts`, both doors.
+- **The plate's country is the Driver's base country** — no separate registration-country field.
+  ⚑ Edge case, accepted by the founder: a Monaco-based Driver with a French plate cannot save.
+- **No car "pause"** — multi-car is V2/V3.
+- **Plate-lookup API: NOT NOW.** Sourced research in `project/research/2026-09-11_plate_lookup_and_car_data.md`:
+  SIV data reuse needs a Ministry licence (L330-5), STORING it needs Kavenue's own level-2 licence, an
+  unlicensed source is a criminal offence (L330-7), no vendor covers Monaco, none publishes a hit rate.
+- **Age rule (<7 years, hybrid/electric exempt) is INFORMATION, not a gate** — `ageLimitApplies()`.
+
+### ⚑⚑ TRAPS FROM S77 — each cost real time
+1. ⚑⚑ **`npm run test-app` twice broke the app** — four dev servers sharing one `.next`. Fixed:
+   `.local/seed/dev-guard.mts`. ⚑ Its first version killed ANY process with "next" in its command
+   line (a `grep`, an editor) — caught by review. `lib`-style matcher now: `.local/seed/next-process.mts`.
+2. ⚑⚑ **The project lives inside iCloud Drive** (same inode as `~/Library/Mobile Documents/…`).
+   Founder: leave it for now. `realpath` does NOT reveal it — `~/Documents` is a firmlink.
+3. ⚑⚑ **Dev and prod share ONE Supabase project.** A migration applied for the branch is live for
+   `main` too. The colour check broke live car saves until the branch reached `main` — **push code
+   and constraint together.**
+4. ⚑ **Three adversarial reviews, three real bugs I had shipped and tested green:** the dev-guard
+   wrong-kill, the reach block overstating the Pool, and the vehicle table writable from the browser.
+   Keep reviewing after building.
+5. ⚑ **`grep … | head -1 && echo` always succeeds** — `head` exits 0 on empty input. It printed "car
+   gap showing" for a gap that did not exist. Fifth session running a check that could not fail.
+6. ⚑ **`lsof … | grep -i node` counts lsof's own header** ("NODE NAME"). Use `awk 'NR>1 && $1~/node/'`.
+7. ⚑ **The Google key is browser-restricted and the Geocoding API is OFF.** Server scripts use Places
+   `searchText` with `Referer: http://localhost:3000/`. Key name: `NEXT_PUBLIC_GOOGLE_MAPS_KEY`.
+8. ⚑ **A dropped document type does not drop its rows** — they render with no label. Gate checks it.
+9. ⚑ **Seeds must go through the app's rules** (`canonicalMake`, lower-case colour codes) — re-seeding
+   Théo wrote "Mercedes" over "Mercedes-Benz" and turned the gate red.
+
+### State
+| | |
+|---|---|
+| `main` | see `git log` — S77 pushed 2026-09-11 |
+| tests | 999 → **1137** |
+| `handoff-check` | 64 → **95**, all green except the note on 13 demo cars |
+| migrations applied | `2026-09-09_driver_base_area` · `2026-09-10_business_country` · `2026-09-11_vehicle_required_fields` · `2026-09-11b_vehicle_no_browser_writes` |
+
+**13 demo cars have no first-registration date or energy** — nothing invented; each shows "Finish your
+vehicle details" on its Driver's file. Théo is complete ("Your file is with us").
+
+---
+
+## (superseded) START HERE — asked 2026-09-09
 
 > **"Next session I want to improve the documents verification page, few things are wrong."**
 

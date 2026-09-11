@@ -3,7 +3,7 @@
 import { describe, it, expect } from "vitest";
 import {
   vehicleProblem, plateFitsCountry, normalisePlate, ageLimitApplies,
-  colourLabel, isColour, isEnergy, COLOURS, ENERGIES, type VehicleInput,
+  colourLabel, isColour, isEnergy, COLOURS, ENERGIES, parisToday, vehicleProblemSays, type VehicleInput,
 } from "../lib/vehicle-rules";
 
 const TODAY = new Date("2026-09-11T12:00:00Z");
@@ -145,5 +145,60 @@ describe("the lists", () => {
     expect(colourLabel("Noir")).toBe("Noir");
     expect(colourLabel("gris")).toBe("Gris");
     expect(isColour("Noir")).toBe(false);
+  });
+});
+
+// ── the adversarial review, 2026-09-11 — every case below is a defect it found ──
+
+describe("review · the checked plate IS the stored plate", () => {
+  it.each(["AB--123-CD", "A-B123CD", "AB-1-23-CD", "-AB123CD-", "ab - 123 - cd"])(
+    "%s is both accepted AND stored as AB-123-CD",
+    (typed) => {
+      expect(plateFitsCountry(typed, "FR")).toBe(true);
+      expect(normalisePlate(typed)).toBe("AB-123-CD");
+    },
+  );
+  it("gives one FNI plate one spelling however it is typed", () => {
+    expect(normalisePlate("5723-HB-62")).toBe(normalisePlate("5723 HB 62"));
+  });
+});
+
+describe("review · Monaco issues Z (arrêté 78-5 art. 6, reserved to certain individuals)", () => {
+  it.each(["Z123", "Z1", "123Z"])("accepts %s", (p) => expect(plateFitsCountry(p, "MC")).toBe(true));
+  it("still refuses M after the digits, which the text excludes", () => {
+    expect(plateFitsCountry("123M", "MC")).toBe(false);
+  });
+});
+
+describe("review · a real calendar date, not just a parseable one", () => {
+  // new Date("2023-02-30") rolls over to 2 March; Postgres's date column then refused it.
+  it.each(["2023-02-30", "2023-13-01", "2023-04-31", "2023-2-3"])("refuses %s", (d) => {
+    expect(vehicleProblem({ ...GOOD, firstRegistered: d }, "FR", TODAY)).toBe("first_registered");
+  });
+  it("accepts a real leap day", () => {
+    expect(vehicleProblem({ ...GOOD, firstRegistered: "2024-02-29" }, "FR", TODAY)).toBeNull();
+  });
+});
+
+describe("review · 'today' is Paris's today", () => {
+  // 23:30 UTC on 10 Sept is 01:30 on 11 Sept in Paris. The first version compared to
+  // the UTC clock and refused the Driver's own today as "in the future".
+  const lateUtc = new Date("2026-09-10T23:30:00Z");
+  it("accepts the Paris date at 01:30 Paris, while UTC is still yesterday", () => {
+    expect(parisToday(lateUtc)).toBe("2026-09-11");
+    expect(vehicleProblem({ ...GOOD, firstRegistered: "2026-09-11" }, "FR", lateUtc)).toBeNull();
+  });
+  it("still refuses tomorrow in Paris", () => {
+    expect(vehicleProblem({ ...GOOD, firstRegistered: "2026-09-12" }, "FR", lateUtc)).toBe("first_registered_future");
+  });
+});
+
+describe("review · a URL cannot crash the page", () => {
+  it.each(["__proto__", "constructor", "toString", "hasOwnProperty", "", "nonsense"])(
+    "vehicleProblemSays(%j) is null, not an object",
+    (why) => expect(vehicleProblemSays(why)).toBeNull(),
+  );
+  it("still returns the words for a real problem", () => {
+    expect(vehicleProblemSays("plate")).toBe("Add your plate to continue");
   });
 });

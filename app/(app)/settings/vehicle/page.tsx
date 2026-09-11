@@ -5,7 +5,7 @@ import { getAppContext } from "@/lib/app-context";
 import { DriverVehicleFields } from "@/components/driver-vehicle-fields";
 import { SettingsHeader, SaveNotice } from "@/components/settings-header";
 import { updateVehicle } from "../actions";
-import { VEHICLE_PROBLEM_SAYS, type VehicleProblem } from "@/lib/vehicle-rules";
+import { vehicleProblemSays } from "@/lib/vehicle-rules";
 
 export const dynamic = "force-dynamic";
 
@@ -32,13 +32,16 @@ export default async function VehicleSettingsPage({
         error={error}
         messages={{
           ...NOTICE,
-          car: VEHICLE_PROBLEM_SAYS[why as VehicleProblem] ?? "Please finish your car’s details.",
+          car: vehicleProblemSays(why) ?? "Please finish your car’s details.",
         }}
       />
 
       <form action={updateVehicle}>
         <div className="dcard">
           <DriverVehicleFields
+            // ⚑ The plate is checked against the Driver's own country (founder's rule) —
+            //   in the browser too, so a wrong plate never costs them the form.
+            country={driver.base_country ?? null}
             defaults={{
               body_type: vehicle?.body_type,
               make: vehicle?.make,

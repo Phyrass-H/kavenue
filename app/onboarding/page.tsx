@@ -3,7 +3,7 @@ import { getAppContext, routeFor } from "@/lib/app-context";
 import { createDriverProfile } from "./actions";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { DriverVehicleFields } from "@/components/driver-vehicle-fields";
-import { VEHICLE_PROBLEM_SAYS, type VehicleProblem } from "@/lib/vehicle-rules";
+import { vehicleProblemSays } from "@/lib/vehicle-rules";
 
 const RADII = [25, 50, 75, 100, 150, 200, 300];
 
@@ -42,7 +42,7 @@ export default async function OnboardingPage({
           live in lib/vehicle-rules.ts, so this page cannot drift from Settings. */}
       {error === "car" && (
         <div className="notice error">
-          {VEHICLE_PROBLEM_SAYS[why as VehicleProblem] ?? "Please finish your car’s details."}
+          {vehicleProblemSays(why) ?? "Please finish your car’s details."}
         </div>
       )}
       {error === "db" && (

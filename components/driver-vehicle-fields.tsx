@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   BODY_TYPES,
   BODY_LABEL,
@@ -9,7 +9,11 @@ import {
   suggestedBody,
   type BodyType,
 } from "@/lib/vehicle-catalog";
-import { COLOURS, COLOUR_LABEL, ENERGIES, ENERGY_LABEL } from "@/lib/vehicle-rules";
+import {
+  COLOURS, COLOUR_LABEL, ENERGIES, ENERGY_LABEL, VEHICLE_PROBLEM_SAYS, vehicleProblem,
+  type VehicleProblem,
+} from "@/lib/vehicle-rules";
+import { resolveArea, decodeArea } from "@/lib/place-area";
 
 // The Driver's own vehicle. The service TIER is DERIVED from make+model (the
 // two-step fallback) and shown read-only — Drivers don't self-classify. BODY
@@ -23,7 +27,11 @@ import { COLOURS, COLOUR_LABEL, ENERGIES, ENERGY_LABEL } from "@/lib/vehicle-rul
 // ⚑ Colour and energy are LISTS, not free text — see vehicle-rules.ts for why.
 export function DriverVehicleFields({
   defaults,
+  country,
 }: {
+  /** The Driver's country, which the plate must come from. Omitted at enrollment, where
+   *  the base is picked in the same form — it is read from that form's base_area. */
+  country?: string | null;
   defaults?: {
     body_type?: string | null;
     make?: string | null;
@@ -44,13 +52,47 @@ export function DriverVehicleFields({
   // Opt-in to bags-only Van runs (Sujet B, Phase 1). Off by default.
   const [acceptsLuggage, setAcceptsLuggage] = useState(defaults?.accepts_luggage_runs ?? false);
 
+  // ⚑ THE SERVER'S RULE, RUN FIRST IN THE BROWSER (adversarial review, 2026-09-11).
+  // Both save paths answer a bad car with a redirect, and a redirect throws the form
+  // away — at enrollment that is the Driver's name, phone, base, radius AND car, all to
+  // be retyped because of one plate typo. The fields were optional until today, so that
+  // redirect almost never fired; now it would fire all the time. Checking here with the
+  // very same `vehicleProblem` means a normal Driver is never sent through it. The
+  // server still checks: this only spares the Driver, it guards nothing.
+  const wrap = useRef<HTMLDivElement>(null);
+  const [problem, setProblem] = useState<VehicleProblem | null>(null);
+  useEffect(() => {
+    const form = wrap.current?.closest("form");
+    if (!form) return;
+    const onSubmit = (e: SubmitEvent) => {
+      const f = new FormData(form);
+      const g = (k: string) => String(f.get(k) ?? "");
+      const c = country !== undefined ? country : resolveArea(decodeArea(g("base_area"))).country;
+      const p = vehicleProblem(
+        {
+          make: g("make"), model: g("model"), colour: g("colour"), plate: g("plate"),
+          seats: g("seats"), energy: g("energy"), firstRegistered: g("first_registration_date"),
+        },
+        c,
+        new Date(),
+      );
+      setProblem(p);
+      if (p) {
+        e.preventDefault();
+        wrap.current?.querySelector<HTMLElement>(`[data-field="${p}"]`)?.focus();
+      }
+    };
+    form.addEventListener("submit", onSubmit);
+    return () => form.removeEventListener("submit", onSubmit);
+  }, [country]);
+
   const tier = categorize(make, model);
   // Pre-fill body from a recognised model until the Driver overrides it.
   const sugg = suggestedBody(make, model);
   const effectiveBody: BodyType = bodyTouched ? body : sugg ?? body;
 
   return (
-    <>
+    <div ref={wrap}>
       <p className="muted small" style={{ margin: "0 0 12px" }}>
         Every field is needed — it’s what your carte grise says, and it’s how we match you to
         the right trips.
@@ -61,6 +103,7 @@ export function DriverVehicleFields({
           <input
             type="text"
             name="make"
+            data-field="make"
             required
             value={make}
             onChange={(e) => setMake(e.target.value)}
@@ -72,6 +115,7 @@ export function DriverVehicleFields({
           <input
             type="text"
             name="model"
+            data-field="model"
             required
             value={model}
             onChange={(e) => setModel(e.target.value)}
@@ -155,14 +199,19 @@ export function DriverVehicleFields({
           <input
             type="date"
             name="first_registration_date"
+            data-field="first_registered"
             required
+            // ⚑ A STATIC `min`, unlike `max`: it cannot drift between server and browser.
+            // Without it a two-digit year ("0023") passed the browser and was refused by
+            // the server with "Add the date" — to someone who had.
+            min="1900-01-01"
             defaultValue={defaults?.first_registration_date ?? ""}
           />
           <span className="muted small">On your carte grise, box B</span>
         </label>
         <label className="field">
           <span>Energy</span>
-          <select name="energy" required defaultValue={defaults?.energy ?? ""}>
+          <select name="energy" data-field="energy" required defaultValue={defaults?.energy ?? ""}>
             <option value="" disabled>
               Choose…
             </option>
@@ -181,7 +230,7 @@ export function DriverVehicleFields({
           <span>Colour</span>
           {/* ⚑ A LIST, lower-case codes. The fleet was stored "Noir" / "Gris" before the
               list existed; lower-casing the default keeps those rows selected. */}
-          <select name="colour" required defaultValue={(defaults?.colour ?? "").toLowerCase()}>
+          <select name="colour" data-field="colour" required defaultValue={(defaults?.colour ?? "").toLowerCase()}>
             <option value="" disabled>
               Choose…
             </option>
@@ -194,14 +243,18 @@ export function DriverVehicleFields({
         </label>
         <label className="field">
           <span>Plate</span>
-          <input type="text" name="plate" required defaultValue={defaults?.plate ?? ""} placeholder="AB-123-CD" autoCapitalize="characters" />
+          <input type="text" name="plate" data-field="plate" required defaultValue={defaults?.plate ?? ""} placeholder="AB-123-CD" autoCapitalize="characters" />
         </label>
         <label className="field">
-          <span>Seats</span>
+          {/* ⚑ PASSENGERS, not the carte grise's seat count, which includes the driver —
+              a Classe E is stored 4, a Classe V 7. One definition, or the same car is
+              recorded two ways. */}
+          <span>Passengers</span>
           <input
             type="text"
             inputMode="numeric"
             name="seats"
+            data-field="seats"
             required
             pattern="[1-9]"
             defaultValue={defaults?.seats ?? ""}
@@ -213,6 +266,11 @@ export function DriverVehicleFields({
       {/* Derived tier + (possibly auto-suggested) body submit via hidden inputs. */}
       <input type="hidden" name="category" value={tier} />
       <input type="hidden" name="body_type" value={effectiveBody} />
-    </>
+      {problem && (
+        <p className="notice error" role="alert" style={{ marginTop: 12 }}>
+          {VEHICLE_PROBLEM_SAYS[problem]}
+        </p>
+      )}
+    </div>
   );
 }

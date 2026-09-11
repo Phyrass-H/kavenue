@@ -10,11 +10,12 @@
 // to be mandatories."*
 //
 // ⚑ ONE MODULE, TWO DOORS. Enrollment (app/onboarding/actions.ts) and the Settings page
-// (app/(app)/settings/actions.ts) both call `validateVehicle`. Two copies of "what is
+// (app/(app)/settings/actions.ts) both call `vehicleProblem`. Two copies of "what is
 // required" is how one of them ends up letting a blank car through.
 //
-// ⚑ PURE. No database, no browser — so it has tests, and the form's `required`
-// attributes are a courtesy on top of it rather than the only thing standing guard.
+// ⚑ PURE, AND IT RUNS ON BOTH SIDES. No database and no server-only import, so it has
+// tests AND the form runs the very same rule in the browser before submitting — the
+// server stays the guard, the browser just stops a Driver losing their form to it.
 
 // ── colours ──────────────────────────────────────────────────────────────────
 // ⚑ A LIST, NOT FREE TEXT. The same reason brands split: "noir", "Noir" and "black"
@@ -96,20 +97,34 @@ export function ageLimitApplies(energy: Energy | null | undefined): boolean {
 //                  the age limit — but a hybrid is exempt from it, so it can happen.
 //   Monaco       — arrêté ministériel n° 78-5, art. 6: up to 4 digits; or 1 letter +
 //                  up to 3 digits; or up to 3 digits + 1 letter (that last form does
-//                  not use M). Letters B C D E F G H J K L M N P Q R S T U V X Y.
+//                  not use M). Letters B C D E F G H J K L M N P Q R S T U V X Y, and
+//                  Z — reserved for certain individuals, but issued (see below).
 // ⚑ I, O and U are said to be excluded from SIV by commercial sites only; the primary
 // text does not say so, so they are NOT hard-blocked here.
 const SIV = /^([A-Z]{2})-?(\d{3})-?([A-Z]{2})$/;
 const FNI = /^\d{1,4}[A-Z]{1,3}(\d{2}|2A|2B|\d{3})$/;
-const MC_LETTERS = "BCDEFGHJKLMNPQRSTUVXY";
-const MC_LETTERS_NO_M = "BCDEFGHJKLNPQRSTUVXY";
+// ⚑ Z IS ISSUED — the standard list omits it, but art. 6 goes on: "la lettre Z étant
+// réservée aux personnes physiques visées par l'article 102". A VTC Driver can be an
+// individual, so a Z plate is legitimate and the first version wrongly refused it
+// (adversarial review, 2026-09-11; re-read from legimonaco.mc that day).
+const MC_LETTERS = "BCDEFGHJKLMNPQRSTUVXYZ";
+const MC_LETTERS_NO_M = "BCDEFGHJKLNPQRSTUVXYZ";
 const MONACO = new RegExp(`^(\\d{1,4}|[${MC_LETTERS}]\\d{1,3}|\\d{1,3}[${MC_LETTERS_NO_M}])$`);
 
-/** Upper case, no spaces; an SIV plate comes back as AA-123-AA. */
+/**
+ * Upper case, no spaces, no dashes — then an SIV plate gets its dashes put back as
+ * AA-123-AA. Every other plate is stored compact.
+ *
+ * ⚑ THE CHECKED PLATE AND THE STORED PLATE ARE NOW THE SAME STRING. The first version
+ * tested the SIV shape with the Driver's own dashes still in, so "AB--123-CD" and
+ * "A-B123CD" failed that test, fell through, and were STORED AS TYPED — while
+ * `plateFitsCountry` stripped every dash and passed them. One plate could be saved two
+ * ways, and the waybill prints whatever was saved (lib/waybill.ts). Caught by review.
+ */
 export function normalisePlate(raw: string | null | undefined): string {
-  const up = (raw ?? "").toUpperCase().replace(/\s+/g, "").trim();
-  const siv = SIV.exec(up);
-  return siv ? `${siv[1]}-${siv[2]}-${siv[3]}` : up;
+  const compact = (raw ?? "").toUpperCase().replace(/[\s-]+/g, "");
+  const siv = /^([A-Z]{2})(\d{3})([A-Z]{2})$/.exec(compact);
+  return siv ? `${siv[1]}-${siv[2]}-${siv[3]}` : compact;
 }
 
 /**
@@ -121,6 +136,7 @@ export function normalisePlate(raw: string | null | undefined): string {
  * in this market today.
  */
 export function plateFitsCountry(plate: string, country: string | null | undefined): boolean {
+  // The compact form of exactly what `normalisePlate` will store.
   const p = normalisePlate(plate).replace(/-/g, "");
   if (!p) return false;
   if (country === "FR") return SIV.test(p) || FNI.test(p);
@@ -154,11 +170,22 @@ export function vehicleProblem(v: VehicleInput, country: string | null | undefin
   if (!v.make.trim()) return "make";
   if (!v.model.trim()) return "model";
   if (!v.firstRegistered.trim()) return "first_registered";
-  const d = new Date(`${v.firstRegistered}T00:00:00Z`);
+  // ⚑ A REAL CALENDAR DATE, NOT JUST A PARSEABLE ONE. `new Date("2023-02-30")` quietly
+  // rolls over to 2 March, so the first version passed it — and Postgres's `date` column
+  // then refused it with a generic error, in onboarding AFTER the driver row existed.
+  // Round-tripping catches it here, with the rule's own words.
+  const ymd = v.firstRegistered.trim();
+  const d = new Date(`${ymd}T00:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== ymd) {
+    return "first_registered";
+  }
   // ⚑ 1900, NOT A VTC-SHAPED YEAR. Collection vehicles are exempt from the age limit
   // (art. 1), so a 1960 car is a legitimate answer and must not be refused here.
-  if (Number.isNaN(d.getTime()) || d.getUTCFullYear() < 1900) return "first_registered";
-  if (d.getTime() > today.getTime()) return "first_registered_future";
+  if (d.getUTCFullYear() < 1900) return "first_registered";
+  // ⚑ "TODAY" IS PARIS'S TODAY. Comparing to the server clock in UTC refused TODAY's date
+  // for the first one-to-two hours of every Paris day, when UTC is still on yesterday.
+  // Date strings compare correctly as strings in this format.
+  if (ymd > parisToday(today)) return "first_registered_future";
   if (!isEnergy(v.energy)) return "energy";
   if (!isColour(v.colour)) return "colour";
   if (!v.plate.trim()) return "plate";
@@ -166,6 +193,12 @@ export function vehicleProblem(v: VehicleInput, country: string | null | undefin
   const seats = Number.parseInt(v.seats, 10);
   if (!Number.isInteger(seats) || seats < 1 || seats > 9 || String(seats) !== v.seats.trim()) return "seats";
   return null;
+}
+
+/** The calendar date in Paris for an instant, as YYYY-MM-DD. */
+export function parisToday(now: Date): string {
+  // en-CA formats as YYYY-MM-DD, which is exactly the shape a date input sends.
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(now);
 }
 
 /** What to say, beside the button, for each problem. */
@@ -178,5 +211,21 @@ export const VEHICLE_PROBLEM_SAYS: Record<VehicleProblem, string> = {
   colour: "Choose your car’s colour to continue",
   plate: "Add your plate to continue",
   plate_format: "That plate doesn’t look like a number from your country — check it against the carte grise",
-  seats: "Add how many passenger seats your car has (1 to 9)",
+  // ⚑ PASSENGER seats — the Guests the car can carry, not the carte grise's total,
+  // which counts the driver. The fleet is stored that way (a Classe E is 4, a Classe V
+  // is 7), and pointing the Driver at box S.1 would have stored the same car as 4 or 5.
+  seats: "Add how many passengers your car can carry (1 to 9)",
 };
+
+/**
+ * The words for a problem code that arrived in a URL — or null.
+ *
+ * ⚑ A QUERY STRING IS USER INPUT. `VEHICLE_PROBLEM_SAYS[why]` with `why=__proto__`
+ * returns Object.prototype, and rendering an object as a React child crashes the page.
+ * Both pages read `why` from the URL, so both go through this.
+ */
+export function vehicleProblemSays(why: string | null | undefined): string | null {
+  return why && Object.hasOwn(VEHICLE_PROBLEM_SAYS, why)
+    ? VEHICLE_PROBLEM_SAYS[why as VehicleProblem]
+    : null;
+}

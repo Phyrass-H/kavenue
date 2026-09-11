@@ -1247,6 +1247,54 @@ console.log("\n── every car is complete (S77) ──");
   }
 }
 
+// ── a Driver cannot write their own car from the browser (S77) ─────────────────
+// ⚑ MEASURED OPEN ON 2026-09-11: an ordinary signed-in Driver could UPDATE their own
+// vehicle row and INSERT a second one, past every rule in lib/vehicle-rules.ts — and
+// `category` decides which trips they may take. Fix:
+// docs/migrations/2026-09-11b_vehicle_no_browser_writes.sql.
+// ⚑⚑ HARMLESS BY CONSTRUCTION — the S76 rule for any probe that runs BEFORE its fix.
+// The write sets `category` to the value the row ALREADY has, so if the door is still
+// open nothing changes; the answer is in whether the database says yes, not in the data.
+// ⚑ AS A REAL DRIVER: the service role bypasses every grant, so a service-role probe
+// would read green whatever the policy said.
+console.log("\n── a Driver cannot write their own car (S77) ──");
+{
+  const as = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    { auth: { persistSession: false } });
+  const { error: si } = await as.auth.signInWithPassword({ email: "demo.driver@pickup.local", password: DEV_PASSWORD });
+  if (si) {
+    t("a Driver cannot write their own vehicle row", false, `could not sign in: ${si.message} — run .local/seed/seed-probe-accounts.mts`);
+  } else {
+    const { data: me } = await db.from("driver").select("id").eq("email", "demo.driver@pickup.local").single();
+    const { data: car } = await db.from("vehicle").select("id,category").eq("driver_id", me!.id)
+      .order("created_at").limit(1).single();
+    const w = await as.from("vehicle").update({ category: car!.category }).eq("id", car!.id).select("id");
+    // Refused either as an error, or as zero rows touched (RLS filters instead of erroring).
+    const refused = !!w.error || (w.data?.length ?? 0) === 0;
+    t("a Driver cannot write their own vehicle row",
+      refused,
+      refused ? (w.error ? `refused (${w.error.code})` : "refused (0 rows)")
+              : "⚑ ACCEPTED — run docs/migrations/2026-09-11b_vehicle_no_browser_writes.sql");
+    const { data: carAfter } = await db.from("vehicle").select("category").eq("id", car!.id).single();
+    t("…and the probe left the car exactly as it found it", carAfter?.category === car!.category);
+    const r = await as.from("vehicle").select("id").eq("id", car!.id);
+    t("…while a Driver can still READ their own car", !r.error && (r.data?.length ?? 0) === 1,
+      r.error ? r.error.message : "");
+  }
+
+  // ⚑ DATA, NOT CODE: a plate that does not fit its Driver's country can never be saved
+  // again (Thomas Rey's did not, until 2026-09-11) — so the Driver is stuck.
+  const { plateFitsCountry } = await import("../../lib/vehicle-rules.ts");
+  const { data: rows } = await db.from("vehicle").select("plate, driver:driver_id(first_name,last_name,base_country)");
+  const stuck = (rows ?? []).filter((v) => {
+    const d = (v as unknown as { driver: { base_country: string | null } | null }).driver;
+    return v.plate && d && !plateFitsCountry(v.plate, d.base_country);
+  });
+  t("every live plate fits its Driver's country, so no Driver is stuck unable to save",
+    stuck.length === 0,
+    stuck.length ? `⚑ ${stuck.map((v) => `${(v as unknown as { driver: { first_name: string } }).driver.first_name} ${v.plate}`).join(", ")}` : `${rows?.length ?? 0} plate(s)`);
+}
+
 // ── every Business has a country, so Monaco is called Monaco (S77) ────────────
 // ⚑ FOUNDER, 2026-09-10: "if it's outside of France then you name the country, period".
 // The migration is docs/migrations/2026-09-10_business_country.sql.

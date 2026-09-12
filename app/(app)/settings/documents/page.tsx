@@ -51,7 +51,7 @@ function DocRow({ doc }: { doc: DocView }) {
 export default async function DocumentsPage() {
   const ctx = await getAppContext();
   if (!ctx.driver) redirect("/onboarding");
-  const { driver, vehicle } = ctx;
+  const { driver, liveCar } = ctx;
 
   const docs = await getLatestDocuments("driver", driver.id, DRIVER_DOC_TYPES);
   const byType = new Map(docs.map((d) => [d.type, d]));
@@ -61,8 +61,8 @@ export default async function DocumentsPage() {
     return s === "expiring" || s === "expired" || s === "rejected";
   }).length;
 
-  const carName = vehicle?.make
-    ? [vehicle.make, vehicle.model].filter(Boolean).join(" ")
+  const carName = liveCar?.make
+    ? [liveCar.make, liveCar.model].filter(Boolean).join(" ")
     : "Your vehicle";
 
   return (
@@ -79,7 +79,7 @@ export default async function DocumentsPage() {
           <div className="dcard" key={group}>
             <p className="dcard__label dcard__label--split">
               <span>{group === "vehicle" ? carName : DOC_GROUP_LABEL[group]}</span>
-              <em>{group === "vehicle" && vehicle?.plate ? vehicle.plate : DOC_GROUP_NOTE[group]}</em>
+              <em>{group === "vehicle" && liveCar?.plate ? liveCar.plate : DOC_GROUP_NOTE[group]}</em>
             </p>
             {types.map((t) => {
               const doc = byType.get(t);

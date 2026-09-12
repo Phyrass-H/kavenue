@@ -19,8 +19,19 @@ export interface Gap {
   tone: "block" | "warn";
 }
 
+/** ⚑ S78 — NOT A GAP. A car waiting for a person is not something the Driver can act on, and
+ *  filing it as a gap would make "Your file is with us" unreachable for anyone who had just
+ *  changed car — the exact bug the test Driver's deliberately-complete file was built to
+ *  catch. It is listed, it is not counted, and it never fills a step. */
+export interface Waiting {
+  label: string;
+  href: string;
+}
+
 export interface Readiness {
   gaps: Gap[];
+  /** Things a PERSON owes the Driver, not the other way round. */
+  waiting: Waiting[];
   blockers: number;
   warnings: number;
   /** Steps satisfied / total — drives the segment bar, not a percentage. */
@@ -36,6 +47,7 @@ export function driverReadiness(
   now: Date = new Date(),
 ): Readiness {
   const gaps: Gap[] = [];
+  const waiting: Waiting[] = [];
 
   if (!driver.profile_photo_url) {
     gaps.push({ label: "Add a profile photo", href: "/settings/profile", tone: "warn" });
@@ -58,6 +70,17 @@ export function driverReadiness(
     vehicle?.seats == null || !vehicle?.energy || !vehicle?.first_registration_date
   ) {
     gaps.push({ label: "Finish your vehicle details", href: "/settings/vehicle", tone: "block" });
+  }
+  // ⚑ S78 — and then, separately, what a PERSON still owes them. A car is approved by hand
+  // (the founder: *"new cars new rules period, the activity console approves"*), so a pending
+  // car is not a gap — there is nothing for the Driver to do about it. A REJECTED one is,
+  // because correcting it is theirs, and it carries the reason it was refused.
+  if (vehicle && !vehicle.retired_at) {
+    if (vehicle.approval_status === "pending") {
+      waiting.push({ label: "Your car is with us", href: "/settings/vehicle" });
+    } else if (vehicle.approval_status === "rejected") {
+      gaps.push({ label: "Your car needs correcting", href: "/settings/vehicle", tone: "block" });
+    }
   }
   // S72 — the exploitant mentions of the arrêté du 6 août 2025. Without them Kavenue
   // cannot issue the Waybill (lib/waybill.ts), so a Driver stopped at a check has nothing
@@ -118,5 +141,5 @@ export function driverReadiness(
         ? `${blockers} thing${blockers > 1 ? "s" : ""} left before you can drive`
         : `${warnings} thing${warnings > 1 ? "s" : ""} to keep an eye on`;
 
-  return { gaps, blockers, warnings, done, total, headline };
+  return { gaps, waiting, blockers, warnings, done, total, headline };
 }

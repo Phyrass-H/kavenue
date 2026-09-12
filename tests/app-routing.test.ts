@@ -21,7 +21,7 @@ const ctxFor = (role: UserRole | null, extras: Partial<AppContext> = {}): AppCon
   user: { id: "u1" } as AppContext["user"],
   profile: role ? ({ auth_user_id: "u1", role } as ProfileRow) : null,
   driver: null,
-  vehicle: null,
+  liveCar: null,
   dispatcher: null,
   business: null,
   ...extras,
@@ -53,10 +53,10 @@ describe("routeFor", () => {
     expect(routeFor(ctxFor("admin"))).toBe("/admin");
   });
 
-  it("routes a Driver to onboarding until they have a driver AND a vehicle", () => {
+  it("routes a Driver to onboarding until they have a driver AND a car on file", () => {
     expect(routeFor(ctxFor("driver"))).toBe("/onboarding");
     expect(routeFor(ctxFor("driver", { driver: {} as never }))).toBe("/onboarding");
-    expect(routeFor(ctxFor("driver", { driver: {} as never, vehicle: {} as never }))).toBe("/pool");
+    expect(routeFor(ctxFor("driver", { driver: {} as never, liveCar: {} as never }))).toBe("/pool");
   });
 
   it("routes a Dispatcher to business onboarding until they have a dispatcher AND a business", () => {

@@ -68,19 +68,19 @@ function Row({
 export default async function DriverAccountPage() {
   const ctx = await getAppContext();
   if (!ctx.driver) redirect("/onboarding");
-  const { driver, vehicle } = ctx;
+  const { driver, liveCar } = ctx;
 
   const docs = await getLatestDocuments("driver", driver.id, DRIVER_DOC_TYPES);
-  const ready = driverReadiness(driver, vehicle, docs);
+  const ready = driverReadiness(driver, liveCar, docs);
   const docsToDo = docs.filter((d) => {
     const s = docState(d);
     return s !== "valid" && s !== "pending";
   }).length;
   const docsValid = docs.filter((d) => docState(d) === "valid").length;
 
-  const carLine = vehicle?.make
-    ? [vehicle.make, vehicle.model].filter(Boolean).join(" ") +
-      (vehicle.plate ? ` · ${vehicle.plate}` : "")
+  const carLine = liveCar?.make
+    ? [liveCar.make, liveCar.model].filter(Boolean).join(" ") +
+      (liveCar.plate ? ` · ${liveCar.plate}` : "")
     : "No car on file yet";
 
   return (
@@ -173,8 +173,8 @@ export default async function DriverAccountPage() {
           icon={<Car size={19} strokeWidth={1.7} />}
           title="Your vehicle"
           value={
-            vehicle
-              ? `${serviceClassLabel(vehicle.category, vehicle.body_type)} · ${vehicle.seats ?? "?"} seats`
+            liveCar
+              ? `${serviceClassLabel(liveCar.category, liveCar.body_type)} · ${liveCar.seats ?? "?"} seats`
               : "Add your car"
           }
         />

@@ -8,6 +8,8 @@ import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
 import { resolveArea, decodeArea } from "@/lib/place-area";
 import { vehicleProblem, normalisePlate } from "@/lib/vehicle-rules";
+import { liveCarOf, statusOf } from "@/lib/vehicle-approval";
+import { duplicateWhy } from "@/lib/duplicate";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 
@@ -122,6 +124,8 @@ export async function createDriverProfile(formData: FormData) {
     base_region: area.region,
     base_country: area.country,
     accepts_luggage_runs: acceptsLuggage,
+    last_written_by: user.id,
+    last_written_via: "onboarding" as const,
   };
 
   let driverId = existing?.id;
@@ -141,14 +145,18 @@ export async function createDriverProfile(formData: FormData) {
     if (updateErr) redirect("/onboarding?error=db");
   }
 
-  // one vehicle per Driver (create or update its category). Check the write —
-  // the (app) layout requires a vehicle, so a silent failure here would bounce
-  // the Driver between /pool and /onboarding forever.
-  const { data: vehicle } = await admin
+  // One car per Driver. Check the write — the (app) layout requires a car on file, so a
+  // silent failure here would bounce the Driver between /pool and /onboarding forever.
+  //
+  // ⚑ S78 — AND IT MUST NOT PICK A RETIRED ONE. `.maybeSingle()` with no order threw as soon
+  //   as a Driver had two rows, and would otherwise have re-enrolled a car that was replaced.
+  //   liveCarOf is the same rule the rest of the app uses; there is no second spelling of it.
+  const { data: cars } = await admin
     .from("vehicle")
-    .select("id")
+    .select("*")
     .eq("driver_id", driverId!)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const vehicle = liveCarOf(cars ?? []);
 
   // Validated above: every value is present and from its list.
   const vehicleFields = {
@@ -161,18 +169,34 @@ export async function createDriverProfile(formData: FormData) {
     seats: Number.parseInt(seatsRaw, 10),
     energy,
     first_registration_date: firstRegistered,
+    // ⚑ Who filed it and through which door — the change-log trigger cannot work that out
+    //   for itself (the writer is the service role, so auth.uid() is NULL there).
+    last_written_by: user.id,
+    last_written_via: "onboarding" as const,
   };
+  // ⚑ A car filed here starts PENDING, like every other car: the column's default does it,
+  //   and nothing in this file may set it to approved. The founder, asked whether the cars
+  //   already on the fleet should start approved: *"yes and yes"* — every car waits for a
+  //   person, including the very first one a Driver enrolls with.
   if (!vehicle) {
     const { error: vErr } = await admin
       .from("vehicle")
       .insert({ driver_id: driverId!, ...vehicleFields });
-    if (vErr) redirect("/onboarding?error=db");
+    if (vErr) redirect(`/onboarding?error=car&why=${duplicateWhy(vErr) ?? "db"}`);
+  } else if (statusOf(vehicle) === "approved") {
+    // Enrollment reached again by a Driver who already has an approved car: that is a
+    // REPLACEMENT, not an edit. Same act as Settings, same single transaction.
+    const { error: vErr } = await admin.rpc("replace_vehicle", {
+      p_driver: driverId!,
+      p_fields: vehicleFields,
+    });
+    if (vErr) redirect(`/onboarding?error=car&why=${duplicateWhy(vErr) ?? "db"}`);
   } else {
     const { error: vErr } = await admin
       .from("vehicle")
-      .update(vehicleFields)
+      .update({ ...vehicleFields, approval_status: "pending", rejection_note: null })
       .eq("id", vehicle.id);
-    if (vErr) redirect("/onboarding?error=db");
+    if (vErr) redirect(`/onboarding?error=car&why=${duplicateWhy(vErr) ?? "db"}`);
   }
 
   redirect("/pool");

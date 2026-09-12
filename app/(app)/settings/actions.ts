@@ -10,6 +10,8 @@ import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
 import { resolveArea, decodeArea } from "@/lib/place-area";
 import { vehicleProblem, normalisePlate } from "@/lib/vehicle-rules";
+import { duplicateWhy } from "@/lib/duplicate";
+import { liveCarOf, statusOf } from "@/lib/vehicle-approval";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 
@@ -17,6 +19,14 @@ const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 // the old single Save silently wrote the vehicle too, so editing your phone number
 // re-derived your service tier.
 async function currentDriverId(): Promise<string> {
+  return (await currentDriver()).id;
+}
+
+/** ⚑ S78 — the auth user too, because every write now says WHO made it. Each write path hands
+ *  `last_written_by` / `last_written_via` to the row, and the change-log trigger copies them:
+ *  the writer is the service role, so `auth.uid()` inside the trigger is NULL and the actor
+ *  can only come from here. */
+async function currentDriver(): Promise<{ id: string; authUserId: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -30,7 +40,14 @@ async function currentDriverId(): Promise<string> {
     .eq("auth_user_id", user.id)
     .maybeSingle();
   if (!driver) redirect("/onboarding");
-  return driver.id;
+  return { id: driver.id, authUserId: user.id };
+}
+
+/** ⚑ Stamped on every Driver-side save so the change log (driver_event / vehicle_event) can
+ *  name the person and the door. The trigger cannot work it out: every write here runs as the
+ *  service role, where auth.uid() is NULL. */
+function writtenBySettings(authUserId: string) {
+  return { last_written_by: authUserId, last_written_via: "settings" as const };
 }
 
 // The hub's readiness strip is computed from every one of these, so a save on any
@@ -42,7 +59,7 @@ function done(path: string) {
 
 // ---------------------------------------------------------------- Profile
 export async function updateProfile(formData: FormData) {
-  const driverId = await currentDriverId();
+  const { id: driverId, authUserId } = await currentDriver();
 
   const first = String(formData.get("first_name") ?? "").trim();
   const last = String(formData.get("last_name") ?? "").trim();
@@ -69,6 +86,7 @@ export async function updateProfile(formData: FormData) {
       phone: phone || null,
       languages,
       gender,
+      ...writtenBySettings(authUserId),
     })
     .eq("id", driverId);
   if (error) redirect("/settings/profile?error=db");
@@ -78,7 +96,7 @@ export async function updateProfile(formData: FormData) {
 
 // ------------------------------------------------------------ Navigation
 export async function updateNavigation(formData: FormData) {
-  const driverId = await currentDriverId();
+  const { id: driverId, authUserId } = await currentDriver();
 
   const raw = String(formData.get("preferred_gps") ?? "");
   const gps: PreferredGps | null = GPS_OPTIONS.includes(raw as PreferredGps)
@@ -86,7 +104,10 @@ export async function updateNavigation(formData: FormData) {
     : null;
 
   const admin = createAdminClient();
-  const { error } = await admin.from("driver").update({ preferred_gps: gps }).eq("id", driverId);
+  const { error } = await admin
+    .from("driver")
+    .update({ preferred_gps: gps, ...writtenBySettings(authUserId) })
+    .eq("id", driverId);
   if (error) redirect("/settings/navigation?error=db");
 
   done("/settings/navigation");
@@ -94,7 +115,7 @@ export async function updateNavigation(formData: FormData) {
 
 // ---------------------------------------------------------- Where you work
 export async function updateServiceArea(formData: FormData) {
-  const driverId = await currentDriverId();
+  const { id: driverId, authUserId } = await currentDriver();
 
   const baseLabel = String(formData.get("base_label") ?? "").trim();
   const baseLat = Number.parseFloat(String(formData.get("base_lat") ?? ""));
@@ -129,6 +150,7 @@ export async function updateServiceArea(formData: FormData) {
       base_departement: area.departement,
       base_region: area.region,
       base_country: area.country,
+      ...writtenBySettings(authUserId),
     })
     .eq("id", driverId);
   if (error) redirect("/settings/area?error=db");
@@ -138,7 +160,7 @@ export async function updateServiceArea(formData: FormData) {
 
 // ---------------------------------------------------------------- Vehicle
 export async function updateVehicle(formData: FormData) {
-  const driverId = await currentDriverId();
+  const { id: driverId, authUserId } = await currentDriver();
   const admin = createAdminClient();
 
   const bodyRaw = String(formData.get("body_type") ?? "");
@@ -168,7 +190,7 @@ export async function updateVehicle(formData: FormData) {
   const acceptsLuggage = bodyType === "van" && formData.get("accepts_luggage_runs") === "on";
   const { error: driverErr } = await admin
     .from("driver")
-    .update({ accepts_luggage_runs: acceptsLuggage })
+    .update({ accepts_luggage_runs: acceptsLuggage, ...writtenBySettings(authUserId) })
     .eq("id", driverId);
   if (driverErr) redirect("/settings/vehicle?error=db");
 
@@ -189,25 +211,51 @@ export async function updateVehicle(formData: FormData) {
     first_registration_date: firstRegistered,
   };
 
-  const { data: vehicle } = await admin
+  // ⚑⚑ S78 — WHAT HAPPENS NEXT DEPENDS ON WHETHER A PERSON HAS ALREADY APPROVED THIS CAR.
+  //
+  //   pending or rejected → the same row is corrected. There is nothing to preserve: no trip
+  //     was ever done with it, and a rejected car keeps its reason where the Driver can read it.
+  //   approved            → the row is RETIRED and a new one is filed, waiting for approval.
+  //     The founder, 2026-09-12: *"new cars new rules period"* — and the reason the old row
+  //     must survive untouched: *"why would a waybill from 2 months ago made with a car should
+  //     update with the new car? it's a false information probably illegal"*. Past trips point
+  //     at that row; editing it would rewrite documents that were already issued.
+  //
+  // ⚑ The database refuses the shortcut either way (vehicle_identity_frozen), so this is the
+  //   app agreeing with the rule, not the app enforcing it.
+  const { data: cars } = await admin
     .from("vehicle")
-    .select("id")
+    .select("*")
     .eq("driver_id", driverId)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+    .order("created_at", { ascending: true });
+  const live = liveCarOf(cars ?? []);
+  const stamp = writtenBySettings(authUserId);
 
-  const { error } = vehicle
-    ? await admin.from("vehicle").update(vehicleFields).eq("id", vehicle.id)
-    : await admin.from("vehicle").insert({ driver_id: driverId, ...vehicleFields });
-  if (error) redirect("/settings/vehicle?error=db");
+  if (live && statusOf(live) === "approved") {
+    const { error } = await admin.rpc("replace_vehicle", {
+      p_driver: driverId,
+      p_fields: { ...vehicleFields, ...stamp },
+    });
+    if (error) redirect(`/settings/vehicle?error=car&why=${duplicateWhy(error) ?? "db"}`);
+  } else if (live) {
+    const { error } = await admin
+      .from("vehicle")
+      .update({ ...vehicleFields, ...stamp, approval_status: "pending", rejection_note: null })
+      .eq("id", live.id);
+    if (error) redirect(`/settings/vehicle?error=car&why=${duplicateWhy(error) ?? "db"}`);
+  } else {
+    const { error } = await admin
+      .from("vehicle")
+      .insert({ driver_id: driverId, ...vehicleFields, ...stamp });
+    if (error) redirect(`/settings/vehicle?error=car&why=${duplicateWhy(error) ?? "db"}`);
+  }
 
   done("/settings/vehicle");
 }
 
 // ---------------------------------------------------------------- Company
 export async function updateCompany(formData: FormData) {
-  const driverId = await currentDriverId();
+  const { id: driverId, authUserId } = await currentDriver();
 
   const name = String(formData.get("company_name") ?? "").trim();
   // SIRET is 14 digits; people type it with spaces off their Kbis.
@@ -235,9 +283,12 @@ export async function updateCompany(formData: FormData) {
       registered_address: address || null,
       revtc_number: revtc || null,
       pro_card_number: proCard || null,
+      ...writtenBySettings(authUserId),
     })
     .eq("id", driverId);
-  if (error) redirect("/settings/company?error=db");
+  // ⚑ A company number that is already on another account is refused by name (M5), not by
+  //   "Something went wrong" — the person can only act on a sentence that says which field.
+  if (error) redirect(`/settings/company?error=db&why=${duplicateWhy(error) ?? ""}`);
 
   done("/settings/company");
 }

@@ -20,7 +20,7 @@ export default async function VehicleSettingsPage({
 }) {
   const ctx = await getAppContext();
   if (!ctx.driver) redirect("/onboarding");
-  const { driver, vehicle } = ctx;
+  const { driver, liveCar } = ctx;
   const { ok, error, why } = await searchParams;
 
   return (
@@ -43,14 +43,14 @@ export default async function VehicleSettingsPage({
             //   in the browser too, so a wrong plate never costs them the form.
             country={driver.base_country ?? null}
             defaults={{
-              body_type: vehicle?.body_type,
-              make: vehicle?.make,
-              model: vehicle?.model,
-              colour: vehicle?.colour,
-              plate: vehicle?.plate,
-              seats: vehicle?.seats,
-              energy: vehicle?.energy,
-              first_registration_date: vehicle?.first_registration_date,
+              body_type: liveCar?.body_type,
+              make: liveCar?.make,
+              model: liveCar?.model,
+              colour: liveCar?.colour,
+              plate: liveCar?.plate,
+              seats: liveCar?.seats,
+              energy: liveCar?.energy,
+              first_registration_date: liveCar?.first_registration_date,
               accepts_luggage_runs: driver.accepts_luggage_runs,
             }}
           />

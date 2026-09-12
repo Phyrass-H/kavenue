@@ -11,6 +11,10 @@ import { poolFaresNet } from "@/lib/pool-fares";
 import { serviceClassLabel } from "@/lib/format";
 import { withinRadius } from "@/lib/geo";
 import { carMatches } from "@/lib/vehicle-catalog";
+import { getLatestDocuments } from "@/lib/documents";
+import { DRIVER_DOC_TYPES } from "@/lib/account";
+import { approvalPiles } from "@/lib/driver-approvals";
+import { PoolClosed } from "@/components/pool-closed";
 
 // The Pool changes constantly (PDP climbs, others accept) → never cache.
 export const dynamic = "force-dynamic";
@@ -39,9 +43,9 @@ export default async function PoolPage({
 }: {
   searchParams: Promise<{ all?: string }>;
 }) {
-  const { driver, vehicle } = await getDriverContext();
+  const { driver, liveCar, workingCar } = await getDriverContext();
   // Guarded by (app)/layout, but keep TypeScript happy.
-  if (!driver || !vehicle) return null;
+  if (!driver || !liveCar) return null;
 
   // DEV-ONLY testing bypass: `/pool?all=1` shows EVERY pooled mission, skipping
   // the tier/zone/body/luggage/specific-car filters — so a single demo Driver can
@@ -57,6 +61,33 @@ export default async function PoolPage({
   const { all: allParam } = await searchParams;
   const hosted = process.env.NODE_ENV === "production" || !!process.env.VERCEL;
   const seeAll = !hosted && allParam === "1";
+
+  // ⚑⚑ S78 — NO APPROVED CAR, NO POOL. The founder, 2026-09-12: *"a driver with no approved
+  // car just cannot access the pool, period this is MANDATORY!"*, and the reason:
+  // *"imagine a car accident with a non approved car?"*
+  //
+  // ⚑ THIS SCREEN IS NOT THE ENFORCEMENT AND MUST NEVER BE MISTAKEN FOR IT. The database
+  // refuses the accept and the hold (mission_requires_approved_car / hold_requires_approved_car,
+  // docs/migrations/2026-09-13_vehicle_approval_gate.sql). What happens here is that the Driver
+  // is told which of the three things is missing instead of staring at an empty list.
+  //
+  // ⚑ ABOVE the base check on purpose: a Driver whose car is not approved cannot work at any
+  // base, so asking them to set a radius first would be busywork.
+  // ⚑ And NOT skipped by ?all=1 — the dev bypass drops the MATCHING filters, never a rule the
+  // database enforces. A see-all Pool that offered trips the accept refuses would be a lie.
+  if (!workingCar) {
+    const docs = await getLatestDocuments("driver", driver.id, DRIVER_DOC_TYPES);
+    const piles = approvalPiles(driver, liveCar, docs);
+    return (
+      <>
+        <PoolHead sub="Your car is with us" />
+        <PoolClosed
+          href="/settings/vehicle"
+          checks={piles.map((p) => ({ label: p.label, says: p.says, state: p.state }))}
+        />
+      </>
+    );
+  }
 
   // No base yet → can't match by distance. Send them to set it. (Skipped in the
   // dev see-all view, which ignores the base entirely.)
@@ -114,7 +145,7 @@ export default async function PoolPage({
     .select("*")
     .eq("status", "pooled")
     .gt("pickup_at", new Date().toISOString());
-  if (!seeAll) query = query.eq("category", vehicle.category);
+  if (!seeAll) query = query.eq("category", workingCar.category);
   const { data: all, error } = await query.order("pickup_at", { ascending: true });
 
   const radius = driver.service_radius_km ?? 50;
@@ -140,11 +171,11 @@ export default async function PoolPage({
         // it to Van Drivers; this is the willingness gate on top.)
         if (m.luggage_only && !driver.accepts_luggage_runs) return false;
         // Body: a mission that demands a body type must match the Driver's vehicle.
-        if (m.required_body_type && m.required_body_type !== vehicle.body_type) return false;
+        if (m.required_body_type && m.required_body_type !== workingCar.body_type) return false;
         // Specific car: when required, the Driver's car must satisfy it (tolerant
         // make matching, since the Driver types theirs free-text).
         if (m.required_make && m.required_model) {
-          if (!carMatches(vehicle.make ?? "", vehicle.model ?? "", m.required_make, m.required_model)) {
+          if (!carMatches(workingCar.make ?? "", workingCar.model ?? "", m.required_make, m.required_model)) {
             return false;
           }
         }
@@ -166,7 +197,7 @@ export default async function PoolPage({
             <>Every pooled trip · listing filters off</>
           ) : (
             <>
-              {serviceClassLabel(vehicle.category, vehicle.body_type)} · within {radius} km of{" "}
+              {serviceClassLabel(workingCar.category, workingCar.body_type)} · within {radius} km of{" "}
               {driver.base_label ?? "your base"}
             </>
           )
@@ -224,7 +255,7 @@ export default async function PoolPage({
               <>No pooled trips exist right now.</>
             ) : (
               <>
-                New <strong>{serviceClassLabel(vehicle.category, vehicle.body_type)}</strong> trips within{" "}
+                New <strong>{serviceClassLabel(workingCar.category, workingCar.body_type)}</strong> trips within{" "}
                 <strong>
                   {radius} km of {driver.base_label ?? "your base"}
                 </strong>{" "}

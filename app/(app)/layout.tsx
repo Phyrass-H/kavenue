@@ -27,7 +27,10 @@ export default async function AppLayout({
   if (isProdDomain(host) && roleSubOf(host) !== "driver") {
     redirect(`https://driver.${PROD_BASE}${homePathForSub("driver")}`);
   }
-  if (!ctx.driver || !ctx.vehicle) redirect("/onboarding");
+  // ⚑ S78 — the car ON FILE, not the approved one. A Driver whose new car is waiting has
+  //   finished enrollment; bouncing them to /onboarding would loop them for ever. The
+  //   "you cannot work yet" message belongs on /pool, where they went looking for work.
+  if (!ctx.driver || !ctx.liveCar) redirect("/onboarding");
 
   // D61 — how many trips are waiting on a check-in, for the My Rides tab badge.
   // Counted here rather than in the page so it shows wherever the Driver is in

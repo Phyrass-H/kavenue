@@ -15,7 +15,7 @@ export default async function OnboardingPage({
   const ctx = await getAppContext();
   if (!ctx.user) redirect("/login");
   if (ctx.profile && ctx.profile.role !== "driver") redirect(routeFor(ctx));
-  if (ctx.driver && ctx.vehicle) redirect("/pool");
+  if (ctx.driver && ctx.liveCar) redirect("/pool");
 
   const user = ctx.user;
   const { error, why } = await searchParams;

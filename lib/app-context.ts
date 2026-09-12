@@ -13,6 +13,7 @@ import type {
 // Supabase import, therefore testable (tests/app-routing.test.ts). This module is
 // the half that talks to the database. Both names are re-exported here so every
 // existing `from "@/lib/app-context"` import is unchanged.
+import { liveCarOf } from "@/lib/vehicle-approval";
 import { type AppContext, routeFor } from "@/lib/route-for";
 export { routeFor };
 export type { AppContext };
@@ -27,7 +28,7 @@ export async function getAppContext(): Promise<AppContext> {
     user: null,
     profile: null,
     driver: null,
-    vehicle: null,
+    liveCar: null,
     dispatcher: null,
     business: null,
   };
@@ -49,14 +50,16 @@ export async function getAppContext(): Promise<AppContext> {
       .maybeSingle();
     ctx.driver = driver ?? null;
     if (driver) {
-      const { data: vehicle } = await supabase
+      // ⚑ S78 — the car ON FILE, whatever a person has decided about it. Routing must not ask
+      //   whether it is approved (see lib/route-for.ts): a pending car still means enrollment
+      //   is done. Retired rows are excluded by liveCarOf, never by a filter a caller can
+      //   forget.
+      const { data: cars } = await supabase
         .from("vehicle")
         .select("*")
         .eq("driver_id", driver.id)
-        .order("created_at", { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      ctx.vehicle = vehicle ?? null;
+        .order("created_at", { ascending: true });
+      ctx.liveCar = liveCarOf(cars ?? []);
     }
   } else if (profile?.role === "dispatcher") {
     const { data: dispatcher } = await supabase

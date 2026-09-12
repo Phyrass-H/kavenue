@@ -97,6 +97,16 @@ export function mission(over: Partial<MissionRow> = {}): MissionRow {
     waiting_rate: null,
     waiting_fee: null,
     vehicle_id: null,
+    // S78 — the car frozen onto the trip. NULL here on purpose: a fixture trip has no Driver,
+    // and a trip with no Driver must never carry a car.
+    vehicle_plate: null,
+    vehicle_make: null,
+    vehicle_model: null,
+    vehicle_colour: null,
+    vehicle_body_type: null,
+    vehicle_seats: null,
+    vehicle_energy: null,
+    vehicle_first_registration_date: null,
     hold_expires_at: null,
     ...over,
   };

@@ -29,6 +29,9 @@ export type HoldOutcome = "open" | "committed" | "lapsed" | "released" | "void";
 // vehicle_category is the SERVICE TIER. 'van' is legacy (migrated to
 // business+body=van on 2026-06-19); tiers offered now: eco/business/luxury.
 export type VehicleCategory = "eco" | "business" | "van" | "luxury";
+/** S78 — what a person decided about a car. The behaviour lives in lib/vehicle-approval.ts;
+ *  it is declared here so the Row type and the predicate cannot drift apart. */
+export type ApprovalStatus = "pending" | "approved" | "rejected";
 export type BodyType = "sedan" | "van";
 export type MissionType = "transfer" | "hourly";
 export type MissionStatus =
@@ -258,6 +261,44 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["business_event"]["Insert"]>;
         Relationships: [];
       };
+      // ⚑ S78 (docs/migrations/2026-09-12c_vehicle_and_driver_event.sql). Append-only, written
+      // by a database trigger so no writer can be missed, and READ-ONLY to every browser
+      // session. The payload holds only the columns that really changed, as {col: [old, new]}
+      // — an update that changes nothing writes no row, or a re-saved form would file a
+      // change that never happened.
+      vehicle_event: {
+        Row: {
+          id: string;
+          seq: number;
+          vehicle_id: string;
+          driver_id: string | null;
+          event_type: string; // filed | corrected | approved | rejected | refiled | retired | deleted
+          occurred_at: string;
+          actor_user_id: string | null; // handed in via vehicle.last_written_by
+          actor_via: string | null; // onboarding | settings | admin | seed — never guessed
+          source: string;
+          payload: Json;
+        };
+        Insert: never; // only the trigger writes. There is no app door, on purpose.
+        Update: never;
+        Relationships: [];
+      };
+      driver_event: {
+        Row: {
+          id: string;
+          seq: number;
+          driver_id: string;
+          event_type: string; // approved | suspended | reach_changed | corrected
+          occurred_at: string;
+          actor_user_id: string | null;
+          actor_via: string | null;
+          source: string;
+          payload: Json;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       business: {
         Row: {
           id: string;
@@ -296,10 +337,15 @@ export interface Database {
           // Mirrors driver.base_country. The Businesses screen groups a non-French row
           // under "C:" + this code and names the country.
           country: string | null; // ISO-3166-1 alpha-2, e.g. FR / MC
+          // ⚑ ADDED 2026-09-12 (M1). Set by support when a second account legitimately belongs
+          // to an existing Business — the founder's *"if a business needs daughter account then
+          // we can manage"*. A daughter is exempt from the one-SIRET-per-Business lock (M5).
+          parent_business_id: string | null;
           created_at: string;
         };
         Insert: {
           id?: string;
+          parent_business_id?: string | null;
           name: string;
           field_of_activity?: string | null;
           logo_url?: string | null;
@@ -395,6 +441,14 @@ export interface Database {
           base_departement: string | null; // INSEE code, e.g. 06 · NULL outside France
           base_region: string | null; // INSEE code, e.g. 93 · NULL outside France
           base_country: string | null; // ISO-3166-1 alpha-2, e.g. FR / MC / IT
+          // ⚑ ADDED 2026-09-12 (M1). `verified` is a boolean with no memory, and flipping it
+          // off now takes someone's living away (S76 made it a door). These say when and by
+          // whom — NOT backfilled: the 11 Drivers verified before today read "recorded before
+          // we kept it" rather than an invented date.
+          verified_at: string | null;
+          verified_by: string | null;
+          last_written_by: string | null; // handed in by the writer, read by driver_event (M3)
+          last_written_via: string | null; // onboarding | settings | admin | seed
           created_at: string;
         };
         Insert: {
@@ -428,6 +482,10 @@ export interface Database {
           base_departement?: string | null;
           base_region?: string | null;
           base_country?: string | null;
+          verified_at?: string | null;
+          verified_by?: string | null;
+          last_written_by?: string | null;
+          last_written_via?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["driver"]["Insert"]>;
@@ -450,6 +508,20 @@ export interface Database {
           // write without them (lib/vehicle-rules.ts), at both enrollment and Settings.
           first_registration_date: string | null; // carte grise box B, YYYY-MM-DD
           energy: string | null; // carte grise box P.3 — a code from ENERGIES
+          // ⚑ ADDED 2026-09-12 (docs/migrations/2026-09-12_vehicle_lifecycle_columns.sql).
+          // A car is approved by a HUMAN or it does not work — lib/vehicle-approval.ts holds
+          // the predicate, working_car(uuid) holds its SQL twin. `retired_at` is the second
+          // axis: an approved car that was replaced, kept for ever because past trips point
+          // at it and its papers cascade with it.
+          approval_status: ApprovalStatus;
+          approved_at: string | null;
+          approved_by: string | null; // auth.uid() of the person who approved it
+          rejected_at: string | null;
+          rejection_note: string | null; // never NULL on a rejected car — the Driver reads it
+          retired_at: string | null;
+          replaced_by: string | null; // the car that took over
+          last_written_by: string | null; // handed in by the writer: every write is service-role
+          last_written_via: string | null; // onboarding | settings | admin | seed
           created_at: string;
         };
         Insert: {
@@ -465,6 +537,15 @@ export interface Database {
           first_registration_date?: string | null;
           energy?: string | null;
           is_active?: boolean;
+          approval_status?: ApprovalStatus;
+          approved_at?: string | null;
+          approved_by?: string | null;
+          rejected_at?: string | null;
+          rejection_note?: string | null;
+          retired_at?: string | null;
+          replaced_by?: string | null;
+          last_written_by?: string | null;
+          last_written_via?: string | null;
           created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["vehicle"]["Insert"]>;
@@ -601,6 +682,22 @@ export interface Database {
           // (2026-08-31b/c). NULL = accepted before that migration: readers fall back to
           // the Driver's current car. ⚑ Gate on driver_id — a re-pool leaves this set.
           vehicle_id: string | null;
+          // ⚑⚑ S78 — THE CAR AS IT WAS, frozen onto the trip when it changed hands
+          // (docs/migrations/2026-09-13_vehicle_approval_gate.sql, § 5). The pointer above was
+          // never enough: `vehicle` is mutable, so a Driver who re-plated rewrote every past
+          // Waybill — a document that had already been issued. The founder, 2026-09-12: *"why
+          // would a waybill from 2 months ago made with a car should update with the new car?
+          // it's a false information probably illegal"*.
+          // ⚑ READ THESE, NOT THE CAR ROW. NULL only on a trip that never had a Driver, or one
+          // older than the backfill — say "not recorded", never fall back to today's car.
+          vehicle_plate: string | null;
+          vehicle_make: string | null;
+          vehicle_model: string | null;
+          vehicle_colour: string | null;
+          vehicle_body_type: BodyType | null;
+          vehicle_seats: number | null;
+          vehicle_energy: string | null;
+          vehicle_first_registration_date: string | null;
           // S72 — § 7. Denormalised from the live mission_hold row so the Pool's hot read is
           // a plain column, not a correlated subquery per card. ⚑ Masked in mission_read:
           // another Driver learns the INSTANT, never the identity. NULL = no hold, and a
@@ -684,6 +781,16 @@ export interface Database {
           waiting_rate?: number | null;
           waiting_fee?: number | null;
           vehicle_id?: string | null;
+          // Stamped by a trigger, never by the app — optional here only because the generated
+          // Insert type mirrors the table.
+          vehicle_plate?: string | null;
+          vehicle_make?: string | null;
+          vehicle_model?: string | null;
+          vehicle_colour?: string | null;
+          vehicle_body_type?: BodyType | null;
+          vehicle_seats?: number | null;
+          vehicle_energy?: string | null;
+          vehicle_first_registration_date?: string | null;
           hold_expires_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["mission"]["Insert"]>;
@@ -1345,6 +1452,14 @@ export interface Database {
       admin_business_overview: {
         Args: { p_from?: string | null; p_to?: string | null };
         Returns: AdminBusinessOverview;
+      };
+      // ⚑ S78 — retire the Driver's live car and file its replacement as pending, in ONE
+      // transaction. The only way a car changes once a person has approved it: an in-place
+      // UPDATE would leave every past trip pointing at a row that now describes a different
+      // car. Service-role only (2026-09-11b closed the browser's door onto `vehicle`).
+      replace_vehicle: {
+        Args: { p_driver: string; p_fields: Json };
+        Returns: string; // the new car's id
       };
       admin_business_page: {
         Args: {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { isUnderReview, UNDER_REVIEW } from "@/lib/driver-review";
+import { CAR_REVIEW } from "@/lib/vehicle-approval";
 import { notFound } from "next/navigation";
 import {
   ArrowRight,
@@ -64,7 +65,9 @@ export default async function MissionDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const { driver, vehicle: myVehicle } = await getDriverContext();
+  // ⚑ S78 — the APPROVED car. An unapproved one cannot take this trip whatever it is, so
+  //   eligibility below must not be computed from a car the database will refuse.
+  const { driver, workingCar: myVehicle } = await getDriverContext();
   const supabase = await createClient();
 
   const { data: mission } = await supabase
@@ -454,6 +457,13 @@ export default async function MissionDetailPage({
           both accept_mission and place_hold raise this before § B. */}
       {isPooled && isUnderReview(driver) ? (
         <div className="notice info">{UNDER_REVIEW.beforeTap}</div>
+      ) : isPooled && !myVehicle ? (
+        /* ⚑ BELOW the person's line and ABOVE the car-match one, because that is the order the
+           database refuses in: the person first (accept_mission § verified), then the approved
+           car (S78's trigger), then § B's class test. Telling a Driver whose car is waiting
+           that "this trip doesn't match your vehicle" would send them to edit a car that is
+           fine — and, since an approved car can no longer be edited, into a dead end. */
+        <div className="notice info">{CAR_REVIEW.beforeTap}</div>
       ) : isPooled && eligible ? (
         <HoldControls
           missionId={mission.id}

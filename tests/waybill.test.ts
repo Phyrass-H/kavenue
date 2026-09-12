@@ -55,6 +55,10 @@ function driver(over: Partial<DriverRow> = {}): DriverRow {
     base_region: "93",
     base_country: "FR",
     pro_card_number: "06 24 01 8837",
+    verified_at: null,
+    verified_by: null,
+    last_written_by: null,
+    last_written_via: null,
     created_at: "2026-06-01T09:00:00+02:00",
     ...over,
   };

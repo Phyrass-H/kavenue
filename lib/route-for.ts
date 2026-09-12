@@ -21,7 +21,11 @@ export interface AppContext {
   user: User | null;
   profile: ProfileRow | null;
   driver: DriverRow | null;
-  vehicle: VehicleRow | null;
+  /** ⚑ S78 — the car ON FILE, any status. Routing keys on this and never on the approved one:
+   *  a Driver whose new car is waiting has finished enrollment, and sending them back to
+   *  /onboarding would loop them for ever. "Cannot work yet" is a panel on /pool, not a
+   *  redirect. The approved car lives on DriverContext.workingCar. */
+  liveCar: VehicleRow | null;
   dispatcher: DispatcherRow | null;
   business: BusinessRow | null;
 }
@@ -41,7 +45,7 @@ export function routeFor(ctx: AppContext): string {
   if (!ctx.user) return "/login";
   if (!ctx.profile) return "/welcome";
   if (ctx.profile.role === "driver") {
-    return ctx.driver && ctx.vehicle ? "/pool" : "/onboarding";
+    return ctx.driver && ctx.liveCar ? "/pool" : "/onboarding";
   }
   if (ctx.profile.role === "dispatcher") {
     return ctx.dispatcher && ctx.business ? "/dispatch" : "/onboarding-business";

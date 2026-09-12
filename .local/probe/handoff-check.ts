@@ -813,15 +813,31 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
   //   (`case when m.hold_expires_at > now() then … end`) so a finished hold
   //   cannot read as a live one. Re-running the older file would have silently
   //   reverted that S72 decision, and this assertion would have called it fine.
-  //   The 2026-09-04 migration is now the single authoritative rebuild.
-  const VIEW_REBUILD = "docs/migrations/2026-09-04_standard_vat_rate.sql";
+  //   The 2026-09-04 migration was the single authoritative rebuild.
+  //
+  // ⚑⚑ AND IT MOVED AGAIN ON 2026-09-12, WHICH IS WHY THIS IS NOW DERIVED RATHER THAN
+  //   HARD-CODED. S78 added eight frozen car columns to `mission` and had to rebuild the view
+  //   to expose them; the moment it did, the 2026-09-04 file became a rebuild that would DROP
+  //   them — and this assertion, pointed at that file, correctly went red naming all eight.
+  //   Hard-coding the newest file again would only postpone the same red to the next rebuild,
+  //   so the newest file that CONTAINS a full rebuild is found by name order instead. The
+  //   trap this guards is exactly S77's: the newest file DATE is not the newest BODY.
+  const VIEW_REBUILD = (() => {
+    const dir = "docs/migrations";
+    const files = fs.existsSync(dir)
+      ? fs.readdirSync(dir).filter((f) => f.endsWith(".sql"))
+          .filter((f) => /create view public\.mission_read/i.test(fs.readFileSync(`${dir}/${f}`, "utf8")))
+          .sort()
+      : [];
+    return files.length ? `${dir}/${files[files.length - 1]}` : "";
+  })();
   const viewSql = (() => {
     try { return fs.readFileSync(VIEW_REBUILD, "utf8"); } catch { return ""; }
   })();
   const notInFile = viewCols.filter((c) => !new RegExp(`\\bm\\.${c}\\b|\\bas ${c}\\b`).test(viewSql));
   t("...and the migration that rebuilds it lists them too",
     viewSql !== "" && viewCols.length > 0 && notInFile.length === 0,
-    viewSql === "" ? `⚑ ${VIEW_REBUILD} is missing — the authoritative rebuild is gone`
+    viewSql === "" ? "⚑ no migration contains a full mission_read rebuild — the authoritative one is gone"
     : notInFile.length
       ? `⚑ live-only, a rebuild would DROP: ${notInFile.join(", ")} — add to ${VIEW_REBUILD}`
       : `${viewCols.length} columns`);

@@ -16,10 +16,15 @@ if (arg === "--steal") {
   if (!demoD) throw new Error("demo.driver@pickup.local is not in auth.users — run .local/seed/seed-probe-accounts.mts");
   const { data: mine } = await db.from("driver").select("id").eq("auth_user_id", demoD.id).single();
   if (!mine) throw new Error(`no driver row for demo.driver@pickup.local (auth user ${demoD.id}) — run .local/seed/seed-probe-accounts.mts`);
-  const other = await db.from("driver").select("id").neq("id", mine.id).limit(1).single();
-  if (other.error) throw new Error(`no second Driver to take the trip from demo.driver@pickup.local: ${other.error.message} — the steal needs a fleet of at least two`);
-  const r = await db.from("mission").update({ status:"confirmed", driver_id: other.data.id, accepted_at:new Date().toISOString(), confirmed_at:new Date().toISOString() }).eq("reference","S66RACE").select("id,status").single();
-  if (r.error) throw new Error(`could not hand the S66RACE trip to driver ${other.data.id}: ${r.error.message} — seed one first by running this probe with no flag`);
+  // ⚑ THE THIEF NEEDS AN APPROVED CAR. Since S78 handing a trip to a Driver whose car is
+  //   pending or retired is refused ('Car awaiting approval'), and `.neq().limit(1)` with no
+  //   order picked whichever row came back — the same shape as the bleach trap above.
+  const other = await db.from("vehicle").select("driver_id")
+    .eq("approval_status", "approved").is("retired_at", null)
+    .neq("driver_id", mine.id).limit(1).single();
+  if (other.error) throw new Error(`no second Driver with an approved car to take the trip from demo.driver@pickup.local: ${other.error.message} — the steal needs a fleet of at least two`);
+  const r = await db.from("mission").update({ status:"confirmed", driver_id: other.data.driver_id, accepted_at:new Date().toISOString(), confirmed_at:new Date().toISOString() }).eq("reference","S66RACE").select("id,status").single();
+  if (r.error) throw new Error(`could not hand the S66RACE trip to driver ${other.data.driver_id}: ${r.error.message} — seed one first by running this probe with no flag`);
   console.log("stolen:", `${r.data.id} -> ${r.data.status}`);
   process.exit(0);
 }

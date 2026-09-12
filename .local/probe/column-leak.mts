@@ -62,7 +62,8 @@ if (!dispatcher) throw new Error(`no dispatcher row for demo.business@pickup.loc
 const { data: dRows } = await db.from("driver").select("id").eq("auth_user_id", drvAuth.id).limit(1);
 const driver = dRows?.[0];
 if (!driver) throw new Error(`no driver row for demo.driver@pickup.local (auth_user_id ${drvAuth.id}) — run .local/seed/seed-probe-accounts.mts`);
-const { data: vRows } = await db.from("vehicle").select("category").eq("driver_id", driver.id).limit(1);
+// ⚑ THE LIVE CAR, not any car — a retired row's category is history (working_car(), S78).
+const { data: vRows } = await db.from("vehicle").select("category").eq("driver_id", driver.id).is("retired_at", null).limit(1);
 const car = vRows?.[0];
 if (!car) throw new Error(`driver ${driver.id} has no vehicle — this probe copies the category off one to build a matching trip`);
 const { data: tmplRows } = await db.from("mission").select("*").eq("business_id", dispatcher.business_id).limit(1);

@@ -147,7 +147,12 @@ t(
 // ── the live answer ────────────────────────────────────────────────────────
 console.log("\n── the answer, against the live fleet ──");
 const { data: drivers } = await db.from("driver").select("*");
-const { data: vehicles } = await db.from("vehicle").select("*");
+// ⚑ LIVE CARS ONLY. `find(v => v.driver_id === d.id …)` below takes whichever row comes
+//   first, and after a replacement that can be the RETIRED one — so a Driver would be told
+//   they cannot take a trip because of a car they sold. Filtered in JS rather than in the
+//   query so this still reads correctly before M1 is pasted (no column, no retired rows).
+const { data: allVehicles } = await db.from("vehicle").select("*");
+const vehicles = (allVehicles ?? []).filter((v: any) => !v.retired_at);
 const { data: pooled } = await db
   .from("mission")
   .select("*")
@@ -168,7 +173,10 @@ for (const m of pooled ?? []) {
     explainEligibility({
       mission: m as any,
       driver: d,
-      vehicle: (vehicles ?? []).find((v: any) => v.driver_id === d.id && v.is_active) ?? null,
+      // ⚑ NOT `&& v.is_active`. That was a fifth answer to "which car is this Driver's", and
+      //   it disagreed with line 204 five lines of output later. Nothing writes is_active;
+      //   `vehicles` is already the live cars.
+      vehicle: vehicles.find((v: any) => v.driver_id === d.id) ?? null,
       otherPickupsAt: (busy ?? [])
         .filter((b: any) => b.driver_id === d.id && b.pickup_at !== m.pickup_at)
         .map((b: any) => b.pickup_at),
@@ -196,7 +204,7 @@ for (const m of pooled ?? []) {
 // reason they are given must be the approval rule rather than their car.
 const unverified = (drivers ?? []).filter((d: any) => !d.verified);
 const verdicts = unverified.flatMap((d: any) => {
-  const v = (vehicles ?? []).find((x: any) => x.driver_id === d.id);
+  const v = vehicles.find((x: any) => x.driver_id === d.id);
   return (pooled ?? []).map((m: any) => ({
     who: `${d.first_name} ${d.last_name}`.trim(),
     e: explainEligibility({ mission: m, driver: d, vehicle: v ?? null, otherPickupsAt: [] }),

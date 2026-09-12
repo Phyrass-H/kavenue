@@ -85,8 +85,24 @@ async function makeDriver(email: string, first: string, last: string, base: keyo
     }).eq("id", existing.id);
     if (uErr) throw new Error(`driver ${email}: ${uErr.message}`);
     // Their car too: a probe Driver accepts trips, and since S78 that needs an approved car.
+    // ⚑ `plate` IS A FROZEN FIELD. `vehicle_identity_frozen` (S78) refuses a change of plate
+    //   on a car that is approved and live — and this row is approved, by this very script,
+    //   on every previous run. So when the plate has actually drifted (the one case the
+    //   repair exists for) it is un-approved first and re-approved with the new plate; a
+    //   single combined UPDATE reads OLD.approval_status = 'approved' and raises.
+    //   ⚑ CONDITIONAL, so the usual run makes ONE write and never leaves a window in which
+    //   the probe fleet's car is pending — a crash there would break every accept probe.
+    const { data: had } = await db.from("vehicle").select("plate, approval_status")
+      .eq("driver_id", existing.id).is("retired_at", null).maybeSingle();
+    if (had?.approval_status === "approved" && had.plate !== f.plate) {
+      const { error: pErr } = await db.from("vehicle")
+        .update({ approval_status: "pending" })
+        .eq("driver_id", existing.id).is("retired_at", null);
+      if (pErr) throw new Error(`vehicle ${email}: ${pErr.message}`);
+    }
     const { error: vErr } = await db.from("vehicle").update({
-      plate: f.plate, approval_status: "approved", last_written_via: "seed",
+      plate: f.plate, approval_status: "approved", approved_at: new Date().toISOString(),
+      last_written_via: "seed",
     }).eq("driver_id", existing.id).is("retired_at", null);
     if (vErr) throw new Error(`vehicle ${email}: ${vErr.message}`);
     console.log(`  ${email} — Driver kept, fixtures restated (${f.plate})`);

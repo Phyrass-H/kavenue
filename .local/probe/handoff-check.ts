@@ -46,8 +46,15 @@ t("§ R — accepted_fare is still NOT a usable sort key population-wise",
   `${withFare}/${missions} have one — if this ever reaches 100%, revisit § R's blocker note`);
 
 // § V — the reclassification that makes § V overdue rather than anticipatory.
-const { data: vans } = await db.from("vehicle").select("id,make,model,category,body_type,is_active");
-if (!vans) throw new Error("the vehicle table could not be read — § V asserts against the live fleet and there is none to read");
+// ⚑ `select("*")` AND A JS FILTER, NOT `.is("retired_at", null)`. The column arrives with M1
+//   (docs/migrations/2026-09-12_vehicle_lifecycle_columns.sql); naming it in the query makes
+//   this gate return NOTHING until the founder has pasted it, and every vehicle check below
+//   would go green on an empty list. Filtering in JS reads the same before the paste (no
+//   column, so no retired rows) and correctly after it. A retired car is one that was sold —
+//   it is not part of "the fleet" any question here asks about.
+const { data: allCars } = await db.from("vehicle").select("*");
+if (!allCars) throw new Error("the vehicle table could not be read — § V asserts against the live fleet and there is none to read");
+const vans = allCars.filter((v: Record<string, unknown>) => !v.retired_at);
 const classeV = vans.filter((v) => /classe v|v-class/i.test(`${v.make} ${v.model}`));
 t("§ V — a Classe V still exists in the fleet", classeV.length > 0, `${classeV.length} found`);
 t("§ V — it is still stored category='luxury' (this is what strands its Driver)",
@@ -340,11 +347,13 @@ t("S76 — usage is counted by naming a column, never `select(\"*\")`",
 // it", which are different problems with different fixes.
 const refusals = (elig0.match(/kind: "refuse"/g) ?? []).length;
 const hides = (elig0.match(/kind: "hide"/g) ?? []).length;
-// ⚑ SEVEN, NOT SIX, SINCE 2026-09-07 — `approved` joined the refusals. The count
-// is pinned rather than merely "more than five" because moving a rule between the
-// two groups changes the console's answer from "they were turned down" to "they
-// never saw it", which are different problems with different fixes.
-t("[[d93]] — seven refusals and three hiding rules", refusals === 7 && hides === 3,
+// ⚑ EIGHT, NOT SEVEN, SINCE 2026-09-12 — `car_approved` joined the refusals, and it is a
+// SEPARATE act from `approved`: the person is judged once, the car every time it changes.
+// (Seven since 2026-09-07, when `approved` itself joined.) The count is pinned rather than
+// merely "more than five" because moving a rule between the two groups changes the console's
+// answer from "they were turned down" to "they never saw it" — different problems, different
+// fixes.
+t("[[d93]] — eight refusals and three hiding rules", refusals === 8 && hides === 3,
   `${refusals} refuse · ${hides} hide`);
 
 // ⚑ The story is ordered by occurred_at, never by seq. The live log genuinely
@@ -1196,14 +1205,18 @@ console.log("\n── where a Driver's base is (S77) ──");
 
   // ⚑ ONE SPELLING PER BRAND. "Mercedes" and "Mercedes-Benz" are one marque; stored
   // apart they are two rows on any brands breakdown the founder reads.
+  // ⚑ LIVE CARS ONLY. A retired car's make can never be corrected — it is frozen by S78 and
+  //   it is history anyway — so counting it here would hold this assertion red for ever over
+  //   a car that was sold. (`select("*")` + a JS filter: see the note at § V above.)
   const { canonicalMake } = await import("../../lib/vehicle-catalog.ts");
-  const { data: cars } = await db.from("vehicle").select("id,make");
-  const uncanonical = (cars ?? []).filter((v) => v.make && canonicalMake(v.make) !== v.make);
+  const { data: allMakes } = await db.from("vehicle").select("*");
+  const cars = (allMakes ?? []).filter((v: Record<string, unknown>) => !v.retired_at);
+  const uncanonical = cars.filter((v) => v.make && canonicalMake(v.make) !== v.make);
   t("every car make is stored in its canonical spelling",
     uncanonical.length === 0,
     uncanonical.length
       ? `⚑ ${[...new Set(uncanonical.map((v) => `${v.make} → ${canonicalMake(v.make)}`))].join(", ")}`
-      : `${cars?.length ?? 0} car(s)`);
+      : `${cars.length} car(s)`);
 }
 
 // ── every car is complete, and in the app's own words (S77) ────────────────────
@@ -1232,18 +1245,21 @@ console.log("\n── every car is complete (S77) ──");
 
   if (applied) {
     const { COLOURS, ENERGIES } = await import("../../lib/vehicle-rules.ts");
-    const { data: cars } = await db.from("vehicle").select("id,colour,energy,first_registration_date");
-    const offList = (cars ?? []).filter((c) =>
+    // ⚑ LIVE CARS ONLY. A retired car can never be completed — its Driver has no screen that
+    //   reaches it, and S78 freezes it — so counting it here asks for something impossible.
+    const { data: allComplete } = await db.from("vehicle").select("*");
+    const cars = (allComplete ?? []).filter((c: Record<string, unknown>) => !c.retired_at);
+    const offList = cars.filter((c) =>
       (c.colour && !(COLOURS as readonly string[]).includes(c.colour)) ||
       (c.energy && !(ENERGIES as readonly string[]).includes(c.energy)));
     t("every stored colour and energy is on the app's list",
-      offList.length === 0, offList.length ? `⚑ ${offList.length} car(s) off-list` : `${cars?.length ?? 0} car(s)`);
+      offList.length === 0, offList.length ? `⚑ ${offList.length} car(s) off-list` : `${cars.length} car(s)`);
 
     // ⚑ NOT A FAILURE — A COUNT OF WHAT IS STILL TO BE ASKED. The cars enrolled before
     // 2026-09-11 have no date and no energy, and inventing them was ruled out. Each shows
     // "Finish your vehicle details" on its Driver's file until they add it.
-    const missing = (cars ?? []).filter((c) => !c.energy || !c.first_registration_date).length;
-    console.log(`note  ${missing} of ${cars?.length ?? 0} car(s) still to give their date + energy — asked on the Driver's file, never invented`);
+    const missing = cars.filter((c) => !c.energy || !c.first_registration_date).length;
+    console.log(`note  ${missing} of ${cars.length} car(s) still to give their date + energy — asked on the Driver's file, never invented`);
   }
 }
 
@@ -1266,8 +1282,11 @@ console.log("\n── a Driver cannot write their own car (S77) ──");
     t("a Driver cannot write their own vehicle row", false, `could not sign in: ${si.message} — run .local/seed/seed-probe-accounts.mts`);
   } else {
     const { data: me } = await db.from("driver").select("id").eq("email", "demo.driver@pickup.local").single();
-    const { data: car } = await db.from("vehicle").select("id,category").eq("driver_id", me!.id)
-      .order("created_at").limit(1).single();
+    // ⚑ THE LIVE CAR. `.order("created_at").limit(1)` alone returns the OLDEST row, which
+    //   after a replacement is the retired one — and this check's whole claim is about the
+    //   car the Driver has now. (`select("*")` + a JS filter: see the note at § V above.)
+    const { data: mine } = await db.from("vehicle").select("*").eq("driver_id", me!.id).order("created_at");
+    const car = (mine ?? []).find((v: Record<string, unknown>) => !v.retired_at);
     const w = await as.from("vehicle").update({ category: car!.category }).eq("id", car!.id).select("id");
     // Refused either as an error, or as zero rows touched (RLS filters instead of erroring).
     const refused = !!w.error || (w.data?.length ?? 0) === 0;
@@ -1285,14 +1304,17 @@ console.log("\n── a Driver cannot write their own car (S77) ──");
   // ⚑ DATA, NOT CODE: a plate that does not fit its Driver's country can never be saved
   // again (Thomas Rey's did not, until 2026-09-11) — so the Driver is stuck.
   const { plateFitsCountry } = await import("../../lib/vehicle-rules.ts");
-  const { data: rows } = await db.from("vehicle").select("plate, driver:driver_id(first_name,last_name,base_country)");
-  const stuck = (rows ?? []).filter((v) => {
+  // ⚑ LIVE CARS ONLY. A retired plate can never be re-saved and nobody is stuck on it; the
+  //   claim is "no Driver is stuck", which is about the car in front of them.
+  const { data: allPlates } = await db.from("vehicle").select("*, driver:driver_id(first_name,last_name,base_country)");
+  const rows = (allPlates ?? []).filter((v) => !(v as unknown as Record<string, unknown>).retired_at);
+  const stuck = rows.filter((v) => {
     const d = (v as unknown as { driver: { base_country: string | null } | null }).driver;
     return v.plate && d && !plateFitsCountry(v.plate, d.base_country);
   });
   t("every live plate fits its Driver's country, so no Driver is stuck unable to save",
     stuck.length === 0,
-    stuck.length ? `⚑ ${stuck.map((v) => `${(v as unknown as { driver: { first_name: string } }).driver.first_name} ${v.plate}`).join(", ")}` : `${rows?.length ?? 0} plate(s)`);
+    stuck.length ? `⚑ ${stuck.map((v) => `${(v as unknown as { driver: { first_name: string } }).driver.first_name} ${v.plate}`).join(", ")}` : `${rows.length} plate(s)`);
 }
 
 // ── every Business has a country, so Monaco is called Monaco (S77) ────────────
@@ -1349,10 +1371,12 @@ console.log("\n── the admin reach block still matches the Pool (S77) ──"
 
   // The rules, as they appear in the Pool's own filter.
   const RULES: [string, RegExp][] = [
-    ["tier is filtered in SQL, exactly", /query\.eq\("category", vehicle\.category\)/],
+    // ⚑ `workingCar`, not `vehicle`, since S78: the Pool filters on the APPROVED car, and the
+    //   rename is what walked the compiler through every reader when the rule changed.
+    ["tier is filtered in SQL, exactly", /query\.eq\("category", workingCar\.category\)/],
     ["radius accepts EITHER end", /withinRadius\([^)]*pickup[^)]*\)\s*\|\|\s*[\s\S]{0,80}?withinRadius\([^)]*dropoff/],
     ["luggage-only needs the opt-in", /m\.luggage_only && !driver\.accepts_luggage_runs/],
-    ["body is checked ONLY when demanded", /m\.required_body_type && m\.required_body_type !== vehicle\.body_type/],
+    ["body is checked ONLY when demanded", /m\.required_body_type && m\.required_body_type !== workingCar\.body_type/],
     ["a named car must match", /m\.required_make && m\.required_model/],
   ];
   for (const [says, re] of RULES) t(`Pool: ${says}`, re.test(pool));
@@ -1488,6 +1512,72 @@ console.log("\n── one dev server, on one port (S77) ──");
   t("[[d103]] live: the trips DO move with the period (so the period is not ignored)",
     !!quiet && Number(quiet.trips) === 0,
     quiet ? `Jan 2027 trips = ${quiet.trips}` : "no answer");
+}
+
+// ── S78 · a car is approved by a person, or it does not work ───────────────────────────
+//
+// ⚑ THE SOURCE HALF ASSERTS THE CALL, NOT THE NAME. S76 shipped two assertions that were dead
+// on arrival because they matched a variable name: gutting the function kept them green. So
+// what is pinned below is the branch that closes the Pool and the two translators that turn
+// the database's refusal into a sentence — the things that stop working silently.
+{
+  const pool = fs.readFileSync("app/(app)/pool/page.tsx", "utf8");
+  const acts = fs.readFileSync("app/(app)/missions/[id]/actions.ts", "utf8");
+
+  const poolCloses = /if \(!workingCar\) \{/.test(pool) && /<PoolClosed/.test(pool);
+  t("the Pool closes on the APPROVED car, and renders the panel that says why", poolCloses,
+    poolCloses ? "" : "⚑ a Driver with an unapproved car would see an empty Pool and no reason");
+
+  // Two translators, two casings — the car refusal must be caught in both or the Driver reads
+  // "please try again" on the one refusal they can act on.
+  const caught = (acts.match(/isCarAwaitingError\(/g) ?? []).length;
+  t("both the accept and the hold translate the car refusal", caught === 2, `${caught} call(s)`);
+
+  // ── and the live half ────────────────────────────────────────────────────────────────
+  const { data: cars, error: carsErr } = await db
+    .from("vehicle")
+    .select("id, driver_id, approval_status, retired_at, plate");
+
+  if (carsErr) {
+    t("the car lifecycle columns exist", false,
+      `${carsErr.message} — paste docs/migrations/2026-09-12_vehicle_lifecycle_columns.sql`);
+  } else {
+    const rows = cars ?? [];
+    const known = rows.filter((v) => ["pending", "approved", "rejected"].includes(v.approval_status));
+    t("every car's approval state is one of the three", known.length === rows.length,
+      `${known.length} of ${rows.length}`);
+
+    // ⚑ V1 is one car per Driver. The unique index enforces it; this catches the window where
+    //   the index has not been created yet, when a half-applied M4 would let two through.
+    const live = rows.filter((v) => !v.retired_at);
+    const twice = [...new Map(live.map((v) => [v.driver_id, 0])).keys()]
+      .filter((id) => live.filter((v) => v.driver_id === id).length > 1);
+    t("no Driver has two live cars", twice.length === 0, twice.join(", "));
+
+    const approved = live.filter((v) => v.approval_status === "approved").length;
+    console.log(`   fleet: ${rows.length} cars · ${live.length} live · ${approved} approved · ${rows.length - live.length} retired`);
+  }
+
+  // The freeze. ⚑ A trip that has a Driver must carry that Driver's car, or a Waybill reprints
+  //   whatever the Driver drives today — the fault this whole change exists to end.
+  const { data: assigned, error: mErr } = await db
+    .from("mission")
+    .select("id, driver_id, vehicle_plate")
+    .not("driver_id", "is", null)
+    .limit(1000);
+  if (mErr) {
+    t("trips carry the car they were done with", false,
+      `${mErr.message} — paste docs/migrations/2026-09-12_vehicle_lifecycle_columns.sql`);
+  } else {
+    const bare = (assigned ?? []).filter((m) => !m.vehicle_plate).length;
+    t("every trip with a Driver carries a frozen plate", bare === 0,
+      bare ? `${bare} without one — run docs/migrations/2026-09-12b_history_backfill.sql` : `${assigned?.length ?? 0} checked`);
+  }
+
+  // The gate itself, asked of the database rather than of a file.
+  const { error: wcErr } = await db.rpc("working_car", { p_driver: "00000000-0000-0000-0000-000000000000" });
+  t("working_car() is installed — the one predicate the gate and the stamp share",
+    !wcErr, wcErr ? `${wcErr.message} — paste docs/migrations/2026-09-13_vehicle_approval_gate.sql` : "");
 }
 
 console.log("\n── the repo the handoff describes ──");

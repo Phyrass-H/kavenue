@@ -49,7 +49,8 @@ const { data: desks } = await db.from("dispatcher").select("id, business_id");
 if (!desks) throw new Error("the dispatcher read came back null — a mission needs a desk to post it");
 const { data: drivers } = await db.from("driver").select("id, first_name, last_name");
 if (!drivers) throw new Error("the driver read came back null — this script hands its trips to Drivers named in riviera.mts");
-const { data: vehicles } = await db.from("vehicle").select("driver_id, category, body_type");
+// ⚑ LIVE CARS ONLY — a retired row would set a Driver's class from a car they no longer have.
+const { data: vehicles } = await db.from("vehicle").select("driver_id, category, body_type").is("retired_at", null);
 const bizId = (n: string) => {
   const row = biz.find((b) => b.name === n);
   if (!row) throw new Error(`no Business named "${n}" — run .local/seed/seed-3months.mts first`);

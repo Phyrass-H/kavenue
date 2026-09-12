@@ -49,13 +49,20 @@ ok("no existing mission was stamped by the migration", stamped === 0, `${stamped
 
 // ── the two kinds of Driver ────────────────────────────────────────────────
 const { data: drivers } = await db.from("driver").select("id,first_name,last_name,vat_number").limit(200);
-const registered = (drivers ?? []).find((d) => (d.vat_number ?? "").trim() !== "");
-const unregistered = (drivers ?? []).find((d) => (d.vat_number ?? "").trim() === "");
-ok("a VAT-registered Driver exists to test with", !!registered, [registered?.first_name, registered?.last_name].filter(Boolean).join(" ") || "none found");
+// ⚑ AND THEIR CAR MUST BE APPROVED. Both branches below put the probe trip on a Driver, and
+//   since S78 `mission_requires_approved_car` refuses that outright — so a Driver picked on
+//   VAT status alone can turn this probe red for a reason that has nothing to do with VAT.
+const { data: working } = await db.from("vehicle").select("driver_id")
+  .eq("approval_status", "approved").is("retired_at", null);
+const canWork = new Set((working ?? []).map((v) => v.driver_id));
+const candidates = (drivers ?? []).filter((d) => canWork.has(d.id));
+const registered = candidates.find((d) => (d.vat_number ?? "").trim() !== "");
+const unregistered = candidates.find((d) => (d.vat_number ?? "").trim() === "");
+ok("a VAT-registered Driver exists to test with", !!registered, [registered?.first_name, registered?.last_name].filter(Boolean).join(" ") || "none found (with an approved car)");
 ok(
   "an unregistered Driver exists to test with",
   !!unregistered,
-  [unregistered?.first_name, unregistered?.last_name].filter(Boolean).join(" ") || "none found",
+  [unregistered?.first_name, unregistered?.last_name].filter(Boolean).join(" ") || "none found (with an approved car)",
 );
 
 // The rate the trigger should be copying, read not assumed.

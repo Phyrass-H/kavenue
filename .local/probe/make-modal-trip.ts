@@ -20,8 +20,12 @@ if (!bizAuth) throw new Error("demo.business@pickup.local is missing — run npx
 const { data: disp } = await db.from("dispatcher").select("id,business_id").eq("auth_user_id", bizAuth.id).limit(1);
 if (!disp?.length) throw new Error(`no dispatcher row for auth user ${bizAuth.id} (demo.business@pickup.local) — run npx tsx .local/seed/seed-probe-accounts.mts`);
 const d = disp[0];
-const { data: drivers } = await db.from("driver").select("id").limit(1);
-if (!drivers?.length) throw new Error("no driver rows at all — this trip needs one to be confirmed to");
+// ⚑ A DRIVER WITH AN APPROVED CAR, not whichever row Postgres hands back. Since S78 a trip
+//   cannot be given to a Driver whose car is pending or retired — `mission_requires_approved_car`
+//   raises on the insert below, and the old `.limit(1)` with no order made that a coin toss.
+const { data: drivers } = await db.from("vehicle").select("driver_id")
+  .eq("approval_status", "approved").is("retired_at", null).limit(1);
+if (!drivers?.length) throw new Error("no Driver has an approved car — this trip needs one to be confirmed to; run .local/seed/seed-probe-accounts.mts");
 const { data: tmplRows } = await db.from("mission").select("*").eq("business_id", d.business_id).limit(1);
 if (!tmplRows?.length) throw new Error(`no existing mission for business ${d.business_id} to copy as a row template — seed the dataset first`);
 const tmpl = tmplRows[0];
@@ -29,7 +33,7 @@ const id = crypto.randomUUID();
 fs.writeFileSync(M, JSON.stringify({ id }));
 const now = Date.now();
 const { error } = await db.from("mission").insert({
-  ...tmpl, id, business_id: d.business_id, dispatcher_id: d.id, driver_id: drivers[0].id,
+  ...tmpl, id, business_id: d.business_id, dispatcher_id: d.id, driver_id: drivers[0].driver_id,
   status: "confirmed", reference: "STEPDEMO",
   pickup_address: "12 Promenade des Anglais, 06000 Nice", pickup_label: null, flight_number: null,
   guest_ready_at: null,

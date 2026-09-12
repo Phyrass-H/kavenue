@@ -89,15 +89,42 @@ if (driverId) {
   if (error) throw new Error(`driver insert: ${error.message}`);
   driverId = data.id;
 }
-const { data: veh } = await db.from("vehicle").select("id").eq("driver_id", driverId!).maybeSingle();
+// ⚑ THE LIVE CAR, never "the car". A replaced car keeps its row for ever (retired_at), and
+//   picking it up here would reset the history instead of the fixture.
+const { data: veh } = await db.from("vehicle").select("id").eq("driver_id", driverId!)
+  .is("retired_at", null).maybeSingle();
 const vehicleFields = {
   category: "business" as const, body_type: "sedan" as const,
   // ⚑ canonicalMake, not a literal: re-running this seed used to write "Mercedes" over
   //   the canonical "Mercedes-Benz" and turn handoff-check red (2026-09-11).
   make: canonicalMake("Mercedes"), model: "Classe E", colour: "noir", energy: "hybride_rechargeable", first_registration_date: "2023-03-14",  plate: "TE-000-ST", seats: 4, is_active: true,
+  last_written_via: "seed",
 };
-if (veh) await db.from("vehicle").update(vehicleFields).eq("id", veh.id);
-else await db.from("vehicle").insert({ driver_id: driverId!, ...vehicleFields });
+// ⚑⚑ THÉO'S CAR ARRIVES **PENDING**, AND THAT IS THE POINT — the one seeded car that is not
+//   approved. Since S78 there are three approvals, and this file is the fixture for the
+//   review pass: "running this a second time puts every document back to pending […] so the
+//   whole pass can be done again from the top". The car is part of that pass now, so it goes
+//   back with the papers. Approving it here would leave the new car screen with nothing to
+//   approve. ⚑ NOTHING GIVES THÉO A TRIP (grepped: no seed or probe writes his driver_id), so
+//   the mission gate cannot trip over him — and the probes that pick "a Driver" now ask for
+//   one with an approved car rather than taking whichever row Postgres hands back.
+const reset = {
+  approval_status: "pending" as const,
+  approved_at: null, approved_by: null, rejected_at: null, rejection_note: null,
+};
+if (veh) {
+  // ⚑ TWO WRITES, ON PURPOSE. `vehicle_identity_frozen` refuses a change of plate/make/…
+  //   on a car that is APPROVED and live — which is exactly what this row is once the
+  //   founder has run the pass. Un-approving first means the reset can never be refused;
+  //   one combined UPDATE reads OLD.approval_status = 'approved' and raises.
+  const { error: rErr } = await db.from("vehicle").update(reset).eq("id", veh.id);
+  if (rErr) throw new Error(`vehicle reset: ${rErr.message}`);
+  const { error: uErr } = await db.from("vehicle").update(vehicleFields).eq("id", veh.id);
+  if (uErr) throw new Error(`vehicle: ${uErr.message}`);
+} else {
+  const { error: iErr } = await db.from("vehicle").insert({ driver_id: driverId!, ...vehicleFields, ...reset });
+  if (iErr) throw new Error(`vehicle: ${iErr.message}`);
+}
 
 // ── 3 · the papers ──────────────────────────────────────────────────────────
 const MIME: Record<string, string> = { jpg: "image/jpeg", png: "image/png", pdf: "application/pdf" };

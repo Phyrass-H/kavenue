@@ -103,10 +103,14 @@ const { data: disp } = await db.from("dispatcher").select("id,business_id").eq("
 const dispatcher = disp?.[0];
 if (!dispatcher) throw new Error("demo business has no dispatcher row");
 
-const { data: drivers, error: drvErr } = await db.from("driver").select("id").limit(1);
+// ⚑ A DRIVER WITH AN APPROVED CAR, not whichever row Postgres hands back. Since S78 a trip
+//   cannot be inserted with a Driver whose car is pending or retired — the trigger raises
+//   'Car awaiting approval' — and `.limit(1)` with no order picked one at random.
+const { data: drivers, error: drvErr } = await db.from("vehicle").select("driver_id")
+  .eq("approval_status", "approved").is("retired_at", null).limit(1);
 if (drvErr) throw new Error(`driver lookup failed: ${drvErr.message}`);
-const driverId = drivers?.[0]?.id;
-if (!driverId) throw new Error("the `driver` table is empty — there is nobody to attach a trip to; run .local/seed/seed-probe-accounts.mts");
+const driverId = drivers?.[0]?.driver_id;
+if (!driverId) throw new Error("no Driver has an approved car — there is nobody to attach a trip to; run .local/seed/seed-probe-accounts.mts");
 
 const { data: tmplRows } = await db.from("mission").select("*").eq("business_id", dispatcher.business_id).limit(1);
 const tmpl = tmplRows?.[0];

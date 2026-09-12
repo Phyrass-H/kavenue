@@ -136,19 +136,32 @@ for (const d of drivers ?? []) {
 
 // ── 2 · one spelling per brand ──────────────────────────────────────────────
 console.log("\n── car makes ──");
-const { data: cars } = await db.from("vehicle").select("id, make, model");
-let renamed = 0;
+// ⚑ LIVE CARS ONLY, AND IT IS NOT AN OPTIMISATION. A retired car is history: past trips
+//   point at it and its Waybills are already issued, so re-spelling its make would edit a
+//   document that has been printed. Only a car still in service gets tidied.
+const { data: cars } = await db.from("vehicle").select("id, make, model, approval_status").is("retired_at", null);
+let renamed = 0, frozen = 0;
 for (const v of cars ?? []) {
   const canon = canonicalMake(v.make);
   if (!v.make || canon === v.make) continue;
+  // ⚑ AN APPROVED CAR CANNOT BE RE-SPELLED HERE. `vehicle_identity_frozen` (S78) refuses any
+  //   change to make/plate/model/… on an approved, live row — "new cars new rules". The only
+  //   lawful way past it is replace_vehicle(), which files a DIFFERENT car; that is not what
+  //   a spelling tidy is. So it is named and counted, never forced and never thrown on.
+  if (v.approval_status === "approved") {
+    console.log(`  FROZEN  "${v.make}" → "${canon}"   (${v.model ?? "—"}) — approved car, vehicle_identity_frozen refuses it`);
+    frozen++;
+    continue;
+  }
   console.log(`  "${v.make}" → "${canon}"   (${v.model ?? "—"})`);
   if (WRITE) {
-    const { error: e } = await db.from("vehicle").update({ make: canon }).eq("id", v.id);
+    const { error: e } = await db.from("vehicle").update({ make: canon, last_written_via: "seed" }).eq("id", v.id);
     if (e) throw new Error(`vehicle ${v.id}: ${e.message}`);
   }
   renamed++;
 }
-if (renamed === 0) console.log("  every make is already canonical");
+if (renamed === 0 && frozen === 0) console.log("  every make is already canonical");
+if (frozen > 0) console.log(`  ⚑ ${frozen} approved car(s) keep a non-canonical make — a person must correct them at the source`);
 
 console.log(`\n${WRITE ? "written" : "would write"}: ${filled} base(s), ${renamed} make(s)` +
   `  ·  skipped ${skipped} without a base, left ${already} already filled`);

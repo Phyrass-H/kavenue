@@ -54,7 +54,9 @@ const B = await session("s46.driver@pickup.local");
 const { data: dA } = await db.from("driver").select("id").eq("email", "demo.driver@pickup.local").single();
 if (!dA) throw new Error("demo.driver@pickup.local has no driver row — run .local/seed/seed-probe-accounts.mts");
 const { data: dB } = await db.from("driver").select("id").eq("email", "s46.driver@pickup.local").single();
-const { data: carA } = await db.from("vehicle").select("category,body_type").eq("driver_id", dA.id).limit(1).single();
+// ⚑ THE LIVE CAR, not any car. Both Drivers hold trips here, and since S78 the hold itself
+//   is refused unless their car is approved and not retired (working_car()).
+const { data: carA } = await db.from("vehicle").select("category,body_type").eq("driver_id", dA.id).is("retired_at", null).limit(1).single();
 if (!carA) throw new Error(`demo.driver@pickup.local (driver ${dA.id}) has no vehicle — the probe reads its category to pick a trip both Drivers are eligible for`);
 const { data: tmpl } = await db.from("mission").select("*").eq("category", carA.category).limit(1).single();
 

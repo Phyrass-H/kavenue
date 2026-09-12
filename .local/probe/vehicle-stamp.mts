@@ -39,8 +39,11 @@ const { data: drv, error: drvErr } = await db.from("driver")
   .select("id,first_name,last_name").eq("email", "marc.fontaine@kavenue.test").single();
 if (drvErr) throw new Error(`could not read the probe Driver marc.fontaine@kavenue.test: ${drvErr.message}`);
 if (!drv) throw new Error("marc.fontaine@kavenue.test is missing — run .local/seed/riviera.mts");
+// ⚑ THE LIVE CAR, not any car. The stamp reads working_car() (S78) — approved and not
+//   retired — so a probe that picks a retired row asserts the stamp against the wrong id
+//   and reports the trigger broken when it is behaving.
 const { data: car, error: carErr } = await db.from("vehicle")
-  .select("id,plate,category,body_type").eq("driver_id", drv.id).limit(1).single();
+  .select("id,plate,category,body_type").eq("driver_id", drv.id).is("retired_at", null).limit(1).single();
 if (carErr) throw new Error(`could not read a vehicle for driver ${drv.id}: ${carErr.message}`);
 if (!car) throw new Error(`driver ${drv.id} (marc.fontaine@kavenue.test) has no vehicle — there is no car to stamp; run .local/seed/riviera.mts`);
 const { data: tmpl, error: tmplErr } = await db.from("mission")
@@ -139,9 +142,12 @@ if (!DEV_PASSWORD) throw new Error("DEV_PASSWORD is not in .env.local — the pr
   } else {
     const { data: demo } = await db.from("driver").select("id")
       .eq("email", "demo.driver@pickup.local").maybeSingle();
+    // ⚑ NOT `order("is_active")` ANY MORE. That was one of the four disagreeing answers to
+    //   "which car is this Driver's" that [[d113]] found; the stamp asks working_car() and
+    //   nothing else — not retired, oldest first. Nothing writes is_active.
     const { data: demoCar } = demo
       ? await db.from("vehicle").select("id,plate,category,body_type")
-          .eq("driver_id", demo.id).order("is_active", { ascending: false }).limit(1).maybeSingle()
+          .eq("driver_id", demo.id).is("retired_at", null).order("created_at").limit(1).maybeSingle()
       : { data: null };
 
     if (!demo || !demoCar) {

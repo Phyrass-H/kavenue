@@ -86,9 +86,13 @@ if (!bizAuth) throw new Error("demo.business@pickup.local is missing — run npx
 const { data: disp } = await db.from("dispatcher").select("id,business_id").eq("auth_user_id", bizAuth.id).limit(1);
 if (!disp?.length) throw new Error(`no dispatcher row for auth user ${bizAuth.id} (demo.business@pickup.local) — run npx tsx .local/seed/seed-probe-accounts.mts`);
 const dispatcher = disp[0];
-const { data: drivers } = await db.from("driver").select("id").limit(1);
-if (!drivers?.length) throw new Error("no driver rows at all — this probe needs one to own the confirmed missions it creates");
-const driverId = drivers[0].id;
+// ⚑ A DRIVER WITH AN APPROVED CAR, not whichever row Postgres hands back. Since S78 the four
+//   confirmed missions below are refused outright ('Car awaiting approval') if the Driver's
+//   car is pending or retired — and `.limit(1)` with no order picked one at random.
+const { data: drivers } = await db.from("vehicle").select("driver_id")
+  .eq("approval_status", "approved").is("retired_at", null).limit(1);
+if (!drivers?.length) throw new Error("no Driver has an approved car — this probe needs one to own the confirmed missions it creates; run .local/seed/seed-probe-accounts.mts");
+const driverId = drivers[0].driver_id;
 const { data: tmplRows } = await db.from("mission").select("*").eq("business_id", dispatcher.business_id).limit(1);
 if (!tmplRows?.length) throw new Error(`no existing mission for business ${dispatcher.business_id} to copy as a row template — seed the dataset first`);
 const tmpl = tmplRows[0];

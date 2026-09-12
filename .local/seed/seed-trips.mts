@@ -54,7 +54,9 @@ if (!commRows || !commRows.length) throw new Error("commission_rate has no rows 
 const RATES = commRows[0];
 const { data: bizRows } = await db.from("business").select("id, name, created_at");
 const { data: driverRows } = await db.from("driver").select("id, first_name, last_name, base_lat, base_lng, service_radius_km, accepts_luggage_runs, created_at");
-const { data: vehRows } = await db.from("vehicle").select("driver_id, category, body_type");
+// ⚑ LIVE CARS ONLY. `find(x => x.driver_id === d.id)` below takes the first row it meets;
+//   a retired one would set the whole Driver's class for 92 days of seeded trips.
+const { data: vehRows } = await db.from("vehicle").select("driver_id, category, body_type").is("retired_at", null);
 const { data: deskRows } = await db.from("dispatcher").select("id, business_id, name");
 
 const FLEET = (driverRows ?? []).map((d) => {

@@ -60,7 +60,9 @@ const { data: dRows } = await db.from("driver").select("id").eq("auth_user_id", 
 if (!dRows?.length) throw new Error(`no driver row for auth user ${drvAuth.user.id} (demo.driver@pickup.local) — run .local/seed/seed-probe-accounts.mts`);
 const driverId = dRows[0].id as string;
 // The Driver must have a matching vehicle or accept_mission refuses (§ B).
-const { data: veh } = await db.from("vehicle").select("category, body_type").eq("driver_id", driverId).limit(1).maybeSingle();
+// ⚑ THE LIVE CAR, not any car. A retired row is one the Driver has replaced; its category
+//   would build a trip they can no longer take (working_car(), S78).
+const { data: veh } = await db.from("vehicle").select("category, body_type").eq("driver_id", driverId).is("retired_at", null).limit(1).maybeSingle();
 if (!veh) throw new Error(`Driver ${driverId} (demo.driver@pickup.local) has no vehicle — run .local/seed/seed-probe-accounts.mts`);
 // ⚑ THE DESK FIRST, NOT THE BUSINESS. This used to pick a Business with
 // `.limit(1)` and no `.order()` — whichever row Postgres happened to hand back —

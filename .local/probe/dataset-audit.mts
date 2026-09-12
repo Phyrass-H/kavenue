@@ -39,7 +39,11 @@ async function all<T>(table: string, cols: string): Promise<T[]> {
 const missions = await all<any>("mission", "*");
 const events = await all<any>("mission_event", "id, mission_id, event_type, occurred_at, source, seq");
 const drivers = await all<any>("driver", "*");
-const vehicles = await all<any>("vehicle", "*");
+// ⚑ LIVE CARS ONLY. The eligibility audit below does `vehicles.find(x => x.driver_id === …)`
+//   and takes whichever row comes first — after a replacement that can be the RETIRED car,
+//   whose category may differ, so a perfectly ordinary trip would be reported "impossible".
+//   Filtered in JS so this still reads right before M1 is pasted (no column, no retired rows).
+const vehicles = (await all<any>("vehicle", "*")).filter((v) => !v.retired_at);
 const businesses = await all<any>("business", "id, name, created_at");
 
 console.log("── size and shape ──");

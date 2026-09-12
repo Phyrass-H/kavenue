@@ -27,7 +27,14 @@ if (drvs?.length) {
   // any mission that got a seeded driver but a real desk (shouldn't exist, but be sure)
   const { count } = await db.from("mission").select("id",{count:"exact",head:true}).in("driver_id", drvs.map(d=>d.id));
   if (count) { console.log(`missions still pointing at seeded drivers: ${count}`); await db.from("mission").delete().in("driver_id", drvs.map(d=>d.id)); }
-  await db.from("vehicle").delete().in("driver_id", drvs.map(d=>d.id));
+  // ⚑ NEVER A RETIRED CAR. `document.vehicle_id` cascades on delete (2026-07-28…:41), so
+  //   deleting a retired row destroys the carte grise that proved the car — and a retired
+  //   car is exactly the one past trips still point at.
+  //   ⚑ THE FILTER IS NOT THE PROTECTION, THOUGH. `vehicle.driver_id references driver(id)
+  //   on delete cascade` (schema:73), so the very next line takes the retired row with the
+  //   Driver regardless. That is intended here — this script removes orphaned seed accounts
+  //   whole — but nobody should read this line as "retired cars are safe from recover.mjs".
+  await db.from("vehicle").delete().in("driver_id", drvs.map(d=>d.id)).is("retired_at", null);
   await db.from("driver").delete().in("id", drvs.map(d=>d.id));
 }
 if (desks?.length) await db.from("dispatcher").delete().in("id", desks.map(d=>d.id));

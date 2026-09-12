@@ -43,12 +43,16 @@ const chance = (p) => rnd() < p;
 const round2 = (n) => Math.round(n * 100) / 100;
 
 // ------------------------------------------------------------------- the fleet
+// ⚑ THE MAKE IS THE CANONICAL SPELLING, WRITTEN OUT. Every other seed passes it through
+// `canonicalMake` (lib/vehicle-catalog.ts) — this one cannot: it is a .mjs run by bare
+// `node`, with no TypeScript loader to import the catalog with. "Mercedes" here silently
+// undid the canonical spelling on every re-seed, which is the S77 scar (2026-09-11).
 const DRIVERS = [
-  { first: "Marc", last: "Fontaine", cat: "business", body: "sedan", make: "Mercedes", model: "Classe E", colour: "noir", plate: "AB-482-CD" },
+  { first: "Marc", last: "Fontaine", cat: "business", body: "sedan", make: "Mercedes-Benz", model: "Classe E", colour: "noir", plate: "AB-482-CD" },
   { first: "Sofia", last: "Berger", cat: "business", body: "sedan", make: "BMW", model: "Série 5", colour: "gris", plate: "EF-731-GH" },
-  { first: "Karim", last: "Nasri", cat: "business", body: "van", make: "Mercedes", model: "Classe V", colour: "noir", plate: "IJ-905-KL", luggage: true },
+  { first: "Karim", last: "Nasri", cat: "business", body: "van", make: "Mercedes-Benz", model: "Classe V", colour: "noir", plate: "IJ-905-KL", luggage: true },
   { first: "Élodie", last: "Marchand", cat: "eco", body: "sedan", make: "Peugeot", model: "508", colour: "bleu", plate: "MN-264-OP" },
-  { first: "Thomas", last: "Rey", cat: "luxury", body: "sedan", make: "Mercedes", model: "Classe S", colour: "noir", plate: "QR-118-ST" },
+  { first: "Thomas", last: "Rey", cat: "luxury", body: "sedan", make: "Mercedes-Benz", model: "Classe S", colour: "noir", plate: "QR-118-ST" },
   { first: "Nadia", last: "Bouchard", cat: "business", body: "van", make: "Volkswagen", model: "Multivan", colour: "gris", plate: "UV-673-WX", luggage: true },
 ];
 
@@ -186,7 +190,13 @@ async function undo() {
   }
   // Belt and braces: anything still hanging off a seeded desk, recorded or not.
   if (m.dispatchers.length) await db.from("mission").delete().in("dispatcher_id", m.dispatchers);
-  if (m.vehicles.length) await db.from("vehicle").delete().in("id", m.vehicles);
+  // ⚑ NEVER A RETIRED CAR. `document.vehicle_id` cascades (2026-07-28…:41), so deleting a
+  //   retired row destroys the carte grise that proved it — the one paper a dispute needs.
+  //   ⚑ And this guard alone is not enough: the driver delete on the next line but one
+  //   cascades to `vehicle` too (schema:73), so a retired car dies with its Driver anyway.
+  //   That is correct HERE — this undo removes accounts it created whole — but it means the
+  //   protection lives in "do not delete the Driver", not in this filter.
+  if (m.vehicles.length) await db.from("vehicle").delete().in("id", m.vehicles).is("retired_at", null);
   if (m.drivers.length) await db.from("driver").delete().in("id", m.drivers);
   if (m.dispatchers.length) await db.from("dispatcher").delete().in("id", m.dispatchers);
   for (const uid of m.authUsers) await db.auth.admin.deleteUser(uid).catch(() => {});
@@ -272,6 +282,13 @@ async function seed() {
         colour: d.colour,
         plate: d.plate,
         is_active: true,
+        // ⚑ APPROVED, OR THIS FLEET CANNOT DRIVE. Since S78 a trip cannot be given to a
+        //   Driver whose car is not approved — and § the mission loop below inserts ~350
+        //   trips with `driver_id` already on them. Only a person approves a real car
+        //   (/admin/drivers/[id]); `via: "seed"` is what keeps a seeded row out of evidence.
+        approval_status: "approved",
+        approved_at: new Date().toISOString(),
+        last_written_via: "seed",
       })
       .select("id")
       .single();

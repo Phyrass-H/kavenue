@@ -160,6 +160,13 @@ for (const d of DRIVERS) {
     make: canonicalMake(d.make), model: d.model, colour: d.colour, plate: d.plate, seats: d.seats,
     energy: d.energy, first_registration_date: d.firstRegistered,
     is_active: true, created_at: iso(joinedAt),
+    // ⚑ APPROVED, OR THIS FLEET CANNOT DRIVE. Since S78 a trip cannot be given to a Driver
+    //   whose car is not approved — the trigger refuses the write, and seed-trips.mts hands
+    //   out ~340 of them. Approved as of the day they joined, so the dataset reads as a fleet
+    //   that was checked when it arrived. Real enrollment NEVER sets this: only a person does,
+    //   through /admin/drivers/[id]. `via: "seed"` is what tells the change log the difference.
+    approval_status: "approved", approved_at: iso(joinedAt),
+    last_written_via: "seed",
   });
   if (vErr) throw new Error(`vehicle ${d.email}: ${vErr.message}`);
 

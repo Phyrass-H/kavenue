@@ -73,7 +73,9 @@ const { data: dRows, error: dErr } = await db.from("driver").select("id,accepts_
 if (dErr) throw new Error(`reading the driver row for demo.driver@pickup.local failed: ${dErr.message}`);
 if (!dRows?.length) throw new Error("demo.driver@pickup.local has no driver row — run .local/seed/seed-probe-accounts.mts");
 const driver = dRows[0];
-const { data: vRows, error: vErr } = await db.from("vehicle").select("category,body_type").eq("driver_id", driver.id).limit(1);
+// ⚑ THE LIVE CAR, not any car. Every (B) case below is built from this row, and a retired
+//   one describes a car the Driver no longer has (working_car(), S78).
+const { data: vRows, error: vErr } = await db.from("vehicle").select("category,body_type").eq("driver_id", driver.id).is("retired_at", null).limit(1);
 if (vErr) throw new Error(`reading the vehicle for driver ${driver.id} failed: ${vErr.message}`);
 if (!vRows?.length) throw new Error(`driver ${driver.id} has no vehicle — every (B) case is built from its category and body type; run .local/seed/seed-probe-accounts.mts`);
 const myCar = vRows[0];

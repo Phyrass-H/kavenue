@@ -8,7 +8,7 @@ import { canonicalMake, categorize } from "@/lib/vehicle-catalog";
 import type { BodyType, PreferredGps } from "@/lib/database.types";
 import { resolveArea, decodeArea } from "@/lib/place-area";
 import { vehicleProblem, normalisePlate } from "@/lib/vehicle-rules";
-import { liveCarOf, statusOf } from "@/lib/vehicle-approval";
+import { liveCarOf, sameCar, statusOf } from "@/lib/vehicle-approval";
 import { duplicateWhy } from "@/lib/duplicate";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
@@ -183,6 +183,10 @@ export async function createDriverProfile(formData: FormData) {
       .from("vehicle")
       .insert({ driver_id: driverId!, ...vehicleFields });
     if (vErr) redirect(`/onboarding?error=car&why=${duplicateWhy(vErr) ?? "db"}`);
+  } else if (sameCar(vehicle, vehicleFields)) {
+    // Enrollment re-submitted with the same car — nothing to file, and certainly nothing to
+    // retire. (The Driver fields above may well have changed; they are written already.)
+    redirect("/pool");
   } else if (statusOf(vehicle) === "approved") {
     // Enrollment reached again by a Driver who already has an approved car: that is a
     // REPLACEMENT, not an edit. Same act as Settings, same single transaction.
@@ -194,7 +198,10 @@ export async function createDriverProfile(formData: FormData) {
   } else {
     const { error: vErr } = await admin
       .from("vehicle")
-      .update({ ...vehicleFields, approval_status: "pending", rejection_note: null })
+      .update({
+        ...vehicleFields, approval_status: "pending",
+        rejection_note: null, pending_since: new Date().toISOString(),
+      })
       .eq("id", vehicle.id);
     if (vErr) redirect(`/onboarding?error=car&why=${duplicateWhy(vErr) ?? "db"}`);
   }

@@ -4,6 +4,7 @@ import { createDriverProfile } from "./actions";
 import { AddressAutocomplete } from "@/components/address-autocomplete";
 import { DriverVehicleFields } from "@/components/driver-vehicle-fields";
 import { vehicleProblemSays } from "@/lib/vehicle-rules";
+import { duplicateSays } from "@/lib/duplicate";
 
 const RADII = [25, 50, 75, 100, 150, 200, 300];
 
@@ -42,7 +43,7 @@ export default async function OnboardingPage({
           live in lib/vehicle-rules.ts, so this page cannot drift from Settings. */}
       {error === "car" && (
         <div className="notice error">
-          {vehicleProblemSays(why) ?? "Please finish your car’s details."}
+          {vehicleProblemSays(why) ?? duplicateSays(why) ?? "Please finish your car’s details."}
         </div>
       )}
       {error === "db" && (

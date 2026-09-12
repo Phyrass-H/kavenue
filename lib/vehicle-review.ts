@@ -81,18 +81,32 @@ export async function approveVehicle(_prev: ReviewResult | null, form: FormData)
   //   (a Monaco vignette, an airport authorisation — docs/05 § Access badges) must not slip
   //   past this check because someone forgot to add it in a second place.
   const carPapers = driverDocTypes("vehicle");
+
+  // ⚑⚑ THE PAPERS OF *THIS CAR*, NOT OF THE DRIVER. Filed by owner alone, the retired car's
+  //   verified carte grise satisfied this check for a car nobody had ever seen papers for —
+  //   and uploading the new car's real ones did not help either, because every upload INSERTs
+  //   and the old verified row still answered. `document.vehicle_id` exists precisely for this
+  //   (M2 § 1 backfills it); reading it is what makes the check mean anything.
+  //   Found by a review agent, reproduced end to end before this file was ever used in anger.
   const { data: papers } = await admin
     .from("document")
-    .select("type, status")
+    .select("type, status, uploaded_at")
     .eq("owner_type", "driver")
     .eq("owner_id", driverId)
-    .in("type", [...carPapers]);
-  const verified = new Set((papers ?? []).filter((p) => p.status === "verified").map((p) => p.type));
-  const missing = carPapers.filter((t) => !verified.has(t));
+    .eq("vehicle_id", vehicleId)
+    .in("type", [...carPapers])
+    .order("uploaded_at", { ascending: false });
+  // Newest per type: a Driver who re-uploads after a rejection has two rows, and the one that
+  // counts is the one they just filed.
+  const newest = new Map<string, string | null>();
+  for (const row of papers ?? []) if (!newest.has(row.type)) newest.set(row.type, row.status);
+  const missing = carPapers.filter((t) => newest.get(t) !== "verified");
   if (missing.length > 0) {
     return {
       ok: false,
-      message: `Check ${missing.map((t) => documentLabel(t).toLowerCase()).join(" and ")} first — not verified yet.`,
+      message:
+        `Check ${missing.map((t) => documentLabel(t).toLowerCase()).join(" and ")} for THIS car first — ` +
+        "not verified yet. A replacement car needs its own papers.",
     };
   }
 

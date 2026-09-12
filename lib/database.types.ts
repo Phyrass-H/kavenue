@@ -519,7 +519,9 @@ export interface Database {
           rejected_at: string | null;
           rejection_note: string | null; // never NULL on a rejected car — the Driver reads it
           retired_at: string | null;
-          replaced_by: string | null; // the car that took over
+          replaced_by: string | null;
+          /** When this car entered the queue — moves when a refused car is corrected, unlike created_at. */
+          pending_since: string | null; // the car that took over
           last_written_by: string | null; // handed in by the writer: every write is service-role
           last_written_via: string | null; // onboarding | settings | admin | seed
           created_at: string;
@@ -544,6 +546,7 @@ export interface Database {
           rejection_note?: string | null;
           retired_at?: string | null;
           replaced_by?: string | null;
+          pending_since?: string | null;
           last_written_by?: string | null;
           last_written_via?: string | null;
           created_at?: string;

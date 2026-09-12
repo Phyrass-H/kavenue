@@ -239,7 +239,9 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
       .filter((f) => f.liveCar && !f.liveCar.retired_at && f.liveCar.approval_status === "pending")
       .map((f) => ({
         driverId: f.driver.id,
-        filedAt: f.liveCar!.created_at,
+        // ⚑ pending_since, not created_at — a car corrected in place keeps the date it was
+        //   FIRST filed, so the wait shown would include the days the Driver took.
+        filedAt: f.liveCar!.pending_since ?? f.liveCar!.created_at,
         says: [f.liveCar!.make, f.liveCar!.model].filter(Boolean).join(" ") || "a car",
         plate: f.liveCar!.plate,
       })),

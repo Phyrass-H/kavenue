@@ -5,6 +5,7 @@ import { AvatarEditor } from "@/components/avatar-editor";
 import { LanguagePicker } from "@/components/language-picker";
 import { genderOptions } from "@/lib/gender";
 import { SettingsHeader, SaveNotice } from "@/components/settings-header";
+import { duplicateSays } from "@/lib/duplicate";
 import { updateProfile } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -17,17 +18,18 @@ const NOTICE: Record<string, string> = {
 export default async function ProfileSettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string; why?: string }>;
 }) {
   const ctx = await getAppContext();
   if (!ctx.driver) redirect("/onboarding");
   const driver = ctx.driver;
-  const { ok, error } = await searchParams;
+  const { ok, error, why } = await searchParams;
 
   return (
     <>
       <SettingsHeader title="Profile" />
-      <SaveNotice ok={ok} error={error} messages={NOTICE} />
+      {/* ⚑ Which field was already on another account, when that is why it failed. */}
+      <SaveNotice ok={ok} error={error} messages={{ ...NOTICE, db: duplicateSays(why) ?? NOTICE.db }} />
 
       <div className="dcard">
         <p className="dcard__label">Photo</p>

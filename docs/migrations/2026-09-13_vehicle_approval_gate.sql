@@ -65,6 +65,12 @@ create unique index if not exists vehicle_plate_live_uq
 create or replace function mission_requires_approved_car()
 returns trigger
 language plpgsql
+-- ⚑ SECURITY DEFINER because the predicate below reads `vehicle` through working_car(), and
+--   EXECUTE on that is revoked from everyone (it returns whole car rows, plates included). A
+--   trigger that ran with the writer's own rights would fail with "permission denied" the
+--   moment a service-role script assigned a Driver — which is every seed in .local.
+security definer
+set search_path = public
 as $$
 begin
   -- Releasing a trip back to the Pool is not taking one.
@@ -88,6 +94,23 @@ begin
     raise exception 'Car awaiting approval';
   end if;
 
+  -- ⚑⚑ AND THE APPROVED CAR MUST FIT THIS TRIP. § B inside accept_mission (2026-09-07:115-121)
+  --    still asks only whether the Driver owns SOME car of the right class — it has no
+  --    `retired_at is null` and no approval test, and S78 does not reproduce that function. So
+  --    a Driver who replaced an Eco sedan with a Business one still satisfies § B for Eco trips
+  --    through their RETIRED car: the accept succeeds, the stamp below finds nothing to match,
+  --    and the trip is driven with no car recorded at all — the freeze this whole file exists
+  --    for, recording nothing. Found by a review agent reproducing it on a throw-away Postgres.
+  --    ⚑ The raise says "vehicle", matching § B's own wording, so the app's existing
+  --    translator keeps sending them to the right screen.
+  if not exists (
+       select 1 from working_car(new.driver_id) w
+        where w.category = new.category
+          and (new.required_body_type is null or new.required_body_type = w.body_type)
+     ) then
+    raise exception 'Not eligible for this mission — your approved vehicle does not match it';
+  end if;
+
   return new;
 end;
 $$;
@@ -108,11 +131,31 @@ create trigger mission_requires_approved_car
 create or replace function hold_requires_approved_car()
 returns trigger
 language plpgsql
+-- ⚑ SECURITY DEFINER because the predicate below reads `vehicle` through working_car(), and
+--   EXECUTE on that is revoked from everyone (it returns whole car rows, plates included). A
+--   trigger that ran with the writer's own rights would fail with "permission denied" the
+--   moment a service-role script assigned a Driver — which is every seed in .local.
+security definer
+set search_path = public
 as $$
+declare
+  m mission%rowtype;
 begin
   if not exists (select 1 from working_car(new.driver_id)) then
     raise exception 'Car awaiting approval';
   end if;
+
+  -- Same pair as the accept door, for the same reason: a hold takes the trip off the market
+  -- for everyone, so a Driver who could never complete the accept must not be able to freeze it.
+  select * into m from mission where id = new.mission_id;
+  if m.id is not null and not exists (
+       select 1 from working_car(new.driver_id) w
+        where w.category = m.category
+          and (m.required_body_type is null or m.required_body_type = w.body_type)
+     ) then
+    raise exception 'Not eligible for this mission — your approved vehicle does not match it';
+  end if;
+
   return new;
 end;
 $$;
@@ -133,6 +176,12 @@ create trigger hold_requires_approved_car
 create or replace function mission_stamp_vehicle()
 returns trigger
 language plpgsql
+-- ⚑ SECURITY DEFINER because the predicate below reads `vehicle` through working_car(), and
+--   EXECUTE on that is revoked from everyone (it returns whole car rows, plates included). A
+--   trigger that ran with the writer's own rights would fail with "permission denied" the
+--   moment a service-role script assigned a Driver — which is every seed in .local.
+security definer
+set search_path = public
 as $$
 declare
   v       vehicle%rowtype;
@@ -206,6 +255,12 @@ comment on function mission_stamp_vehicle() is
 create or replace function vehicle_identity_frozen()
 returns trigger
 language plpgsql
+-- ⚑ SECURITY DEFINER because the predicate below reads `vehicle` through working_car(), and
+--   EXECUTE on that is revoked from everyone (it returns whole car rows, plates included). A
+--   trigger that ran with the writer's own rights would fail with "permission denied" the
+--   moment a service-role script assigned a Driver — which is every seed in .local.
+security definer
+set search_path = public
 as $$
 begin
   if old.approval_status = 'approved' and old.retired_at is null
@@ -264,7 +319,7 @@ begin
   end if;
 
   insert into vehicle (driver_id, category, body_type, make, model, colour, plate, seats,
-                       energy, first_registration_date, is_active, approval_status,
+                       energy, first_registration_date, is_active, approval_status, pending_since,
                        last_written_by, last_written_via)
   values (p_driver,
           (p_fields ->> 'category')::vehicle_category,
@@ -278,6 +333,7 @@ begin
           (p_fields ->> 'first_registration_date')::date,
           true,
           'pending',
+          now(),
           (p_fields ->> 'last_written_by')::uuid,
           p_fields ->> 'last_written_via')
   returning id into v_new;
@@ -296,11 +352,23 @@ $$;
 comment on function replace_vehicle(uuid, jsonb) is
   'Retire the Driver''s live car and file its replacement as pending, in one transaction. The only way a car changes once it has been approved.';
 
--- ⚑ NO GRANT TO `authenticated`. 2026-09-11b closed the browser''s door onto `vehicle` on
--- purpose, and this function is SECURITY DEFINER — granting it would reopen that door with a
--- ribbon on it. The server actions call it with the service role, having authorised the
--- session themselves, which is the same shape as the document review ([[d132]]).
-revoke execute on function replace_vehicle(uuid, jsonb) from authenticated, anon;
-revoke execute on function working_car(uuid)            from anon;
+-- ⚑⚑ REVOKED FROM **PUBLIC**, AND THAT WORD IS THE WHOLE FIX. `create function` grants EXECUTE
+-- to PUBLIC by default, and revoking from `authenticated` does NOT remove a PUBLIC grant — the
+-- role still holds it through PUBLIC. The first version of this file revoked only from
+-- authenticated and anon, which left a SECURITY DEFINER function taking `p_driver` FROM THE
+-- CALLER callable by every signed-in session: any Driver or Dispatcher could read a driver_id
+-- off mission_read, POST /rest/v1/rpc/replace_vehicle, and retire a stranger's approved car —
+-- stopping them working until an admin re-approved. Found by a review agent, reproduced with
+-- has_function_privilege before this file was ever pasted.
+-- ⚑ THIRD TIME THIS SHAPE HAS APPEARED HERE (2026-08-31d, 2026-08-31e were the same lesson
+-- about table-level vs column-level revokes). Check it, never assume it:
+--     select has_function_privilege('authenticated', 'replace_vehicle(uuid, jsonb)', 'execute');
+--     -- must be f
+-- The server actions call these with the SERVICE ROLE, having authorised the session
+-- themselves — the same shape as the document review ([[d132]]).
+revoke execute on function replace_vehicle(uuid, jsonb) from public, authenticated, anon;
+-- ⚑ working_car() too: it returns whole vehicle rows, so leaving it public would hand any
+--   signed-in session another Driver's plate.
+revoke execute on function working_car(uuid)            from public, authenticated, anon;
 
 notify pgrst, 'reload schema';

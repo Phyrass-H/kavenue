@@ -132,6 +132,43 @@ export const CAR_REVIEW = {
   checked: "We check every car by hand.",
 } as const;
 
+/** The nine facts that make a car THAT car — the same list `vehicle_identity_frozen` guards in
+ *  SQL (docs/migrations/2026-09-13_vehicle_approval_gate.sql). Anything outside it (the luggage
+ *  opt-in, which lives on the Driver) can be saved without touching the car at all. */
+export interface CarIdentity {
+  category: string;
+  body_type: string;
+  make: string | null;
+  model: string | null;
+  colour: string | null;
+  plate: string | null;
+  seats: number | null;
+  energy: string | null;
+  first_registration_date: string | null;
+}
+
+/** ⚑⚑ IS THIS THE SAME CAR? Without this, pressing Save on the car form — or ticking the
+ *  luggage box, which sits in the same form — RETIRED the approved car and filed an identical
+ *  pending one, and the Driver stopped working until someone approved a car they never
+ *  changed. Found by a review agent, reproduced end to end.
+ *
+ *  ⚑ Compared as strings on purpose: a date arrives as "2022-04-11" from the form and as
+ *  "2022-04-11" from Postgres, seats as "4" and 4, and a null and an empty string both mean
+ *  "not said". Anything looser (JSON.stringify of the two objects) would call those different
+ *  and put us straight back into the bug. */
+export function sameCar(
+  a: Partial<CarIdentity> | null | undefined,
+  b: Partial<CarIdentity> | null | undefined,
+): boolean {
+  if (!a || !b) return false;
+  const keys: (keyof CarIdentity)[] = [
+    "category", "body_type", "make", "model", "colour", "plate", "seats", "energy",
+    "first_registration_date",
+  ];
+  const say = (v: unknown) => (v == null ? "" : String(v).trim());
+  return keys.every((k) => say(a[k]) === say(b[k]));
+}
+
 /** Which door wrote a row. Stamped on every write so the change log can say "the admin screen
  *  did this, not the Driver" — and so a seeded row is never mistaken for evidence. */
 export type WriteVia = "onboarding" | "settings" | "admin" | "seed";

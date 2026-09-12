@@ -4649,3 +4649,4 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   flex: 1; border: 1px solid var(--border-strong); border-radius: var(--radius-md);
   padding: 7px 9px; font: inherit; font-size: 13px; resize: vertical;
 }
+.wb-none { color: #6b7280; font-style: italic; }

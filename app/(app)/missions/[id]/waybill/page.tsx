@@ -189,7 +189,11 @@ export default async function WaybillPage({
           )}
         </section>
 
-        {wb.vehicle && (
+        {/* ⚑ THE HEADING IS ALWAYS THERE. It used to be inside the guard, so a trip with no
+            frozen car printed no Véhicule block at all — a document with a section silently
+            missing reads as complete to the person holding it. Saying "non renseigné" is
+            the honest form, and it is never filled in from the Driver's current car. */}
+        {wb.vehicle ? (
           <section className="wb-sec">
             <h2>Véhicule</h2>
             <p>{wb.vehicle.label}</p>
@@ -198,6 +202,11 @@ export default async function WaybillPage({
                 .filter(Boolean)
                 .join(" · ")}
             </p>
+          </section>
+        ) : (
+          <section className="wb-sec">
+            <h2>Véhicule</h2>
+            <p className="wb-none">Non renseigné</p>
           </section>
         )}
 

@@ -11,7 +11,7 @@ import type { BodyType, PreferredGps } from "@/lib/database.types";
 import { resolveArea, decodeArea } from "@/lib/place-area";
 import { vehicleProblem, normalisePlate } from "@/lib/vehicle-rules";
 import { duplicateWhy } from "@/lib/duplicate";
-import { liveCarOf, statusOf } from "@/lib/vehicle-approval";
+import { liveCarOf, sameCar, statusOf } from "@/lib/vehicle-approval";
 
 const GPS_OPTIONS: readonly PreferredGps[] = ["waze", "google", "apple"];
 
@@ -89,7 +89,9 @@ export async function updateProfile(formData: FormData) {
       ...writtenBySettings(authUserId),
     })
     .eq("id", driverId);
-  if (error) redirect("/settings/profile?error=db");
+  // ⚑ The phone is one of the locked identities (M5), so this save can be refused for a reason
+  //   the person can fix — and "Something went wrong" is not that reason.
+  if (error) redirect(`/settings/profile?error=db&why=${duplicateWhy(error) ?? ""}`);
 
   done("/settings/profile");
 }
@@ -231,6 +233,14 @@ export async function updateVehicle(formData: FormData) {
   const live = liveCarOf(cars ?? []);
   const stamp = writtenBySettings(authUserId);
 
+  // ⚑⚑ NOTHING CHANGED, NOTHING HAPPENS. The luggage opt-in above lives in this same form and
+  //   is its only writer, so a Van Driver ticking that box posts the whole car unchanged — and
+  //   before this test that RETIRED their approved car and stopped them working until someone
+  //   approved a car they had not touched.
+  if (live && sameCar(live, vehicleFields)) {
+    done("/settings/vehicle");
+  }
+
   if (live && statusOf(live) === "approved") {
     const { error } = await admin.rpc("replace_vehicle", {
       p_driver: driverId,
@@ -240,7 +250,12 @@ export async function updateVehicle(formData: FormData) {
   } else if (live) {
     const { error } = await admin
       .from("vehicle")
-      .update({ ...vehicleFields, ...stamp, approval_status: "pending", rejection_note: null })
+      // ⚑ `pending_since` moves, `created_at` does not: the console measures how long WE have
+      //   kept them waiting, not how long they took to correct it.
+      .update({
+        ...vehicleFields, ...stamp, approval_status: "pending",
+        rejection_note: null, pending_since: new Date().toISOString(),
+      })
       .eq("id", live.id);
     if (error) redirect(`/settings/vehicle?error=car&why=${duplicateWhy(error) ?? "db"}`);
   } else {

@@ -13,6 +13,7 @@ import {
   isCarAwaitingError,
   isWorkingCar,
   liveCarOf,
+  sameCar,
   statusOf,
   workingCarOf,
 } from "@/lib/vehicle-approval";
@@ -64,6 +65,44 @@ describe("which car is this Driver's", () => {
     expect(statusOf(null)).toBe("pending");
     expect(statusOf({ approval_status: "banana" } as never)).toBe("pending");
     expect(isWorkingCar({ approval_status: "banana" as never, retired_at: null })).toBe(false);
+  });
+});
+
+describe("is this the same car? (the save that retired one)", () => {
+  // ⚑ THE BUG THIS PINS. /settings/vehicle posts the whole car on every save, and the luggage
+  // opt-in lives in the SAME form — so a Van Driver ticking that box retired their approved
+  // car and filed an identical pending one, stopping them working until someone approved a
+  // car they had never changed. Found by a review agent, reproduced end to end.
+  const filed = {
+    category: "business", body_type: "sedan", make: "Mercedes-Benz", model: "Classe E",
+    colour: "noir", plate: "AB-123-CD", seats: 4, energy: "diesel",
+    first_registration_date: "2022-04-11",
+  };
+
+  it("a form posted back unchanged is the same car", () => {
+    expect(sameCar(filed, { ...filed })).toBe(true);
+  });
+
+  it("⚑ and the shapes the two sides really use are the same car too", () => {
+    // The row comes back from Postgres, the form from a POST: seats as a number vs a string,
+    // a date as a date, a null vs an empty string. Anything stricter (JSON.stringify) calls
+    // these different and puts the bug straight back.
+    expect(sameCar(filed, { ...filed, seats: "4" as never })).toBe(true);
+    expect(sameCar({ ...filed, model: null }, { ...filed, model: "" as never })).toBe(true);
+  });
+
+  it("one real change is a different car — every one of the nine", () => {
+    for (const [k, v] of Object.entries({
+      category: "eco", body_type: "van", make: "BMW", model: "Série 5", colour: "gris",
+      plate: "CD-456-EF", seats: 7, energy: "electrique", first_registration_date: "2023-01-02",
+    })) {
+      expect(sameCar(filed, { ...filed, [k]: v })).toBe(false);
+    }
+  });
+
+  it("no car on file is never 'the same'", () => {
+    expect(sameCar(null, filed)).toBe(false);
+    expect(sameCar(filed, null)).toBe(false);
   });
 });
 

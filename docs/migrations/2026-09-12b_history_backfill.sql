@@ -1,4 +1,5 @@
--- 2026-09-12 · M2 of 6 — THE ONE-TIME BACKFILL. Safe to re-run (every statement is guarded).
+-- 2026-09-12 · M2 of 6 — THE ONE-TIME BACKFILL. Re-runnable, but it is written for TODAY'S
+-- data and must not be run after a car has been retired (see the note below).
 --
 -- M1 added the columns. This fills them for the trips and papers that already exist, so the
 -- switch in M4 does not leave 264 finished trips with no car on their Waybill.
@@ -51,8 +52,16 @@ update document d
 -- ⚑ `is_active` is deliberately NOT in the where — filtering on it would find no car where
 -- the accept found one. It is not in the order-by either: with one car per Driver there is
 -- nothing to break, and a tie-break on a column nothing writes is theatre.
+-- ⚑⚑ GROUPED BY THE TRIP ALONE. The first version said `group by m.id, v.id` — two primary
+--    keys, so every pair was its own group and `having count(*) = 1` eliminated NOTHING: a
+--    Driver with two same-class cars would have had one picked by query plan. Caught by a
+--    review agent, which reproduced it by turning off nested loops and watching a September
+--    car land on a July trip. The guard is the whole no-invention rule in this file.
+-- ⚑ `array_agg(...)[1]`, not `min(...)`: Postgres has no min() for uuid, and the first
+--    attempt at this fix failed to apply at all. Caught by running the file rather than
+--    reading it.
 with only_one as (
-  select m.id as mission_id, v.id as vehicle_id
+  select m.id as mission_id, (array_agg(v.id))[1] as vehicle_id
     from mission m
     join vehicle v
       on v.driver_id = m.driver_id
@@ -60,7 +69,7 @@ with only_one as (
      and (m.required_body_type is null or m.required_body_type = v.body_type)
    where m.driver_id  is not null
      and m.vehicle_id is null
-   group by m.id, v.id
+   group by m.id
   having count(*) = 1
 )
 update mission m

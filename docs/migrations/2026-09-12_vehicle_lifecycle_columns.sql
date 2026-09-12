@@ -42,6 +42,11 @@ alter table vehicle add column if not exists approved_by     uuid;
 alter table vehicle add column if not exists rejected_at     timestamptz;
 alter table vehicle add column if not exists rejection_note  text;
 alter table vehicle add column if not exists retired_at      timestamptz;
+-- ⚑ WHEN IT ENTERED THE QUEUE, which `created_at` cannot say. A rejected car is corrected IN
+-- PLACE (the reason has to live somewhere), so its created_at still points at the day the
+-- Driver first filed it — and the console would print "waiting 30 days" for a car refiled an
+-- hour ago, counting the days THEY took as days WE took. Found by a review agent.
+alter table vehicle add column if not exists pending_since   timestamptz default now();
 alter table vehicle add column if not exists replaced_by     uuid references vehicle(id);
 
 -- ⚑ THE DEFAULT IS 'pending', AND THAT IS THE FOUNDER'S RULING FOR THE 14 CARS ALREADY HERE.

@@ -4,6 +4,7 @@ import { FileText, ShieldCheck } from "lucide-react";
 import { getAppContext } from "@/lib/app-context";
 import { SettingsHeader, SaveNotice } from "@/components/settings-header";
 import { updateCompany } from "../actions";
+import { duplicateSays } from "@/lib/duplicate";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +16,12 @@ const NOTICE: Record<string, string> = {
 export default async function CompanySettingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string; why?: string }>;
 }) {
   const ctx = await getAppContext();
   if (!ctx.driver) redirect("/onboarding");
   const driver = ctx.driver;
-  const { ok, error } = await searchParams;
+  const { ok, error, why } = await searchParams;
 
   return (
     <>
@@ -28,7 +29,14 @@ export default async function CompanySettingsPage({
         title="Your company"
         sub="You drive as a company, and you invoice as one. This is who we pay — and what your Waybill shows at a check."
       />
-      <SaveNotice ok={ok} error={error} messages={NOTICE} />
+      {/* ⚑ `why` carries which field was already on another account (lib/duplicate.ts). Without
+          it a refused SIRET read "Something went wrong saving your changes" — on the one error
+          the person can actually act on. */}
+      <SaveNotice
+        ok={ok}
+        error={error}
+        messages={{ ...NOTICE, db: duplicateSays(why) ?? NOTICE.db }}
+      />
 
       <form action={updateCompany}>
         <div className="dcard">

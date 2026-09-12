@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { liveCarOf } from "@/lib/vehicle-approval";
 import {
   ensureBucket,
   uploadFile,
@@ -117,18 +118,20 @@ export async function uploadDocument(formData: FormData): Promise<UploadResult> 
     expiresAt = parsed.value;
   }
 
-  // A carte grise / insurance belongs to a car, not to the Driver. One car today,
-  // so we resolve it rather than asking — the column is what makes a second car easy.
+  // A carte grise / insurance belongs to a car, not to the Driver.
+  //
+  // ⚑ S78 — THE LIVE CAR, NEVER THE OLDEST ROW. A retired car keeps its papers (that is why
+  //   the column cascades), so "the oldest row" files the new car's carte grise against the
+  //   car the Driver sold — and the approval screen, which now checks the papers OF THE CAR
+  //   IN FRONT OF IT, would never see them.
   let vehicleId: string | null = null;
   if (meta.group === "vehicle" && driverId) {
-    const { data: v } = await supabase
+    const { data: cars } = await supabase
       .from("vehicle")
-      .select("id")
+      .select("id, retired_at, created_at")
       .eq("driver_id", driverId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    vehicleId = v?.id ?? null;
+      .order("created_at", { ascending: true });
+    vehicleId = liveCarOf(cars ?? [])?.id ?? null;
   }
 
   try {

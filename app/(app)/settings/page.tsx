@@ -129,6 +129,26 @@ export default async function DriverAccountPage() {
         </div>
       )}
 
+      {/* ⚑ WHAT A PERSON OWES THEM, not what they owe us. A Driver whose file is complete and
+          whose car is with us matched neither branch: the hub sat silent under a green
+          "Verified" pill while their Pool was shut. A pending car is deliberately NOT a gap
+          (it would make "Your file is with us" unreachable) — so it needs its own line. */}
+      {ready.waiting.length > 0 && (
+        <div className="dready">
+          <div className="dready__h">
+            {ready.waiting.length === 1 ? ready.waiting[0]!.label : "With us right now"}
+          </div>
+          <ul className="dready__list">
+            {ready.waiting.map((w) => (
+              <li key={w.label} className="dready__item">
+                <Link href={w.href}>{w.label}</Link>
+              </li>
+            ))}
+          </ul>
+          <p className="dready__say">We check every car by hand. Nothing for you to do.</p>
+        </div>
+      )}
+
       {ready.gaps.length > 0 && (
         <div className={`dready${ready.blockers > 0 ? " dready--block" : ""}`}>
           <div className="dready__h">{ready.headline}</div>

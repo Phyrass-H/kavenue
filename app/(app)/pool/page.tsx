@@ -14,6 +14,7 @@ import { carMatches } from "@/lib/vehicle-catalog";
 import { getLatestDocuments } from "@/lib/documents";
 import { DRIVER_DOC_TYPES } from "@/lib/account";
 import { approvalPiles } from "@/lib/driver-approvals";
+import { carBlockOf } from "@/lib/vehicle-approval";
 import { PoolClosed } from "@/components/pool-closed";
 
 // The Pool changes constantly (PDP climbs, others accept) → never cache.
@@ -78,10 +79,12 @@ export default async function PoolPage({
   if (!workingCar) {
     const docs = await getLatestDocuments("driver", driver.id, DRIVER_DOC_TYPES);
     const piles = approvalPiles(driver, liveCar, docs);
+    const block = carBlockOf(liveCar);
     return (
       <>
-        <PoolHead sub="Your car is with us" />
+        <PoolHead sub={block === "car_rejected" ? "Your car needs correcting" : "Your car is with us"} />
         <PoolClosed
+          block={block}
           href="/settings/vehicle"
           checks={piles.map((p) => ({ label: p.label, says: p.says, state: p.state }))}
         />

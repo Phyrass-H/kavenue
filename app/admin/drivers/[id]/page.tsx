@@ -71,6 +71,9 @@ export default async function AdminDriverPage({
   const fleet = vehicles ?? [];
   const car = liveCarOf(fleet);
   const piles = approvalPiles(driver, car, docs);
+  // ⚑ EVERY ROW THAT IS NOT THE ONE ABOVE — `fleet.slice(1)` described the CURRENT car the
+  //   moment a Driver had a retired one, because a retired row is the older of the two.
+  const others = fleet.filter((v) => v.id !== car?.id);
 
   // ⚑ WOULD APPROVING THIS CAR STRAND WORK THEY ALREADY HOLD? Only upcoming trips count, and
   //   only ones this car cannot serve — class, or a body the trip insisted on. The founder
@@ -222,15 +225,20 @@ export default async function AdminDriverPage({
         {/* ⚑ THE OTHER CARS ARE INVISIBLE TO THE POOL, so they are named here rather
             than left to look like they count. getDriverContext takes one car and only
             one; a Driver who added a second is matched on their first. */}
-        {fleet.length > 1 && (
+        {others.length > 0 && (
           <div className="adm-check adm-check--dead">
             <span className="adm-check__ic" aria-hidden="true">–</span>
             <span>
-              {fleet.length - 1} other car{fleet.length > 2 ? "s" : ""} on file — the Pool never
-              looks at {fleet.length > 2 ? "them" : "it"}
+              {others.length} other car{others.length > 1 ? "s" : ""} on file — the Pool never
+              looks at {others.length > 1 ? "them" : "it"}
             </span>
             <span className="adm-check__d">
-              {fleet.slice(1).map((v) => serviceClassLabel(v.category, v.body_type)).join(", ")}
+              {others
+                .map(
+                  (v) =>
+                    `${serviceClassLabel(v.category, v.body_type)}${v.retired_at ? " · retired" : ""}`,
+                )
+                .join(", ")}
             </span>
           </div>
         )}

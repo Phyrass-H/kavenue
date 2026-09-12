@@ -11,7 +11,7 @@
 // done, or they will re-upload papers nobody asked for.
 import Link from "next/link";
 import { Lock } from "lucide-react";
-import { CAR_REVIEW } from "@/lib/vehicle-approval";
+import { CAR_BLOCK_SAYS, CAR_REVIEW, type CarBlock } from "@/lib/vehicle-approval";
 
 export type CheckState = "done" | "waiting" | "todo";
 
@@ -22,14 +22,26 @@ export interface PoolCheck {
   state: CheckState;
 }
 
-export function PoolClosed({ checks, href }: { checks: PoolCheck[]; href: string }) {
+export function PoolClosed({
+  checks,
+  href,
+  block,
+}: {
+  checks: PoolCheck[];
+  href: string;
+  /** ⚑ WHICH of the three it is. Without this a REFUSED car read "your car is with us" —
+   *  telling a Driver to wait for a decision that was already made, on the same screen whose
+   *  own list says "needs correcting". `rejectVehicle` deliberately keeps the row live so the
+   *  reason has somewhere to live, which is exactly why the two states look alike here. */
+  block: CarBlock | null;
+}) {
   return (
     <div className="pempty">
       <div className="pempty__ic">
         <Lock size={26} strokeWidth={1.75} aria-hidden="true" />
       </div>
       <p className="pempty__t">{CAR_REVIEW.poolTitle}</p>
-      <p className="pempty__s">{CAR_REVIEW.poolBody}</p>
+      <p className="pempty__s">{block ? CAR_BLOCK_SAYS[block] : CAR_REVIEW.poolBody}</p>
       <ul className="poolclosed">
         {checks.map((c) => (
           <li key={c.label} className={`poolclosed__row poolclosed__row--${c.state}`}>
@@ -39,7 +51,7 @@ export function PoolClosed({ checks, href }: { checks: PoolCheck[]; href: string
         ))}
       </ul>
       <Link href={href} className="pempty__cta">
-        See your car
+        {block === "car_rejected" ? "Correct your car" : block === "no_car" ? "Add your car" : "See your car"}
       </Link>
     </div>
   );

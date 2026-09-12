@@ -18,6 +18,9 @@ import { createClient } from "@supabase/supabase-js";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
 import { explainEligibility, RULES, SLOT_WINDOW_MINUTES } from "../../lib/eligibility.ts";
+// ⚑ THE SAME TWO FUNCTIONS THE CONSOLE CALLS, not a filter written again here. A fourth answer
+//   to "which car is this Driver's" is exactly what lib/vehicle-approval.ts was created to end.
+import { liveCarOf, workingCarOf } from "../../lib/vehicle-approval.ts";
 
 const env = Object.fromEntries(
   fs
@@ -131,28 +134,33 @@ t(
 
 console.log("\n── the hiding rules mirror the Pool query ──");
 const pool = fs.readFileSync("app/(app)/pool/page.tsx", "utf8");
-t("the Pool still filters on the driver's category", /query\.eq\("category", vehicle\.category\)/.test(pool));
+// ⚑ `workingCar` since S78: the Pool filters on the APPROVED car, and the rename is what
+//   walked the compiler through every reader when the rule changed.
+t("the Pool still filters on the driver's category", /query\.eq\("category", workingCar\.category\)/.test(pool));
 t("…still matches pickup OR dropoff within the radius", /withinRadius[\s\S]{0,220}\|\|[\s\S]{0,220}withinRadius/.test(pool));
 t("…still sends a Driver with no base to set one", /base_lat == null \|\| driver\.base_lng == null/.test(pool));
 t("…still applies the specific-car rule", /carMatches\(/.test(pool));
 t(
-  // ⚑ TEN since 2026-09-07 — `approved` joined the refusals. Pinned rather than
-  // ">= 9" because a rule appearing or vanishing silently is the exact failure
-  // this whole probe exists to catch.
-  "the console names the same ten rules and no more",
-  Object.keys(RULES).length === 10,
+  // ⚑ ELEVEN since 2026-09-12 — `car_approved` joined the refusals, and it is a SEPARATE act
+  // from `approved`: the person is judged once, the car every time it changes. (Ten since
+  // 2026-09-07, when `approved` itself joined.) Pinned rather than ">= 9" because a rule
+  // appearing or vanishing silently is the exact failure this whole probe exists to catch.
+  "the console names the same eleven rules and no more",
+  Object.keys(RULES).length === 11,
   `${Object.keys(RULES).length} rules`,
 );
 
 // ── the live answer ────────────────────────────────────────────────────────
 console.log("\n── the answer, against the live fleet ──");
 const { data: drivers } = await db.from("driver").select("*");
-// ⚑ LIVE CARS ONLY. `find(v => v.driver_id === d.id …)` below takes whichever row comes
-//   first, and after a replacement that can be the RETIRED one — so a Driver would be told
-//   they cannot take a trip because of a car they sold. Filtered in JS rather than in the
-//   query so this still reads correctly before M1 is pasted (no column, no retired rows).
+// ⚑⚑ EVERY CAR, AND THE TWO PREDICATES ON TOP OF IT — not a hand-rolled filter. Since S78
+//   `explainEligibility` wants the WORKING car (approved, not retired) in `vehicle` and the
+//   car ON FILE in `liveVehicle`; handing it the live car in both makes `car_approved` pass
+//   for a car nobody has approved, and the probe then reports takers the console refuses —
+//   a mirror that disagrees with the thing it mirrors is worse than no mirror ([[d92]]).
+//   (`select("*")` and a JS split, so this still reads correctly before M1 is pasted.)
 const { data: allVehicles } = await db.from("vehicle").select("*");
-const vehicles = (allVehicles ?? []).filter((v: any) => !v.retired_at);
+const carsOf = (driverId: string) => (allVehicles ?? []).filter((v: any) => v.driver_id === driverId);
 const { data: pooled } = await db
   .from("mission")
   .select("*")
@@ -174,9 +182,11 @@ for (const m of pooled ?? []) {
       mission: m as any,
       driver: d,
       // ⚑ NOT `&& v.is_active`. That was a fifth answer to "which car is this Driver's", and
-      //   it disagreed with line 204 five lines of output later. Nothing writes is_active;
-      //   `vehicles` is already the live cars.
-      vehicle: vehicles.find((v: any) => v.driver_id === d.id) ?? null,
+      //   it disagreed with the block below five lines of output later. Nothing writes
+      //   is_active; `workingCarOf` is the one predicate, and `liveCarOf` is what lets the
+      //   console say WHICH kind of no-car this is — pending, refused, or none at all.
+      vehicle: workingCarOf(carsOf(d.id)),
+      liveVehicle: liveCarOf(carsOf(d.id)),
       otherPickupsAt: (busy ?? [])
         .filter((b: any) => b.driver_id === d.id && b.pickup_at !== m.pickup_at)
         .map((b: any) => b.pickup_at),
@@ -204,10 +214,14 @@ for (const m of pooled ?? []) {
 // reason they are given must be the approval rule rather than their car.
 const unverified = (drivers ?? []).filter((d: any) => !d.verified);
 const verdicts = unverified.flatMap((d: any) => {
-  const v = vehicles.find((x: any) => x.driver_id === d.id);
+  const mine = carsOf(d.id);
   return (pooled ?? []).map((m: any) => ({
     who: `${d.first_name} ${d.last_name}`.trim(),
-    e: explainEligibility({ mission: m, driver: d, vehicle: v ?? null, otherPickupsAt: [] }),
+    e: explainEligibility({
+      mission: m, driver: d,
+      vehicle: workingCarOf(mine), liveVehicle: liveCarOf(mine),
+      otherPickupsAt: [],
+    }),
   }));
 });
 t(

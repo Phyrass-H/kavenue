@@ -1533,6 +1533,18 @@ console.log("\n── one dev server, on one port (S77) ──");
   const caught = (acts.match(/isCarAwaitingError\(/g) ?? []).length;
   t("both the accept and the hold translate the car refusal", caught === 2, `${caught} call(s)`);
 
+  // ⚑ AND THE QUIET LINE STAYS BEHIND ITS GUARD. `quietChecks` prints "no Driver is waiting on
+  //   you to approve a car"; take the `firedIds.has("car_waiting")` test off the front of it and
+  //   Activity lists Théo's pending car AND tells the founder nobody is waiting — the same shape
+  //   as the refused-count lie the line below it was written for.
+  // ⚑⚑ NOT A GREP FOR THE SENTENCE: the sentence is still there in the broken version. It is the
+  //    GUARD that is asserted — and nothing else can catch this. Not one unit test calls
+  //    quietChecks with a car waiting, so the whole suite stays green on the break; measured.
+  const carQuietGuarded = /if \(!firedIds\.has\("car_waiting"\)\)\s*quiet\.push\(/.test(checksSrc);
+  t("the “nobody is waiting on a car” line is only said when no car is waiting",
+    carQuietGuarded,
+    carQuietGuarded ? "" : "⚑ lib/activity-findings.ts pushes it unguarded — the footer contradicts the findings above it");
+
   // ── and the live half ────────────────────────────────────────────────────────────────
   const { data: cars, error: carsErr } = await db
     .from("vehicle")

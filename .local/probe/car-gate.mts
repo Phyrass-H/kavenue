@@ -12,6 +12,10 @@
 // purpose is to fail before a migration must be harmless when it fails. So everything below
 // happens on one throw-away mission created by this file and removed in a `finally`.
 //
+// ⚑ § 6 FILES A REAL CAR, for the same reason and under the same rule: `replace_vehicle` is
+// the only write path a car change has, so it cannot be checked by describing it. The new row
+// is deleted and the old one un-retired in the `finally`, and the restore is ASSERTED.
+//
 // ⚑⚑ AND IT TESTS BOTH DIRECTIONS, WHICH IS THE WHOLE POINT. A gate that refuses EVERYBODY
 // passes a one-sided check perfectly — and after this migration every car on the fleet starts
 // `pending`, so "the pending Driver was refused" is true on a database where nobody can ever
@@ -43,11 +47,22 @@ const { data: drv } = await db.from("driver")
   .select("id, first_name, verified").eq("email", FIXTURE).maybeSingle();
 if (!drv) { console.log(`FAIL  the fixture Driver ${FIXTURE} is missing — run .local/seed/seed-probe-accounts.mts`); process.exit(1); }
 
-const { data: car } = await db.from("vehicle")
-  .select("id, approval_status, retired_at, category, body_type, plate")
-  .eq("driver_id", drv.id).is("retired_at", null).maybeSingle();
+// ⚑ `select("*")` AND A JS FILTER, NEVER named lifecycle columns + `.is("retired_at", null)`.
+//   Both columns arrive with M1 (docs/migrations/2026-09-12_vehicle_lifecycle_columns.sql), and
+//   PostgREST answers a query that NAMES a column it does not have with an ERROR and no rows —
+//   so the line below saw `!car` and blamed the FIXTURE for a missing MIGRATION, sending the
+//   next session to re-seed an account that is perfectly fine. `handoff-check.ts` § V filters in
+//   JS for exactly this reason. The error is captured and printed rather than dropped, because
+//   "no car", "no column" and "cannot read the table" are three problems with three fixes.
+const { data: cars, error: carsErr } = await db.from("vehicle")
+  .select("*").eq("driver_id", drv.id).order("created_at");
+if (carsErr) {
+  console.log(`FAIL  the vehicle table could not be read: ${carsErr.message}`);
+  process.exit(1);
+}
+const car = (cars ?? []).find((v) => !v.retired_at);
 if (!car) { console.log(`FAIL  ${FIXTURE} has no live car — run .local/seed/seed-probe-accounts.mts`); process.exit(1); }
-if (car.approval_status === undefined) {
+if ((car as Record<string, unknown>).approval_status === undefined) {
   console.log("FAIL  vehicle.approval_status does not exist — paste docs/migrations/2026-09-12_vehicle_lifecycle_columns.sql first");
   process.exit(1);
 }
@@ -61,6 +76,13 @@ if (!disp) { console.log("FAIL  no Dispatcher to post a trip as"); process.exit(
 
 const WAS = car.approval_status;
 let missionId: string | null = null;
+// ⚑ DECLARED OUT HERE SO THE `finally` CAN REACH THEM. § 5's trip was cleaned up inline, which
+//   means a throw anywhere after it left a real row behind; and § 6 files a real car that must
+//   be removed whatever happens, or the fixture Driver ends up with two cars and hold-live.mts
+//   stops working.
+let sneakId: string | null = null;
+let newCarId: string | null = null;
+const NEW_PLATE = "ZZ-999-ZZ";
 
 try {
   // ── § 0 · a throw-away trip, in the fixture's own class ───────────────────────────────
@@ -153,19 +175,103 @@ try {
   }).select("id").single();
   t("inserting a trip with an unapproved Driver's car is refused",
     !!sneak.error, sneak.error ? sneak.error.message : "⚑ IT WAS INSERTED");
-  if (sneak.data?.id) await db.from("mission").delete().eq("id", sneak.data.id);
+  sneakId = sneak.data?.id ?? null;
+
+  // ── § 6 · a real car change — the only write path the app has ────────────────────────
+  // ⚑⚑ WHY THIS § EXISTS. Everything above drives the GATE; nothing above ever changed a car.
+  //    Both doors the app has — app/(app)/settings/actions.ts and app/onboarding/actions.ts —
+  //    call `rpc("replace_vehicle")`, and its two halves must run RETIRE-then-INSERT: the other
+  //    order is refused by `vehicle_one_live_per_driver`, a partial unique index Postgres checks
+  //    per statement and cannot defer. Re-plant that order and EVERY real car change dies with a
+  //    duplicate key the Driver can do nothing about — while the whole vitest suite stays green,
+  //    because not one of its tests can reach a function that lives in the database. Measured:
+  //    23505, duplicate key on `vehicle_one_live_per_driver`, on a throw-away Postgres.
+  console.log("\n── § 6 · replacing a car (replace_vehicle), and what history must keep ──");
+  await db.from("vehicle").update({ approval_status: "approved" }).eq("id", car.id);
+  // Taken again, because § 4 gave it back: the replacement has to have a stamped past trip in
+  // front of it, or "history is untouched" is a claim about nothing.
+  const retake = await as.rpc("accept_mission_call", { p_mission_id: missionId, p_fare: 70 });
+  t("the trip is taken again, so there is a past trip to protect",
+    !retake.error, retake.error ? `⚑ ${retake.error.message}` : "");
+
+  const replaced = await db.rpc("replace_vehicle", {
+    p_driver: drv.id,
+    p_fields: {
+      category: car.category, body_type: car.body_type,
+      make: "Peugeot", model: "PROBE — delete me", colour: "noir", plate: NEW_PLATE,
+      seats: 4, energy: "essence", first_registration_date: "2024-01-01",
+      last_written_by: null, last_written_via: "seed",
+    },
+  });
+  newCarId = (replaced.data as string | null) ?? null;
+  t("replace_vehicle files the new car and returns its id",
+    !replaced.error && !!newCarId,
+    replaced.error ? `⚑ ${replaced.error.message}` : String(newCarId));
+
+  const { data: after } = await db.from("vehicle").select("*").eq("driver_id", drv.id);
+  const oldRow = (after ?? []).find((v) => v.id === car.id);
+  const newRow = (after ?? []).find((v) => v.id === newCarId);
+  t("the old car is retired, and points at the one that took over",
+    !!oldRow?.retired_at && oldRow?.replaced_by === newCarId,
+    `retired_at ${oldRow?.retired_at} · replaced_by ${oldRow?.replaced_by}`);
+  t("the new car arrives PENDING — a person still has to look at it",
+    newRow?.approval_status === "pending", String(newRow?.approval_status));
+
+  // ⚑ THE CONSEQUENCE, asked of the one predicate the gate and the stamp share. A Driver
+  //   mid-replacement has no working car, so they cannot work — which is the founder's rule.
+  const { data: working, error: wcErr } = await db.rpc("working_car", { p_driver: drv.id });
+  t("working_car() returns nothing for them — they cannot work until it is approved",
+    !wcErr && ((working as unknown[] | null) ?? []).length === 0,
+    wcErr ? `⚑ ${wcErr.message}` : `${((working as unknown[] | null) ?? []).length} row(s)`);
+
+  // ⚑ AND THE HALF [[d113]] BELIEVED THE POINTER GAVE US. The trip was done with the OLD car;
+  //   a Waybill reprinted tomorrow must still say so. A stamp that stored only vehicle_id would
+  //   follow the Driver's new car here, which is the fault this whole change exists to end.
+  const { data: past } = await db.from("mission")
+    .select("vehicle_plate, vehicle_id").eq("id", missionId).single();
+  t("the past trip still names the OLD plate, not the new car's",
+    past?.vehicle_plate === car.plate && past?.vehicle_plate !== NEW_PLATE,
+    `${past?.vehicle_plate} vs old ${car.plate} / new ${NEW_PLATE}`);
 } finally {
   // ⚑ RESTORED AND ASSERTED, not assumed. hold-live.mts performs eight real accepts as this
-  //   same account and would break if its car were left pending.
+  //   same account and would break if its car were left pending — or replaced.
+  //
+  // ⚑⚑ THREE STEPS, IN THIS ORDER, EACH FORCED BY A DIFFERENT RULE — measured on a throw-away
+  //   Postgres, because two shorter orders both leave the fixture Driver working the PROBE'S car:
+  //     • the pointer first: `vehicle_replaced_by_fkey` refuses to delete a row the old car
+  //       still points at (23503), and the delete is the step that matters;
+  //     • then the new row;
+  //     • and only then un-retire the old one — two live cars for one Driver is exactly what
+  //       `vehicle_one_live_per_driver` refuses (23505).
+  if (newCarId) {
+    await db.from("vehicle").update({ replaced_by: null }).eq("id", car.id);
+    await db.from("vehicle").delete().eq("id", newCarId);
+    await db.from("vehicle").update({ retired_at: null }).eq("id", car.id);
+  }
   await db.from("vehicle").update({ approval_status: WAS, plate: car.plate }).eq("id", car.id);
-  const { data: back } = await db.from("vehicle").select("approval_status, plate").eq("id", car.id).single();
-  t("the fixture car is back as it was", back?.approval_status === WAS && back?.plate === car.plate,
-    `${back?.approval_status} · ${back?.plate}`);
-  if (missionId) {
-    await db.from("mission_event").delete().eq("mission_id", missionId);
-    await db.from("mission").delete().eq("id", missionId);
-    const { data: gone } = await db.from("mission").select("id").eq("id", missionId).maybeSingle();
-    t("the probe trip is deleted", !gone, missionId);
+  const { data: backRows } = await db.from("vehicle").select("*").eq("driver_id", drv.id);
+  const live = (backRows ?? []).filter((v) => !v.retired_at);
+  const back = live[0];
+  t("the fixture car is back as it was — one live car, its own plate, its own state",
+    live.length === 1 && back?.id === car.id && back?.approval_status === WAS && back?.plate === car.plate,
+    `${live.length} live · ${back?.approval_status} · ${back?.plate}`);
+  t("the car § 6 filed is gone",
+    !newCarId || !(backRows ?? []).some((v) => v.id === newCarId), String(newCarId));
+
+  // ⚑ THE EVENTS GO WITH THE TRIP, BOTH TIMES. `mission_event` has NO foreign key to `mission`
+  //   on purpose (2026-08-24_mission_event_log.sql:78 — the log outlives the trip), so deleting
+  //   a probe trip and not its rows strands them for ever. § 5's insert SUCCEEDS on a database
+  //   without M4 — the run whose header calls this file harmless — and the orphans it leaves
+  //   are counted for ever by the console's `orphaned_events` finding.
+  for (const [id, what] of [[missionId, "probe trip"], [sneakId, "§ 5 trip"]] as const) {
+    if (!id) continue;
+    await db.from("mission_event").delete().eq("mission_id", id);
+    await db.from("mission").delete().eq("id", id);
+    const { data: gone } = await db.from("mission").select("id").eq("id", id).maybeSingle();
+    const { count: orphans } = await db.from("mission_event")
+      .select("id", { count: "exact", head: true }).eq("mission_id", id);
+    t(`the ${what} is deleted, and so are its log rows`,
+      !gone && (orphans ?? 0) === 0, `${id} · ${orphans ?? 0} event(s) left`);
   }
 }
 

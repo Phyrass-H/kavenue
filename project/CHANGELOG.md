@@ -5,6 +5,39 @@
 
 ---
 
+## 12 September 2026 — a car now has to be approved by a person
+
+You said it plainly: a Driver with no approved car cannot reach the Pool, period, because of
+what an accident in an unapproved car would mean. That is now how it works — and the database
+itself refuses, so it cannot be got around by leaving a page open.
+
+**What a Driver sees.** Their car page shows "waiting for approval" and says they can't take
+trips until it's done. The Pool doesn't go empty and silent: it says it's closed and lists all
+three approvals — you, your company, your car — so they can see which one is missing. If you
+refuse a car, they read the reason you gave and can correct it.
+
+**What you see.** On a Driver's page: three tiles for the three approvals, the car details they
+typed next to the carte grise and insurance you're checking, and two buttons — approve, or
+refuse with a reason. If approving would leave them holding trips the new car can't serve, it
+says so before you click. In the Activity console, one row per Driver whose car is waiting,
+with how long they've waited, because they can't earn until you look.
+
+**Changing a car.** It files a NEW car and retires the old one — the old one is kept for ever.
+That's what makes your other rule work: a waybill from two months ago keeps the car that
+actually did the trip, whatever the Driver drives today. Same for the Business's history and
+its exports. Upcoming trips do follow the new car once it's approved, because the hotel needs
+to know what will actually turn up.
+
+**We also now keep a history.** Every change to a car and to the facts that decide who sees a
+trip — base, radius, luggage, approvals — is recorded with the old value, the new one, the
+date and who made it. And the same information can't be used twice at signup: a plate, a
+phone, a SIRET or a licence number already on another account is refused, with a sentence
+saying which one.
+
+⚑ Not live yet: there are six pieces of SQL to paste, in order, and I'll walk you through them.
+
+---
+
 ## 12 September 2026 — the Businesses page was undercounting whenever you picked a month
 
 You have four Businesses. Pick May on /admin/businesses and it said **two**. Pick June and it said

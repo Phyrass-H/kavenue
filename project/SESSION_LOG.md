@@ -62,6 +62,45 @@ from the file whose header says it supersedes the others.
    prevention. 7. Everything surfaces in the **Activity console**, which is the support console until
    it is worth splitting. 8. **BACKLOG § AJ** — train the support team to check papers.
 
+### Then the car approval itself — built, not yet applied
+
+The founder's rules, settled in conversation before a line was written: three approvals
+(person, company, car) and *"none can work if all together are not approved"*; a car change
+REPLACES the car and the old row is kept; *"a driver with a pending car validation just cannot
+work, period"*; history is frozen (*"a waybill from 2 months ago … it's a false information
+probably illegal"*); never twice at signup; giving a trip away goes through support.
+
+**Six migrations, in a paste order that matters** (dev and prod share one project — trap f):
+M1 columns · M1b `mission_read` learns the eight new columns · M2 the guarded backfill ·
+M3 the two change logs · **[deploy the code]** · M4 the door · M5 never-twice · M6 the rollups
+stop naming a retired car.
+
+⚑⚑ **THE DRY RUN EARNED ITS KEEP.** A throw-away Postgres 17 on this Mac, a stand-in schema,
+the five hand-written files applied and then exercised: **`replace_vehicle` failed** — it
+inserted the new car before retiring the old one, and `vehicle_one_live_per_driver` is a
+partial unique INDEX, checked per statement and impossible to defer. Every real car change
+would have died with a duplicate-key error. Retire first, file second, pointer last. Reading
+the log it produced also showed a spurious `corrected` event for `replaced_by`; excluded.
+
+**The shape of the app change.** `liveCar` (on file, any state) and `workingCar` (approved, not
+retired) replace a field called `vehicle` — the rename is what walked the compiler through all
+19 readers, and routing keys on the live one or a pending Driver loops back to /onboarding
+for ever. `CarSnapshot.kind` makes passing a live car row where a frozen copy belongs a
+compile error, which is how the sweep found the same bug in five Business screens and two
+structural types.
+
+⚑ **The blocker a subagent found before it cost anything:** `mission_read` is an explicit
+column list, so the eight columns had to be added to the VIEW too — without it the Waybill
+would have 404'd on every trip.
+
+**Verified:** tsc 0 · vitest **1174** (1137 → +37) · handoff-check **95 → 105**, the three new
+live checks red until the paste and each naming the file to paste · the local Postgres run
+above. `.local/probe/car-gate.mts` (14 checks) is the live proof, and it builds its own trip
+and deletes it — S76's scar.
+
+⚑ **Théo's car resets to PENDING**, deliberately: his file exists so the whole review pass can
+be run from the top, and the car is now part of that pass.
+
 ---
 
 ## 2026-09-11 — SESSION 77 (close) — tests 999 → 1137 · gate 64 → 95 · 4 migrations, all applied

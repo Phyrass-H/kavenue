@@ -159,6 +159,17 @@ export default async function AdminDriverPage({
           <p className="adm-lede adm-lede--bad">
             No — there is no car on file, and the Pool matches on the car. Nothing can reach them.
           </p>
+        ) : statusOf(car) !== "approved" ? (
+          /* ⚑ S78 — ABOVE the base, because it outranks it: an unapproved car closes the Pool
+             outright and the database refuses the accept, so telling this Driver to set a
+             radius would be busywork. The founder: *"a driver with no approved car just cannot
+             access the pool, period"*. */
+          <p className="adm-lede adm-lede--bad">
+            No — their car{" "}
+            {statusOf(car) === "rejected"
+              ? "was refused, so nothing reaches them until they correct it."
+              : "is waiting for you to approve it. Nothing reaches them until you do."}
+          </p>
         ) : !based ? (
           <p className="adm-lede adm-lede--bad">
             No — they have never set a base, so their Pool is empty and always has been. They have

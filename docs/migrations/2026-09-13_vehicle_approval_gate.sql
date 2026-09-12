@@ -135,9 +135,19 @@ returns trigger
 language plpgsql
 as $$
 declare
-  v vehicle%rowtype;
+  v       vehicle%rowtype;
+  changed boolean;
 begin
-  if new.driver_id is distinct from old.driver_id then
+  -- ⚑ THE TWO ARMS ARE SPELLED SEPARATELY. On INSERT there is no OLD row, and
+  --   `new.driver_id is distinct from old.driver_id` against a NULL record is accidentally
+  --   TRUE — the same shape as the guard above. Being explicit is what makes a trip INSERTED
+  --   with a Driver already on it (every seed does this) carry its car like any other.
+  changed := case
+    when tg_op = 'INSERT' then new.driver_id is not null
+    else new.driver_id is distinct from old.driver_id
+  end;
+
+  if changed then
     if new.driver_id is null then
       -- Re-pooled, released or cancelled back into the Pool. No exploitant, so no car — and
       -- the frozen copy goes with it, or the next Driver's Waybill prints the last one's car.
@@ -178,7 +188,7 @@ $$;
 
 drop trigger if exists mission_stamp_vehicle on mission;
 create trigger mission_stamp_vehicle
-  before update of driver_id on mission
+  before insert or update of driver_id on mission
   for each row
   execute function mission_stamp_vehicle();
 
@@ -242,6 +252,17 @@ begin
    where driver_id = p_driver and retired_at is null
    order by created_at limit 1;
 
+  -- ⚑⚑ RETIRE FIRST, THEN FILE. The obvious order — insert the new car, then retire the old
+  --   one — CANNOT WORK: `vehicle_one_live_per_driver` is a partial unique INDEX, which
+  --   Postgres checks per statement and cannot be deferred, so the insert is refused while the
+  --   old row is still live. Found by running this file against a throw-away Postgres before
+  --   it was ever pasted; every car change would have failed with a duplicate-key error the
+  --   Driver could do nothing about. The whole function is one transaction, so a failure in
+  --   the insert below rolls the retirement back with it and the Driver keeps their car.
+  if v_old is not null then
+    update vehicle set retired_at = now() where id = v_old;
+  end if;
+
   insert into vehicle (driver_id, category, body_type, make, model, colour, plate, seats,
                        energy, first_registration_date, is_active, approval_status,
                        last_written_by, last_written_via)
@@ -261,11 +282,11 @@ begin
           p_fields ->> 'last_written_via')
   returning id into v_new;
 
+  -- The pointer forward is written once the new row exists. Two statements, one transaction:
+  -- a reader outside it sees either the old car live, or the new one with the old one retired
+  -- and pointing at it — never a Driver with no car at all.
   if v_old is not null then
-    update vehicle
-       set retired_at  = now(),
-           replaced_by = v_new
-     where id = v_old;
+    update vehicle set replaced_by = v_new where id = v_old;
   end if;
 
   return v_new;

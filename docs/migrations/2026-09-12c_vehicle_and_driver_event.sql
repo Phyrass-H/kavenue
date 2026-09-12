@@ -116,8 +116,14 @@ begin
 
   -- ⚑ The bookkeeping columns are excluded from the diff, or every write logs the fact that
   --   it was a write. `id` too: it cannot change and a row saying so is noise.
+  -- ⚑ `replaced_by` is excluded with the bookkeeping columns, and that is not cosmetic:
+  --   replace_vehicle() retires the old row and then writes the pointer forward in a second
+  --   statement, so without this a replacement files "retired" AND a second "corrected" event
+  --   about a column no person touched. Caught by running the migration against a throw-away
+  --   Postgres and reading the log it produced.
   v_changes := jsonb_changes(to_jsonb(old), to_jsonb(new),
-                             array['id', 'created_at', 'last_written_by', 'last_written_via']);
+                             array['id', 'created_at', 'replaced_by',
+                                   'last_written_by', 'last_written_via']);
   if v_changes = '{}'::jsonb then
     return new;   -- nothing changed: no row. A re-saved form is not a change.
   end if;

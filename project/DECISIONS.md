@@ -3930,3 +3930,58 @@ is a compile error until someone writes down what VAT it carries.** Proven by pl
 ⚑ **THE S74 THREAD, CONTINUED.** Every failure here is a *file about the code* being wrong while the
 code was right — the fourth session running. Prose decays and nothing guards it. This is the first
 assertion that guards a **documentation** claim rather than a code one.
+
+---
+
+### D137 — A car is approved by a person, and history is frozen once it happens (2026-09-12, S78)
+
+**The founder settled six rules in one conversation. In their words:**
+
+> *"a driver with a pending car validation just cannot work, period! So a driver with no
+> approved car just cannot access the pool, period this is MANDATORY! Be careful"*
+> — and the reason, which is the one to remember when this feels strict:
+> *"imagine a car accident with a non approved car?"*
+
+1. **THREE APPROVALS: person, company, vehicle.** *"even the company has to be approved! none
+   can work if all together are not approved!"* The Driver's file already had exactly those
+   three piles (`lib/account.ts`). ⚑ Two of them are DOORS in the database (`driver.verified`,
+   [[d132]]; the car, this decision); the COMPANY pile has no switch of its own, because a
+   person reads the Kbis before flipping `verified` and a second switch always flipped with the
+   first is one more thing to forget. What S78 adds is that all three are VISIBLE at the moment
+   of judgement, on both sides. If the founder later wants the company to be its own act, it is
+   one column and one button — the shape has a place for it.
+2. **A car change REPLACES the car; it never edits one.** The old row is retired and kept for
+   ever, because past trips point at it and its carte grise dies with it (`on delete cascade`).
+   `replace_vehicle()` does both halves in one transaction. ⚑ V1 is ONE car per Driver —
+   *"We are working on V1 so no additional car for now let's put it on V2 please"* — enforced by
+   a partial unique index, not by hope.
+3. **HISTORY IS FROZEN.** *"why would a waybill from 2 months ago made with a car should update
+   with the new car? it's a false information probably illegal"*. Each trip carries its own copy
+   of the car (eight columns, stamped when it changes hands). ⚑ [[d113]] believed the
+   `vehicle_id` stamp already prevented this: it did not, because a pointer follows a mutable
+   row, and `waybill/page.tsx` read that row live. An UPCOMING trip still follows the current
+   approved car — the desk has to tell the Guest what will actually turn up.
+4. **NEVER TWICE at signup** — plate, phone, SIRET, REVTC, professional card, email.
+   *"brand new enrollment should not have same infos from different persons or companies"*, with
+   *"if a business needs daughter account then we can manage"*. ⚑ Scoped WITHIN a side, never
+   across: the same SIRET on a Driver and a Business is legitimate — a VTC operator posting its
+   own overflow is one of the nine business types.
+5. **Giving a trip away goes through support** in V1: *"it's a delicate matter, they should
+   contact the support"*. The approval screen warns before you approve when it would strand
+   accepted trips; nothing is released automatically.
+6. **Everything surfaces in the Activity console**, which is the support console until it is
+   worth splitting: *"we will split it in the futur when necessary"*.
+
+**⚑ AND THE CARS ALREADY HERE ALL START PENDING.** Asked whether existing cars should count as
+approved: *"yes and yes"*. Théo's is the first car approved through the new screen.
+
+### What it cost to get right — three bugs found before the founder ever saw them
+- **A security hole.** `create function` grants EXECUTE to PUBLIC, and revoking from
+  `authenticated` does not remove it: `replace_vehicle` was one POST away from letting any
+  signed-in session retire a stranger's car. Third appearance of this shape (2026-08-31d/e).
+- **A save that retired your car.** The luggage opt-in shares the car form, so ticking it
+  re-filed an identical car and shut the Driver's Pool. `sameCar()` is the answer.
+- **`replace_vehicle` could not run at all** — it inserted before retiring, and a partial unique
+  index is checked per statement and cannot be deferred. Found by running the migration against
+  a throw-away Postgres before it was ever pasted; that dry run is now the habit, not the
+  exception.

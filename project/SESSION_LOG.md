@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-09-12 — SESSION 78 (close) — tests 1137 → 1178 · gate 95 → 107 · 7 migrations, 4 applied
+
+**One brainstorm, one bug fixed, one feature built end to end, and three reviews that earned it.**
+
+### Closing state
+| | |
+|---|---|
+| `main` | fast-forwarded to `fcbfac9`, CI green |
+| applied live | the census fix · M1 columns · M1b the view · M2 the backfill · M3 the two logs |
+| ⏭ waiting on the founder | **M4 the door · M5 never-twice · M6 the rollups** — in that order |
+| live fleet | 14 cars, **all pending** (the founder's ruling), 296 trips carrying a frozen car |
+
+⚑ **The handoff was rewritten from 2318 lines to 160.** It now carries the state, the three
+migrations still to paste, the traps and what is decided — nothing else. The history is here.
+
+---
+
 ## 2026-09-12 — SESSION 78 — the cars-in-analytics brainstorm, and the census S77 reverted
 
 **The founder's job for the session, in their words:** *"brainstorm and check if we have everything

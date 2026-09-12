@@ -8,6 +8,7 @@ import { getDriverContext } from "@/lib/driver";
 import { formatMoney } from "@/lib/format";
 import {
   buildWaybill,
+  carAsDriven,
   frDateTime,
   waybillGaps,
   WAYBILL_AUTHORITY,
@@ -39,7 +40,10 @@ export default async function WaybillPage({
   const { data: mission } = await supabase
     .from("mission_read")
     .select(
-      "driver_id, business_id, dispatcher_id, vehicle_id, accepted_fare, created_at, pickup_at, pickup_address",
+      // ⚑ The eight frozen car columns are named here, not `*`: mission_read masks the
+      //   Ceiling for a Driver on a trip they do not hold, and a select that asks for
+      //   everything is how a 403 with an empty message gets mistaken for "no data" (S76).
+      "driver_id, business_id, dispatcher_id, vehicle_id, accepted_fare, created_at, pickup_at, pickup_address, vehicle_plate, vehicle_make, vehicle_model, vehicle_colour, vehicle_seats",
     )
     .eq("id", id)
     .maybeSingle();
@@ -99,27 +103,23 @@ export default async function WaybillPage({
   // A Driver cannot read `business` or `dispatcher` under RLS. Same pattern as the trip
   // page: the service role, scoped to the one mission RLS already proved is theirs.
   const admin = createAdminClient();
-  const [{ data: biz }, { data: disp }, { data: vehicle }] = await Promise.all([
+  const [{ data: biz }, { data: disp }] = await Promise.all([
     admin
       .from("business")
       .select("name, legal_name, reception_phone")
       .eq("id", mission.business_id)
       .maybeSingle(),
     admin.from("dispatcher").select("phone").eq("id", mission.dispatcher_id).maybeSingle(),
-    // ⚑ The car that DID the trip where accept_mission stamped one (2026-08-31b/c), and
-    //   the Driver's current car otherwise. Trips accepted before that migration have no
-    //   stamp, and falling back keeps their waybill exactly as correct as it was — which,
-    //   with one car per Driver, is correct.
-    mission.vehicle_id
-      ? admin.from("vehicle").select("*").eq("id", mission.vehicle_id).maybeSingle()
-      : admin
-          .from("vehicle")
-          .select("*")
-          .eq("driver_id", driver.id)
-          .order("created_at", { ascending: true })
-          .limit(1)
-          .maybeSingle(),
   ]);
+
+  // ⚑⚑ S78 — THE CAR COMES OFF THE TRIP, NOT OFF THE DRIVER. Until today this page read the
+  // `vehicle` row live (by mission.vehicle_id, or the Driver's current car when nothing was
+  // stamped), and a car row is mutable: the day a Driver re-plated or changed car, every
+  // Waybill they had ever been issued started naming the new one. [[d113]] believed the stamp
+  // prevented that — it stored a POINTER, so it did not. The founder, 2026-09-12: *"it's a
+  // false information probably illegal"*.
+  // ⚑ And there is no fallback on purpose. A trip with no frozen copy prints "not recorded",
+  //   which is true; printing today's car would be the fault this change exists to remove.
 
   const wb = buildWaybill(
     mission,
@@ -129,7 +129,7 @@ export default async function WaybillPage({
       legal_name: biz?.legal_name ?? null,
       reception_phone: biz?.reception_phone ?? null,
     },
-    vehicle ?? null,
+    carAsDriven(mission),
     disp?.phone ?? null,
   );
 

@@ -41,12 +41,14 @@
 //    button with the same sentence (app/(app)/missions/[id]/page.tsx).
 import { haversineKm, withinRadius } from "@/lib/geo";
 import { carMatches } from "@/lib/vehicle-catalog";
+import { statusOf } from "@/lib/vehicle-approval";
 import type { DriverRow, VehicleRow, MissionRow } from "@/lib/database.types";
 
 /** Every rule that can stand between a Driver and a trip. */
 export type EligibilityRuleId =
   // enforced in accept_mission AND place_hold — these REFUSE
   | "approved"
+  | "car_approved"
   | "still_pooled"
   | "not_past_due"
   | "vehicle_class"
@@ -76,6 +78,13 @@ export const RULES: Record<EligibilityRuleId, { kind: RuleKind; passed: string }
   // approved cannot take anything, so reporting a vehicle mismatch above it
   // sends an admin — and the Driver — to fix the wrong thing.
   approved: { kind: "refuse", passed: "A person has approved them to work" },
+  // ⚑ SECOND, and it is a different act from the one above ([[d132]] one level down): the
+  // person is approved once, the CAR is approved every time it changes. The founder,
+  // 2026-09-12: *"a driver with no approved car just cannot access the pool, period"*.
+  // Enforced by mission_requires_approved_car / hold_requires_approved_car
+  // (docs/migrations/2026-09-13_vehicle_approval_gate.sql), so it REFUSES — and it refuses
+  // before § B ever compares the class, which is why it is reported above vehicle_class.
+  car_approved: { kind: "refuse", passed: "Their car has been approved" },
   still_pooled: { kind: "refuse", passed: "The trip is still in the Pool" },
   not_past_due: { kind: "refuse", passed: "Its pickup time hasn’t passed" },
   vehicle_class: { kind: "refuse", passed: "Their car is the class asked for" },
@@ -158,7 +167,13 @@ export interface EligibilityInput {
     | "verified"
     | "operational_zones"
   >;
+  /** ⚑ THE WORKING CAR: approved and not retired (lib/vehicle-approval.ts). NULL means the
+   *  Driver cannot take anything, and `liveVehicle` below says why. Passing a pending car here
+   *  would report a class mismatch for a car that is perfectly fine. */
   vehicle: Pick<VehicleRow, "category" | "body_type" | "make" | "model"> | null;
+  /** The car ON FILE, whatever its state — used only to explain a missing working car.
+   *  Optional: a caller that does not have it gets the vaguer sentence, never a wrong one. */
+  liveVehicle?: Pick<VehicleRow, "approval_status" | "retired_at"> | null;
   /** The Driver's other live trips — pickup times only. Empty = no clash. */
   otherPickupsAt: string[];
   now?: Date;
@@ -206,6 +221,19 @@ export function explainEligibility(input: EligibilityInput): Eligibility {
   // `asIfPooled`: whether a Driver may work at all does not depend on the trip's
   // status, and a past-tense replay must still say they were unapproved.
   add("approved", d.verified, "a person hasn’t approved them to work yet", null);
+  // ⚑ `vehicle` here is the WORKING car — approved and not retired (lib/vehicle-approval.ts).
+  //   Callers that pass a pending car would report a class mismatch for a car that is fine.
+  const onFile = input.liveVehicle ?? null;
+  add(
+    "car_approved",
+    !!v,
+    !onFile
+      ? "they have no car on file"
+      : statusOf(onFile) === "rejected"
+        ? "their car was refused, and they haven’t corrected it yet"
+        : "their car is waiting for someone to approve it",
+    onFile ? statusOf(onFile) : null,
+  );
 
   if (!input.asIfPooled) {
   add(

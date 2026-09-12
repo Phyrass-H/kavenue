@@ -26,6 +26,10 @@ import {
   driverDocTypes,
 } from "@/lib/account";
 import { setDriverVerified, type ReviewResult } from "@/lib/document-review";
+import { approveVehicle, rejectVehicle } from "@/lib/vehicle-review";
+import type { Pile } from "@/lib/driver-approvals";
+import { CAR_STATUS_PILL, type ApprovalStatus } from "@/lib/vehicle-approval";
+import { colourLabel, ENERGY_LABEL, type Energy } from "@/lib/vehicle-rules";
 
 const TONE_CLASS: Record<"success" | "warn" | "error" | "neutral", string> = {
   success: "adm-pill--ok",
@@ -136,16 +140,43 @@ function DocRow({
   );
 }
 
+/** The car on file, as this screen needs it. ⚑ Flat and pre-formatted by the server: this is a
+ *  client component, and a car row carries columns (approved_by, last_written_by) that have no
+ *  business crossing to a browser. */
+export interface CarUnderReview {
+  id: string;
+  status: ApprovalStatus;
+  make: string | null;
+  model: string | null;
+  plate: string | null;
+  colour: string | null;
+  seats: number | null;
+  energy: string | null;
+  firstRegistered: string | null;
+  classSays: string;
+  filedSays: string;
+  rejectionNote: string | null;
+}
+
 export function AdminDocumentReview({
   driverId,
   driverName,
   verified,
   docs,
+  piles,
+  car,
+  strandedSays,
 }: {
   driverId: string;
   driverName: string;
   verified: boolean;
   docs: DocView[];
+  /** Person / Company / Vehicle — computed once, server-side (lib/driver-approvals.ts). */
+  piles: Pile[];
+  car: CarUnderReview | null;
+  /** ⚑ "Approving this would strand 2 First trips on Saturday" — the sentence, or null when
+   *  nothing is stranded. Built server-side because it is a query, not a render. */
+  strandedSays: string | null;
 }) {
   const [vState, vAction] = useActionState<ReviewResult | null, FormData>(setDriverVerified, null);
   const byType = new Map<DocumentType, DocView>(docs.map((d) => [d.type, d]));
@@ -189,6 +220,18 @@ export function AdminDocumentReview({
     <>
       <section className="adm-sect">
         <h2 className="adm-sect__h">May they work?</h2>
+        {/* ⚑ ALL THREE, ALWAYS, EVEN THE ONES THAT ARE FINE. The founder, 2026-09-12: *"even
+            the company has to be approved! none can work if all together are not approved!"*
+            A reviewer who sees only the thing that is blocking cannot tell "the rest is done"
+            from "the rest was never checked". */}
+        <ul className="adm-piles">
+          {piles.map((p) => (
+            <li key={p.pile} className={`adm-pile adm-pile--${p.state}`}>
+              <span className="adm-pile__l">{PILE_TITLE[p.pile]}</span>
+              <span className="adm-pile__s">{p.says}</span>
+            </li>
+          ))}
+        </ul>
         <div className="adm-verify">
           <span className={`adm-pill ${verified ? "adm-pill--ok" : "adm-pill--warn"}`}>
             {verified ? "Verified" : "Not verified"}
@@ -211,6 +254,8 @@ export function AdminDocumentReview({
         </div>
         {vState && !vState.ok && <p className="adm-doc__err">{vState.message}</p>}
       </section>
+
+      <CarReview driverId={driverId} car={car} strandedSays={strandedSays} />
 
       <section className="adm-sect">
         <h2 className="adm-sect__h">Documents</h2>
@@ -252,5 +297,120 @@ export function AdminDocumentReview({
         />
       )}
     </>
+  );
+}
+
+/** The admin's words for each pile. The Driver reads "You / Your company / Your car" on their
+ *  own screen (lib/driver-approvals.ts); a reviewer is looking at someone else. */
+const PILE_TITLE: Record<Pile["pile"], string> = {
+  person: "Person",
+  company: "Company",
+  vehicle: "Vehicle",
+};
+
+/** § The car itself — what they typed, beside the papers that should prove it.
+ *
+ *  ⚑ THE TYPED FIELDS ARE THE POINT. The reviewer's job here is to compare a carte grise they
+ *  can see with what the Driver entered; until this screen existed the console showed the car
+ *  nowhere at all, so the comparison happened in someone's head or not at all. */
+function CarReview({
+  driverId,
+  car,
+  strandedSays,
+}: {
+  driverId: string;
+  car: CarUnderReview | null;
+  strandedSays: string | null;
+}) {
+  const [aState, aAction] = useActionState<ReviewResult | null, FormData>(approveVehicle, null);
+  const [rState, rAction] = useActionState<ReviewResult | null, FormData>(rejectVehicle, null);
+  const [rejecting, setRejecting] = useState(false);
+
+  if (!car) {
+    return (
+      <section className="adm-sect">
+        <h2 className="adm-sect__h">Their car</h2>
+        <p className="adm-lede">No car on file. They cannot take a trip until they file one.</p>
+      </section>
+    );
+  }
+
+  const rows: [string, string][] = [
+    ["Make and model", [car.make, car.model].filter(Boolean).join(" ") || "—"],
+    ["Plate", car.plate ?? "—"],
+    ["First registered", car.firstRegistered ?? "—"],
+    [
+      "Energy · colour · seats",
+      [
+        car.energy ? (ENERGY_LABEL[car.energy as Energy] ?? car.energy) : "—",
+        colourLabel(car.colour),
+        car.seats == null ? "—" : String(car.seats),
+      ].join(" · "),
+    ],
+    ["Class it gives", car.classSays],
+    ["Filed", car.filedSays],
+  ];
+
+  return (
+    <section className="adm-sect">
+      <h2 className="adm-sect__h">Their car</h2>
+      <div className="adm-car">
+        <span className={`adm-pill ${car.status === "approved" ? "adm-pill--ok" : car.status === "rejected" ? "adm-pill--bad" : "adm-pill--warn"}`}>
+          {CAR_STATUS_PILL[car.status]}
+        </span>
+        <dl className="adm-car__grid">
+          {rows.map(([k, v]) => (
+            <div key={k} className="adm-car__row">
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
+        {car.status === "rejected" && car.rejectionNote && (
+          <p className="adm-car__note">You refused it: “{car.rejectionNote}”</p>
+        )}
+
+        {/* ⚑ SAID BEFORE THE BUTTON, NOT AFTER. Approving a car that cannot serve trips the
+            Driver already holds is not an error the app should fix by itself — the founder
+            ruled that giving a trip away goes through support ("it's a delicate matter, they
+            should contact the support"). So the screen states it, and a person decides. */}
+        {strandedSays && <p className="adm-car__strand">{strandedSays}</p>}
+
+        {car.status !== "approved" && (
+          <div className="adm-car__acts">
+            <form action={aAction}>
+              <input type="hidden" name="driverId" value={driverId} />
+              <input type="hidden" name="vehicleId" value={car.id} />
+              <button type="submit" className="adm-btn adm-btn--go">
+                Approve this car
+              </button>
+            </form>
+            {!rejecting ? (
+              <button type="button" className="adm-btn" onClick={() => setRejecting(true)}>
+                Refuse, with a reason
+              </button>
+            ) : (
+              <form action={rAction} className="adm-car__reject">
+                <input type="hidden" name="driverId" value={driverId} />
+                <input type="hidden" name="vehicleId" value={car.id} />
+                {/* ⚑ The reason is the whole refusal: it is the only thing the Driver's own
+                    screen can show them, and the action refuses to save without one. */}
+                <textarea
+                  name="reviewNote"
+                  rows={2}
+                  placeholder="What must they correct?"
+                  aria-label="Why are you refusing this car?"
+                />
+                <button type="submit" className="adm-btn adm-btn--bad">
+                  Refuse it
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+        {aState && !aState.ok && <p className="adm-doc__err">{aState.message}</p>}
+        {rState && !rState.ok && <p className="adm-doc__err">{rState.message}</p>}
+      </div>
+    </section>
   );
 }

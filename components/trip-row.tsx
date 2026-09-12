@@ -37,6 +37,7 @@ import {
   TONE_COLOR,
 } from "@/lib/dispatch-status";
 import { highlightSegments, type MatchField } from "@/lib/history-filter";
+import type { CarSnapshot } from "@/lib/waybill";
 import { isExecutable } from "@/lib/mission-flow";
 import { parseLanguages, dressCodeLabel, activeFlagLabels } from "@/lib/driver-service";
 import { StatusSteps } from "@/components/status-steps";
@@ -56,19 +57,21 @@ import {
   type GuestContact,
 } from "@/lib/passengers";
 
-// A Driver's car, shown to the Dispatch so it can tell the Guest what to look
-// for at pickup (brand, colour, plate). Captured at Driver onboarding/settings.
-export interface VehicleBrief {
-  make: string | null;
-  model: string | null;
-  colour: string | null;
-  plate: string | null;
-}
-
 export interface DriverContact {
   name: string;
   phone: string | null;
-  vehicle?: VehicleBrief | null;
+  /**
+   * The car, shown to the desk so it can tell the Guest what to look for at pickup.
+   *
+   * ⚑⚑ S78 — A SNAPSHOT OFF THE TRIP, NOT THE DRIVER'S CAR ROW, and the type is what enforces
+   * it. This was a structural `VehicleBrief`, so every Business-side screen filled it from a
+   * live `vehicle` lookup by driver_id — and a car row is mutable, so the day a Driver
+   * re-plated, every past row and every exported CSV started naming the new car. The founder,
+   * 2026-09-12: *"why would a waybill from 2 months ago made with a car should update with the
+   * new car? it's a false information probably illegal"*. `CarSnapshot` is tagged: the only
+   * way to make one is `carAsDriven(mission)`, so handing this a car row is a compile error.
+   */
+  vehicle?: CarSnapshot | null;
 }
 
 // A proposed / resolved change to this trip (D39 Phase 2), for the schedule state.

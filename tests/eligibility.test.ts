@@ -61,7 +61,10 @@ describe("the two groups are the two authorities", () => {
       // is about the PERSON rather than the fit between a person and a trip.
       // It is raised by accept_mission AND place_hold — see
       // docs/migrations/2026-09-07_verified_gates_accept.sql.
-      ["approved", "luggage_opt_in", "not_past_due", "slot_free", "still_pooled", "vehicle_body", "vehicle_class"],
+      // ⚑ `car_approved` joined on 2026-09-12: the CAR is approved separately from the person,
+      // and both triggers in docs/migrations/2026-09-13_vehicle_approval_gate.sql raise on it
+      // — the accept AND the hold, the same two doors as `approved`.
+      ["approved", "car_approved", "luggage_opt_in", "not_past_due", "slot_free", "still_pooled", "vehicle_body", "vehicle_class"],
     );
   });
 
@@ -98,8 +101,26 @@ describe("refused — the accept would bounce", () => {
 
   it("no car on file is a refusal, because accept_mission's `not exists` finds none", () => {
     const e = explainEligibility(input({ vehicle: null }));
-    expect(e.blocker?.id).toBe("vehicle_class");
+    expect(e.blocker?.id).toBe("car_approved");
     expect(e.blocker?.says).toBe("they have no car on file");
+  });
+
+  // ⚑ THE DISTINCTION THE CONSOLE EXISTS TO MAKE. "No car" and "a car nobody has approved yet"
+  // send an admin to two different places, and until 2026-09-12 the answer to both was "their
+  // car is X and this trip asks for Y" — a class mismatch for a car that is perfectly fine.
+  it("a car waiting for approval says so, and is not reported as the wrong class", () => {
+    const e = explainEligibility(
+      input({ vehicle: null, liveVehicle: { approval_status: "pending", retired_at: null } }),
+    );
+    expect(e.blocker?.id).toBe("car_approved");
+    expect(e.blocker?.says).toBe("their car is waiting for someone to approve it");
+  });
+
+  it("a refused car names itself as refused", () => {
+    const e = explainEligibility(
+      input({ vehicle: null, liveVehicle: { approval_status: "rejected", retired_at: null } }),
+    );
+    expect(e.blocker?.says).toBe("their car was refused, and they haven’t corrected it yet");
   });
 
   it("a required body type the car doesn't have", () => {

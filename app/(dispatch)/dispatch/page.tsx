@@ -20,6 +20,7 @@ import { loadDriverWalks, latestPerMission } from "@/lib/side-tables";
 import { parseChangeItems } from "@/lib/info-changes";
 import { parseWaypoints } from "@/lib/waypoints";
 import { releaseDeclineReasonLabel } from "@/lib/releases";
+import { carAsDriven } from "@/lib/waybill";
 import { commissionSplit, businessRatesOf } from "@/lib/commission";
 import {
   parseFromSnapshot,
@@ -160,25 +161,36 @@ export default async function DispatchSchedule({
     .neq("status", "draft") // drafts live on their own page, not the schedule
     .order("pickup_at", { ascending: true });
 
-  // Reveal assigned Driver contacts + car (service role, gated to this business).
+  // Reveal the assigned Driver's name and phone (service role, gated to this business).
+  //
+  // ⚑⚑ S78 — THE CAR COMES OFF THE TRIP, NOT OFF THE DRIVER. This block also read the
+  // `vehicle` row live, by driver_id. A car row is mutable, so the day a Driver re-plated or
+  // changed car, every row on this Business's schedule and in its history started naming the
+  // new one — including trips that had already happened. The founder, 2026-09-12: *"why would
+  // a waybill from 2 months ago made with a car should update with the new car? it's a false
+  // information probably illegal"*. The trip carries its own frozen copy (mission.vehicle_*,
+  // written by the stamp trigger the moment it changes hands), and `carAsDriven` is the only
+  // way to read it — a live `vehicle` row no longer typechecks here.
+  // ⚑ NO FALLBACK to the Driver's current car. A trip with no frozen copy shows no car, the
+  //   same nothing this row already shows for a trip nobody has taken. Inventing one is the
+  //   fault this change exists to remove.
   const contacts = new Map<string, DriverContact>();
   const assigned = (missions ?? []).filter((m) => m.driver_id);
   if (assigned.length > 0) {
     const admin = createAdminClient();
     const driverIds = [...new Set(assigned.map((m) => m.driver_id!))];
-    const [{ data: drivers }, { data: vehicles }] = await Promise.all([
-      admin.from("driver").select("id, first_name, last_name, phone").in("id", driverIds),
-      admin.from("vehicle").select("driver_id, make, model, colour, plate").in("driver_id", driverIds),
-    ]);
+    const { data: drivers } = await admin
+      .from("driver")
+      .select("id, first_name, last_name, phone")
+      .in("id", driverIds);
     const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
-    const vehByDriver = new Map((vehicles ?? []).map((v) => [v.driver_id, v]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (d)
         contacts.set(m.id, {
           name: `${d.first_name} ${d.last_name}`,
           phone: d.phone,
-          vehicle: vehByDriver.get(d.id) ?? null,
+          vehicle: carAsDriven(m),
         });
     }
   }

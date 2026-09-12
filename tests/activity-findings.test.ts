@@ -24,6 +24,7 @@ function snapshot(over: Partial<ActivitySnapshot> = {}): ActivitySnapshot {
     pooled: [],
     drivers: [],
     documentsWaiting: [],
+    carsWaiting: [],
     cancelledWithoutRecord: [],
     passedAround: [],
     neverUsed: [],
@@ -479,6 +480,42 @@ describe("a check that could not run says so", () => {
   });
 });
 
+describe("a car waiting for a person (S78)", () => {
+  it("fires one finding per Driver, names the wait, and says they cannot work", () => {
+    const d = driver({ id: "dr-9", first_name: "Théo", last_name: "Essai" });
+    const s = snapshot({
+      drivers: [d],
+      carsWaiting: [
+        {
+          driverId: "dr-9",
+          filedAt: "2026-09-09T10:00:00Z",
+          says: "Mercedes-Benz Classe E",
+          plate: "AB-123-CD",
+        },
+      ],
+    });
+    const f = findings(s, new Date("2026-09-12T10:00:00Z")).filter((x) => x.id === "car_waiting");
+    expect(f).toHaveLength(1);
+    expect(f[0]!.sentence).toContain("Théo Essai filed Mercedes-Benz Classe E (AB-123-CD)");
+    // ⚑ The consequence is the finding. "A car is pending" is a fact about a row.
+    expect(f[0]!.sentence).toContain("cannot work until you approve it");
+    expect(f[0]!.href).toBe("/admin/drivers/dr-9");
+  });
+
+  it("⚑ never rolls several Drivers into a count — one row each, with their own wait", () => {
+    const s = snapshot({
+      drivers: [driver({ id: "a", first_name: "Ana" }), driver({ id: "b", first_name: "Bo" })],
+      carsWaiting: [
+        { driverId: "a", filedAt: "2026-09-01T10:00:00Z", says: "a car", plate: null },
+        { driverId: "b", filedAt: "2026-09-11T10:00:00Z", says: "a car", plate: null },
+      ],
+    });
+    const f = findings(s, new Date("2026-09-12T10:00:00Z")).filter((x) => x.id === "car_waiting");
+    expect(f.map((x) => x.key)).toEqual(["car_waiting:a", "car_waiting:b"]);
+    expect(new Set(f.map((x) => x.sentence)).size).toBe(2);
+  });
+});
+
 describe("the quiet footer", () => {
   it("only names checks that actually ran and found nothing", () => {
     const s = snapshot({ drivers: [driver()], pooled: [pooledTrip()] });
@@ -486,6 +523,7 @@ describe("the quiet footer", () => {
       "no trip has been taken and given back twice",
       "every Driver is verified and can work",
       "no Driver is waiting on you to look at a document",
+      "no Driver is waiting on you to approve a car",
       "every shipped feature has been used at least once",
       "every trip in the Pool has someone who could take it",
     ]);

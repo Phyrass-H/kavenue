@@ -4581,3 +4581,71 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 .adm-doc__note::placeholder { color: var(--text-faint); }
 .adm-doc__rejectrow { display: flex; gap: 8px; margin-top: 8px; }
 .adm-doc__err { font-size: 12.5px; color: var(--tone-danger-fg); margin: 7px 0 0; }
+
+/* ── S78 · a car waiting for a person ───────────────────────────────────────
+   ⚑ The tone marks a STATE, never decoration — the same rule the review screen
+   follows. Amber is "with us", red is "we said no and told you why". Neither
+   shouts: the founder's register is restraint, and a Driver reading this is
+   already worried about not working. */
+.carstate { margin-bottom: 14px; }
+.carstate__t {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin: 0 0 6px; font-size: 14px; font-weight: 500; color: var(--text);
+}
+.carstate__s { margin: 0 0 4px; font-size: 12.5px; color: var(--text-muted); line-height: 1.55; }
+.carstate__s:last-child { margin-bottom: 0; }
+.carstate .pill {
+  display: inline-flex; align-items: center; border-radius: var(--radius-pill);
+  padding: 3px 9px; font-size: 11.5px; font-weight: 500; white-space: nowrap;
+}
+.carstate--pending .pill { background: var(--tone-warn-bg); color: var(--tone-warn-fg); }
+.carstate--rejected .pill { background: var(--tone-danger-bg); color: var(--tone-danger-fg); }
+.dnote--muted { color: var(--text-faint); background: transparent; padding-left: 0; padding-right: 0; }
+
+/* ── S78 · the Pool, closed, naming all three approvals ─────────────────────
+   One row per thing, so the Driver reads which of them is missing rather than a
+   count — the founder rejects roll-ups on principle ("put the state on the row"). */
+.poolclosed { list-style: none; margin: 16px 0 0; padding: 0; width: 100%; max-width: 380px; }
+.poolclosed__row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 9px 0; border-top: 1px solid var(--border);
+  font-size: 13px; text-align: left;
+}
+.poolclosed__row:last-child { border-bottom: 1px solid var(--border); }
+.poolclosed__label { color: var(--text); }
+.poolclosed__says { color: var(--text-muted); }
+.poolclosed__row--done .poolclosed__says { color: var(--tone-success-fg); }
+.poolclosed__row--waiting .poolclosed__says { color: var(--tone-warn-fg); }
+.poolclosed__row--todo .poolclosed__says { color: var(--tone-danger-fg); }
+
+/* ── S78 · the three approvals, and the car under review ────────────────────
+   ⚑ Tone marks a verdict or a fact about a person, never decoration — the rule
+   this console has followed since the review screen shipped. */
+.adm-piles { list-style: none; display: flex; gap: 10px; margin: 0 0 14px; padding: 0; flex-wrap: wrap; }
+.adm-pile {
+  flex: 1 1 150px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 9px 12px;
+}
+.adm-pile__l { display: block; font-size: 11.5px; color: var(--text-muted); }
+.adm-pile__s { display: block; margin-top: 2px; font-size: 13px; color: var(--text); }
+.adm-pile--done .adm-pile__s { color: var(--tone-success-fg); }
+.adm-pile--waiting { border-color: var(--tone-warn-bg); background: var(--tone-warn-bg); }
+.adm-pile--waiting .adm-pile__l, .adm-pile--waiting .adm-pile__s { color: var(--tone-warn-fg); }
+.adm-pile--todo .adm-pile__s { color: var(--tone-danger-fg); }
+
+.adm-car { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+.adm-car__grid { margin: 10px 0 0; display: grid; gap: 6px; }
+.adm-car__row { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; }
+.adm-car__row dt { color: var(--text-muted); margin: 0; }
+.adm-car__row dd { margin: 0; color: var(--text); text-align: right; }
+.adm-car__note { margin: 10px 0 0; font-size: 12.5px; color: var(--tone-danger-fg); }
+.adm-car__strand {
+  margin: 12px 0 0; padding: 9px 11px; border-radius: var(--radius-md);
+  background: var(--tone-warn-bg); color: var(--tone-warn-fg); font-size: 12.5px; line-height: 1.55;
+}
+.adm-car__acts { display: flex; gap: 8px; align-items: flex-start; margin-top: 14px; flex-wrap: wrap; }
+.adm-car__reject { display: flex; gap: 8px; align-items: flex-start; flex: 1 1 260px; }
+.adm-car__reject textarea {
+  flex: 1; border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  padding: 7px 9px; font: inherit; font-size: 13px; resize: vertical;
+}

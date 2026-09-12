@@ -164,6 +164,11 @@ function summarise(id: FindingId, n: number): string {
       // all of them would be the roll-up this screen refuses. Each name is a
       // link to the page that says how long.
       return `${n} Drivers are waiting for you to look at their documents.`;
+    case "car_waiting":
+      // ⚑ Same rule as the documents line: no wait in the group sentence, because these
+      // Drivers have been waiting different lengths of time. What this one adds is the
+      // consequence — since S78 an unapproved car cannot reach the Pool at all.
+      return `${n} Drivers are waiting for you to approve their car, and can’t work until you do.`;
     case "trip_nobody_can_take":
       return `${n} trips in the Pool can’t be taken by anyone in the fleet.`;
     case "cancelled_without_record":

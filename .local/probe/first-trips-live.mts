@@ -171,12 +171,13 @@ t("a genuinely refused count lands in `uncountable`, NOT in `neverUsed`",
 
 // And the console must not swap one false claim for the other.
 const fired = findings({
-  pooled: [], drivers: [], documentsWaiting: [], cancelledWithoutRecord: [],
+  pooled: [], drivers: [], documentsWaiting: [],
+    carsWaiting: [], cancelledWithoutRecord: [],
   passedAround: [], neverUsed: [], uncountable: refused.uncountable, orphanedEvents: 0,
 });
 t("a refusal withholds the footer's “every shipped feature has been used”",
   !quietChecks(
-    { pooled: [], drivers: [], documentsWaiting: [], cancelledWithoutRecord: [],
+    { pooled: [], drivers: [], documentsWaiting: [], carsWaiting: [], cancelledWithoutRecord: [],
       passedAround: [], neverUsed: [], uncountable: refused.uncountable, orphanedEvents: 0 },
     fired,
   ).includes("every shipped feature has been used at least once"),

@@ -27,6 +27,7 @@ import {
   type SpendTotals,
 } from "@/lib/spend";
 import { businessCost } from "@/lib/commission";
+import { carAsDriven } from "@/lib/waybill";
 import {
   comparisonSpan,
   currentSpan,
@@ -138,27 +139,32 @@ export default async function DispatchSpend({
   const missions: MissionRow[] = all ?? [];
   const deskName = new Map((desks ?? []).map((d) => [d.id, d.name]));
 
-  // Driver + car for EVERY past trip, not just the ones on screen — the search
-  // matches a Driver's name and a plate, and the breakdown ranks by Driver.
+  // The Driver of EVERY past trip, not just the ones on screen — the search matches a
+  // Driver's name and a plate, and the breakdown ranks by Driver.
+  //
+  // ⚑⚑ S78 — THE CAR COMES OFF THE TRIP, NOT OFF THE DRIVER. Read live off `vehicle` by
+  // driver_id, as this did, a Driver changing car silently re-wrote the car on every spend row
+  // this Business had already reconciled. The founder, 2026-09-12: *"it's a false information
+  // probably illegal"*. `carAsDriven` reads the trip's own frozen copy (mission.vehicle_*) and
+  // never falls back to the car the Driver happens to have today.
   const contacts = new Map<string, DriverContact>();
   const driverIdOf = new Map<string, string>();
   const assigned = missions.filter((m) => m.driver_id);
   if (assigned.length > 0) {
     const admin = createAdminClient();
     const driverIds = [...new Set(assigned.map((m) => m.driver_id!))];
-    const [{ data: drivers }, { data: vehicles }] = await Promise.all([
-      admin.from("driver").select("id, first_name, last_name, phone").in("id", driverIds),
-      admin.from("vehicle").select("driver_id, make, model, colour, plate").in("driver_id", driverIds),
-    ]);
+    const { data: drivers } = await admin
+      .from("driver")
+      .select("id, first_name, last_name, phone")
+      .in("id", driverIds);
     const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
-    const vehByDriver = new Map((vehicles ?? []).map((v) => [v.driver_id, v]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (!d) continue;
       contacts.set(m.id, {
         name: `${d.first_name} ${d.last_name}`,
         phone: d.phone,
-        vehicle: vehByDriver.get(d.id) ?? null,
+        vehicle: carAsDriven(m),
       });
       driverIdOf.set(m.id, d.id);
     }
@@ -170,7 +176,9 @@ export default async function DispatchSpend({
       mission: m,
       driverId: driverIdOf.get(m.id) ?? null,
       driverName: c?.name ?? null,
-      car: c?.vehicle ?? null,
+      // ⚑ Off the mission, not off `c` — the car belongs to the TRIP, so a plate search still
+      //   finds a trip whose Driver row has since gone missing.
+      car: carAsDriven(m),
       ...historyFare(m),
     };
   });

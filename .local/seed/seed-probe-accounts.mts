@@ -53,19 +53,56 @@ async function user(email: string, role: "driver" | "dispatcher"): Promise<strin
   return data.user.id;
 }
 
+/** ⚑ S78 — EVERY IDENTITY VALUE IS DERIVED FROM THE EMAIL, and that is not tidiness.
+ *  This seed wrote one hard-coded phone, SIRET, REVTC and card number onto every probe
+ *  Driver, so two accounts shared all four — and "never twice" (the founder, 2026-09-12:
+ *  *"if infos is used twice the system should tell them … never twice"*) could not be turned
+ *  on until they were unique. A seed that writes values the app would refuse is a seed that
+ *  undoes the rules, the same way re-seeding Théo undid `canonicalMake` in S77. */
+function fixtures(email: string) {
+  const n = email.startsWith("demo") ? 1 : 2;
+  return {
+    phone: `+33 6 00 00 00 0${n}`,
+    siret: `5123456780001${n}`,
+    revtc: `EVTC0621002${n}`,
+    proCard: `06-2024-0041${n}`,
+    plate: `ZZ-00${n}-ZZ`,
+  };
+}
+
 async function makeDriver(email: string, first: string, last: string, base: keyof typeof BASES, radius: number) {
   const uid = await user(email, "driver");
   const { data: existing } = await db.from("driver").select("id").eq("auth_user_id", uid).maybeSingle();
-  if (existing) { console.log(`  ${email} — already a Driver`); return existing.id; }
+  if (existing) {
+    // ⚑ IT REPAIRS, IT DOES NOT SKIP. This used to return on sight of an existing row, so the
+    //   duplicated fixtures it had already written stayed duplicated for ever — and the
+    //   "never twice" indexes could not be created over them. A seed must be able to restate
+    //   the state it describes, or it is a one-shot script wearing a seed's name.
+    const f = fixtures(email);
+    const { error: uErr } = await db.from("driver").update({
+      phone: f.phone, siret: f.siret, revtc_number: f.revtc, pro_card_number: f.proCard,
+      last_written_via: "seed",
+    }).eq("id", existing.id);
+    if (uErr) throw new Error(`driver ${email}: ${uErr.message}`);
+    // Their car too: a probe Driver accepts trips, and since S78 that needs an approved car.
+    const { error: vErr } = await db.from("vehicle").update({
+      plate: f.plate, approval_status: "approved", last_written_via: "seed",
+    }).eq("driver_id", existing.id).is("retired_at", null);
+    if (vErr) throw new Error(`vehicle ${email}: ${vErr.message}`);
+    console.log(`  ${email} — Driver kept, fixtures restated (${f.plate})`);
+    return existing.id;
+  }
   const p = BASES[base];
+  const f = fixtures(email);
   const { data: d, error } = await db.from("driver").insert({
     auth_user_id: uid, first_name: first, last_name: last, email,
-    phone: "+33 6 00 00 00 00", verified: true,
+    phone: f.phone, verified: true,
     base_lat: p.lat, base_lng: p.lng, base_label: p.label, service_radius_km: radius,
     accepts_luggage_runs: true,
     operational_zones: ["Nice", "Cannes", "Antibes", "Monaco"],
     languages: ["fr", "en"],
-    siret: "51234567800011",
+    siret: f.siret, revtc_number: f.revtc, pro_card_number: f.proCard,
+    last_written_via: "seed",
   }).select("id").single();
   if (error) throw new Error(`driver ${email}: ${error.message}`);
   // ⚑ Business/sedan on purpose: it is the class most seeded trips ask for, so
@@ -73,7 +110,12 @@ async function makeDriver(email: string, first: string, last: string, base: keyo
   const { error: vErr } = await db.from("vehicle").insert({
     driver_id: d.id, category: "business", body_type: "sedan",
     make: canonicalMake("Mercedes"), model: "Classe E", colour: "noir", energy: "hybride_rechargeable", first_registration_date: "2022-04-11", 
-    plate: email.startsWith("demo") ? "ZZ-001-ZZ" : "ZZ-002-ZZ", seats: 4, is_active: true,
+    plate: f.plate, seats: 4, is_active: true,
+    // ⚑ A PROBE DRIVER'S CAR IS APPROVED, because the probes it exists for accept trips, and
+    //   since S78 an unapproved car cannot. Real enrollment never sets this — only a person
+    //   does, through /admin/drivers/[id].
+    approval_status: "approved", approved_at: new Date().toISOString(),
+    last_written_via: "seed",
   });
   if (vErr) throw new Error(`vehicle ${email}: ${vErr.message}`);
   console.log(`  ${email} — Driver, business/sedan, ${p.label} ${radius} km`);

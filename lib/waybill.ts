@@ -35,6 +35,7 @@
 // ⚑ AND NOT THE CEILING, NOT THE BUSINESS'S ALL-IN, NOT THE DRIVER'S NET. See
 //   `WAYBILL_PRICE` below — the choice of number is a real decision, not a formatting one.
 import type { Database } from "@/lib/database.types";
+import { colourLabel } from "@/lib/vehicle-rules";
 
 type DriverRow = Database["public"]["Tables"]["driver"]["Row"];
 type VehicleRow = Database["public"]["Tables"]["vehicle"]["Row"];
@@ -140,6 +141,42 @@ export interface WaybillData {
   course: number | null;
 }
 
+/** The car as it was on the day, read off the TRIP.
+ *
+ *  ⚑ `kind` is not decoration — it is the whole point. A VehicleRow has make, model, colour,
+ *  plate and seats too, so a structurally-identical interface would accept the live row
+ *  silently, which is exactly the bug this change exists to end. The tag means the only way to
+ *  get one is `carAsDriven(mission)`, and passing a car row is a compile error. */
+export interface CarSnapshot {
+  readonly kind: "as-driven";
+  make: string | null;
+  model: string | null;
+  colour: string | null;
+  plate: string | null;
+  seats: number | null;
+}
+
+/** The frozen copy on a trip, or null when the trip never carried one — a trip with no Driver,
+ *  or one older than the 2026-09-12 backfill. ⚑ NEVER falls back to the Driver's current car:
+ *  that fallback is what made an old document change. "Not recorded" is the honest answer. */
+export function carAsDriven(m: {
+  vehicle_plate: string | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+  vehicle_colour: string | null;
+  vehicle_seats: number | null;
+}): CarSnapshot | null {
+  if (!m.vehicle_plate && !m.vehicle_make && !m.vehicle_model) return null;
+  return {
+    kind: "as-driven",
+    make: m.vehicle_make,
+    model: m.vehicle_model,
+    colour: m.vehicle_colour,
+    plate: m.vehicle_plate,
+    seats: m.vehicle_seats,
+  };
+}
+
 export interface WaybillMission {
   accepted_fare: number | null;
   created_at: string;
@@ -158,15 +195,20 @@ export interface WaybillBusiness {
  * are non-null by then, and the `?? ""` fallbacks below exist to keep this total, not
  * because a blank is ever acceptable on the page.
  *
- * `vehicle` is the car that DID the trip (`mission.vehicle_id`, stamped by accept_mission)
- * where one was stamped, and the Driver's current car otherwise — the caller resolves that,
- * because only the caller can read the row.
+ * ⚑⚑ S78 — `vehicle` IS A SNAPSHOT, NOT A CAR ROW, and the type is what enforces it. The
+ * caller used to pass the live `vehicle` row, so a Driver who re-plated rewrote every Waybill
+ * they had ever been issued — a justificatif de réservation préalable is a document, and a
+ * document that changes after the fact is not evidence. The founder, 2026-09-12: *"why would a
+ * waybill from 2 months ago made with a car should update with the new car? it's a false
+ * information probably illegal"*. The trip carries its own copy (mission.vehicle_plate & co,
+ * frozen by the stamp trigger); a trip older than that backfill carries none, and NULL here
+ * prints "not recorded" rather than today's car.
  */
 export function buildWaybill(
   mission: WaybillMission,
   driver: DriverRow,
   business: WaybillBusiness,
-  vehicle: VehicleRow | null,
+  vehicle: CarSnapshot | null,
   dispatcherPhone: string | null,
 ): WaybillData {
   return {
@@ -195,7 +237,11 @@ export function buildWaybill(
     },
     vehicle: vehicle
       ? {
-          label: [vehicle.make, vehicle.model, vehicle.colour].filter(Boolean).join(" "),
+          // ⚑ The colour is stored as a CODE ("noir") since 2026-09-11, and this document is
+          //   read by a controller at the roadside: it prints the word, not the key.
+          label: [vehicle.make, vehicle.model, colourLabel(vehicle.colour)]
+            .filter((part) => Boolean(part) && part !== "—")
+            .join(" "),
           plate: vehicle.plate,
           seats: vehicle.seats,
         }

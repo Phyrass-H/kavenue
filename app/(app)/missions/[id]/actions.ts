@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { NOT_APPROVED_RAISE, UNDER_REVIEW } from "@/lib/driver-review";
+import { CAR_REVIEW, isCarAwaitingError } from "@/lib/vehicle-approval";
 import { createClient } from "@/lib/supabase/server";
 import { courseForAccept } from "@/lib/pool-fares";
 import { recordMissionEvent } from "@/lib/mission-events-server";
@@ -65,6 +66,11 @@ function holdMessage(raw: string): string {
   // `raw` (its siblings' needles are capitalised: "Not eligible", "Slot conflict"),
   // so the constant has to match the raise verbatim.
   if (raw.includes(NOT_APPROVED_RAISE)) return UNDER_REVIEW.refused;
+  // ⚑ SECOND, and a SEPARATE sentence: the person may be approved and the car not. Sending a
+  //   Driver whose new car is waiting to "your file is with us" would point them at papers
+  //   that are already fine. `isCarAwaitingError` lowercases before matching, so it works here
+  //   (raw case) and in friendlyAcceptError (already lowered) alike.
+  if (isCarAwaitingError(raw)) return CAR_REVIEW.refused;
   if (raw.includes("Another Driver is reviewing")) {
     return "Another Driver is looking at this one right now.";
   }
@@ -146,6 +152,7 @@ function friendlyAcceptError(raw: string): string {
   // no "not a driver" in it) but because the ordering IS the priority, and a
   // later reader adding a rule should see that.
   if (m.includes(NOT_APPROVED_RAISE)) return UNDER_REVIEW.refused;
+  if (isCarAwaitingError(m)) return CAR_REVIEW.refused;
   // § P — checked before "no longer available" so the Driver gets the real
   // reason: this one isn't a race they lost, it's a trip that died unfilled.
   if (m.includes("expired"))

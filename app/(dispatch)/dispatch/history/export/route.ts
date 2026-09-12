@@ -16,6 +16,7 @@ import {
 } from "@/lib/history-filter";
 import { rowCost } from "@/lib/spend";
 import { businessCost, businessSplitFor } from "@/lib/commission";
+import { carAsDriven } from "@/lib/waybill";
 import type { MissionRow } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
@@ -124,26 +125,29 @@ export async function GET(req: NextRequest) {
 
   const missions: MissionRow[] = data ?? [];
 
+  // ⚑⚑ S78 — THE CAR AND PLATE COLUMNS COME OFF THE TRIP, NOT OFF THE DRIVER. This file used
+  // to look the `vehicle` row up by driver_id, so a Driver who re-plated changed what a
+  // spreadsheet already sitting on an accountant's desk disagreed with: re-export last March
+  // and the Car and Plate columns named a car that did not exist then. The founder,
+  // 2026-09-12: *"it's a false information probably illegal"*. `carAsDriven` reads the trip's
+  // own frozen copy (mission.vehicle_*) and nothing else — no fallback to today's car, so a
+  // trip with no frozen copy writes the empty cell it already writes for an unfilled one.
   const driverName = new Map<string, string>();
   const driverId = new Map<string, string>();
-  const cars = new Map<string, { make: string | null; model: string | null; colour: string | null; plate: string | null }>();
   const assigned = missions.filter((m) => m.driver_id);
   if (assigned.length > 0) {
     const admin = createAdminClient();
     const ids = [...new Set(assigned.map((m) => m.driver_id!))];
-    const [{ data: drivers }, { data: vehicles }] = await Promise.all([
-      admin.from("driver").select("id, first_name, last_name").in("id", ids),
-      admin.from("vehicle").select("driver_id, make, model, colour, plate").in("driver_id", ids),
-    ]);
+    const { data: drivers } = await admin
+      .from("driver")
+      .select("id, first_name, last_name")
+      .in("id", ids);
     const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
-    const vehByDriver = new Map((vehicles ?? []).map((v) => [v.driver_id, v]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (!d) continue;
       driverName.set(m.id, `${d.first_name} ${d.last_name}`);
       driverId.set(m.id, d.id);
-      const v = vehByDriver.get(d.id);
-      if (v) cars.set(m.id, v);
     }
   }
 
@@ -151,7 +155,7 @@ export async function GET(req: NextRequest) {
     mission: m,
     driverId: driverId.get(m.id) ?? null,
     driverName: driverName.get(m.id) ?? null,
-    car: cars.get(m.id) ?? null,
+    car: carAsDriven(m),
     ...historyFare(m),
   }));
 
@@ -164,7 +168,8 @@ export async function GET(req: NextRequest) {
   const lines = [HEADERS.join(SEP)];
   for (const r of shown) {
     const m = r.mission;
-    const car = cars.get(m.id);
+    // The same snapshot the row above carries — the trip's, never the Driver's.
+    const car = r.car;
     const waiting = Number(m.waiting_fee ?? 0);
     // The same triple the row and Spend show, so the file decomposes exactly the way
     // the screen does (docs/06 §3). businessSplitFor, not commissionSplit, so a Driver-cancelled

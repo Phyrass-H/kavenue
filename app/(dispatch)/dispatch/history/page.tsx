@@ -22,6 +22,7 @@ import {
 } from "@/lib/history-filter";
 import { rowCost } from "@/lib/spend";
 import { businessCost } from "@/lib/commission";
+import { carAsDriven } from "@/lib/waybill";
 import type { MissionRow, VehicleCategory } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
@@ -120,26 +121,32 @@ export default async function DispatchHistory({
   // ever grows. Shared with the Schedule and both CSVs so the reads cannot drift.
   const driverWalks = await loadDriverWalks(supabase, ctx.business.id);
 
-  // Driver + car for EVERY past trip, not just the ones on screen: the search
-  // matches on a Driver's name and on a plate, which is impossible if the lookup
-  // only covers rows that already survived the filter.
+  // The Driver of EVERY past trip, not just the ones on screen: the search matches on a
+  // Driver's name and on a plate, which is impossible if the lookup only covers rows that
+  // already survived the filter.
+  //
+  // ⚑⚑ S78 — THE CAR COMES OFF THE TRIP, NOT OFF THE DRIVER. This is the archive: it is what
+  // a Business answers a question with months later, and it used to read the `vehicle` row
+  // live, so a Driver changing car re-wrote every past row and every plate this screen can be
+  // searched by. The founder, 2026-09-12: *"it's a false information probably illegal"*. The
+  // trip's own frozen copy is the only source now (`carAsDriven`, mission.vehicle_*), with no
+  // fallback: a trip with no frozen copy shows the same blank Driver cell it shows today.
   const contacts = new Map<string, DriverContact>();
   const driverIdOf = new Map<string, string>();
   const assigned = missions.filter((m) => m.driver_id);
   if (assigned.length > 0) {
     const admin = createAdminClient();
     const driverIds = [...new Set(assigned.map((m) => m.driver_id!))];
-    const [{ data: drivers }, { data: vehicles }] = await Promise.all([
-      admin.from("driver").select("id, first_name, last_name, phone").in("id", driverIds),
-      admin.from("vehicle").select("driver_id, make, model, colour, plate").in("driver_id", driverIds),
-    ]);
+    const { data: drivers } = await admin
+      .from("driver")
+      .select("id, first_name, last_name, phone")
+      .in("id", driverIds);
     const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
-    const vehByDriver = new Map((vehicles ?? []).map((v) => [v.driver_id, v]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (!d) continue;
       const name = `${d.first_name} ${d.last_name}`;
-      contacts.set(m.id, { name, phone: d.phone, vehicle: vehByDriver.get(d.id) ?? null });
+      contacts.set(m.id, { name, phone: d.phone, vehicle: carAsDriven(m) });
       driverIdOf.set(m.id, d.id);
     }
   }
@@ -150,7 +157,9 @@ export default async function DispatchHistory({
       mission: m,
       driverId: driverIdOf.get(m.id) ?? null,
       driverName: c?.name ?? null,
-      car: c?.vehicle ?? null,
+      // ⚑ Off the mission, not off `c`: the car is a fact of the TRIP, and a search for a
+      //   plate must still find a trip whose Driver row has since gone missing.
+      car: carAsDriven(m),
       ...historyFare(m),
     };
   });

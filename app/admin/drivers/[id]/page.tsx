@@ -21,6 +21,9 @@ import { genderSays } from "@/lib/gender";
 import { getLatestDocuments } from "@/lib/documents";
 import { DRIVER_DOC_TYPES } from "@/lib/account";
 import { AdminDocumentReview } from "@/components/admin-document-review";
+import { liveCarOf, statusOf } from "@/lib/vehicle-approval";
+import { approvalPiles } from "@/lib/driver-approvals";
+import { formatDate } from "@/lib/format";
 
 const PER_PAGE = 40;
 
@@ -61,12 +64,40 @@ export default async function AdminDriverPage({
     //   here is already settled by app/admin/layout.tsx.
     getLatestDocuments("driver", id, DRIVER_DOC_TYPES),
   ]);
-  // ⚑ THE POOL'S CAR, NOT THE ACTIVE ONE. This used to prefer `is_active`, which
-  //   disagrees with getDriverContext the moment a Driver's oldest car is paused —
-  //   the screen would name one car while the Pool matched on another. Same rule,
-  //   same answer, by construction.
+  // ⚑ THE ONE RULE, S78. `liveCarOf` is what the Driver's own screens, the admin fleet and
+  //   working_car(uuid) in SQL all use — four spellings of "this Driver's car" disagreed
+  //   before today ([[d113]]). A RETIRED row is never it: that car is kept only because past
+  //   trips point at it.
   const fleet = vehicles ?? [];
-  const car = fleet[0] ?? null;
+  const car = liveCarOf(fleet);
+  const piles = approvalPiles(driver, car, docs);
+
+  // ⚑ WOULD APPROVING THIS CAR STRAND WORK THEY ALREADY HOLD? Only upcoming trips count, and
+  //   only ones this car cannot serve — class, or a body the trip insisted on. The founder
+  //   ruled that handing such a trip back goes through support ("it's a delicate matter"), so
+  //   this screen states the fact and a person decides; nothing is released automatically.
+  let strandedSays: string | null = null;
+  if (car && car.approval_status !== "approved") {
+    const { data: held } = await db
+      .from("mission_read")
+      .select("id, category, required_body_type, pickup_at")
+      .eq("driver_id", id)
+      .in("status", ["accepted", "confirmed", "en_route", "arrived", "on_board"])
+      .gt("pickup_at", new Date().toISOString());
+    const stranded = (held ?? []).filter(
+      (m) =>
+        m.category !== car.category ||
+        (m.required_body_type != null && m.required_body_type !== car.body_type),
+    );
+    if (stranded.length > 0) {
+      const soonest = stranded
+        .map((m) => m.pickup_at)
+        .sort()[0]!;
+      strandedSays = `Approving this car would leave ${stranded.length} trip${
+        stranded.length > 1 ? "s" : ""
+      } it cannot serve — the first on ${formatDate(soonest)}. Settle those with them before you approve.`;
+    }
+  }
   const based = driver.base_lat != null && driver.base_lng != null;
 
   return (
@@ -231,6 +262,31 @@ export default async function AdminDriverPage({
         driverName={`${driver.first_name ?? ""} ${driver.last_name ?? ""}`.trim() || "This Driver"}
         verified={driver.verified}
         docs={docs}
+        piles={piles}
+        strandedSays={strandedSays}
+        // ⚑ FLATTENED HERE, not passed as a row: the review component is a client component,
+        //   and a car row carries columns (approved_by, last_written_by) that have no business
+        //   crossing into a browser.
+        car={
+          car
+            ? {
+                id: car.id,
+                status: statusOf(car),
+                make: car.make,
+                model: car.model,
+                plate: car.plate,
+                colour: car.colour,
+                seats: car.seats,
+                energy: car.energy,
+                firstRegistered: car.first_registration_date
+                  ? formatDate(car.first_registration_date)
+                  : null,
+                classSays: serviceClassLabel(car.category, car.body_type),
+                filedSays: formatDate(car.created_at),
+                rejectionNote: car.rejection_note,
+              }
+            : null
+        }
       />
 
       <section className="adm-sect">

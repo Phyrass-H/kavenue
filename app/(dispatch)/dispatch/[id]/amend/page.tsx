@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { carAsDriven } from "@/lib/waybill";
 import { getAppContext } from "@/lib/app-context";
 import { parseWaypoints } from "@/lib/waypoints";
 import { routeMetrics } from "@/lib/directions";
@@ -63,18 +64,24 @@ export default async function AmendMissionPage({
     .maybeSingle();
   if (!mission) notFound();
 
-  // Assigned Driver name + car (service role, gated to this Business's mission) —
-  // shown in the locked header + the "what the Driver sees" preview.
+  // Assigned Driver name (service role, gated to this Business's mission) — shown in the
+  // locked header + the "what the Driver sees" preview.
+  //
+  // ⚑ S78 — THE CAR COMES OFF THE TRIP, not off the Driver. It used to be looked up live by
+  //   driver_id with no order at all, so the day a Driver held two rows this page showed
+  //   whichever Postgres returned — and the day they changed car it showed the new one on a
+  //   trip the old one had been accepted for.
   let driverName = "the Driver";
-  let driverCar: string | null = null;
+  const car = carAsDriven(mission);
+  const driverCar = car ? [car.make, car.model].filter(Boolean).join(" ") || null : null;
   if (mission.driver_id) {
     const admin = createAdminClient();
-    const [{ data: d }, { data: v }] = await Promise.all([
-      admin.from("driver").select("first_name, last_name").eq("id", mission.driver_id).maybeSingle(),
-      admin.from("vehicle").select("make, model").eq("driver_id", mission.driver_id).maybeSingle(),
-    ]);
+    const { data: d } = await admin
+      .from("driver")
+      .select("first_name, last_name")
+      .eq("id", mission.driver_id)
+      .maybeSingle();
     if (d) driverName = `${d.first_name} ${d.last_name}`.trim() || driverName;
-    if (v) driverCar = [v.make, v.model].filter(Boolean).join(" ") || null;
   }
 
   const t = missionTone(mission);

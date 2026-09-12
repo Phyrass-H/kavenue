@@ -15,6 +15,7 @@ import {
 import { minutesToAccept, rowCost } from "@/lib/spend";
 import { businessCost, businessSplitFor } from "@/lib/commission";
 import { currentSpan, LENS_LABEL, parseSpendQuery, type Lens } from "@/lib/spend-filter";
+import { carAsDriven } from "@/lib/waybill";
 import type { MissionRow } from "@/lib/database.types";
 
 export const dynamic = "force-dynamic";
@@ -125,29 +126,28 @@ export async function GET(req: NextRequest) {
   const missions: MissionRow[] = data ?? [];
   const deskName = new Map((desks ?? []).map((d) => [d.id, d.name]));
 
+  // ⚑⚑ S78 — THE CAR COMES OFF THE TRIP, NOT OFF THE DRIVER. No column here prints a car, but
+  // the search does read one (`?q=` matches a plate, same `applyHistoryQuery` the page runs),
+  // and looked up live off `vehicle` by driver_id it answered with whatever the Driver drives
+  // TODAY — so last spring's file and this one could disagree about which trips a plate
+  // matched. The founder, 2026-09-12: *"it's a false information probably illegal"*. The
+  // trip's own frozen copy is the only source now, with no fallback to the current car.
   const driverName = new Map<string, string>();
   const driverId = new Map<string, string>();
-  const cars = new Map<
-    string,
-    { make: string | null; model: string | null; colour: string | null; plate: string | null }
-  >();
   const assigned = missions.filter((m) => m.driver_id);
   if (assigned.length > 0) {
     const admin = createAdminClient();
     const ids = [...new Set(assigned.map((m) => m.driver_id!))];
-    const [{ data: drivers }, { data: vehicles }] = await Promise.all([
-      admin.from("driver").select("id, first_name, last_name").in("id", ids),
-      admin.from("vehicle").select("driver_id, make, model, colour, plate").in("driver_id", ids),
-    ]);
+    const { data: drivers } = await admin
+      .from("driver")
+      .select("id, first_name, last_name")
+      .in("id", ids);
     const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
-    const vehByDriver = new Map((vehicles ?? []).map((v) => [v.driver_id, v]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (!d) continue;
       driverName.set(m.id, `${d.first_name} ${d.last_name}`);
       driverId.set(m.id, d.id);
-      const v = vehByDriver.get(d.id);
-      if (v) cars.set(m.id, v);
     }
   }
 
@@ -155,7 +155,7 @@ export async function GET(req: NextRequest) {
     mission: m,
     driverId: driverId.get(m.id) ?? null,
     driverName: driverName.get(m.id) ?? null,
-    car: cars.get(m.id) ?? null,
+    car: carAsDriven(m),
     ...historyFare(m),
   }));
 

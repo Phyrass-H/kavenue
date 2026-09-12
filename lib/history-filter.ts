@@ -10,6 +10,7 @@ import { settledFare } from "@/lib/pdp";
 import { businessCost } from "@/lib/commission";
 import { parsePassengers, passengerName } from "@/lib/passengers";
 import { serviceClassLabel } from "@/lib/format";
+import type { CarSnapshot } from "@/lib/waybill";
 import {
   isPeriod,
   parseAnchor,
@@ -32,20 +33,20 @@ export const SORT_LABEL: Record<Sort, string> = {
   low: "Lowest fare",
 };
 
-/** The car attached to a mission's Driver, for search + the expanded row. */
-export interface CarInfo {
-  make: string | null;
-  model: string | null;
-  colour: string | null;
-  plate: string | null;
-}
-
 /** A mission plus the bits that live in other tables but are searchable. */
 export interface HistoryRow {
   mission: MissionRow;
   driverId: string | null;
   driverName: string | null;
-  car: CarInfo | null;
+  /**
+   * The car that DID this trip — its own frozen copy, `carAsDriven(mission)`.
+   *
+   * ⚑⚑ S78 — it was a structural `CarInfo` filled from a live `vehicle` lookup by driver_id,
+   * so the day a Driver re-plated, a plate search stopped finding the trips that plate
+   * actually did and started finding the ones it never did. The tag on `CarSnapshot` means a
+   * car row can no longer be put here: the compiler refuses it.
+   */
+  car: CarSnapshot | null;
   /** The amount to show. Null when nobody ever took it — an unfilled trip costs nothing. */
   fare: number | null;
   /**

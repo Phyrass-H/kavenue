@@ -20,6 +20,7 @@ import type { Database, DriverRow, MissionRow } from "@/lib/database.types";
 export type FindingId =
   | "trip_nobody_can_take"
   | "documents_waiting"
+  | "car_waiting"
   | "driver_without_base"
   | "driver_unverified"
   | "cancelled_without_record"
@@ -64,6 +65,15 @@ export const CHECKS: Record<
     // Driver. Amine Belkacem's licence sat pending for 40 days that way — on the
     // one check that carries a €300,000 fine (docs/01:24).
     looksFor: "A Driver whose filed papers nobody has looked at yet.",
+    tone: "attention",
+    groups: true,
+  },
+  car_waiting: {
+    // ⚑ THE OTHER CHECK THAT IS WAITING ON *YOU*, and the sharpest one: since S78 a Driver
+    // whose car is not approved cannot reach the Pool at all. Every day this sits unread is a
+    // day someone cannot earn, and they cannot fix it themselves — the founder's own rule:
+    // *"a driver with a pending car validation just cannot work, period"*.
+    looksFor: "A Driver whose car is waiting for you to approve it — they cannot work meanwhile.",
     tone: "attention",
     groups: true,
   },
@@ -242,6 +252,9 @@ export interface ActivitySnapshot {
    * papers are on it.
    */
   documentsWaiting: { driverId: string; count: number; oldestUploadedAt: string }[];
+  /** ⚑ ONE ROW PER DRIVER, never a count. The founder has rejected roll-ups twice: the state
+   *  belongs on the row, with the name and the wait on it. */
+  carsWaiting: { driverId: string; filedAt: string; says: string; plate: string | null }[];
   /** Cancelled trips carrying no row in `mission_cancellation`. */
   cancelledWithoutRecord: Pick<MissionRow, "id" | "pickup_label" | "dropoff_label" | "cancelled_at">[];
   /** Trips whose log holds two or more `repooled` entries. */
@@ -346,6 +359,21 @@ export function findings(s: ActivitySnapshot, now = new Date()): Finding[] {
     );
   }
 
+  for (const w of s.carsWaiting) {
+    const d = s.drivers.find((x) => x.id === w.driverId);
+    const who = d ? nameOf(d) : "A Driver";
+    const waited = formatAgo(Math.max(0, now.getTime() - new Date(w.filedAt).getTime()));
+    push(
+      "car_waiting",
+      w.driverId,
+      who,
+      // ⚑ THE WAIT AND THE CONSEQUENCE, in that order. "A car is pending" is a fact about a
+      // row; "they cannot work until you look" is what makes it urgent.
+      `${who} filed ${w.says}${w.plate ? ` (${w.plate})` : ""} ${waited} ago — they cannot work until you approve it.`,
+      `/admin/drivers/${w.driverId}`,
+    );
+  }
+
   for (const d of s.drivers) {
     if (d.base_lat != null && d.base_lng != null) continue;
     push(
@@ -438,6 +466,7 @@ export function quietChecks(s: ActivitySnapshot, fired: Finding[]): string[] {
   if (!firedIds.has("driver_unverified")) quiet.push("every Driver is verified and can work");
   if (!firedIds.has("documents_waiting"))
     quiet.push("no Driver is waiting on you to look at a document");
+  if (!firedIds.has("car_waiting")) quiet.push("no Driver is waiting on you to approve a car");
   // ⚑ AND NOT WHEN A COUNT WAS REFUSED. Without the second condition a refusal
   // silences `feature_never_used` and then this line ASSERTS the opposite — the
   // console would go from "nobody has ever used this" to "everything has been

@@ -16,6 +16,7 @@ import {
   searchFields,
 } from "@/lib/history-filter";
 import { rowCost } from "@/lib/spend";
+import { carAsDriven } from "@/lib/waybill";
 import { completed, mission, row, standardCurve } from "./fixtures";
 
 const q = (sp: Record<string, string>) => parseHistoryQuery(sp);
@@ -146,7 +147,18 @@ describe("matchRow — every term must hit somewhere", () => {
       pickup_address: "Aéroport Nice Côte d'Azur, 06200 Nice, France",
       passenger_names: [{ first: "Anna", last: "Schmidt", main: true }],
     }),
-    { car: { make: "Mercedes", model: "Classe E", colour: "Black", plate: "AB-123-CD" } },
+    // ⚑ S78 — built through `carAsDriven`, off the TRIP's own frozen columns, because that is
+    //   now the only way a car reaches a row: the search matches the car that did the trip,
+    //   never the one its Driver happens to own today.
+    {
+      car: carAsDriven({
+        vehicle_make: "Mercedes",
+        vehicle_model: "Classe E",
+        vehicle_colour: "Black",
+        vehicle_plate: "AB-123-CD",
+        vehicle_seats: 4,
+      }),
+    },
   );
 
   it("ANDs across terms and ORs across fields", () => {

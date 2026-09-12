@@ -13,6 +13,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildWaybill,
+  carAsDriven,
   formatSiren,
   sirenFromSiret,
   waybillGaps,
@@ -21,7 +22,6 @@ import {
 import type { Database } from "@/lib/database.types";
 
 type DriverRow = Database["public"]["Tables"]["driver"]["Row"];
-type VehicleRow = Database["public"]["Tables"]["vehicle"]["Row"];
 
 function driver(over: Partial<DriverRow> = {}): DriverRow {
   return {
@@ -64,21 +64,18 @@ function driver(over: Partial<DriverRow> = {}): DriverRow {
   };
 }
 
-function vehicle(over: Partial<VehicleRow> = {}): VehicleRow {
-  return {
-    id: "v-1",
-    driver_id: "dr-1",
-    category: "business",
-    body_type: "sedan",
-    make: "Mercedes",
-    model: "Classe E",
-    colour: "Noir",
-    plate: "AB-123-CD",
-    seats: 4,
-    is_active: true,
-    created_at: "2026-06-01T09:00:00+02:00",
+/** ⚑ S78 — the car AS IT WAS ON THE TRIP, built the way the page builds it: off the mission's
+ *  own frozen columns, never off a car row. `carAsDriven` is the only constructor, so this
+ *  fixture exercises the same path the Waybill does. */
+function carOnTrip(over: Partial<Parameters<typeof carAsDriven>[0]> = {}) {
+  return carAsDriven({
+    vehicle_make: "Mercedes-Benz",
+    vehicle_model: "Classe E",
+    vehicle_colour: "noir",
+    vehicle_plate: "AB-123-CD",
+    vehicle_seats: 4,
     ...over,
-  } as VehicleRow;
+  });
 }
 
 const trip = {
@@ -153,12 +150,12 @@ describe("the issue gate", () => {
 
 describe("4° — who ordered it", () => {
   it("prefers the legal name, because that is what a register can be checked against", () => {
-    const wb = buildWaybill(trip, driver(), negresco, vehicle(), null);
+    const wb = buildWaybill(trip, driver(), negresco, carOnTrip(), null);
     expect(wb.ordering.name).toBe("SA LE NEGRESCO");
   });
 
   it("falls back to the trading name when there is no legal one", () => {
-    const wb = buildWaybill(trip, driver(), { ...negresco, legal_name: null }, vehicle(), null);
+    const wb = buildWaybill(trip, driver(), { ...negresco, legal_name: null }, carOnTrip(), null);
     expect(wb.ordering.name).toBe("Hôtel Negresco");
   });
 
@@ -171,7 +168,7 @@ describe("4° — who ordered it", () => {
       trip,
       driver(),
       { ...negresco, reception_phone: null },
-      vehicle(),
+      carOnTrip(),
       "+33 6 22 33 44 56",
     );
     expect(wb.ordering.phone).toBe("+33 6 22 33 44 56");
@@ -182,7 +179,7 @@ describe("5° and 6° are two different moments", () => {
   it("keeps the booking time apart from the pickup time", () => {
     // This is the whole point of the document: 5° BEFORE 6° is what makes the
     // reservation *préalable*. Collapsing them would destroy the only thing it proves.
-    const wb = buildWaybill(trip, driver(), negresco, vehicle(), null);
+    const wb = buildWaybill(trip, driver(), negresco, carOnTrip(), null);
     expect(wb.bookedAt).toBe(trip.created_at);
     expect(wb.pickupAt).toBe(trip.pickup_at);
     expect(new Date(wb.bookedAt).getTime()).toBeLessThan(new Date(wb.pickupAt).getTime());
@@ -191,8 +188,9 @@ describe("5° and 6° are two different moments", () => {
 
 describe("the extras the founder asked for", () => {
   it("prints the car it was given, and says nothing when there is none", () => {
-    const wb = buildWaybill(trip, driver(), negresco, vehicle(), null);
-    expect(wb.vehicle?.label).toBe("Mercedes Classe E Noir");
+    const wb = buildWaybill(trip, driver(), negresco, carOnTrip(), null);
+    // ⚑ The stored colour is a code ("noir"); the document prints the word.
+    expect(wb.vehicle?.label).toBe("Mercedes-Benz Classe E Noir");
     expect(wb.vehicle?.plate).toBe("AB-123-CD");
     expect(buildWaybill(trip, driver(), negresco, null, null).vehicle).toBeNull();
   });
@@ -200,7 +198,7 @@ describe("the extras the founder asked for", () => {
   it("names the conducteur, who is not the exploitant", () => {
     // A one-person company, but two legal roles: the exploitant holds the REVTC, the
     // conducteur holds the carte professionnelle. The document carries both.
-    const wb = buildWaybill(trip, driver(), negresco, vehicle(), null);
+    const wb = buildWaybill(trip, driver(), negresco, carOnTrip(), null);
     expect(wb.conducteur.name).toBe("Marc Fontaine");
     expect(wb.exploitant.name).toBe("Fontaine Transports SARL");
   });
@@ -214,12 +212,12 @@ describe("the price", () => {
     // ⚑ NOT the Ceiling — the Driver is shown it nowhere, and printing it after they
     //   accepted tells them what they left on the table.
     expect(WAYBILL_PRICE).toBe("course");
-    const wb = buildWaybill(trip, driver(), negresco, vehicle(), null);
+    const wb = buildWaybill(trip, driver(), negresco, carOnTrip(), null);
     expect(wb.course).toBe(62);
   });
 
   it("prints no price at all rather than a zero when the fare was never frozen", () => {
-    const wb = buildWaybill({ ...trip, accepted_fare: null }, driver(), negresco, vehicle(), null);
+    const wb = buildWaybill({ ...trip, accepted_fare: null }, driver(), negresco, carOnTrip(), null);
     expect(wb.course).toBeNull();
   });
 });

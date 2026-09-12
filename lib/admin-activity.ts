@@ -14,6 +14,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import { explainEligibility, type EligibilityInput } from "@/lib/eligibility";
+import { liveCarOf, workingCarOf } from "@/lib/vehicle-approval";
 import type { ActivitySnapshot, TrackedFeature } from "@/lib/activity-findings";
 import { FEATURES, splitByUse, type CountReply } from "@/lib/activity-findings";
 import { tripLabel } from "@/lib/activity-findings";
@@ -39,7 +40,11 @@ type Db = Awaited<ReturnType<typeof createClient>>;
 
 export interface DriverWithCar {
   driver: DriverRow;
+  /** ⚑ S78 — the WORKING car: approved, not retired. NULL means this Driver cannot take
+   *  anything, and `liveCar` says whether that is "no car" or "a car nobody has looked at". */
   vehicle: VehicleRow | null;
+  /** The car ON FILE, any state. What the console shows, and what explains a missing one. */
+  liveCar: VehicleRow | null;
 }
 
 /** Every Driver with the car they declared — the fleet, as the rules see it. */
@@ -56,14 +61,16 @@ export async function readFleet(db: Db): Promise<DriverWithCar[]> {
     ),
     readAll<VehicleRow>((from, to) => db.from("vehicle").select("*").range(from, to)),
   ]);
-  return drivers.map((driver) => ({
-    driver,
-    // A Driver may hold several cars; the Pool and accept_mission both look for
-    // ANY matching one, so the console shows the active one it would match on.
-    vehicle: vehicles.find((v) => v.driver_id === driver.id && v.is_active) ??
-      vehicles.find((v) => v.driver_id === driver.id) ??
-      null,
-  }));
+  return drivers.map((driver) => {
+    // ⚑ S78 — ONE RULE, and it is the same one the database uses (working_car(uuid)). The
+    //   old pick — the `is_active` row, else any row — disagreed with three other readers
+    //   ([[d113]]: three answers for one trip) and, worse, would now show a RETIRED car as
+    //   the Driver's own. `is_active` is not consulted at all: nothing writes it, and "no car
+    //   pause" is a decided product rule.
+    const mine = vehicles.filter((v) => v.driver_id === driver.id);
+    const liveCar = liveCarOf(mine);
+    return { driver, liveCar, vehicle: workingCarOf(mine) };
+  });
 }
 
 /**
@@ -126,6 +133,7 @@ export function matchFleet(
       mission,
       driver: f.driver,
       vehicle: f.vehicle,
+      liveVehicle: f.liveCar,
       // A Driver's own other trips, minus this one — a trip never clashes with
       // itself, and a re-pooled trip they used to hold would otherwise block them.
       otherPickupsAt: (commitments.get(f.driver.id) ?? []).filter(
@@ -225,6 +233,16 @@ export async function readActivitySnapshot(now = new Date()): Promise<ActivitySn
     pooled,
     drivers: fleet.map((f) => f.driver),
     documentsWaiting: await readDocumentsWaiting(db, new Set(fleet.map((f) => f.driver.id))),
+    // ⚑ S78 — read off the fleet we already have, not with a second query: `readFleet` has
+    //   every car row and has already applied the one rule for "which car is theirs".
+    carsWaiting: fleet
+      .filter((f) => f.liveCar && !f.liveCar.retired_at && f.liveCar.approval_status === "pending")
+      .map((f) => ({
+        driverId: f.driver.id,
+        filedAt: f.liveCar!.created_at,
+        says: [f.liveCar!.make, f.liveCar!.model].filter(Boolean).join(" ") || "a car",
+        plate: f.liveCar!.plate,
+      })),
     // ⚑ Spread, because the count now answers TWO questions — which features are
     //   unused, and which could not be asked about at all.
     ...(await readNeverUsed(db)),

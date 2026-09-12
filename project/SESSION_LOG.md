@@ -5,6 +5,65 @@
 
 ---
 
+## 2026-09-12 — SESSION 78 — the cars-in-analytics brainstorm, and the census S77 reverted
+
+**The founder's job for the session, in their words:** *"brainstorm and check if we have everything
+regarding cars, in enrollment and in analytics then step 4"*. Enrollment was closed in S77; this is
+the analytics half. **Nothing was built until the founder validated each point** — their instruction:
+*"we are still brainstorming so don't start until we validate all together please."*
+
+### The sweep
+13 agents, read-only: 5 inventory readers (car data · analytics today · audit trail · specs and
+decisions · live numbers), 3 brainstorm lenses (supply/demand · trust/compliance · growth and
+record-now), one skeptic per lens, a completeness critic, a synthesis. **41 ideas, 37 held as
+stated.** Scratch scripts and the full brief live in the session scratchpad, not the repo.
+
+**The answer: we hold every car fact; we keep no history of any of it.** A car is one row and every
+save overwrites it, as do the Driver's base, radius and `verified`. Three things are therefore
+unrecoverable unless recording starts: which car did a trip (⚑ [[d113]] believed the `vehicle_id`
+stamp prevented a re-plate showing on an old Waybill — it does not: the stamp is a pointer and
+`waybill/page.tsx:113` reads the row live), the fleet month by month, and whether any car could reach
+a trip that went unfilled (⚑ [[d87]] assumed that was "a query over data already stored" — it is not).
+
+### ⚑⚑ THE BUG THE SWEEP TURNED UP — MINE, FROM S77, LIVE
+`2026-09-10_business_country.sql` recreated `admin_business_overview` from a body its own header calls
+*"the LAST definition"*. It was the second-newest — `2026-08-30_rollup_counts_are_a_census.sql`
+replaced that body hours later, and **both files carry the same date**. So [[d103]] was reverted on
+/admin/businesses: `count(*) filter (where trips > 0) as businesses` and `where t.trips > 0`.
+
+Measured live before writing anything: all time `[["hotel", 4, 378]]`; **May `[["hotel", 2, 10]]`**;
+June 3 of 4; **Jan 2027 an empty table**. ⚑ **All time is the default view and every Business has
+posted, so the two bodies are indistinguishable there** — which is how it survived a session, a
+review and a gate of 95 checks.
+
+Fixed by `docs/migrations/2026-09-12_business_overview_census_restored.sql` (census body verbatim +
+the one line 09-10 meant to add), **pasted by the founder and verified green**: probe
+`.local/probe/business-census.mts` 13/13, gate **95 → 100**. The gate's file half was Rule Zero'd by
+planting a later migration carrying the 09-10 body: both assertions went red and named the file.
+
+⚑ **The rule that comes out of it:** the newest FILE DATE is not the newest BODY. `grep -rn "create
+or replace function <name>" docs/migrations` lists every definition; copy from the live database or
+from the file whose header says it supersedes the others.
+
+### What the founder decided (durable — write-ups pending)
+1. **Three approvals, not one: Person, Company, Vehicle** — the three piles `lib/account.ts` already
+   has. *"none can work if all together are not approved"*. A Driver with no approved car **cannot
+   reach the Pool, period** — enforced at the database door, not by hiding a screen.
+2. **A car change replaces the car.** The old row is retired and kept (past trips point at it); the
+   new one waits for approval and **cannot work meanwhile** — *"imagine a car accident with a non
+   approved car?"*. ⚑ **V1 is one car per Driver, full stop; a second usable car is V2.**
+3. **History is frozen.** *"why would a waybill from 2 months ago made with a car should update with
+   the new car? it's a false information probably illegal"* — so each trip keeps its own copy of the
+   car's details.
+4. **Never twice at signup** — plate, SIRET, phone, email, card numbers. A *different* person or
+   company reusing one is refused; a Business needing a daughter account is handled by support.
+5. **Giving a trip away goes through support** in V1; the approval screen warns when a switch would
+   strand an accepted trip. 6. **Bags are out of car analytics** — the guided mission form is the
+   prevention. 7. Everything surfaces in the **Activity console**, which is the support console until
+   it is worth splitting. 8. **BACKLOG § AJ** — train the support team to check papers.
+
+---
+
 ## 2026-09-11 — SESSION 77 (close) — tests 999 → 1137 · gate 64 → 95 · 4 migrations, all applied
 
 **The founder's list, worked in their order, plus two hazards the work turned up.**

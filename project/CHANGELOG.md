@@ -5,6 +5,24 @@
 
 ---
 
+## 12 September 2026 — the Businesses page was undercounting whenever you picked a month
+
+You have four Businesses. Pick May on /admin/businesses and it said **two**. Pick June and it said
+three. Pick a month nobody booked in and the whole table disappeared.
+
+The rule you set is that the number of Businesses is a **headcount**: choosing May does not make two
+of them stop existing. Only the trips belong to the month. I broke that on 10 September, while adding
+the country name for Monaco — I rebuilt the calculation from an older copy of itself and carried the
+old mistake back in. The file I copied even warned me it was superseded, in its own header.
+
+**Why nobody saw it:** the page opens on All time, where all four Businesses have posted. Under both
+versions that view is identical. Only a narrow period tells them apart.
+
+Fixed, and you pasted it. I also added a check that fails the moment this shape comes back, and
+proved it works by putting the broken version back and watching it go red.
+
+---
+
 ## 9 September 2026 — I got that block wrong, and had it checked
 
 I shipped the "Will trips reach them?" box and then had it reviewed. **Two of its lines were

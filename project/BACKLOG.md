@@ -1968,3 +1968,22 @@ Doc 02 marks *"Continuous live-map GPS to Dispatcher"* **CUT** for V1 — this i
 line, not a contradiction of it. · [[d45]] (one-shot, buildable now) · § Q / § U.4 (observed arrival by
 geofence — the other thing the native app unlocks) · § AG (the event log, which would record the trip's taps
 either way).
+
+---
+
+## AJ. Train the support team to check papers properly 👤 (founder, 2026-09-11, S78 — "put it on the side please")
+
+**The founder's ask, while settling the car-approval design:** the support team *"should be trained properly to
+check all the papers properly, to make sure that the IDs matched the owner of the company and the car or the
+renting contract."*
+
+A human process, not a screen — 👤 MANUAL. What the check has to establish, in the founder's words:
+- the **ID** matches the **owner of the company** (the SIRET the Driver signed up with);
+- the ID matches the **car** — the carte grise holder — **or a rental contract** (a leased car is not in the
+  Driver's name, so the contract is the paper that links the two).
+
+⚑ **Raised the same day as two rules it depends on** (brainstorm, not yet built): a plate and a SIRET are
+**locked to one account** — the second account that uses either is refused; and a car **cannot work until a
+human approves it**. A reviewer who approves without these checks makes both rules decorative.
+
+Related: [[d132]] (the review screen on `/admin/drivers/[id]`) · § O (a suspension leaves no record).

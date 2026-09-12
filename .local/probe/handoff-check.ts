@@ -1434,6 +1434,62 @@ console.log("\n── one dev server, on one port (S77) ──");
     openApp ? "" : "⚑ .local/seed/open-app.mts is missing");
 }
 
+// ── [[d103]] — the Businesses breakdown is a CENSUS, and it stopped being one for a session
+//
+// ⚑ THIS IS THE CHECK THAT WOULD HAVE CAUGHT S77. 2026-09-10_business_country.sql added the
+// country key by copying a body it called "the LAST definition" — it was the second-newest,
+// written hours before the census fix — and so it silently restored the period-scoped count
+// and the `where trips > 0` row-drop. All time (the default view) looks identical under both
+// bodies, because every Business had posted; only a narrow period tells them apart. So the
+// FILE half below is the one that bites early, and the LIVE half proves the paste landed.
+{
+  const defFiles = fs.existsSync("docs/migrations")
+    ? fs.readdirSync("docs/migrations").filter((f) => f.endsWith(".sql"))
+        .filter((f) => /create or replace function admin_business_overview/i
+          .test(fs.readFileSync(`docs/migrations/${f}`, "utf8")))
+        .sort()
+    : [];
+  const newest = defFiles[defFiles.length - 1] ?? "";
+  // Comments stripped: this file's own header QUOTES both bad shapes to explain them.
+  const body = newest
+    ? fs.readFileSync(`docs/migrations/${newest}`, "utf8").replace(/^\s*--.*$/gm, "")
+    : "";
+  const periodScopedCount = /count\(\*\)\s*filter\s*\(\s*where trips > 0\s*\)\s*as businesses/i.test(body);
+  const dropsQuietRows = /from by_(?:type|region|city)\s+\w+\s+where\s+\w+\.trips\s*>\s*0/i.test(body);
+  t("[[d103]] the NEWEST admin_business_overview counts a census, not the period",
+    newest !== "" && !periodScopedCount,
+    periodScopedCount
+      ? `⚑ ${newest} has count(*) filter (where trips > 0) as businesses — a Business that posted nothing is missing from its own région`
+      : newest || "⚑ no migration defines admin_business_overview");
+  t("[[d103]] …and it drops no breakdown row for having no activity",
+    newest !== "" && !dropsQuietRows,
+    dropsQuietRows ? `⚑ ${newest} filters the breakdowns on trips > 0` : newest);
+
+  // The live half. A period nobody booked in is the discriminator: under the census body
+  // every row is still there with trips 0; under the reverted one the table is empty.
+  const { data: quietData, error: quietErr } = await db.rpc("admin_business_overview",
+    { p_from: "2027-01-01T00:00:00Z", p_to: "2027-02-01T00:00:00Z" });
+  const quiet = quietData as
+    | { businesses: number; trips: number; by_type: { businesses: number; trips: number }[] }
+    | null;
+  const { count: bizRows } = await db.from("business").select("id", { count: "exact", head: true });
+  t("[[d103]] live: a period with no trips still lists every Business type",
+    !quietErr && !!quiet && quiet.by_type.length > 0,
+    quietErr?.message
+      ?? (quiet && quiet.by_type.length === 0
+        ? "⚑ the breakdown is empty — paste docs/migrations/2026-09-12_business_overview_census_restored.sql"
+        : `${quiet?.by_type.length ?? 0} row(s)`));
+  const censusSum = quiet ? quiet.by_type.reduce((s, r) => s + Number(r.businesses), 0) : -1;
+  t("[[d103]] live: the census count does not move with the period",
+    !!quiet && censusSum === (bizRows ?? -2),
+    `by_type sums to ${censusSum}; the table holds ${bizRows}`);
+  // ⚑ And the opposite direction, or the two above pass on a function that ignores the
+  //   period entirely: the TRIPS must move. Same trap as S76's `CONSTANT ± 1`.
+  t("[[d103]] live: the trips DO move with the period (so the period is not ignored)",
+    !!quiet && Number(quiet.trips) === 0,
+    quiet ? `Jan 2027 trips = ${quiet.trips}` : "no answer");
+}
+
 console.log("\n── the repo the handoff describes ──");
 const sh = (c: string) => { try { return execSync(c, { encoding: "utf8" }).trim(); } catch { return ""; } };
 t("git is clean", sh("git status --porcelain") === "", sh("git status --porcelain").split("\n")[0] ?? "");

@@ -223,7 +223,7 @@ export interface AdminDriverPageRow {
   total_count: number;
 }
 
-/** S79 — a row of admin_driver_find: /admin/drivers' search and its "Can't work yet" section
+/** S79 — a row of admin_driver_find: /admin/drivers' search and its "To be approved" section
  *  (docs/migrations/2026-09-13d_admin_driver_find.sql). */
 export interface AdminDriverFindRow {
   id: string;

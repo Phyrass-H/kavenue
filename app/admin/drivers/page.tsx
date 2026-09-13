@@ -196,7 +196,7 @@ function FleetRow({ d, pills }: { d: FleetRowData; pills: Blocker[] }) {
   );
 }
 
-/** A Driver in "Can't work yet": no activity column — what is missing is the point of the row. */
+/** A Driver in "To be approved": no activity column — what is missing is the point of the row. */
 function BlockedRow({ d, pills, unread }: { d: AdminDriverFindRow; pills: Blocker[]; unread: boolean }) {
   return (
     <Link href={`/admin/drivers/${d.id}`} className="adm-row adm-row--blocked">
@@ -215,7 +215,7 @@ function BlockedRow({ d, pills, unread }: { d: AdminDriverFindRow; pills: Blocke
       ) : unread ? (
         <span className="adm-pill">Approvals unread</span>
       ) : (
-        <span className="adm-pill adm-pill--warn">Can’t work yet</span>
+        <span className="adm-pill adm-pill--warn">To be approved</span>
       )}
     </Link>
   );
@@ -425,19 +425,23 @@ export default async function AdminDriversPage({
       ) : (
         <>
           <section className="adm-sect">
-            <h2 className="adm-sect__h">Can’t work yet</h2>
+            {/* The founder's name for it, 2026-09-13. */}
+            <h2 className="adm-sect__h">To be approved</h2>
             {findMissing ||
               (found.length === 0 ? (
-                <p className="adm-none">{o.drivers === 0 ? "No Drivers yet." : "Every Driver can work."}</p>
+                <p className="adm-none">
+                  {o.drivers === 0 ? "No Drivers yet." : "Nothing to approve — every Driver can work."}
+                </p>
               ) : (
                 <>
                   {/* ⚑ ONE LINE THAT IS TRUE EITHER WAY. On a failed read these rows carry a grey
                       "Approvals unread" pill, so the generic note ("these rows carry no pills")
-                      would be false here, and "each row says what's missing" falser (S79 re-check). */}
+                      would be false here (S79 re-check). Otherwise it is the key to the two tones,
+                      in the founder's approved words. */}
                   <p className="adm-quiet">
                     {pillsUnread
                       ? "The approvals couldn’t be read, so these rows can’t say what’s missing."
-                      : "Each row says what’s missing."}{" "}
+                      : "Amber is yours to approve · grey is waiting on the Driver."}{" "}
                     Longest waiting first.
                   </p>
                   {found.map((d) => (

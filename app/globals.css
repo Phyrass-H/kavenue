@@ -4092,7 +4092,7 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
    every Business name (S79 review). Same fixed-width rule, for the same reason. */
 .adm-row--fleet { grid-template-columns: minmax(0, 1fr) 118px 158px 182px 190px; }
 .adm-row--fleet > :not(.adm-row__name) { text-align: right; }
-/* S79 — "Can't work yet". No activity column, so the pills have room to sit side by side, as on
+/* S79 — "To be approved". No activity column, so the pills have room to sit side by side, as on
    the preview the founder approved. */
 .adm-row--blocked { grid-template-columns: minmax(0, 1fr) 118px 182px 300px; }
 .adm-row--blocked > :not(.adm-row__name) { text-align: right; }

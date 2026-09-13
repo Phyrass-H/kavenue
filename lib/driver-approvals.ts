@@ -53,10 +53,21 @@ export type DocFacts = Pick<DocView, "type" | "status" | "expiresAt">;
 
 const NEEDS_THEM: readonly DocState[] = ["missing", "rejected", "expired"];
 
+/** The papers of one pile. */
+function docsIn(docs: readonly DocFacts[], group: "personal" | "company" | "vehicle"): DocFacts[] {
+  const types = new Set<string>(driverDocTypes(group));
+  return docs.filter((d) => types.has(d.type));
+}
+
+/** How many of these papers the Driver still has to send: missing, refused or lapsed. */
+function owedIn(docs: readonly DocFacts[], now: Date): number {
+  return docs.filter((d) => NEEDS_THEM.includes(docState(d, now))).length;
+}
+
 function papersState(docs: readonly DocFacts[], now: Date): { state: PileState; says: string } {
   if (docs.length === 0) return { state: "todo", says: "no papers yet" };
   const states = docs.map((d) => docState(d, now));
-  const owed = states.filter((s) => NEEDS_THEM.includes(s)).length;
+  const owed = owedIn(docs, now);
   if (owed > 0) return { state: "todo", says: `${owed} paper${owed > 1 ? "s" : ""} to add` };
   const waiting = states.filter((s) => s === "pending").length;
   if (waiting > 0) return { state: "waiting", says: `${waiting} with us` };
@@ -74,14 +85,9 @@ export function approvalPiles(
   docs: readonly DocFacts[],
   now: Date = new Date(),
 ): Pile[] {
-  const byGroup = (group: "personal" | "company" | "vehicle") => {
-    const types = new Set<string>(driverDocTypes(group));
-    return docs.filter((d) => types.has(d.type));
-  };
-
   // The person: `verified` is the act. The papers under it explain what a reviewer is
   // waiting for, but they never decide — [[d132]]: the flag is a separate judgement.
-  const personPapers = papersState(byGroup("personal"), now);
+  const personPapers = papersState(docsIn(docs, "personal"), now);
   const person: Pile = driver.verified
     ? { pile: "person", label: PILE_LABEL.person, state: "done", says: "approved" }
     : {
@@ -92,7 +98,7 @@ export function approvalPiles(
         says: personPapers.state === "todo" ? personPapers.says : "your file is with us",
       };
 
-  const companyPapers = papersState(byGroup("company"), now);
+  const companyPapers = papersState(docsIn(docs, "company"), now);
   const company: Pile = { pile: "company", label: PILE_LABEL.company, ...companyPapers };
 
   let vehicle: Pile;
@@ -124,10 +130,15 @@ export function mayTakeWork(
 }
 
 // ── S79 — what the admin Drivers list says on a row ─────────────────────────────────────
+//
+// ⚑ THE FOUNDER'S WORDS, on the preview of 2026-09-13: the section is *"To be approved"*, and
+// *"the term '… with us' don't really make sense to me"*. So the admin pill says either what a
+// person at Kavenue has to do ("to approve") or what the Driver has to do ("2 papers to send",
+// "refused", "none yet"). "with us" stays on the DRIVER's own screen, where it means exactly that.
 
-/** One pill on an admin row. `owed` is whose move it is: "us" = a person at Kavenue owes a
- *  look, "them" = the Driver owes something. The page tones the two differently, because only
- *  the first is work waiting for whoever is reading. */
+/** One pill on an admin row. `owed` is whose move it is: "us" = a person at Kavenue has to
+ *  approve something, "them" = the Driver owes something. The page tones the two differently,
+ *  because only the first is work waiting for whoever is reading. */
 export interface Blocker {
   pile: ApprovalPile;
   says: string;
@@ -136,21 +147,24 @@ export interface Blocker {
 
 /** ⚑ Keyed by CarBlock, so a new way for a car to be in the way is a compile error here. */
 const CAR_BLOCKER: Record<CarBlock, Blocker> = {
-  no_car: { pile: "vehicle", says: "No car on file", owed: "them" },
-  car_pending: { pile: "vehicle", says: "Car · with us", owed: "us" },
-  car_rejected: { pile: "vehicle", says: "Car · needs correcting", owed: "them" },
+  no_car: { pile: "vehicle", says: "Car · none yet", owed: "them" },
+  car_pending: { pile: "vehicle", says: "Car · to approve", owed: "us" },
+  car_rejected: { pile: "vehicle", says: "Car · refused", owed: "them" },
 };
+
+const toSend = (n: number) => (n > 0 ? `${n} paper${n > 1 ? "s" : ""} to send` : "papers to send");
 
 /**
  * What stands between a Driver and the Pool, as the admin list names it — in the order a
  * reviewer works through it: the person, their company, their car. Empty means they can work.
  *
  * ⚑ EMPTY EXACTLY WHEN mayTakeWork IS TRUE — tests/driver-blockers.test.ts walks every
- * combination. The founder chose this section to mean "all three approvals" (2026-09-13); a
- * row that says nothing while the Driver cannot work would be the one lie this list can tell.
- * ⚑ THE COMPANY PILL SHOWS ONLY WHILE THE PERSON IS UNAPPROVED. It has no door ([[d137]] rule
- * 1): once a person has been approved, a lapsed Kbis stops nobody working, and a pill for it
- * here would contradict the section it sits in.
+ * combination. A row that says nothing while the Driver cannot work would be the one lie the
+ * "To be approved" list can tell.
+ * ⚑ THE COMPANY GETS ITS OWN PILL WHILE THE PERSON IS UNAPPROVED — the founder expected to see
+ * it *"the same way"* as the person and the car (2026-09-13). It still has no door ([[d137]]
+ * rule 1): approving the person approves their company with them, so once the person is
+ * approved the company says nothing, and a lapsed Kbis alone never lists anybody here.
  */
 export function blockersOf(
   driver: Pick<DriverRow, "verified">,
@@ -164,11 +178,13 @@ export function blockersOf(
   if (!driver.verified) {
     out.push(
       person.state === "todo"
-        ? { pile: "person", says: `Person · ${person.says}`, owed: "them" }
-        : { pile: "person", says: "Person · with us", owed: "us" },
+        ? { pile: "person", says: `Person · ${toSend(owedIn(docsIn(docs, "personal"), now))}`, owed: "them" }
+        : { pile: "person", says: "Person · to approve", owed: "us" },
     );
     if (company.state === "todo") {
-      out.push({ pile: "company", says: `Company · ${company.says}`, owed: "them" });
+      out.push({ pile: "company", says: `Company · ${toSend(owedIn(docsIn(docs, "company"), now))}`, owed: "them" });
+    } else if (company.state === "waiting") {
+      out.push({ pile: "company", says: "Company · to approve", owed: "us" });
     }
   }
   const car = carBlockOf(liveCar);

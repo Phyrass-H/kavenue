@@ -4012,3 +4012,32 @@ just by typing their number another way. Caught by reading, before M5 was pasted
 
 ⚑ **Plates were checked and need no fold.** Both write paths run `normalisePlate` before
 `replace_vehicle`, so the stored plate is already one spelling and M4's index on `plate` is enough.
+
+### D139 — "To be approved" is who cannot work, and an admin reads whose move it is (2026-09-13, S79)
+
+**The founder, on three previews of /admin/drivers step 4:** *"all three approvals, placement is
+good"* · *"To be approved"* · *"the term '… with us' don't really make sense to me"* · *"yes change
+the detail page too"* · then, in the browser, *"both pages look good"*.
+
+1. **MEMBERSHIP IS mayTakeWork, NOT `verified`.** A verified Driver whose car is waiting cannot take
+   a trip either. On the day it shipped, 12 Drivers could not work and only 3 were unverified — a
+   "Not verified" section would have shown the other 9 as fine. SQL (`admin_driver_find`) and
+   TypeScript (`blockersOf`) hold the rule twice; `.local/probe/driver-find.mts` compares them live.
+2. **THE COMPANY HAS ITS OWN PILL WHILE THE PERSON IS UNAPPROVED, and none after.** It still has no
+   door ([[d137]] rule 1): approving the person approves their company with them, so a lapsed Kbis
+   alone never lists anybody here.
+3. **TWO VOCABULARIES, ON PURPOSE.** Every admin surface says whose move it is: "to approve" (amber,
+   Kavenue's) or "N papers to send", "refused", "none yet" (grey, the Driver's). The Driver's own
+   screens keep "with us", where the reader is the one waiting. One function each — `adminPiles`,
+   `approvalPiles` — and the pills are built from `adminPiles`, so the list and the Driver's page
+   cannot drift apart.
+4. **ABOVE THE NUMBERS, AND PERIOD-FREE.** The part a person acts on comes before the part they
+   read; a Driver waiting today is waiting whatever month the band describes.
+5. **THE SEARCH.** Name (either order), email, phone in either spelling, SIRET, the LIVE plate;
+   accents folded in SQL without an extension; a partial phone folded only when dialled with + or
+   00; a 4-digit floor on the needle actually searched for; a sold car's plate is not searched,
+   because the row it would find says what they drive today.
+
+⚑ **Known and left:** `waiting_since` uses the join date for a Driver whose verification was
+withdrawn later (there is no column for when that happened), so such a Driver sorts as if waiting
+since they joined.

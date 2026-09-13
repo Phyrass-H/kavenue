@@ -5,6 +5,18 @@
 
 ---
 
+## 13 September 2026 (later) — find any Driver, and see who is waiting for you
+
+- **A search on the Drivers page.** Type a name (accents don't matter), a phone number however it's
+  written, an email, a plate or a SIRET.
+- **"To be approved", at the top of the page.** Every Driver who can't take trips yet, the one who
+  has waited longest first. Each row says what's missing: amber is yours to approve (person, company,
+  car), grey is waiting on the Driver (papers to send, a refused car, no car yet).
+- **A Driver's own admin page says it the same way** — "to approve" instead of "with us". The
+  Driver's own screens still say "with us", because there it's them who is waiting.
+- **Checked three times by independent reviewers before you saw it.** They caught a hidden limit
+  that would have shown wrong labels once the fleet grows past about a hundred Drivers.
+
 ## 13 September 2026 — the car rule is switched on, and "never twice" works for real
 
 **Every database change from last session is now in.** You pasted the last three today, and each

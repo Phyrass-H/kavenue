@@ -93,11 +93,17 @@ as $$
 with term as (
   select nullif(btrim(p_q), '')                                            as raw,
          fold_text(btrim(p_q))                                             as words,
-         regexp_replace(coalesce(p_q, ''), '\D', '', 'g')                  as digits,
-         case when btrim(coalesce(p_q, '')) ~ '^(\+|00)'
+         -- ⚑ A NUMBER IS SEARCHED ONLY WHEN THE TERM IS ONE — digits and phone punctuation, nothing
+         --   else. An email such as "ines2024@…" held four digits and matched strangers' phones and
+         --   SIRETs (S79 final review). Any other character empties both needles, and the 4-digit
+         --   floor below refuses an empty needle.
+         case when btrim(coalesce(p_q, '')) ~ '^[0-9+()./ -]+$'
+              then regexp_replace(p_q, '\D', '', 'g') else '' end         as digits,
+         case when btrim(coalesce(p_q, '')) !~ '^[0-9+()./ -]+$' then ''
+              when btrim(p_q) ~ '^(\+|00)'
               then regexp_replace(regexp_replace(regexp_replace(p_q, '\D', '', 'g'),
                                                  '^00', ''), '^33(0)?', '0')
-              else regexp_replace(coalesce(p_q, ''), '\D', '', 'g')
+              else regexp_replace(p_q, '\D', '', 'g')
          end                                                               as dialled,
          upper(regexp_replace(coalesce(p_q, ''), '[^A-Za-z0-9]', '', 'g')) as compact
 ),

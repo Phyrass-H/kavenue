@@ -103,7 +103,12 @@ function DocRow({
             })}
           </span>
         )}
-        <span className={`adm-pill ${TONE_CLASS[tone]}`}>{docStateLabel(state, doc)}</span>
+        {/* ⚑ ADMIN WORDS FOR A PAPER NOBODY HAS RULED ON. docStateLabel speaks to the Driver ("With us
+            for review"); the founder asked this page to stop saying "with us" (S79). A pending paper
+            that is also expiring soon is still one a person has to look at. */}
+        <span className={`adm-pill ${TONE_CLASS[tone]}`}>
+          {doc.status === "pending" && state !== "expired" ? "To approve" : docStateLabel(state, doc)}
+        </span>
       </div>
 
       {/* ⚑ A REJECTED DOCUMENT SHOWS ITS OWN NOTE BACK TO THE REVIEWER. Without

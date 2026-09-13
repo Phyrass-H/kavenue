@@ -9,52 +9,63 @@
 
 We're continuing Kavenue (B2B VTC booking marketplace).
 
-## 🎯 START HERE — S79 · EVERY S78 MIGRATION IS IN (2026-09-13)
+## 🎯 START HERE — S79 CLOSED 2026-09-13 · NOTHING TO PASTE · STEP 4 SHIPPED
 
-S78 built **car approval** ([[d137]]): a car must be approved by a person before a Driver can
-work, a car change replaces the car, and every trip keeps the car that did it. S79 finished the
-paste and caught two faults before M5 went in ([[d138]]). **Nothing is waiting to be pasted.**
-
-| # | file | state |
-|---|---|---|
-| M1–M3 | `2026-09-12_…` · `12a` · `12b` · `12c` | ✅ applied 2026-09-12 |
-| M4 | `2026-09-13_vehicle_approval_gate.sql` — the door | ✅ applied 2026-09-13 · `car-gate` 20/20 |
-| M5 | `2026-09-13b_never_twice.sql` — ⚑ **rewritten in S79** (`phone_key`) | ✅ applied 2026-09-13 · `never-twice` 5/5 |
-| M6 | `2026-09-13c_rollups_skip_retired_cars.sql` | ✅ applied 2026-09-13 · smoke only — 0 retired cars, so its effect cannot be seen yet |
-
-### ⏭ FIRST THING
-**The founder, in the browser** (`npm run test-app`): approve Théo's car
-(`/admin/drivers/91a98570-3634-4bf8-8f9e-8a0d9161b52c`), then be him
-(`/api/dev-login?email=test.driver@kavenue.test`) and watch the Pool open. Ask whether it is done.
-
-⚑ **12 OF 14 CARS ARE `pending`** — the founder's ruling (*"yes and yes"*). Only the two probe
-Drivers (approved by `seed-probe-accounts.mts`) can accept. Expected, not a bug.
-
-### ⚑ TWO S79 LESSONS
-1. ⚑⚑ **Simulate a fix against the WHOLE table, not the rows you believe are involved.** S78's
-   seed de-duplicated the two probe Drivers against each other — and handed them Théo's phone and
-   Marc Fontaine's card. M5 would have failed on the paste.
-2. ⚑ **A throw-away Postgres in the scratchpad needs TCP.** The socket path is longer than macOS's
-   104 bytes → *"could not create any Unix-domain sockets"*. Start it with
-   `-o "-p 54799 -c unix_socket_directories='' -c listen_addresses=127.0.0.1"`.
+S79 finished S78's paste — M4, M5 (rewritten, [[d138]]), M6 — then built **step 4**: a search and a
+**"To be approved"** section on `/admin/drivers`, in words the founder chose on three previews
+([[d139]]). The founder checked both admin pages in the browser: *"both pages look good"*.
 
 ### State
-
 | | |
 |---|---|
-| `main` | S79 merged 2026-09-13 (branch `s79-paste-fixes`) |
-| tests | **1178** |
+| `main` | S79 merged 2026-09-13 (`s79-paste-fixes`, `s79-admin-drivers-search`), CI green |
+| applied live | every file in `docs/migrations/` up to and including `2026-09-13d_admin_driver_find.sql` |
+| tests | **1212** |
 | `handoff-check` | **107** |
-| probes | `car-gate.mts` · `never-twice.mts` (new) · `business-census.mts` — all in `.local/probe/` |
-| live fleet | 14 cars · 2 approved · 12 pending · 0 retired |
-| expected red | the seeded live trips age out — re-seeded 2026-09-13 (`npx tsx .local/seed/seed-live.mts`) |
+| probes | `car-gate.mts` 20/20 · `never-twice.mts` 5/5 · `driver-find.mts` 15/15 · `business-census.mts` |
+| live fleet | 14 cars · 2 approved (the probe Drivers) · 12 pending (the founder's ruling). Théo's may now be approved — `handoff-check` prints the count |
+| expected red | the seeded live trips age out (`npx tsx .local/seed/seed-live.mts` — it only inserts pooled trips) |
+
+### ⏭ FIRST THING
+Ask the founder what today is ([[wait-for-go-ahead]]). The standing order is **step 5**, below.
+
+### ⚑ S79 LESSONS
+1. ⚑⚑ **Simulate a fix against the WHOLE table, not the rows you believe are involved.** S78's seed
+   de-duplicated the two probe Drivers against each other — and handed them Théo's phone and Marc
+   Fontaine's card. M5 would have failed on the paste.
+2. ⚑⚑ **An unbounded select stops at 1 000 rows WITHOUT an error.** Anything that FEEDS a rule must
+   page (`readAll`, lib/admin-list.ts) and treat a failed page as "unread", never as "empty".
+3. ⚑⚑ **A failed read must not draw confident facts.** An empty car list reads "none yet" and empty
+   papers read "to send". Show "unread" — and make every sentence around the rows true in that state.
+4. ⚑ **A throw-away Postgres in the scratchpad:** TCP only (the socket path passes macOS's 104
+   bytes): `-o "-p 54799 -c unix_socket_directories='' -c listen_addresses=127.0.0.1"`; and
+   `create database … encoding 'UTF8' template template0`, because `initdb --locale=C` defaults to
+   SQL_ASCII, where `translate()` works on bytes and a fold test can pass for the wrong reason.
+5. ⚑ **Reviews as workflows of read-only agents paid for themselves:** three rounds, a dozen real
+   defects, nothing written to the database. Every finding was verified by a skeptic before fixing.
+6. ⚑ **Do not sign in as admin through `/api/dev-login`.** It can create users and reset passwords,
+   and the admin account is the real `admin@kavenue.fr`. The founder does the browser check.
+
+### ⚑ LEFT OPEN FROM S79's FINAL REVIEW — none blocks
+- ⚑ **`2026-09-13d_admin_driver_find.sql` was edited after it was applied** (numbers are searched only
+  when the term is one). Run `npx tsx .local/probe/driver-find.mts`: if "an email holding digits…" is
+  red, it was not re-pasted — paste it again, it is safe to re-run.
+- `fold_text` folds French accents only; Ş Ğ ı Ă Ș Ț Ł are not folded.
+- The detail tile says "Vehicle", the list pill says "Car" — one word would be tidier.
+- Between 721 and 860px the lone fallback pill in "To be approved" sits right, not under the name
+  (the later `.adm-row .adm-pill` rule wins on source order).
+- A pasted 80-character term cut mid-emoji makes the RPC fail, and the page then blames the migration.
 
 ## 🔜 WHAT IS NEXT, in the founder's own order
 
-Given 2026-09-09 and unchanged: **step 4** search + a "Not verified" section on `/admin/drivers`
-· **step 5** a Vehicles page with search and analytics · **step 6** Driver analytics by région /
-city. S78 ran the analytics brainstorm that feeds 5 and 6, then built the car approval it turned
-up as urgent.
+Given 2026-09-09: ~~step 4~~ **shipped S79** ([[d139]]) · **step 5** a Vehicles page with search and
+analytics · **step 6** Driver analytics by région / city. S78 ran the analytics brainstorm that
+feeds 5 and 6.
+
+⚑ **Step 5 can stand on S79's pieces:** `fold_text` and the dialled-phone / compact-plate matching
+in `admin_driver_find`; `latestSlots` for papers without signed URLs; `adminPiles` for a car's
+approval in admin words; `readAll` for anything that feeds a count. And the loop the founder signed
+off three times: a preview built from live rows → build → a review workflow → the founder's browser.
 
 **⚑ The brainstorm's conclusions, worth re-reading before scoping 5 and 6:**
 - Supply vs demand per class × body is the core of the Vehicles page (demo data: First trips

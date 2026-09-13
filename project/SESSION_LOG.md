@@ -5,6 +5,50 @@
 
 ---
 
+## 2026-09-13 — SESSION 79 (close) — step 4 shipped · tests 1178 → 1212 · nothing left to paste
+
+### Closing state
+| | |
+|---|---|
+| `main` | fast-forwarded from `s79-paste-fixes` and `s79-admin-drivers-search`, CI green |
+| applied live | M4 · M5 (rewritten, `phone_key`) · M6 · **13d `admin_driver_find`** |
+| probes | `car-gate` 20/20 · `never-twice` 5/5 · **`driver-find` 15/15** (new) |
+| founder | checked `/admin/drivers` and a Driver's admin page in the browser: *"both pages look good"* |
+
+### Step 4 — /admin/drivers: a search, and "To be approved" ([[d139]])
+Three previews, each signed off before building: *"all three approvals, placement is good"* →
+*"To be approved"*, *"the term '… with us' don't really make sense to me"*, the company shown *"the
+same way"* → *"yes change the detail page too"*.
+- `docs/migrations/2026-09-13d_admin_driver_find.sql` — `fold_text()` (translate; no `unaccent`
+  extension assumed) and `admin_driver_find(p_q, p_blocked, p_limit, p_offset)`: invoker rights,
+  trips aggregated for the page only. Search: name either order, email, phone (stored digits, or
+  national form — a partial number folded only when dialled with + or 00), SIRET, the LIVE plate.
+  4-digit floor measured on the needle after the fold; `strpos`, never `like`. Dry run 33/33.
+- `lib/document-views.ts` — `latestSlots` lifted out of `getLatestDocuments`, so the list reads the
+  papers of ≤120 Drivers (paged through `readAll`) without signing URLs.
+- `lib/driver-approvals.ts` — `adminPiles()` (approvalPiles' states, admin words) and `blockersOf()`
+  built from it. `approvalPiles()` untouched: the Driver's own screens keep "with us".
+- `app/admin/drivers/page.tsx` — search box, "To be approved" above the band (period-free), pills on
+  every row; the detail page's tiles via `adminPiles`. CSS `.adm-row--fleet`, `.adm-row--blocked`, 860px.
+
+### Three reviews, as workflows of read-only agents, each finding verified by a skeptic
+- Review 1 (4 lenses, 12 agents) → 7 confirmed: the papers read hit PostgREST's **silent 1 000-row
+  cap**; a failed read drew confident WRONG pills under a note saying they were missing;
+  widening `.adm-row--4` squeezed /admin/businesses; no narrow layout; plus a repeated `?q=` crash,
+  the phone floor measured before the fold, "+33 6 12" not meeting a nationally stored phone.
+- Re-check (5 agents) → the "To be approved" sub-line contradicted the unread note; 721–780px left
+  names no room; folding every leading 33 let a SIRET fragment ("332 737") match strangers' phones.
+- Final review (3 lenses, 7 agents) → 3 more, fixed before the merge: the detail page's papers still
+  said "With us for review" under tiles saying "to approve"; an email holding 4+ digits searched
+  phones and SIRETs (numbers are now searched only when the term IS one — **13d edited after it was
+  applied, re-paste needed**); a pending paper expiring within 30 days read "valid" and hid the Company
+  pill (waiting now counts the review status, not docState). Dry run 35/35. Low items → NEXT_SESSION.
+⚑ **The dry run lied once.** `initdb --locale=C` defaults to SQL_ASCII, where `translate()` works on
+bytes — "elodie" passed only because it matched her EMAIL. Test databases are now `encoding 'UTF8'
+template template0`, and a search fixture's email never contains the name under test.
+
+---
+
 ## 2026-09-13 — SESSION 79 — the paste finished, and two faults caught before M5 went in
 
 **The founder's scope:** *"All of it"* — finish M4–M6, verify each, then step 4 (preview first).

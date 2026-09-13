@@ -71,7 +71,11 @@ function papersState(docs: readonly DocFacts[], now: Date): { state: PileState; 
   const states = docs.map((d) => docState(d, now));
   const owed = owedIn(docs, now);
   if (owed > 0) return { state: "todo", says: `${owed} paper${owed > 1 ? "s" : ""} to add` };
-  const waiting = states.filter((s) => s === "pending").length;
+  // ⚑ FROM THE REVIEW STATUS, NOT docState. docState ranks expiry above review, so a pending RC Pro
+  //   expiring within 30 days read "expiring" — the pile said "valid" with nobody having looked at
+  //   it, and the Company pill vanished from the admin list (S79 final review). Expired papers are
+  //   already counted as owed above, so every pending paper left here is one a person must look at.
+  const waiting = docs.filter((d) => d.status === "pending").length;
   if (waiting > 0) return { state: "waiting", says: `${waiting} with us` };
   const expiring = states.filter((s) => s === "expiring").length;
   if (expiring > 0) return { state: "done", says: `valid · ${expiring} expiring soon` };

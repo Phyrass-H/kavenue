@@ -117,6 +117,16 @@ if (named) {
   const byName = await find(named.last_name);
   t("a surname does not return the whole fleet", byName.rows.length < drivers.length, `${byName.rows.length} of ${drivers.length}`);
 }
+// ⚑ An email-shaped term with digits in it must search no phone and no SIRET (S79 final review). Built
+//   from the fleet: one Driver's email name, plus the last four digits of ANOTHER Driver's phone.
+const donor = drivers.find((d) => String(d.phone ?? "").replace(/\D/g, "").length >= 8);
+const other = drivers.find((d) => d.id !== donor?.id && String(d.email ?? "").includes("@"));
+if (donor && other) {
+  const term = `${String(other.email).split("@")[0]}${String(donor.phone).replace(/\D/g, "").slice(-4)}@`;
+  const { rows } = await find(term);
+  t(`an email holding digits searches no phone: "${term}" finds nobody`, rows.length === 0,
+    rows.length ? `${rows.map((r) => who(r.id)).join(", ")} — re-paste 2026-09-13d` : "0 row(s)");
+}
 const wild = await find("%");
 t("% is a character, not a wildcard", wild.rows.length === 0, `${wild.rows.length} row(s)`);
 

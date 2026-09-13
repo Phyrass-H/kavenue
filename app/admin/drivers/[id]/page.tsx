@@ -22,7 +22,7 @@ import { getLatestDocuments } from "@/lib/documents";
 import { DRIVER_DOC_TYPES } from "@/lib/account";
 import { AdminDocumentReview } from "@/components/admin-document-review";
 import { liveCarOf, statusOf } from "@/lib/vehicle-approval";
-import { approvalPiles } from "@/lib/driver-approvals";
+import { adminPiles } from "@/lib/driver-approvals";
 import { formatDate } from "@/lib/format";
 
 const PER_PAGE = 40;
@@ -70,7 +70,7 @@ export default async function AdminDriverPage({
   //   trips point at it.
   const fleet = vehicles ?? [];
   const car = liveCarOf(fleet);
-  const piles = approvalPiles(driver, car, docs);
+  const piles = adminPiles(driver, car, docs);
   // ⚑ EVERY ROW THAT IS NOT THE ONE ABOVE — `fleet.slice(1)` described the CURRENT car the
   //   moment a Driver had a retired one, because a retired row is the older of the two.
   const others = fleet.filter((v) => v.id !== car?.id);

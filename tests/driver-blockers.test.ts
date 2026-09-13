@@ -1,13 +1,14 @@
-// "To be approved" on /admin/drivers — the pills each row carries (S79, step 4).
+// "To be approved" on /admin/drivers, and the three tiles on a Driver's admin page (S79, step 4).
 //
-// ⚑ THE SECTION IS mayTakeWork, AND THE PILLS COME FROM approvalPiles. The founder chose "all
+// ⚑ THE SECTION IS mayTakeWork, AND EVERY ADMIN WORD COMES FROM adminPiles. The founder chose "all
 // three approvals" over "person only" on a preview built from the live fleet, then renamed the
 // section and the pills on a second one (2026-09-13): "To be approved", "to approve" instead of
-// "with us", and the company shown "the same way" as the person and the car. These pin who is
-// listed, and what each row says about them.
+// "with us", the company shown "the same way" as the person and the car — and "yes change the
+// detail page too". These pin who is listed, what each row and tile says, and that the Driver's
+// own screens keep their own words.
 import { describe, expect, it } from "vitest";
 import { DRIVER_DOC_TYPES, driverDocTypes } from "@/lib/account";
-import { blockersOf, mayTakeWork, type DocFacts } from "@/lib/driver-approvals";
+import { adminPiles, approvalPiles, blockersOf, mayTakeWork, type DocFacts } from "@/lib/driver-approvals";
 import type { DocumentStatus } from "@/lib/database.types";
 
 const NOW = new Date("2026-09-13T12:00:00Z");
@@ -29,6 +30,10 @@ const car = (approval_status: "pending" | "approved" | "rejected", retired_at: s
 const toSend = (n: number) => `${n} paper${n > 1 ? "s" : ""} to send`;
 const says = (driver: { verified: boolean }, liveCar: ReturnType<typeof car> | null, docs: DocFacts[]) =>
   blockersOf(driver, liveCar, docs, NOW).map((b) => b.says);
+
+/** Every combination the tests below walk. */
+const CARS = [null, car("pending"), car("approved"), car("rejected"), car("approved", "2026-09-01T00:00:00Z")];
+const FILES = [filed("verified"), filed("pending"), filed(null), withGroup(filed("pending"), "company", null)];
 
 describe("blockersOf — what a row in To be approved says", () => {
   it("a Driver who can work carries no pill at all", () => {
@@ -93,11 +98,9 @@ describe("blockersOf — what a row in To be approved says", () => {
   });
 
   it("⚑ is empty exactly when mayTakeWork is true, in every combination", () => {
-    const cars = [null, car("pending"), car("approved"), car("rejected"), car("approved", "2026-09-01T00:00:00Z")];
-    const files = [filed("verified"), filed("pending"), filed(null)];
     for (const verified of [true, false]) {
-      for (const liveCar of cars) {
-        for (const docs of files) {
+      for (const liveCar of CARS) {
+        for (const docs of FILES) {
           const listed = blockersOf({ verified }, liveCar, docs, NOW).length > 0;
           expect(listed, JSON.stringify({ verified, liveCar, first: docs[0]!.status })).toBe(
             !mayTakeWork({ verified }, liveCar),
@@ -105,5 +108,71 @@ describe("blockersOf — what a row in To be approved says", () => {
         }
       }
     }
+  });
+});
+
+describe("adminPiles — the three tiles on a Driver's admin page, in the list's words", () => {
+  const tiles = (driver: { verified: boolean }, liveCar: ReturnType<typeof car> | null, docs: DocFacts[]) =>
+    adminPiles(driver, liveCar, docs, NOW).map((p) => [p.pile, p.state, p.says]);
+
+  it("a Driver who can work: all three done", () => {
+    expect(tiles({ verified: true }, car("approved"), filed("verified"))).toEqual([
+      ["person", "done", "approved"],
+      ["company", "done", "valid"],
+      ["vehicle", "done", "approved"],
+    ]);
+  });
+
+  it("a file under review: to approve, three times", () => {
+    expect(tiles({ verified: false }, car("pending"), filed("pending"))).toEqual([
+      ["person", "waiting", "to approve"],
+      ["company", "waiting", "to approve"],
+      ["vehicle", "waiting", "to approve"],
+    ]);
+  });
+
+  it("what the Driver owes: papers to send, a refused car, no car at all", () => {
+    const n = driverDocTypes("personal").length;
+    const m = driverDocTypes("company").length;
+    expect(tiles({ verified: false }, car("rejected"), filed(null))).toEqual([
+      ["person", "todo", toSend(n)],
+      ["company", "todo", toSend(m)],
+      ["vehicle", "todo", "refused"],
+    ]);
+    expect(tiles({ verified: true }, null, filed("verified"))[2]).toEqual(["vehicle", "todo", "none yet"]);
+  });
+
+  it("⚑ the list's pills are the tiles' words — one spelling for both admin screens", () => {
+    for (const verified of [true, false]) {
+      for (const liveCar of CARS) {
+        for (const docs of FILES) {
+          const words = new Set(adminPiles({ verified }, liveCar, docs, NOW).map((p) => p.says));
+          for (const b of blockersOf({ verified }, liveCar, docs, NOW)) {
+            expect(words).toContain(b.says.split(" · ").slice(1).join(" · "));
+          }
+        }
+      }
+    }
+  });
+
+  it("⚑ changes the words, never the state — and never says 'with us'", () => {
+    for (const verified of [true, false]) {
+      for (const liveCar of CARS) {
+        for (const docs of FILES) {
+          const admin = adminPiles({ verified }, liveCar, docs, NOW);
+          const driverSide = approvalPiles({ verified }, liveCar, docs, NOW);
+          expect(admin.map((p) => p.state)).toEqual(driverSide.map((p) => p.state));
+          for (const p of admin) expect(p.says).not.toMatch(/with us/);
+        }
+      }
+    }
+  });
+
+  it("the Driver's own screens keep their words", () => {
+    expect(approvalPiles({ verified: false }, car("pending"), filed("pending"), NOW).map((p) => p.says)).toEqual([
+      "your file is with us",
+      `${driverDocTypes("company").length} with us`,
+      "with us",
+    ]);
   });
 });

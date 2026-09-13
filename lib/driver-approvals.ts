@@ -17,7 +17,7 @@
 import { docState, driverDocTypes, type DocState } from "@/lib/account";
 import type { DocView } from "@/lib/documents";
 import type { DriverRow, VehicleRow } from "@/lib/database.types";
-import { carBlockOf, statusOf, type CarBlock } from "@/lib/vehicle-approval";
+import { carBlockOf, statusOf } from "@/lib/vehicle-approval";
 
 export type ApprovalPile = "person" | "company" | "vehicle";
 
@@ -51,6 +51,8 @@ export const PILE_LABEL_ADMIN: Record<ApprovalPile, string> = {
  *  list passes one slot per paper from lib/document-views.ts, without the signed URLs. */
 export type DocFacts = Pick<DocView, "type" | "status" | "expiresAt">;
 
+type LiveCar = Pick<VehicleRow, "approval_status" | "retired_at"> | null;
+
 const NEEDS_THEM: readonly DocState[] = ["missing", "rejected", "expired"];
 
 /** The papers of one pile. */
@@ -81,7 +83,7 @@ function papersState(docs: readonly DocFacts[], now: Date): { state: PileState; 
  *  timezones in them. */
 export function approvalPiles(
   driver: Pick<DriverRow, "verified">,
-  liveCar: Pick<VehicleRow, "approval_status" | "retired_at"> | null,
+  liveCar: LiveCar,
   docs: readonly DocFacts[],
   now: Date = new Date(),
 ): Pile[] {
@@ -121,20 +123,54 @@ export function approvalPiles(
  *  half (driver.verified in accept_mission/place_hold, the car in the S78 trigger), and this
  *  must never be the only test. A screen that decides who may work is a screen someone can
  *  skip with a stale tab. */
-export function mayTakeWork(
-  driver: Pick<DriverRow, "verified">,
-  liveCar: Pick<VehicleRow, "approval_status" | "retired_at"> | null,
-): boolean {
+export function mayTakeWork(driver: Pick<DriverRow, "verified">, liveCar: LiveCar): boolean {
   return Boolean(driver.verified) && Boolean(liveCar) && !liveCar!.retired_at
     && statusOf(liveCar) === "approved";
 }
 
-// ── S79 — what the admin Drivers list says on a row ─────────────────────────────────────
+// ── S79 — the same three piles, in the words an ADMIN reads ─────────────────────────────
 //
-// ⚑ THE FOUNDER'S WORDS, on the preview of 2026-09-13: the section is *"To be approved"*, and
-// *"the term '… with us' don't really make sense to me"*. So the admin pill says either what a
-// person at Kavenue has to do ("to approve") or what the Driver has to do ("2 papers to send",
-// "refused", "none yet"). "with us" stays on the DRIVER's own screen, where it means exactly that.
+// ⚑ THE FOUNDER, 2026-09-13, on the running page: the section is *"To be approved"*, and *"the
+// term '… with us' don't really make sense to me"* — then *"yes change the detail page too"*.
+// So everywhere an admin reads a pile — the list's pills and the tiles on a Driver's page — it
+// says either what a person at Kavenue has to do ("to approve") or what the Driver has to do
+// ("2 papers to send", "refused", "none yet"). "with us" stays on the DRIVER's own screens, where
+// the reader is the one waiting and it means exactly that.
+// ⚑ ONE SPELLING FOR BOTH ADMIN SCREENS. The pills are built from adminPiles below, so the list
+// and the Driver's page cannot drift apart the way four spellings of "this Driver's car" did.
+
+const TO_APPROVE = "to approve";
+
+const toSend = (n: number) => (n > 0 ? `${n} paper${n > 1 ? "s" : ""} to send` : "papers to send");
+
+/** A pile's state in an admin's words. The STATE never changes — only the sentence. */
+function adminSays(p: Pile, liveCar: LiveCar, docs: readonly DocFacts[], now: Date): string {
+  switch (p.state) {
+    case "done":
+      // "approved", "valid", "valid · 1 expiring soon" — already the words an admin would use.
+      return p.says;
+    case "waiting":
+      return TO_APPROVE;
+    case "todo":
+      if (p.pile === "vehicle") return carBlockOf(liveCar) === "car_rejected" ? "refused" : "none yet";
+      return toSend(owedIn(docsIn(docs, p.pile === "person" ? "personal" : "company"), now));
+    default: {
+      // ⚑ A fourth PileState is a compile error here, not a tile with no words.
+      const unreachable: never = p.state;
+      return unreachable;
+    }
+  }
+}
+
+/** The three tiles on a Driver's admin page: approvalPiles' states, in the admin's words. */
+export function adminPiles(
+  driver: Pick<DriverRow, "verified">,
+  liveCar: LiveCar,
+  docs: readonly DocFacts[],
+  now: Date = new Date(),
+): Pile[] {
+  return approvalPiles(driver, liveCar, docs, now).map((p) => ({ ...p, says: adminSays(p, liveCar, docs, now) }));
+}
 
 /** One pill on an admin row. `owed` is whose move it is: "us" = a person at Kavenue has to
  *  approve something, "them" = the Driver owes something. The page tones the two differently,
@@ -145,14 +181,9 @@ export interface Blocker {
   owed: "us" | "them";
 }
 
-/** ⚑ Keyed by CarBlock, so a new way for a car to be in the way is a compile error here. */
-const CAR_BLOCKER: Record<CarBlock, Blocker> = {
-  no_car: { pile: "vehicle", says: "Car · none yet", owed: "them" },
-  car_pending: { pile: "vehicle", says: "Car · to approve", owed: "us" },
-  car_rejected: { pile: "vehicle", says: "Car · refused", owed: "them" },
-};
-
-const toSend = (n: number) => (n > 0 ? `${n} paper${n > 1 ? "s" : ""} to send` : "papers to send");
+/** The pill's first word. "Car", not PILE_LABEL_ADMIN's "Vehicle": it is what the founder
+ *  approved on the preview, and it is the shorter word on a crowded row. */
+const PILL_WORD: Record<ApprovalPile, string> = { person: "Person", company: "Company", vehicle: "Car" };
 
 /**
  * What stands between a Driver and the Pool, as the admin list names it — in the order a
@@ -168,26 +199,22 @@ const toSend = (n: number) => (n > 0 ? `${n} paper${n > 1 ? "s" : ""} to send` :
  */
 export function blockersOf(
   driver: Pick<DriverRow, "verified">,
-  liveCar: Pick<VehicleRow, "approval_status" | "retired_at"> | null,
+  liveCar: LiveCar,
   docs: readonly DocFacts[],
   now: Date = new Date(),
 ): Blocker[] {
   if (mayTakeWork(driver, liveCar)) return [];
-  const [person, company] = approvalPiles(driver, liveCar, docs, now);
+  const [person, company, vehicle] = adminPiles(driver, liveCar, docs, now);
+  const pill = (p: Pile): Blocker => ({
+    pile: p.pile,
+    says: `${PILL_WORD[p.pile]} · ${p.says}`,
+    owed: p.state === "waiting" ? "us" : "them",
+  });
   const out: Blocker[] = [];
   if (!driver.verified) {
-    out.push(
-      person.state === "todo"
-        ? { pile: "person", says: `Person · ${toSend(owedIn(docsIn(docs, "personal"), now))}`, owed: "them" }
-        : { pile: "person", says: "Person · to approve", owed: "us" },
-    );
-    if (company.state === "todo") {
-      out.push({ pile: "company", says: `Company · ${toSend(owedIn(docsIn(docs, "company"), now))}`, owed: "them" });
-    } else if (company.state === "waiting") {
-      out.push({ pile: "company", says: "Company · to approve", owed: "us" });
-    }
+    out.push(pill(person));
+    if (company.state !== "done") out.push(pill(company));
   }
-  const car = carBlockOf(liveCar);
-  if (car) out.push(CAR_BLOCKER[car]);
+  if (vehicle.state !== "done") out.push(pill(vehicle));
   return out;
 }

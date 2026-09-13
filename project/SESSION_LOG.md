@@ -5,6 +5,69 @@
 
 ---
 
+## 2026-09-13 — SESSION 79 — the paste finished, and two faults caught before M5 went in
+
+**The founder's scope:** *"All of it"* — finish M4–M6, verify each, then step 4 (preview first).
+
+### Closing state of the paste
+| | |
+|---|---|
+| applied live | **M4 the door · M5 never twice · M6 the rollups** — every S78 migration is now in |
+| `car-gate` | **20/20** after M4, both directions; its trip and car deleted, the restore asserted |
+| `never-twice` (new) | **5/5** after M5 — a duplicate in another spelling is refused, and named |
+| `handoff-check` | 107 checks, 0 fail · 2 drifted claims, both known (trips aged out → re-seeded; branch ≠ main) |
+| tests | 1178 · `tsc` clean · CI green on `s79-paste-fixes` |
+| live fleet | 14 cars: **2 approved** (the probe Drivers, by the seed) · 12 pending · 0 retired |
+
+### ⚑⚑ FAULT 1 — S78's seed repair moved the collision instead of removing it
+M5's header said all four duplicates were the probe Drivers sharing one hard-coded set. Measured
+live: phone + SIRET were demo.driver + s46.driver, but **REVTC + card were demo.driver +
+`marc.fontaine@kavenue.test`**. Simulating the S78 seed over the WHOLE `driver` table showed its new
+values handed demo.driver **Théo's phone** (`+33 6 00 00 00 01`, `seed-test-driver.mts:64`) and
+s46.driver **Marc's card** (`06-2024-00412`) — M5 would still have failed on two indexes. New
+fixtures (`+33 6 00 00 99 0n`, `06-2024-9941n`) simulated at 0 collisions across all 14 Drivers
+before the seed ran. ⚑ Simulate a fix against the whole table, not the rows you believe are involved.
+
+### ⚑⚑ FAULT 2 — the phone lock did not fold +33 ([[d138]])
+`driver_phone_uq` / `business_phone_uq` indexed `regexp_replace(phone, '\D', '', 'g')`, so
+`+33 6 12 34 56 78` (33612345678) and `06 12 34 56 78` (0612345678) were two values — while § 1's
+own comment claimed the opposite. No write path normalises a phone (`settings/actions.ts:86`,
+`onboarding-business/actions.ts:95`, the dispatch settings all store what was typed); all 14 live
+phones are `+33 …` only because seeds wrote them so. Plates checked and fine: both write paths run
+`normalisePlate` before `replace_vehicle`, so M4's raw `plate` index sees one spelling.
+Fix: `phone_key(text)`, IMMUTABLE SQL — digits → drop a leading `00` → `^33(0)?(\d{9})$` → `0\1`.
+Both indexes rebuilt on it and **dropped first** (`if not exists` would silently keep an S78-shaped
+index); the pre-flight now covers all ten indexes, not four. ⚑ EXECUTE stays PUBLIC: an index
+expression is evaluated as the writer, so revoking it turns every phone save from a signed-in
+session into 42501 — proved on the dry run. Trap 1's rule is for SECURITY DEFINER readers.
+
+### The dry run
+Throw-away Postgres 17 + stand-in schema (`scratchpad/pg/dryrun.sh`): **31/31** — clean apply and
+re-run; the fold (national · +33 · 0033 · +33 (0) · Monaco); refusals on insert and update; a daughter
+Business exempt; EXECUTE revoked → 42501; dirty data fails loud with the pre-flight naming it; an
+S78-shaped index replaced. ⚑ `pg_ctl` in the scratchpad died with *"could not create any Unix-domain
+sockets"*: the socket path is longer than the 104 bytes macOS allows. TCP only:
+`-o "-p 54799 -c unix_socket_directories='' -c listen_addresses=127.0.0.1"`.
+`tests/duplicate.test.ts` caught the first draft: it asserts the literal `create unique index if not
+exists <name>`, so the rebuilt indexes keep `if not exists` after their drop.
+
+### Also
+- `.local/probe/never-twice.mts` — new. A guard stops it before M5 with nothing written (run, and
+  seen to stop); every duplicate is spelled differently from the stored value, which is what an
+  S78-shaped index would have passed; an accepted one is restored and the restore asserted; each
+  refusal must map through `duplicateWhy`.
+- `seed-live.mts` re-run — it only inserts `pooled` trips, so M4's trigger never sees it: 7 live.
+- M6 smoke: both RPCs answer and `admin_driver_page` names the live car for 14/14. Its effect is
+  unobservable until a car is retired — said, not claimed.
+- Step 4 map (read-only): `/admin/drivers` is one server component with no `q`; the list RPC returns
+  `verified` alone and the three approvals are computed only on the detail page; `/admin` already
+  has a server-side `?q=` (ilike, no folding); `lib/history-filter.ts` has `fold` / `matchRow`.
+
+### ⏭ Next
+The founder approves Théo's car and watches his Pool open · then step 4, preview first.
+
+---
+
 ## 2026-09-12 — SESSION 78 (close) — tests 1137 → 1178 · gate 95 → 107 · 7 migrations, 4 applied
 
 **One brainstorm, one bug fixed, one feature built end to end, and three reviews that earned it.**

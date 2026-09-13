@@ -9,48 +9,45 @@
 
 We're continuing Kavenue (B2B VTC booking marketplace).
 
-## 🎯 START HERE — S78 CLOSED 2026-09-12 · ⚑ THREE MIGRATIONS ARE STILL UNPASTED
+## 🎯 START HERE — S79 · EVERY S78 MIGRATION IS IN (2026-09-13)
 
-S78 built **car approval**: a car must be approved by a person before a Driver can work, a car
-change replaces the car rather than editing it, and every trip keeps the car that actually did
-it. Full reasoning in [[d137]]; the founder's own words are quoted there.
-
-### ⚑⚑ FIRST THING: FINISH THE PASTE. The code is live, the door is not.
+S78 built **car approval** ([[d137]]): a car must be approved by a person before a Driver can
+work, a car change replaces the car, and every trip keeps the car that did it. S79 finished the
+paste and caught two faults before M5 went in ([[d138]]). **Nothing is waiting to be pasted.**
 
 | # | file | state |
 |---|---|---|
-| M1 | `2026-09-12_vehicle_lifecycle_columns.sql` | ✅ applied 2026-09-12 |
-| M1b | `2026-09-12a_mission_read_carries_the_car.sql` | ✅ applied |
-| M2 | `2026-09-12b_history_backfill.sql` | ✅ applied — 296 trips carry a frozen car, 22 papers linked |
-| M3 | `2026-09-12c_vehicle_and_driver_event.sql` | ✅ applied — both logs exist, 0 rows |
-| **M4** | **`2026-09-13_vehicle_approval_gate.sql`** | ⏭ **THE DOOR — not pasted** |
-| **M5** | **`2026-09-13b_never_twice.sql`** | ⏭ not pasted · ⚑ run `npx tsx .local/seed/seed-probe-accounts.mts` FIRST or four indexes fail |
-| **M6** | **`2026-09-13c_rollups_skip_retired_cars.sql`** | ⏭ not pasted — the console still names a retired car until it lands |
+| M1–M3 | `2026-09-12_…` · `12a` · `12b` · `12c` | ✅ applied 2026-09-12 |
+| M4 | `2026-09-13_vehicle_approval_gate.sql` — the door | ✅ applied 2026-09-13 · `car-gate` 20/20 |
+| M5 | `2026-09-13b_never_twice.sql` — ⚑ **rewritten in S79** (`phone_key`) | ✅ applied 2026-09-13 · `never-twice` 5/5 |
+| M6 | `2026-09-13c_rollups_skip_retired_cars.sql` | ✅ applied 2026-09-13 · smoke only — 0 retired cars, so its effect cannot be seen yet |
 
-**The order, and why:** M4 refuses work for an unapproved car, so it must land AFTER the code
-that expects it (on `main` since S78). M5 needs the probe seed to have de-duplicated its own
-fixtures. M6 is cosmetic and last.
+### ⏭ FIRST THING
+**The founder, in the browser** (`npm run test-app`): approve Théo's car
+(`/admin/drivers/91a98570-3634-4bf8-8f9e-8a0d9161b52c`), then be him
+(`/api/dev-login?email=test.driver@kavenue.test`) and watch the Pool open. Ask whether it is done.
 
-**After M4, in this order:**
-1. `npx tsx .local/probe/car-gate.mts` — both directions, on a trip it creates and deletes. Run
-   it only AFTER M4; before that it reports red and names the file to paste.
-2. `node --experimental-strip-types .local/probe/handoff-check.ts` — 107 checks.
-3. The founder, in the browser: approve Théo's car
-   (`/admin/drivers/91a98570-3634-4bf8-8f9e-8a0d9161b52c`), then be him
-   (`/api/dev-login?email=test.driver@kavenue.test`) and watch the Pool open.
+⚑ **12 OF 14 CARS ARE `pending`** — the founder's ruling (*"yes and yes"*). Only the two probe
+Drivers (approved by `seed-probe-accounts.mts`) can accept. Expected, not a bug.
 
-⚑ **ALL 14 CARS ARE `pending` RIGHT NOW** — the founder's ruling (*"yes and yes"*). Until one is
-approved, nobody can accept anything the moment M4 lands. That is expected, not a bug.
+### ⚑ TWO S79 LESSONS
+1. ⚑⚑ **Simulate a fix against the WHOLE table, not the rows you believe are involved.** S78's
+   seed de-duplicated the two probe Drivers against each other — and handed them Théo's phone and
+   Marc Fontaine's card. M5 would have failed on the paste.
+2. ⚑ **A throw-away Postgres in the scratchpad needs TCP.** The socket path is longer than macOS's
+   104 bytes → *"could not create any Unix-domain sockets"*. Start it with
+   `-o "-p 54799 -c unix_socket_directories='' -c listen_addresses=127.0.0.1"`.
 
 ### State
 
 | | |
 |---|---|
-| `main` | S78 merged 2026-09-12 (branch `s78-car-approval`) |
-| tests | 1137 → **1178** |
-| `handoff-check` | 95 → **107** |
-| new probes | `.local/probe/car-gate.mts` · `.local/probe/business-census.mts` |
-| expected red | the seeded live trips aged out (`npx tsx .local/seed/seed-live.mts`) |
+| `main` | S79 merged 2026-09-13 (branch `s79-paste-fixes`) |
+| tests | **1178** |
+| `handoff-check` | **107** |
+| probes | `car-gate.mts` · `never-twice.mts` (new) · `business-census.mts` — all in `.local/probe/` |
+| live fleet | 14 cars · 2 approved · 12 pending · 0 retired |
+| expected red | the seeded live trips age out — re-seeded 2026-09-13 (`npx tsx .local/seed/seed-live.mts`) |
 
 ## 🔜 WHAT IS NEXT, in the founder's own order
 

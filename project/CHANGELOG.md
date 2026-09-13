@@ -5,6 +5,27 @@
 
 ---
 
+## 13 September 2026 — the car rule is switched on, and "never twice" works for real
+
+**Every database change from last session is now in.** You pasted the last three today, and each
+one was tested on the live database straight after:
+
+- **A car nobody has approved can't take work.** Tested both ways on a practice trip that was
+  deleted afterwards: refused while the car was waiting, accepted once it was approved. Right now
+  12 cars are waiting for you; the 2 approved ones belong to the test accounts the checks sign in as.
+- **"Never twice" is on.** A new account can't reuse a phone, email, SIRET, VAT, REVTC or card
+  number that another Driver, Business or Dispatcher already has — and the person is told which
+  one is taken, never whose it is.
+- **The admin Drivers page** stops counting a car a Driver has replaced. Nobody has replaced one
+  yet, so there is nothing to see today.
+
+**Two mistakes caught before you pasted "never twice":**
+- The script meant to clear the duplicate test data would only have moved it — onto Théo's phone
+  number and Marc Fontaine's card number. Fixed, and checked against every Driver first.
+- The phone rule treated "+33 6 12 34 56 78" and "06 12 34 56 78" as two different numbers, so the
+  same person could have signed up twice just by typing their number another way. It now compares
+  the number you would actually dial.
+
 ## 12 September 2026 — a car now has to be approved by a person
 
 You said it plainly: a Driver with no approved car cannot reach the Pool, period, because of

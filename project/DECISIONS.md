@@ -3985,3 +3985,30 @@ approved: *"yes and yes"*. Théo's is the first car approved through the new scr
   index is checked per statement and cannot be deferred. Found by running the migration against
   a throw-away Postgres before it was ever pasted; that dry run is now the habit, not the
   exception.
+
+### D138 — A phone is compared by the number it dials, not by its digits (2026-09-13, S79)
+
+**Corrects how [[d137]] rule 4 was built, not the rule.** The founder's *"phone number … never
+twice"* was implemented in S78 as a unique index on the digits alone, so `+33 6 12 34 56 78`
+(33612345678) and `06 12 34 56 78` (0612345678) were two values, and one person could enrol twice
+just by typing their number another way. Caught by reading, before M5 was pasted.
+
+1. **ONE FOLD, IN THE DATABASE.** `phone_key(text)`: digits only · a leading `00` dropped · `+33`
+   and `+33 (0)` folded onto the national `0`. `driver_phone_uq` and `business_phone_uq` are built
+   on it, and so is M5's pre-flight: one body, the [[d113]] shape again.
+2. **WHY THE INDEX AND NOT THE FORMS.** No write path normalises a phone. Onboarding, settings and
+   the dispatch desk all store what was typed. A normaliser in the app would have to be added to
+   every door, and still leave existing rows mixed. The index is the one place every door passes.
+3. **OTHER COUNTRIES KEEP THEIR CODE.** `+377 93 15 20 00` meets `00377 93 15 20 00`, never a French
+   number. ⚑ Not folded: a foreign number typed WITHOUT its country code. There is no way to tell
+   a Monaco number from a short French one by its digits, so nothing is invented.
+4. **STORED VALUES ARE NOT REWRITTEN.** The person sees the number as they typed it; only the
+   comparison folds. Canonicalising what is stored (for display, or for calling) is a separate
+   choice, not made here.
+5. **EXECUTE STAYS PUBLIC, ON PURPOSE.** An index expression is evaluated as whoever writes the
+   row, so revoking it would turn every phone save from a signed-in session into a 42501 (proved
+   on the S79 dry run). The "always revoke from public" rule is for SECURITY DEFINER functions
+   that read data; `phone_key` reads nothing.
+
+⚑ **Plates were checked and need no fold.** Both write paths run `normalisePlate` before
+`replace_vehicle`, so the stored plate is already one spelling and M4's index on `plate` is enough.

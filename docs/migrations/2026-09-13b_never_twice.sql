@@ -29,9 +29,12 @@
 --     driver.siret           2 rows share 51234567800011
 --     driver.revtc_number    2 rows share EVTC06210024
 --     driver.pro_card_number 2 rows share 06-2024-00412
--- All four are SEED fixtures — `.local/seed/seed-probe-accounts.mts` wrote one hard-coded set
--- onto every probe Driver. The seed now derives them from the account's email and RESTATES
--- them on an existing row, so the fix is to run it, not to delete anybody:
+-- All four involve `demo.driver@pickup.local`, a probe account `.local/seed/seed-probe-accounts.mts`
+-- writes. ⚑ CORRECTED S79 (2026-09-13): the phone and SIRET pair is the two probe Drivers, but
+-- the REVTC and card pair is demo.driver and `marc.fontaine@kavenue.test`, a fleet Driver — and
+-- the S78 repair moved the collision instead of removing it (its new values gave a probe Driver
+-- Théo's phone and Marc's card number). The seed's values now collide with nobody, measured
+-- across every live Driver, so the fix is still to run it, not to delete anybody:
 --     npx tsx .local/seed/seed-probe-accounts.mts      (needs M1, for last_written_via)
 -- ⚑ Deleting the row would not work anyway: `document.owner_id` has no foreign key, that
 -- Driver holds confirmed missions, and `vehicle` cascades — a delete would take a carte grise
@@ -40,18 +43,65 @@
 --
 -- Applied by the founder in the Supabase SQL editor.
 
--- ── 0 · pre-flight: this must return zero rows, or the file below will fail ─────────────
-select 'driver.phone' as what, regexp_replace(phone, '\D', '', 'g') as value, count(*)
+-- ── 0 · one phone rule ──────────────────────────────────────────────────────────────────
+--
+-- ⚑ S79 — A PHONE IS COMPARED BY THE NUMBER IT DIALS, NOT BY ITS DIGITS. The S78 index used
+-- the digits alone, so "+33 6 12 34 56 78" (33612345678) and "06 12 34 56 78" (0612345678)
+-- were two values and one person could enrol twice — the very case § 1 says it prevents.
+-- Nothing normalises a phone before saving (onboarding, settings and the dispatch desk all
+-- store what was typed), so the index is the only place the rule can live.
+-- The fold: digits only · a leading 00 dropped · +33 and +33 (0) onto the national 0.
+-- Other countries keep their code, so "+377 93 15 20 00" meets "00377 93 15 20 00" and never
+-- a French number.
+-- ⚑ EXECUTE STAYS PUBLIC ON PURPOSE. It reads no table and is not SECURITY DEFINER; and an
+-- index expression is evaluated as whoever writes the row, so revoking it would turn every
+-- phone save from a signed-in session into a 42501 (proved on the S79 dry run).
+create or replace function phone_key(p text)
+returns text
+language sql
+immutable
+parallel safe
+as $$
+  select regexp_replace(
+           regexp_replace(regexp_replace(p, '\D', '', 'g'), '^00', ''),
+           '^33(?:0)?(\d{9})$', '0\1')
+$$;
+
+comment on function phone_key(text) is
+  'The number a phone dials, for "never twice": digits, no leading 00, +33 folded onto 0. Indexed by driver_phone_uq and business_phone_uq.';
+
+-- ── 0b · pre-flight: this must return zero rows, or the file below will fail ────────────
+-- ⚑ S79: every index in this file, each with its own expression. The S78 version checked
+-- four Driver fields and skipped the emails, the VAT numbers and the whole Business side.
+select 'driver.email' as what, lower(email) as value, count(*)
+  from driver where email is not null group by 2 having count(*) > 1
+union all
+select 'driver.phone', phone_key(phone), count(*)
   from driver where phone is not null group by 2 having count(*) > 1
 union all
 select 'driver.siret', regexp_replace(siret, '\D', '', 'g'), count(*)
   from driver where siret is not null group by 2 having count(*) > 1
+union all
+select 'driver.vat_number', upper(regexp_replace(vat_number, '[^A-Za-z0-9]', '', 'g')), count(*)
+  from driver where vat_number is not null group by 2 having count(*) > 1
 union all
 select 'driver.revtc_number', upper(regexp_replace(revtc_number, '[^A-Za-z0-9]', '', 'g')), count(*)
   from driver where revtc_number is not null group by 2 having count(*) > 1
 union all
 select 'driver.pro_card_number', upper(regexp_replace(pro_card_number, '[^A-Za-z0-9]', '', 'g')), count(*)
   from driver where pro_card_number is not null group by 2 having count(*) > 1
+union all
+select 'business.siret', regexp_replace(siret, '\D', '', 'g'), count(*)
+  from business where siret is not null and parent_business_id is null group by 2 having count(*) > 1
+union all
+select 'business.vat_number', upper(regexp_replace(vat_number, '[^A-Za-z0-9]', '', 'g')), count(*)
+  from business where vat_number is not null and parent_business_id is null group by 2 having count(*) > 1
+union all
+select 'business.reception_phone', phone_key(reception_phone), count(*)
+  from business where reception_phone is not null and parent_business_id is null group by 2 having count(*) > 1
+union all
+select 'dispatcher.email', lower(email), count(*)
+  from dispatcher where email is not null group by 2 having count(*) > 1
 union all
 select 'vehicle.plate', upper(regexp_replace(plate, '[^A-Za-z0-9]', '', 'g')), count(*)
   from vehicle where plate is not null and retired_at is null group by 2 having count(*) > 1;
@@ -66,8 +116,11 @@ select 'vehicle.plate', upper(regexp_replace(plate, '[^A-Za-z0-9]', '', 'g')), c
 create unique index if not exists driver_email_uq
   on driver (lower(email)) where email is not null;
 
+-- ⚑ DROPPED FIRST, unlike its neighbours: `if not exists` would keep an index built from the
+-- S78 digits-only expression, had that version ever been pasted, and say nothing.
+drop index if exists driver_phone_uq;
 create unique index if not exists driver_phone_uq
-  on driver (regexp_replace(phone, '\D', '', 'g')) where phone is not null;
+  on driver (phone_key(phone)) where phone is not null;
 
 create unique index if not exists driver_siret_uq
   on driver (regexp_replace(siret, '\D', '', 'g')) where siret is not null;
@@ -99,8 +152,9 @@ create unique index if not exists business_vat_uq
 -- ⚑ THE RECEPTION PHONE IS *NOT* LOCKED WITHIN A GROUP, for the same reason: several desks of
 -- one hotel group answer on one switchboard number. Two unrelated Businesses sharing it is
 -- the flag.
+drop index if exists business_phone_uq;   -- dropped first, for driver_phone_uq's reason
 create unique index if not exists business_phone_uq
-  on business (regexp_replace(reception_phone, '\D', '', 'g'))
+  on business (phone_key(reception_phone))
   where reception_phone is not null and parent_business_id is null;
 
 -- ── 3 · the Dispatcher ──────────────────────────────────────────────────────────────────

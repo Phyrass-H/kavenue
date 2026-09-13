@@ -62,10 +62,14 @@ async function user(email: string, role: "driver" | "dispatcher"): Promise<strin
 function fixtures(email: string) {
   const n = email.startsWith("demo") ? 1 : 2;
   return {
-    phone: `+33 6 00 00 00 0${n}`,
+    // ⚑ S79 — UNIQUE ACROSS THE FLEET, NOT JUST BETWEEN THE TWO PROBES. The S78 values gave
+    //   demo.driver Théo's phone (+33 6 00 00 00 01, seed-test-driver.mts) and s46.driver
+    //   Marc Fontaine's card number (06-2024-00412), so "never twice" still could not be
+    //   turned on. These four were checked against every live Driver before landing here.
+    phone: `+33 6 00 00 99 0${n}`,
     siret: `5123456780001${n}`,
     revtc: `EVTC0621002${n}`,
-    proCard: `06-2024-0041${n}`,
+    proCard: `06-2024-9941${n}`,
     plate: `ZZ-00${n}-ZZ`,
   };
 }

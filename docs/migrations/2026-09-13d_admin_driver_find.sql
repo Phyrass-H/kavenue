@@ -51,17 +51,19 @@ comment on function fold_text(text) is
 -- WHAT A TERM MATCHES, and why each is guarded:
 --   • the name, either order, and the email — folded, as a substring.
 --   • the phone, in EITHER spelling: the digits as stored (so "+33 612" finds "+33 6 12 …"), or
---     the national form (so "06 12" finds it too). ⚑ The term is folded as a PARTIAL number —
---     a leading 00 dropped, a leading 33 or 33(0) turned into 0 — because phone_key only folds a
---     COMPLETE one (nine digits after the 33), and "+33 6 12" must still meet a phone stored as
---     "06 12 34 56 78". S79 review.
+--     the national form (so "06 12" finds it too). ⚑ A term DIALLED INTERNATIONALLY — it starts
+--     with + or 00 — is folded as a partial number: the 00 dropped, a leading 33 or 33(0) turned
+--     into 0, so "+33 6 12" meets a phone stored as "06 12 34 56 78". phone_key cannot do this
+--     itself: it only folds a COMPLETE number (nine digits after the 33). And ONLY a dialled term
+--     is folded: folding every leading 33 turned "332 737", a SIRET fragment, into a short needle
+--     that met strangers' phones (S79 review and re-check).
 --   • the SIRET, on the digits.
 --   • the LIVE car's plate, compacted ("ab-123" meets "AB-123-CD"). A sold car's plate is not
 --     searched: the row it would find says what they drive today, which would be false.
 -- ⚑ EVERY NUMBER NEEDS 4 DIGITS — AND THE FLOOR IS ON THE NEEDLE ACTUALLY SEARCHED FOR. An empty
 --   string is inside every string: phone_key('Marc') is '', so without a floor a name search
 --   returned the whole fleet. And the floor has to be measured after the fold, not before it:
---   "0061" has four digits but folds to "61", which is inside most phone numbers (S79 review).
+--   "0061" has four digits but folds to "61", which is inside most phone numbers.
 -- ⚑ strpos, NEVER like: a term is typed by a person, and "%" or "_" in it would be a wildcard.
 create or replace function admin_driver_find(
   p_q       text    default null,
@@ -92,8 +94,11 @@ with term as (
   select nullif(btrim(p_q), '')                                            as raw,
          fold_text(btrim(p_q))                                             as words,
          regexp_replace(coalesce(p_q, ''), '\D', '', 'g')                  as digits,
-         regexp_replace(regexp_replace(regexp_replace(coalesce(p_q, ''), '\D', '', 'g'),
-                        '^00', ''), '^33(0)?', '0')                        as dialled,
+         case when btrim(coalesce(p_q, '')) ~ '^(\+|00)'
+              then regexp_replace(regexp_replace(regexp_replace(p_q, '\D', '', 'g'),
+                                                 '^00', ''), '^33(0)?', '0')
+              else regexp_replace(coalesce(p_q, ''), '\D', '', 'g')
+         end                                                               as dialled,
          upper(regexp_replace(coalesce(p_q, ''), '[^A-Za-z0-9]', '', 'g')) as compact
 ),
 fleet as (

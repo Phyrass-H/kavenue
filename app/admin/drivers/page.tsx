@@ -295,7 +295,10 @@ export default async function AdminDriversPage({
     // ⚑ PAGED, BECAUSE AN UNBOUNDED SELECT STOPS AT 1 000 ROWS WITHOUT A WORD (lib/admin-list.ts
     //   readAll). Every upload is a new row, so 120 full files with a few re-uploads pass 1 000,
     //   and a Driver whose newest rows fell off the end would read "papers to add" while their
-    //   file is with us (S79 review). Ordered by id, so the pages can neither overlap nor skip.
+    //   file is with us (S79 review). Ordered by id, so the pages are stable — but NOT a snapshot:
+    //   an upload landing between two pages can shift one row across the boundary, read twice
+    //   (harmless — the newest per slot still wins) or, rarely, missed. That needs 1 000+ papers
+    //   on screen and an upload during the read (S79 re-check).
     readAll(async (lo, hi) => {
       const res = await db
         .from("document")
@@ -428,8 +431,15 @@ export default async function AdminDriversPage({
                 <p className="adm-none">{o.drivers === 0 ? "No Drivers yet." : "Every Driver can work."}</p>
               ) : (
                 <>
-                  <p className="adm-quiet">Each row says what’s missing. Longest waiting first.</p>
-                  {unreadNote}
+                  {/* ⚑ ONE LINE THAT IS TRUE EITHER WAY. On a failed read these rows carry a grey
+                      "Approvals unread" pill, so the generic note ("these rows carry no pills")
+                      would be false here, and "each row says what's missing" falser (S79 re-check). */}
+                  <p className="adm-quiet">
+                    {pillsUnread
+                      ? "The approvals couldn’t be read, so these rows can’t say what’s missing."
+                      : "Each row says what’s missing."}{" "}
+                    Longest waiting first.
+                  </p>
                   {found.map((d) => (
                     <BlockedRow key={d.id} d={d} pills={pillsFor(d.id)} unread={pillsUnread} />
                   ))}

@@ -18,9 +18,9 @@ in the header opens a card). No database change. Merged, CI green on the branch 
 ### State
 | | |
 |---|---|
-| `main` | `4f11e38` — `s80-approvals-columns` fast-forwarded 2026-09-13, CI green |
+| `main` | S80 merged 2026-09-13 — `s80-approvals-columns`, `s80-handoff`, `s80-approval-actor` fast-forwarded, CI green |
 | applied live | every file in `docs/migrations/` up to and including `2026-09-13d_admin_driver_find.sql` (S80 added none) |
-| tests | **1221** |
+| tests | **1225** |
 | `handoff-check` | 107 at S79 — not run in S80 (nothing in the database changed) |
 | probes | `car-gate.mts` 20/20 · `never-twice.mts` 5/5 · `driver-find.mts` 15/15 · `business-census.mts` (S79 runs) |
 | live, measured S80 | 14 Drivers, **12 in "To be approved"** (9 of them approved persons whose car waits — each still owes the REVTC register, the medical certificate and the Kbis) · 7 Business users · **1 admin, `admin@kavenue.fr`** · 3 sign-in accounts with no profile |
@@ -56,10 +56,9 @@ review workflows of read-only agents keep paying for themselves (S80: 3 rounds, 
 admin through `/api/dev-login`.
 
 ### ⚑ LEFT OPEN — none blocks
-- ⚑⚑ **`setDriverVerified` logs a Driver's approval or suspension as done BY THE DRIVER** (it never sets
-  `last_written_by` / `_via`, so the trigger copies the last writer — onboarding or Settings), and never sets
-  `verified_at` / `verified_by`. **The founder's hard condition: fix it BEFORE a second person gets an admin
-  login** (`project/BACKLOG.md` § AK). About four lines, as `lib/vehicle-review.ts` already does for a car.
+- ✅ **FIXED in S80: a Driver's approval is logged as the admin's act** (`lib/driver-verified.ts`; § AK). It had been
+  copying the Driver's own id as the actor; 0 approval events existed, so no past row was wrong. The 11 Drivers
+  verified before the log have no `verified_at` — left alone on purpose.
 - **V2 — a `document_event` log.** A second verdict on the same paper overwrites the first (§ AK, and docs/05).
 - ⚑ `2026-09-13d_admin_driver_find.sql` was edited after it was applied (S79). Run
   `npx tsx .local/probe/driver-find.mts`: if "an email holding digits…" is red, re-paste it — it is safe to re-run.
@@ -71,7 +70,9 @@ admin through `/api/dev-login`.
 - On a phone the admin header is wider than the screen (the nav does not shrink), so the email and its Sign-out
   card sit off to the right. The console is used on the Mac.
 - **Adding an admin today:** they sign in once on admin.kavenue.fr (and do not pick Driver or Business), then
-  `profile.role = 'admin'` is set by hand in Supabase. No screen; every admin has full access. See the first bullet.
+  `profile.role = 'admin'` is set by hand in Supabase. No screen; every admin has full access. Their approvals are
+  now logged under their own id (fixed S80). A browser session cannot write `driver` at all (2026-09-07 revoked
+  UPDATE), so a Driver cannot verify themself.
 - Sign-in emails appear to go through Supabase's built-in mailer (a low hourly limit) — a dashboard setting, not
   visible from the repo.
 
@@ -96,7 +97,7 @@ preview built from live rows → build → a review workflow → the founder's b
 - ⚑ The three "record it now or lose it for ever" items are **DONE** (the car's history, the
   Driver's own facts, the car frozen onto each trip). What is still NOT recorded: whether any
   car could have REACHED a trip that went unfilled. The change logs make it replayable from
-  2026-09-12 forward, never backwards. ⚑ And (S80) the Driver-approval rows carry a false actor — see LEFT OPEN.
+  2026-09-12 forward, never backwards. (S80: a Driver's approval now names the admin as its actor.)
 
 ## ⚑ TRAPS FROM S78 — each nearly shipped
 

@@ -25,6 +25,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { docFileExists } from "@/lib/supabase/storage";
 import type { Database } from "@/lib/database.types";
 import { checkReviewNote } from "@/lib/review-note";
+import { verifiedPatch } from "@/lib/driver-verified";
 
 export type ReviewResult = { ok: true } | { ok: false; message: string };
 
@@ -165,10 +166,12 @@ export async function rejectDocument(_prev: ReviewResult | null, form: FormData)
  * front of a hotel's Guest" are different questions, and the second one is the
  * video interview's only artefact (docs/02:40).
  *
- * ⚑ AND IT STILL GATES NOTHING. `lib/eligibility.ts:25-27` says so plainly: an
- * unverified Driver can accept work today. Making this flag a refuse rule needs
- * a change inside `accept_mission`, and a date from the founder for when it
- * starts biting. Until then this records a judgement; it does not enforce one.
+ * ⚑ AND SINCE 2026-09-07 IT IS A DOOR ([[d132]]): accept_mission and place_hold
+ * refuse an unverified Driver, so taking it back takes someone's work away today.
+ * (This comment said "it still gates nothing" until S80 — false since S76.)
+ *
+ * ⚑ S80 — IT SAYS WHO DID IT. See lib/driver-verified.ts: without the stamp the
+ * change log named the Driver as the one who approved themself.
  */
 export async function setDriverVerified(_prev: ReviewResult | null, form: FormData): Promise<ReviewResult> {
   const who = await requireAdmin();
@@ -179,7 +182,16 @@ export async function setDriverVerified(_prev: ReviewResult | null, form: FormDa
   if (!driverId) return { ok: false, message: "Which Driver?" };
 
   const admin = createAdminClient();
-  const { error } = await admin.from("driver").update({ verified: next }).eq("id", driverId);
+  // ⚑ ONLY WHEN IT CHANGES (`.eq("verified", !next)`). A second tab pressing "Mark verified" on a
+  //   Driver already approved would otherwise overwrite `verified_at` with a later date and file
+  //   nothing — the flag did not move, so the trigger writes no event — losing the real approval
+  //   time. No row matched means the Driver is already in that state: nothing to record.
+  const { error } = await admin
+    .from("driver")
+    .update(verifiedPatch(next, who.uid, new Date()))
+    .eq("id", driverId)
+    .eq("verified", !next)
+    .select("id");
   if (error) return { ok: false, message: `Could not save that: ${error.message}` };
 
   for (const p of pathsFor(driverId)) revalidatePath(p, "layout");

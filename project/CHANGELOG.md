@@ -20,6 +20,8 @@
   document replaces the first.
 - **You can sign out of the admin console.** Click your email at the top right, then "Sign out".
   (On your Mac that means asking for a new sign-in link to come back in.)
+- **Approving a Driver now records that you did it, and when.** Before, the history would have named the Driver
+  themself. Nobody had been approved since that history started, so nothing needed correcting.
 
 ## 13 September 2026 (later) — find any Driver, and see who is waiting for you
 

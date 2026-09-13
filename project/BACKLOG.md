@@ -2007,14 +2007,14 @@ otherwise).** `setDriverVerified` (`lib/document-review.ts`) writes `verified` a
   (`app/onboarding/actions.ts`, `app/(app)/settings/actions.ts`). So an approval or a suspension since 2026-09-12
   reads **"the Driver did it, from settings / onboarding"**; only a row never stamped since then reads NULL.
 
-*When* is kept; *who* is recorded falsely. Those `approved` / `suspended` rows cannot be trusted for the actor.
-The fix is one write path: set `verified_at`, `verified_by`, `last_written_by = admin uid` and
-`last_written_via = 'admin'` in the same update, as `lib/vehicle-review.ts` already does for a car.
-
-⚑⚑ **PARKED WITH A HARD CONDITION (founder, 2026-09-13, S80): fix this BEFORE a second person gets an admin
-login.** Today there is one admin — the founder — so every `approved` / `suspended` row since 2026-09-12 means
-*the founder did it*, whatever actor it shows, and can be re-read that way. The day a second admin (e.g. the
-support team, § AJ) can approve, that inference stops being safe and cannot be repaired afterwards.
+✅ **FIXED 2026-09-13, S80** — parked first with the condition "before a second admin gets a login", then the
+founder: *"fix the approval log now"*. `setDriverVerified` now writes `lib/driver-verified.ts`'s patch: the flag,
+`verified_at` / `verified_by` (set on approval, cleared when it is taken back — the withdrawal is the `suspended`
+event), and `last_written_by = admin uid`, `last_written_via = 'admin'`; and only when the flag actually changes,
+so a second tab cannot overwrite an approval date. ⚑ **Measured before the fix: 0 `approved` / `suspended`
+events existed** — nobody had been approved or suspended since the log began on 2026-09-12 — so no row carries a
+false actor and nothing needed correcting. The 11 Drivers verified before the log still have no `verified_at` (not
+backfilled, by the 2026-09-12 migration's own rule).
 
 **What is lost.**
 - ⚑ **A second verdict on the same row overwrites the first** (`lib/document-review.ts` approve + reject both

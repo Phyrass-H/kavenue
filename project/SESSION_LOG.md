@@ -84,9 +84,24 @@ existed in the Driver app (`components/driver-signout.tsx`) and Dispatch (`dispa
   nobody can make themselves admin; a second admin today = sign in once, then a manual `profile.role='admin'` in
   Supabase. 3 auth users have no profile (a link clicked, onboarding never finished).
 
+### The approval log, fixed — *"fix the approval log now"*
+Parked first ("fix before a second admin gets a login"), then the founder asked for it the same day.
+- `lib/driver-verified.ts` (new) — `verifiedPatch(next, adminUid, at)`: the flag, `verified_at`/`verified_by`
+  (set on approval, cleared on withdrawal, as a refused car clears `approved_at`/`approved_by`), and
+  `last_written_by`/`last_written_via = 'admin'` — which the `driver_event` trigger copies as the actor.
+- `lib/document-review.ts` `setDriverVerified` — writes the patch, and only when the flag changes
+  (`.eq("verified", !next)`): a second tab can no longer overwrite the approval date. The comment claiming the flag
+  "still gates nothing" (false since S76) corrected.
+- `tests/driver-verified.test.ts` (new, 4).
+- Review (2 lenses, 3 read-only agents, verified) → the fix holds (the trigger reads the same UPDATE's stamp;
+  `verified` is `not null`; no BEFORE trigger or CHECK on `driver`; a browser session has no UPDATE on `driver`
+  since 2026-09-07). 1 confirmed, comment only: the new header said the old log read "from settings" — it would
+  have read 'onboarding' for a fresh Driver, or no actor at all. Reworded.
+- ⚑ **Measured before the fix (read-only): 0 `approved`/`suspended` events** — no Driver approved or suspended since
+  the log began 2026-09-12 — so the bug never wrote a false row; nothing to correct. 11 verified Drivers, 0 with
+  `verified_at` (not backfilled, by design).
+
 ### Left open
-- ⚑ `setDriverVerified` logs a Driver's approval/suspension as done BY THE DRIVER (stale `last_written_by`), and
-  never sets `verified_at`/`verified_by`. One write path, ~4 lines — raised with the founder, not built.
 - An "Everyone" row still prints the base label's first part ("Pl. du Casino") — founder: don't touch that list.
 - On a phone the admin header is wider than the screen (the four nav links do not shrink — measured 568px of
   content in a 375px viewport, before S80 too), so the email and its Sign-out card sit off to the right. Not fixed:

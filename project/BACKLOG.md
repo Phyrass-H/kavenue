@@ -2009,8 +2009,12 @@ otherwise).** `setDriverVerified` (`lib/document-review.ts`) writes `verified` a
 
 *When* is kept; *who* is recorded falsely. Those `approved` / `suspended` rows cannot be trusted for the actor.
 The fix is one write path: set `verified_at`, `verified_by`, `last_written_by = admin uid` and
-`last_written_via = 'admin'` in the same update, as `lib/vehicle-review.ts` already does for a car — raised with
-the founder, not built.
+`last_written_via = 'admin'` in the same update, as `lib/vehicle-review.ts` already does for a car.
+
+⚑⚑ **PARKED WITH A HARD CONDITION (founder, 2026-09-13, S80): fix this BEFORE a second person gets an admin
+login.** Today there is one admin — the founder — so every `approved` / `suspended` row since 2026-09-12 means
+*the founder did it*, whatever actor it shows, and can be re-read that way. The day a second admin (e.g. the
+support team, § AJ) can approve, that inference stops being safe and cannot be repaired afterwards.
 
 **What is lost.**
 - ⚑ **A second verdict on the same row overwrites the first** (`lib/document-review.ts` approve + reject both

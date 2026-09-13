@@ -5,6 +5,75 @@
 
 ---
 
+## 2026-09-13 — SESSION 80 — "To be approved" becomes a table · tests 1212 → 1221 · no database change
+
+### State
+| | |
+|---|---|
+| branch | `s80-approvals-columns` — NOT merged; the founder's browser check comes first |
+| database | untouched: no migration, nothing to paste |
+| tests | **1221** (+9) · `tsc` clean |
+
+### How it started — and a lesson
+The founder asked to *"review the design of the driver page in activity console"* and meant **/admin/drivers**
+(the list), shown by screenshot: *"messy, the rows are not clean from the top"*, *"person · 2 papers to send is
+bad wording from the support POV"*. ⚑ I assumed the detail page, read ten files and wrote a DB script without a
+word; the founder stopped it — *"I just ask you a question, not to do anything"* — and twice more asked for an
+answer before any build. Memory `wait-for-go-ahead` now says a question is answered in words first.
+
+### Decided — [[d140]]
+Six columns (Driver · Class · Base · Person · Company · Car) · **"documents needed"** (owedIn counts missing,
+refused AND expired, so "missing" would be false) · every cell filled; a done Person still says what is owed ·
+**no Waiting column** (the list's sort date is "can't work since", not "waiting on you since" — a Driver owing
+documents would read as Kavenue being late) · titles restyled on this page only · "Everyone" left alone.
+
+### Answered — what is recorded about a Driver's papers
+Every upload is its own row (insert-only); each row keeps its LAST verdict, reviewer and date; a second verdict
+overwrites the first; no document log → **BACKLOG § AK, V2** (founder: *"good for V1, make sure we work on it
+for V2"*; also a line in docs/05). ⚑ I told the founder a Driver's approval records *who* and *which screen* —
+**wrong, and worse than "missing"**: `setDriverVerified` writes `verified` alone, so `verified_at`/`verified_by`
+stay empty and the trigger copies the row's STALE `last_written_by`/`_via` — usually the Driver's own id from
+onboarding or Settings. An approval since 2026-09-12 is logged as the Driver approving themself (review +
+re-check findings). Corrected in § AK and raised with the founder.
+
+### Built
+- `lib/driver-approvals.ts` — `documentsNeeded()`; `AdminPile` with `detail`; `adminSays` done → the headline
+  only ("approved" / "valid"); `adminDetail` (owed first, then expiring); `PILL_WORD` exported for the headers.
+- `lib/format.ts` — `baseTownOf()`: the postcode segment's town; Monaco is never dropped as a country.
+- `app/admin/drivers/page.tsx` — `ApprovalHead` / `ApprovalRow` / `ApprovalCell` / `BaseCell` replace
+  `BlockedRow`; `CELL_LOOK` keyed by state; an unread row and a SQL-vs-rule disagreement span the three columns
+  (never a silent row, S79 rule kept); `main.adm-main--drivers` scopes the titles.
+- `components/admin-document-review.tsx` — a done tile shows its detail ("approved · 2 documents needed").
+- `app/globals.css` — `.adm-apv` (six fixed tracks, stacks ≤ 940px); scoped titles; `.adm-sect__s`;
+  `.adm-pile__d`; `.adm-row--blocked` removed; `.adm-row--fleet` last track 190 → 206.
+- `tests/driver-blockers.test.ts` (+5, words updated) · `tests/base-town.test.ts` (new, 4).
+
+### Proof, and what it is not
+Two previews from the 12 live rows, built by a READ-ONLY script calling the page's own rule functions. Then a
+harness page loading the real `globals.css` with the page's class names, measured at 1280 / 941 / 939 / 861 /
+375px: every column starts at the same x on all 12 rows, nothing clipped, no horizontal scroll. The dev server
+compiles both routes (307 → /login). ⚑ The real page signed in as admin was NOT seen — S79 lesson 6; the founder
+does that check.
+
+### Review — workflow, 4 lenses, 12 read-only agents, every finding verified by a skeptic
+4 confirmed (3 distinct), all fixed and re-measured: the table squeezed the name to 59px between 861 and 940px
+(its own 940px breakpoint); the fleet pill "Company · 2 documents needed" (~202px) spilled out of its 190px column
+(→ 206; now 200px with 20px clear) — ⚑ my harness check missed it because a `justify-self: end` cell overflows
+to the START side and I only measured the right edge; § AK misstated the Driver-approval record. 4 refuted — incl.
+the Company cell vs the missing Company pill for an approved person (decided, d140 rule 3); the page comment that
+overclaimed "can never disagree" was reworded anyway.
+Re-check (2 lenses, 4 agents) → the CSS fixes hold; nothing new in code. Both lenses confirmed that my corrected
+§ AK was STILL wrong ("no actor" → in fact a stale, false actor). Fixed in the docs.
+
+### Left open
+- ⚑ `setDriverVerified` logs a Driver's approval/suspension as done BY THE DRIVER (stale `last_written_by`), and
+  never sets `verified_at`/`verified_by`. One write path, ~4 lines — raised with the founder, not built.
+- An "Everyone" row still prints the base label's first part ("Pl. du Casino") — founder: don't touch that list.
+- At 861–940px a fleet row's name gets 101px (was 117) — the price of the wider pill column.
+- The Car cell is the car's approval only; the vehicle papers are not part of it (unchanged rule).
+
+---
+
 ## 2026-09-13 — SESSION 79 (close) — step 4 shipped · tests 1178 → 1212 · nothing left to paste
 
 ### Closing state

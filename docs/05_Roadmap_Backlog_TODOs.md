@@ -136,6 +136,7 @@ pickup's coordinates are the fact; a town label is a convenience.
 - **SPEED WIN reachability gate (DECIDED, build later — D45)** — a SPEED WIN can only be accepted by a Driver who can **physically reach the pickup on time**: geolocate the Driver, compute the GPS ETA to pickup, and **block acceptance with a popup** if they'd be late. Needs Driver geolocation + a Directions ETA call.
 - **Multiple vehicles** per Driver.
 - **Auto invoice / quote / purchase-order (PO) generation** for Drivers operating as companies, with a feature opt-in selector.
+- **Document review history (`document_event`)** — keep every upload AND every verdict on a Driver's papers. V1 keeps each upload as its own row, but a second verdict on the same paper overwrites the first. Founder, 2026-09-13: fine for V1, build for V2. Detail: `project/BACKLOG.md` § AK.
 
 ### Ratings & trust
 - **Mutual rating** after each ride; **excellence badge**; rating-based ride-access priority/throttling; automated punctuality/quality scoring.

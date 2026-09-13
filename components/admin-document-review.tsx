@@ -27,7 +27,7 @@ import {
 } from "@/lib/account";
 import { setDriverVerified, type ReviewResult } from "@/lib/document-review";
 import { approveVehicle, rejectVehicle } from "@/lib/vehicle-review";
-import type { Pile } from "@/lib/driver-approvals";
+import type { AdminPile, Pile } from "@/lib/driver-approvals";
 import { CAR_STATUS_PILL, type ApprovalStatus } from "@/lib/vehicle-approval";
 import { colourLabel, ENERGY_LABEL, type Energy } from "@/lib/vehicle-rules";
 
@@ -177,7 +177,7 @@ export function AdminDocumentReview({
   verified: boolean;
   docs: DocView[];
   /** Person / Company / Vehicle — computed once, server-side (lib/driver-approvals.ts). */
-  piles: Pile[];
+  piles: AdminPile[];
   car: CarUnderReview | null;
   /** ⚑ "Approving this would strand 2 First trips on Saturday" — the sentence, or null when
    *  nothing is stranded. Built server-side because it is a query, not a render. */
@@ -233,7 +233,12 @@ export function AdminDocumentReview({
           {piles.map((p) => (
             <li key={p.pile} className={`adm-pile adm-pile--${p.state}`}>
               <span className="adm-pile__l">{PILE_TITLE[p.pile]}</span>
-              <span className="adm-pile__s">{p.says}</span>
+              <span className="adm-pile__s">
+                {p.says}
+                {/* ⚑ S80 — a done tile can still say what the Driver owes: "approved · 2 documents
+                    needed". Muted, because the verdict is the headline and this is its footnote. */}
+                {p.detail && <span className="adm-pile__d"> · {p.detail}</span>}
+              </span>
             </li>
           ))}
         </ul>

@@ -5,6 +5,20 @@
 
 ---
 
+## 13 September 2026 (evening) — "To be approved" becomes a clean table
+
+- **One column per thing.** Driver, class, base, then person, company and car — each approval in its
+  own column, so you read down a column instead of hunting for a pill.
+- **"Documents needed" instead of "papers to send".** Said from your side of the desk. It counts
+  documents never sent, refused, or expired.
+- **An approved Driver who still owes documents says so:** "Approved", with "2 documents needed"
+  under it. Nine Drivers are like that today (the VTC register and the medical certificate).
+- **The base shows the town** — "Monaco", not "Pl. du Casino".
+- **Clearer section titles** on the Drivers page.
+- **A Driver's own admin page uses the same words.** The "Everyone" list keeps its layout.
+- **Noted for V2:** a full history of every document decision. Today a second decision on the same
+  document replaces the first.
+
 ## 13 September 2026 (later) — find any Driver, and see who is waiting for you
 
 - **A search on the Drivers page.** Type a name (accents don't matter), a phone number however it's

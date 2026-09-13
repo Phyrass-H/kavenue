@@ -208,6 +208,23 @@ export function shortPlaceLabel(address: string | null | undefined): string {
   return name;
 }
 
+// The TOWN a Driver's base is in — the Base column of /admin/drivers' "To be approved" table (S80).
+// ⚑ Not shortPlaceLabel: that keeps the place name ("Pl. du Casino, Monaco"), and the column names a
+// zone, not a street. Same postcode rule. ⚑ Monaco is a country AND the town, so a trailing "Monaco" is
+// never dropped as a country the way "France" is.
+export function baseTownOf(label: string | null | undefined): string {
+  const parts = (label ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  if (parts.length === 0) return "";
+  // The postcode-bearing segment names the town ("98000 Monaco" → "Monaco"), scanning from the end.
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const m = parts[i].match(/^\d{4,6}\s+(.+)$/);
+    if (m) return m[1].trim();
+  }
+  const tail = parts[parts.length - 1];
+  if (parts.length > 1 && COUNTRY_RE.test(tail) && !/^monaco$/i.test(tail)) parts.pop();
+  return parts[parts.length - 1];
+}
+
 // The schedule route line: the full address MINUS the redundant trailing country
 // (beta is all France/Monaco, so "…, Nice, France" → "…, Nice"). Keeps the house
 // number, street, postcode + city untouched. The exact, full address still shows

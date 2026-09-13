@@ -138,26 +138,38 @@ export function mayTakeWork(driver: Pick<DriverRow, "verified">, liveCar: LiveCa
 // term '… with us' don't really make sense to me"* — then *"yes change the detail page too"*.
 // So everywhere an admin reads a pile — the list's pills and the tiles on a Driver's page — it
 // says either what a person at Kavenue has to do ("to approve") or what the Driver has to do
-// ("2 papers to send", "refused", "none yet"). "with us" stays on the DRIVER's own screens, where
+// ("2 documents needed", "refused", "none yet"). "with us" stays on the DRIVER's own screens, where
 // the reader is the one waiting and it means exactly that.
 // ⚑ ONE SPELLING FOR BOTH ADMIN SCREENS. The pills are built from adminPiles below, so the list
 // and the Driver's page cannot drift apart the way four spellings of "this Driver's car" did.
 
 const TO_APPROVE = "to approve";
 
-const toSend = (n: number) => (n > 0 ? `${n} paper${n > 1 ? "s" : ""} to send` : "papers to send");
+/** ⚑ S80 — "documents needed", the founder's words from the support desk's side (2026-09-13): "2 papers
+ *  to send" read as an instruction to the Driver. "Needed" and NOT "missing", because the count is
+ *  owedIn's — a paper never sent, one refused and one expired all count, and only the first is missing. */
+export const documentsNeeded = (n: number) =>
+  n > 0 ? `${n} document${n > 1 ? "s" : ""} needed` : "documents needed";
+
+/** A pile as an admin reads it. `detail` is the second fact a DONE pile can still carry — S80, the
+ *  founder, on the "To be approved" table: an approved person with papers outstanding reads
+ *  "Approved · 2 documents needed", not a bare "Approved". Null on every pile that is not done. */
+export interface AdminPile extends Pile {
+  detail: string | null;
+}
 
 /** A pile's state in an admin's words. The STATE never changes — only the sentence. */
 function adminSays(p: Pile, liveCar: LiveCar, docs: readonly DocFacts[], now: Date): string {
   switch (p.state) {
     case "done":
-      // "approved", "valid", "valid · 1 expiring soon" — already the words an admin would use.
-      return p.says;
+      // ⚑ S80 — THE HEADLINE ONLY. The company's "valid · 1 expiring soon" was one string; a table cell
+      //   is 142px, so the second fact moved to `detail` and the Driver's page tile joins them back.
+      return p.pile === "company" ? "valid" : "approved";
     case "waiting":
       return TO_APPROVE;
     case "todo":
       if (p.pile === "vehicle") return carBlockOf(liveCar) === "car_rejected" ? "refused" : "none yet";
-      return toSend(owedIn(docsIn(docs, p.pile === "person" ? "personal" : "company"), now));
+      return documentsNeeded(owedIn(docsIn(docs, p.pile === "person" ? "personal" : "company"), now));
     default: {
       // ⚑ A fourth PileState is a compile error here, not a tile with no words.
       const unreachable: never = p.state;
@@ -166,14 +178,34 @@ function adminSays(p: Pile, liveCar: LiveCar, docs: readonly DocFacts[], now: Da
   }
 }
 
-/** The three tiles on a Driver's admin page: approvalPiles' states, in the admin's words. */
+/** What a DONE pile still has to say, or null. Only ever something the Driver owes or will soon owe —
+ *  a done pile has nothing left for a person at Kavenue to do. */
+function adminDetail(p: Pile, docs: readonly DocFacts[], now: Date): string | null {
+  // The car pile is the car's approval; its papers have never been part of it (approvalPiles).
+  if (p.state !== "done" || p.pile === "vehicle") return null;
+  const papers = docsIn(docs, p.pile === "person" ? "personal" : "company");
+  // ⚑ THE PERSON IS THE PILE THAT CAN BE DONE WHILE PAPERS ARE OWED: `verified` is a judgement ([[d132]])
+  //   and the papers never decide it. On the live fleet, 9 approved Drivers owe the REVTC register and
+  //   the medical certificate (measured S80). A done company already means nothing is owed.
+  const owed = owedIn(papers, now);
+  if (owed > 0) return documentsNeeded(owed);
+  const expiring = papers.filter((d) => docState(d, now) === "expiring").length;
+  return expiring > 0 ? `${expiring} expiring soon` : null;
+}
+
+/** The three tiles on a Driver's admin page, and the three cells of a "To be approved" row:
+ *  approvalPiles' states, in the admin's words. */
 export function adminPiles(
   driver: Pick<DriverRow, "verified">,
   liveCar: LiveCar,
   docs: readonly DocFacts[],
   now: Date = new Date(),
-): Pile[] {
-  return approvalPiles(driver, liveCar, docs, now).map((p) => ({ ...p, says: adminSays(p, liveCar, docs, now) }));
+): AdminPile[] {
+  return approvalPiles(driver, liveCar, docs, now).map((p) => ({
+    ...p,
+    says: adminSays(p, liveCar, docs, now),
+    detail: adminDetail(p, docs, now),
+  }));
 }
 
 /** One pill on an admin row. `owed` is whose move it is: "us" = a person at Kavenue has to
@@ -187,7 +219,7 @@ export interface Blocker {
 
 /** The pill's first word. "Car", not PILE_LABEL_ADMIN's "Vehicle": it is what the founder
  *  approved on the preview, and it is the shorter word on a crowded row. */
-const PILL_WORD: Record<ApprovalPile, string> = { person: "Person", company: "Company", vehicle: "Car" };
+export const PILL_WORD: Record<ApprovalPile, string> = { person: "Person", company: "Company", vehicle: "Car" };
 
 /**
  * What stands between a Driver and the Pool, as the admin list names it — in the order a

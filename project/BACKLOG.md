@@ -1987,3 +1987,40 @@ A human process, not a screen — 👤 MANUAL. What the check has to establish, 
 human approves it**. A reviewer who approves without these checks makes both rules decorative.
 
 Related: [[d132]] (the review screen on `/admin/drivers/[id]`) · § O (a suspension leaves no record).
+
+---
+
+## AK. A change log for documents — keep every verdict, not only the last 🅥 (founder, 2026-09-13, S80 — *"we are good for V1 but make sure we work on it for V2"*)
+
+**What is recorded today (checked S80).** Every upload is its own `document` row with `uploaded_at` — a re-upload
+after a refusal is a NEW row and the refused one stays (`lib/document-actions.ts:144`, insert only; no code deletes a
+document). Each row carries its reviewer, date and note (`reviewed_by` / `reviewed_at` / `review_note`,
+`docs/migrations/2026-09-04b_document_review.sql`). The Driver's sign-up is `driver.created_at`. The car's whole
+life is `vehicle_event`, with who did it (since 2026-09-12, `2026-09-12c`; `lib/vehicle-review.ts` hands the actor in).
+
+⚑⚑ **The Driver's approval is recorded with the WRONG person (found by the S80 reviews — S80 had told the founder
+otherwise).** `setDriverVerified` (`lib/document-review.ts`) writes `verified` and nothing else, so:
+- `driver.verified_at` and `driver.verified_by` (added 2026-09-12) stay empty;
+- the `driver_event` row the trigger writes has the right DATE and a **stale actor**. The trigger copies
+  `new.last_written_by` / `new.last_written_via` (`2026-09-12c` § 4), and an UPDATE that does not set them keeps
+  the previous writer's values — which onboarding and every Settings save stamp with the Driver's OWN id
+  (`app/onboarding/actions.ts`, `app/(app)/settings/actions.ts`). So an approval or a suspension since 2026-09-12
+  reads **"the Driver did it, from settings / onboarding"**; only a row never stamped since then reads NULL.
+
+*When* is kept; *who* is recorded falsely. Those `approved` / `suspended` rows cannot be trusted for the actor.
+The fix is one write path: set `verified_at`, `verified_by`, `last_written_by = admin uid` and
+`last_written_via = 'admin'` in the same update, as `lib/vehicle-review.ts` already does for a car — raised with
+the founder, not built.
+
+**What is lost.**
+- ⚑ **A second verdict on the same row overwrites the first** (`lib/document-review.ts` approve + reject both
+  `update` the row). Approve a licence, refuse it a week later: the approval's date and reviewer are gone.
+- Reviews before 2026-09-04 carry no date or reviewer — unrecoverable.
+- Nothing links a re-upload to the refusal it answers; it is matched only by Driver + type + side, in date order.
+
+**The V2 shape.** A `document_event` table on `vehicle_event`'s model: trigger-written so every door is covered, no
+foreign key (a delete must not take the log with it), events `uploaded` / `approved` / `refused` /
+`expiry_changed`, with actor and payload. It also unlocks **"waiting on you since"** — the column the founder
+left out of the "To be approved" table in S80 because the only date available today measured the wrong thing.
+
+Related: § AG (the mission event log) · § AJ (training support to check papers) · [[d132]].

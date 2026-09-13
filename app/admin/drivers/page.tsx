@@ -26,7 +26,7 @@ import { AdminPeriodBar } from "@/components/admin-period-bar";
 import { worthBreakingDown } from "@/lib/admin-rollup";
 import { DRIVER_DOC_TYPES } from "@/lib/account";
 import { latestSlots } from "@/lib/document-views";
-import { blockersOf, type Blocker } from "@/lib/driver-approvals";
+import { adminPiles, blockersOf, PILL_WORD, type AdminPile, type Blocker } from "@/lib/driver-approvals";
 import { liveCarOf } from "@/lib/vehicle-approval";
 import {
   classKeyLabel,
@@ -42,7 +42,7 @@ import {
   type DriverRollupRow,
 } from "@/lib/admin-drivers";
 import type { AdminDriverFindRow, AdminDriverPageRow } from "@/lib/database.types";
-import { formatShortDay } from "@/lib/format";
+import { baseTownOf, formatShortDay } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -196,26 +196,94 @@ function FleetRow({ d, pills }: { d: FleetRowData; pills: Blocker[] }) {
   );
 }
 
-/** A Driver in "To be approved": no activity column — what is missing is the point of the row. */
-function BlockedRow({ d, pills, unread }: { d: AdminDriverFindRow; pills: Blocker[]; unread: boolean }) {
+// ── S80 · "To be approved" as a table ──────────────────────────────────────────────────────
+//
+// ⚑ ONE COLUMN PER THING — the founder, 2026-09-13, on the running page: *"the rows are not clean from
+// the top. We need clean Name, class & category, company, car, the base zone and driver"*. The three
+// approvals shared one wrapping cell, so the same pill sat at a different place on every row. Shaped on
+// a preview of the 12 live rows at the real width and approved with "go ahead, build it". The column
+// header names the approval, so a cell carries the state alone ("To approve", not "Car · to approve").
+// ⚑ NOT THE FLEET LIST. "Everyone" and the search results keep their pills — *"no need for now, don't
+// touch it"* — and share only the words, which come from adminPiles for both.
+
+/** A base as this table names it. ⚑ The TOWN, not the label's first part: "Pl. du Casino, 98000 Monaco"
+ *  read "Pl. du Casino" (S80). */
+function BaseCell({ label, radius }: { label: string | null; radius: number | null }) {
+  return label ? (
+    <span className="adm-row__side adm-apv__base">{`${baseTownOf(label)} · ${radius ?? 50} km`}</span>
+  ) : (
+    <span className="adm-row__side adm-apv__base adm-row__kind--bad">no base — Pool empty</span>
+  );
+}
+
+/** How each state looks. Keyed by the state, so a fourth one is a compile error, not an unstyled cell. */
+const CELL_LOOK: Record<AdminPile["state"], string> = {
+  waiting: "adm-pill adm-pill--warn", // yours to approve
+  todo: "adm-pill", //                   the Driver owes it
+  done: "adm-apv__done", //              nothing left — a quiet tick
+};
+
+const firstUpper = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** One approval in its own column — and, under a done one, what the Driver still owes. */
+function ApprovalCell({ p }: { p: AdminPile }) {
   return (
-    <Link href={`/admin/drivers/${d.id}`} className="adm-row adm-row--blocked">
+    <span className="adm-apv__cell">
+      <span className="adm-apv__l">{PILL_WORD[p.pile]}</span>
+      <span className={CELL_LOOK[p.state]}>{firstUpper(p.says)}</span>
+      {p.detail && <span className="adm-apv__detail">{p.detail}</span>}
+    </span>
+  );
+}
+
+/** The column names. Not a link, and hidden from a screen reader, which reads each cell's own name. */
+function ApprovalHead() {
+  return (
+    <div className="adm-row adm-apv adm-apv__head" aria-hidden="true">
+      <span>Driver</span>
+      <span>Class</span>
+      <span>Base</span>
+      <span>{PILL_WORD.person}</span>
+      <span>{PILL_WORD.company}</span>
+      <span>{PILL_WORD.vehicle}</span>
+    </div>
+  );
+}
+
+/** A Driver in "To be approved": who, what they drive, where — then person, company and car. */
+function ApprovalRow({
+  d,
+  piles,
+  blocked,
+  unread,
+}: {
+  d: AdminDriverFindRow;
+  piles: AdminPile[];
+  blocked: boolean;
+  unread: boolean;
+}) {
+  return (
+    <Link href={`/admin/drivers/${d.id}`} className="adm-row adm-apv">
       <span className="adm-row__name">
         {d.first_name} {d.last_name}
       </span>
       <span className="adm-row__side">{classKeyLabel(d.category, d.body_type)}</span>
-      <BaseSays label={d.base_label} radius={d.service_radius_km} />
-      {/* ⚑ NEVER A SILENT ROW IN THIS SECTION. Who is listed is decided in SQL and the pills in
-          TypeScript. They are the same rule (tests/driver-blockers.test.ts and
-          .local/probe/driver-find.mts), but if they ever disagree the row must still say the
-          Driver is blocked. And when the approvals could not be read it says THAT, in grey,
-          rather than guessing a reason. */}
-      {pills.length > 0 ? (
-        <Pills list={pills} />
-      ) : unread ? (
-        <span className="adm-pill">Approvals unread</span>
+      <BaseCell label={d.base_label} radius={d.service_radius_km} />
+      {/* ⚑ NEVER A SILENT ROW IN THIS SECTION (S79, kept). Who is listed is decided in SQL and the cells
+          in TypeScript — one rule written twice (tests/driver-blockers.test.ts, .local/probe/driver-find.mts).
+          When the approvals could not be read the row says THAT, in grey, rather than guessing. And if
+          the rule says this Driver can work while SQL listed them, three ticks would be the one lie
+          this table could tell — so the row says "To be approved" across all three columns instead. */}
+      {unread ? (
+        <span className="adm-apv__span">
+          <span className="adm-pill">Approvals unread</span>
+        </span>
+      ) : !blocked ? (
+        <span className="adm-apv__span">
+          <span className="adm-pill adm-pill--warn">To be approved</span>
+        </span>
       ) : (
-        <span className="adm-pill adm-pill--warn">To be approved</span>
+        piles.map((p) => <ApprovalCell key={p.pile} p={p} />)
       )}
     </Link>
   );
@@ -330,6 +398,19 @@ export default async function AdminDriversPage({
           latestSlots(papersBy.get(id) ?? [], DRIVER_DOC_TYPES),
           now,
         );
+  // ⚑ S80 — THE SAME READS, AS THE THREE CELLS OF A "To be approved" ROW. blockersOf is built from
+  //   adminPiles, so a cell and a pill use the same WORDS. They do not show the same THINGS: a cell
+  //   is always drawn, a pill only for what blocks — once the person is approved the company has no
+  //   pill, but its cell still says what it owes ([[d140]] rule 3).
+  const pilesFor = (id: string): AdminPile[] =>
+    pillsUnread
+      ? []
+      : adminPiles(
+          { verified: verifiedOf.get(id) ?? false },
+          liveCarOf(carsBy.get(id) ?? []),
+          latestSlots(papersBy.get(id) ?? [], DRIVER_DOC_TYPES),
+          now,
+        );
   const unreadNote = pillsUnread && (
     <p className="adm-quiet">
       The approvals couldn’t be read, so these rows carry no pills — which does not mean they’re clear.
@@ -367,7 +448,8 @@ export default async function AdminDriversPage({
   );
 
   return (
-    <main className="adm-main">
+    // ⚑ `adm-main--drivers` scopes S80's section titles to this page (app/globals.css).
+    <main className="adm-main adm-main--drivers">
       <header className="adm-head">
         <div className="adm-head__main">
           <h1>Drivers</h1>
@@ -434,18 +516,24 @@ export default async function AdminDriversPage({
                 </p>
               ) : (
                 <>
-                  {/* ⚑ ONE LINE THAT IS TRUE EITHER WAY. On a failed read these rows carry a grey
-                      "Approvals unread" pill, so the generic note ("these rows carry no pills")
-                      would be false here (S79 re-check). Otherwise it is the key to the two tones,
-                      in the founder's approved words. */}
-                  <p className="adm-quiet">
-                    {pillsUnread
-                      ? "The approvals couldn’t be read, so these rows can’t say what’s missing."
-                      : "Amber is yours to approve · grey is waiting on the Driver."}{" "}
-                    Longest waiting first.
-                  </p>
+                  {/* ⚑ S80 — NO KEY TO THE TONES ANY MORE: every column is headed and every cell says its
+                      state in words ("To approve", "2 documents needed"). What stays is the order, and —
+                      on a failed read — the one sentence that is still true (S79 re-check). */}
+                  <p className="adm-sect__s">Longest waiting first.</p>
+                  {pillsUnread && (
+                    <p className="adm-quiet">
+                      The approvals couldn’t be read, so these rows can’t say what’s missing.
+                    </p>
+                  )}
+                  <ApprovalHead />
                   {found.map((d) => (
-                    <BlockedRow key={d.id} d={d} pills={pillsFor(d.id)} unread={pillsUnread} />
+                    <ApprovalRow
+                      key={d.id}
+                      d={d}
+                      piles={pilesFor(d.id)}
+                      blocked={pillsFor(d.id).length > 0}
+                      unread={pillsUnread}
+                    />
                   ))}
                   {foundTotal > found.length && (
                     <p className="adm-quiet">

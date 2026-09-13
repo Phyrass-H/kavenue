@@ -27,7 +27,8 @@ const car = (approval_status: "pending" | "approved" | "rejected", retired_at: s
   retired_at,
 });
 
-const toSend = (n: number) => `${n} paper${n > 1 ? "s" : ""} to send`;
+// ⚑ S80 — "documents needed", the founder's words from the support desk's side (was "papers to send").
+const needed = (n: number) => `${n} document${n > 1 ? "s" : ""} needed`;
 const says = (driver: { verified: boolean }, liveCar: ReturnType<typeof car> | null, docs: DocFacts[]) =>
   blockersOf(driver, liveCar, docs, NOW).map((b) => b.says);
 
@@ -70,7 +71,7 @@ describe("blockersOf — what a row in To be approved says", () => {
     const n = driverDocTypes("personal").length;
     const docs = withGroup(filed("pending"), "personal", null);
     expect(blockersOf({ verified: false }, car("approved"), docs, NOW)).toEqual([
-      { pile: "person", says: `Person · ${toSend(n)}`, owed: "them" },
+      { pile: "person", says: `Person · ${needed(n)}`, owed: "them" },
       { pile: "company", says: "Company · to approve", owed: "us" },
     ]);
   });
@@ -80,7 +81,7 @@ describe("blockersOf — what a row in To be approved says", () => {
     const docs = withGroup(filed("pending"), "company", null);
     expect(says({ verified: false }, car("pending"), docs)).toEqual([
       "Person · to approve",
-      `Company · ${toSend(m)}`,
+      `Company · ${needed(m)}`,
       "Car · to approve",
     ]);
   });
@@ -135,8 +136,8 @@ describe("adminPiles — the three tiles on a Driver's admin page, in the list's
     const n = driverDocTypes("personal").length;
     const m = driverDocTypes("company").length;
     expect(tiles({ verified: false }, car("rejected"), filed(null))).toEqual([
-      ["person", "todo", toSend(n)],
-      ["company", "todo", toSend(m)],
+      ["person", "todo", needed(n)],
+      ["company", "todo", needed(m)],
       ["vehicle", "todo", "refused"],
     ]);
     expect(tiles({ verified: true }, null, filed("verified"))[2]).toEqual(["vehicle", "todo", "none yet"]);
@@ -174,5 +175,60 @@ describe("adminPiles — the three tiles on a Driver's admin page, in the list's
       `${driverDocTypes("company").length} with us`,
       "with us",
     ]);
+  });
+});
+
+describe("S80 — the To be approved table: one cell per pile, and what a done pile still owes", () => {
+  const cells = (driver: { verified: boolean }, liveCar: ReturnType<typeof car> | null, docs: DocFacts[]) =>
+    adminPiles(driver, liveCar, docs, NOW).map((p) => [p.pile, p.state, p.says, p.detail]);
+
+  it("⚑ an approved person who owes papers reads 'approved', with how many under it", () => {
+    // The founder, 2026-09-13: "Approved · 2 documents needed". 9 live Drivers are exactly this.
+    const n = driverDocTypes("personal").length;
+    const docs = withGroup(filed("verified"), "personal", null);
+    expect(cells({ verified: true }, car("pending"), docs)[0]).toEqual(["person", "done", "approved", needed(n)]);
+  });
+
+  it("nothing owed and nothing expiring: no pile carries a detail", () => {
+    expect(adminPiles({ verified: true }, car("approved"), filed("verified"), NOW).map((p) => p.detail)).toEqual([
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it("a pile that is not done never carries a detail — its own words already say it", () => {
+    for (const verified of [true, false]) {
+      for (const liveCar of CARS) {
+        for (const docs of FILES) {
+          for (const p of adminPiles({ verified }, liveCar, docs, NOW)) {
+            if (p.state !== "done") expect(p.detail, JSON.stringify(p)).toBeNull();
+          }
+        }
+      }
+    }
+  });
+
+  it("⚑ the company's 'valid · 1 expiring soon' is split for a 142px cell; the Driver's own screen keeps one string", () => {
+    const soon = new Date(NOW.getTime() + 10 * 86_400_000).toISOString();
+    const first = driverDocTypes("company")[0];
+    const docs = filed("verified").map((d) => (d.type === first ? { ...d, expiresAt: soon } : d));
+    const company = adminPiles({ verified: true }, car("approved"), docs, NOW)[1]!;
+    expect([company.state, company.says, company.detail]).toEqual(["done", "valid", "1 expiring soon"]);
+    expect(approvalPiles({ verified: true }, car("approved"), docs, NOW)[1]!.says).toBe("valid · 1 expiring soon");
+  });
+
+  it("⚑ an admin never reads 'papers' or 'to send' — the founder's word is documents", () => {
+    for (const verified of [true, false]) {
+      for (const liveCar of CARS) {
+        for (const docs of FILES) {
+          const words = [
+            ...adminPiles({ verified }, liveCar, docs, NOW).flatMap((p) => [p.says, p.detail ?? ""]),
+            ...blockersOf({ verified }, liveCar, docs, NOW).map((b) => b.says),
+          ];
+          for (const w of words) expect(w).not.toMatch(/paper|to send/);
+        }
+      }
+    }
   });
 });

@@ -4090,15 +4090,13 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
 /* S79 — the Drivers fleet row. Its OWN class, not a wider .adm-row--4: /admin/businesses uses
    that one, and its last column only ever holds "all filled", so widening it for pills squeezed
    every Business name (S79 review). Same fixed-width rule, for the same reason. */
-.adm-row--fleet { grid-template-columns: minmax(0, 1fr) 118px 158px 182px 190px; }
+/* ⚑ 206px, NOT 190 (S80 review): sized for the longest single pill, and S80's words made it longer —
+   "Company · 2 documents needed" is ~202px at 12px/500, where "Company · 2 papers to send" was ~178. At
+   190 it spilled into the Base column. The columns are otherwise the S79 layout the founder kept. */
+.adm-row--fleet { grid-template-columns: minmax(0, 1fr) 118px 158px 182px 206px; }
 .adm-row--fleet > :not(.adm-row__name) { text-align: right; }
-/* S79 — "To be approved". No activity column, so the pills have room to sit side by side, as on
-   the preview the founder approved. */
-.adm-row--blocked { grid-template-columns: minmax(0, 1fr) 118px 182px 300px; }
-.adm-row--blocked > :not(.adm-row__name) { text-align: right; }
-/* A row carries up to three pills — person, company, car. In the fleet row's narrower last
-   column they wrap onto a second line rather than push the columns out of line. The column is
-   sized for the longest single pill, "Company · 2 papers to add". */
+/* A fleet row carries up to three pills — person, company, car. In its narrow last column they wrap
+   onto a second line rather than push the columns out of line. */
 .adm-row__pills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 6px; justify-self: end; }
 .adm-search--drivers { margin-top: 18px; }
 /* Narrow screens. ⚑ 860px, NOT .adm-row--4's 720px: these rows carry more fixed width, and at a
@@ -4107,10 +4105,66 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
    .adm-row--4's rule, "a badge under the name, not a stray at the edge", which the wrapper would
    otherwise escape because it is not itself an .adm-pill. */
 @media (max-width: 860px) {
-  .adm-row--fleet, .adm-row--blocked { grid-template-columns: minmax(0, 1fr) auto; }
+  .adm-row--fleet { grid-template-columns: minmax(0, 1fr) auto; }
   .adm-row__pills { grid-column: 1 / -1; justify-self: start; justify-content: flex-start; }
-  .adm-row--blocked > .adm-pill { grid-column: 1 / -1; justify-self: start; }
 }
+
+/* ── S80 · "To be approved" as a table ───────────────────────────────────────
+   ⚑ ONE COLUMN PER THING — the founder's fix (2026-09-13), on a preview built from the live fleet.
+   The three approvals used to share one wrapping cell, so "Person" sat on the first line of one row
+   and the second line of the next, and nothing lined up from the top. Fixed widths, for .adm-row--4's
+   reason: every row is its own grid. Measured on the 12 live rows at the real 900px: the widest pill
+   ("2 documents needed") is 138px in 142, the widest base ("Saint-Laurent-du-Var · 35 km") 186 in 204. */
+.adm-apv { grid-template-columns: minmax(0, 1fr) 112px 204px 142px 142px 92px; align-items: center; }
+.adm-apv__head { border-top: 0; padding: 16px 0 7px; font-size: 12px; color: var(--text-faint); }
+.adm-apv .adm-row__side { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.adm-apv__cell { min-width: 0; }
+/* A row that cannot name three states — the approvals were unread, or SQL and the rule disagree — says
+   so once, across all three columns. */
+.adm-apv__span { grid-column: 4 / -1; }
+/* The column's name: for a screen reader on a wide screen, and for everyone on a narrow one. */
+.adm-apv__l {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+/* Done is the quietest state on the row: no pill, a tick. */
+.adm-apv__done { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.adm-apv__done::before { content: "✓"; margin-right: 6px; font-size: 12px; color: var(--tone-success-fg); }
+/* "Approved", with "2 documents needed" under it — lined up with the word, not the tick. */
+.adm-apv__detail {
+  display: block; margin-top: 2px; padding-left: 18px;
+  font-size: 12px; color: var(--text-muted); white-space: nowrap;
+}
+/* ⚑ 940px, NOT THE FLEET ROW'S 860px (S80 review): six fixed columns take 762px before the name gets
+   any, and the content only reaches 900px at a 940px window — at 861px the name had 59px ("Jean-B…").
+   Below 940 the table stacks; above it the name keeps at least 138px. */
+@media (max-width: 940px) {
+  /* Name on its own line; class and base under it; then the three approvals side by side, each
+     with its name above it, because the header row is gone. */
+  .adm-apv { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 12px; align-items: start; }
+  .adm-apv > .adm-row__name, .adm-apv__span { grid-column: 1 / -1; }
+  .adm-apv__base { grid-column: span 2; }
+  .adm-apv__head { display: none; }
+  .adm-apv__cell, .adm-apv__span { margin-top: 6px; }
+  .adm-apv__l {
+    position: static; width: auto; height: auto; margin: 0 0 3px; overflow: visible; clip: auto;
+    display: block; font-size: 11.5px; color: var(--text-faint);
+  }
+  .adm-apv .adm-pill, .adm-apv__done, .adm-apv__detail { white-space: normal; }
+  .adm-apv__detail { padding-left: 0; }
+}
+
+/* S80 — this page's section titles read as titles (founder, 2026-09-13: "a better clear section with
+   better titling"). ⚑ SCOPED TO /admin/drivers: the founder approved it for this page; the other console
+   screens keep the small capitals until someone asks. */
+.adm-main--drivers .adm-sect { margin-top: 34px; }
+.adm-main--drivers .adm-sect__h {
+  margin: 0; font-size: 16px; font-weight: 500; letter-spacing: -0.01em;
+  text-transform: none; color: var(--text);
+}
+.adm-sect__s { margin: 3px 0 0; font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+/* A done tile's footnote on a Driver's page — "approved · 2 documents needed". Muted inside the green. */
+.adm-pile__d { color: var(--text-muted); }
 /* A grid cell stretches its child by default, so an inline-flex pill was being
    pulled to the full width of whatever column it landed in. */
 .adm-row .adm-pill { justify-self: end; }

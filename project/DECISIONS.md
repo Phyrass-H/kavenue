@@ -4041,3 +4041,31 @@ the detail page too"* · then, in the browser, *"both pages look good"*.
 ⚑ **Known and left:** `waiting_since` uses the join date for a Driver whose verification was
 withdrawn later (there is no column for when that happened), so such a Driver sorts as if waiting
 since they joined.
+
+### D140 — "To be approved" is a table, and an admin reads "documents needed" (2026-09-13, S80)
+
+**The founder, on the running page and two previews built from the 12 live rows:** *"I found this
+messy, the rows are not clean from the top"* · *"person · 2 papers to send is bad wording from the
+support POV"* · *"needed"* · *"Keep Approved · 2 documents needed"* · *"go ahead, build it"*.
+
+1. **ONE COLUMN PER APPROVAL.** Driver · Class · Base · Person · Company · Car, fixed widths, a header
+   row; the cell carries the state alone ("To approve", not "Car · to approve"). Replaces D139's
+   pills-in-one-cell for THIS SECTION ONLY — "Everyone" and the search results keep their pills
+   (*"no need for now, don't touch it"*).
+2. **"DOCUMENTS NEEDED", NOT "MISSING".** The count is `owedIn`'s: a paper never sent, one refused and
+   one expired all count, and only the first is missing. On every admin surface (the pills and a
+   Driver's page tiles) — it replaces D139 rule 3's "N papers to send". The Driver's own screens are
+   untouched.
+3. **EVERY CELL FILLED, AND A DONE PERSON STILL SAYS WHAT IS OWED.** "Approved", with "2 documents
+   needed" under it: `verified` is a judgement ([[d132]]) and can be true while papers are owed — 9 live
+   Drivers owe the REVTC register and the medical certificate. A done company's "valid · 1 expiring
+   soon" splits the same way. ⚑ So the Company column shows the company's real state even once the
+   person is approved; D139 rule 2 ("none after") still holds for the pills.
+4. **NO "WAITING" COLUMN.** The date the list sorts by is when a Driver could no longer work, not when
+   they began waiting on Kavenue — a Driver who owes documents would read as Kavenue being late. The
+   honest date ("waiting on you since") needs a document history → V2, `project/BACKLOG.md` § AK.
+5. **THIS PAGE'S SECTION TITLES READ AS TITLES** (16px, sentence case), scoped to /admin/drivers. The
+   Base column names the town (`baseTownOf`), not the label's first part.
+
+⚑ **Known and left:** an "Everyone" row still prints the base label's first part ("Pl. du Casino") —
+the founder said not to touch that list.

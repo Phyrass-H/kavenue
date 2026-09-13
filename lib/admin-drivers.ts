@@ -121,6 +121,24 @@ export interface DriverListRow {
   last_took: string | null;
 }
 
+/** The floor below which a search term means nothing — the same as /admin's own box. */
+export const SEARCH_MIN = 2;
+const SEARCH_MAX = 80;
+
+/**
+ * The term the Drivers search sends to admin_driver_find, or null when it is too short.
+ *
+ * ⚑ ACCENTS ARE LEFT IN. Folding is the database's job (fold_text), so the name typed and the
+ * name stored go through the same function — two foldings would disagree about "Œ" one day.
+ */
+export function driverSearchTerm(raw: string | string[] | null | undefined): string | null {
+  // ⚑ `?q=a&q=b` arrives as an ARRAY, and `.replace` on one throws — a URL anyone can type would
+  //   take the whole page down (S79 review). The first value is the one the box would have sent.
+  const first = Array.isArray(raw) ? raw[0] : raw;
+  const t = (first ?? "").replace(/\s+/g, " ").trim().slice(0, SEARCH_MAX).trim();
+  return t.length >= SEARCH_MIN ? t : null;
+}
+
 export interface WorkedSays {
   text: string;
   /** True when nothing is actually finishing — the row is drawn in the warn tone. */

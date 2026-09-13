@@ -4087,6 +4087,23 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
    that have none, or those rows would shift left. */
 .adm-row--4 { grid-template-columns: minmax(0, 1fr) 118px 158px 182px 98px; }
 .adm-row--4 > :not(.adm-row__name) { text-align: right; }
+/* S79 — the Drivers fleet row. Its OWN class, not a wider .adm-row--4: /admin/businesses uses
+   that one, and its last column only ever holds "all filled", so widening it for pills squeezed
+   every Business name (S79 review). Same fixed-width rule, for the same reason. */
+.adm-row--fleet { grid-template-columns: minmax(0, 1fr) 118px 158px 182px 176px; }
+.adm-row--fleet > :not(.adm-row__name) { text-align: right; }
+/* S79 — "Can't work yet". No activity column, so the pills have room to sit side by side, as on
+   the preview the founder approved. */
+.adm-row--blocked { grid-template-columns: minmax(0, 1fr) 118px 182px 300px; }
+.adm-row--blocked > :not(.adm-row__name) { text-align: right; }
+/* A row carries up to three pills — person, company, car. In the fleet row's narrower last
+   column they wrap onto a second line rather than push the columns out of line. */
+.adm-row__pills { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 6px; justify-self: end; }
+.adm-search--drivers { margin-top: 18px; }
+/* The narrow-screen twin of .adm-row--4's rule below: fixed columns give way to name + the rest. */
+@media (max-width: 720px) {
+  .adm-row--fleet, .adm-row--blocked { grid-template-columns: 1fr auto; }
+}
 /* A grid cell stretches its child by default, so an inline-flex pill was being
    pulled to the full width of whatever column it landed in. */
 .adm-row .adm-pill { justify-self: end; }

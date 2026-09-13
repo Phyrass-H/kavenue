@@ -10,14 +10,27 @@
 // ⚑ AND IT ANSWERS THE TWO THINGS THE FOUNDER ASKED FOR BY NAME (S71): *"cars,
 // classes and categories"*, and *"men and women"* — the second with its own
 // denominator, because most of the fleet has never been asked.
+//
+// ⚑ S79 — A SEARCH, THEN THE DRIVERS WHO CAN'T WORK YET, ABOVE THE NUMBERS. The
+// founder's step 4 (2026-09-09), shaped on a preview built from the live fleet and
+// approved 2026-09-13: *"all three approvals, placement is good"*. Above, because it
+// is the part a person acts on and the band is the part they read. It follows no
+// period: a Driver whose car is waiting is waiting today, whatever month the
+// numbers underneath describe.
 import Link from "next/link";
+import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { pageWindow, pageNote } from "@/lib/admin-list";
+import { pageWindow, pageNote, readAll } from "@/lib/admin-list";
 import { parseAdminPeriod, inPeriod } from "@/lib/admin-period";
 import { AdminPeriodBar } from "@/components/admin-period-bar";
 import { worthBreakingDown } from "@/lib/admin-rollup";
+import { DRIVER_DOC_TYPES } from "@/lib/account";
+import { latestSlots } from "@/lib/document-views";
+import { blockersOf, type Blocker } from "@/lib/driver-approvals";
+import { liveCarOf } from "@/lib/vehicle-approval";
 import {
   classKeyLabel,
+  driverSearchTerm,
   finishRate,
   genderAnsweredNote,
   genderKeyLabel,
@@ -28,6 +41,7 @@ import {
   type DriverOverview,
   type DriverRollupRow,
 } from "@/lib/admin-drivers";
+import type { AdminDriverFindRow, AdminDriverPageRow } from "@/lib/database.types";
 import { formatShortDay } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -124,10 +138,94 @@ function BreakdownRow({
   );
 }
 
+/** What stands between this Driver and the Pool — nothing at all for one who can work.
+ *  Our move is amber; the Driver's move stays neutral, because only the first is work waiting
+ *  for whoever is reading. */
+function Pills({ list }: { list: Blocker[] }) {
+  if (list.length === 0) return null;
+  return (
+    <span className="adm-row__pills">
+      {list.map((b) => (
+        <span key={b.pile} className={b.owed === "us" ? "adm-pill adm-pill--warn" : "adm-pill"}>
+          {b.says}
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The one fact that decides whether they ever see a trip. */
+function BaseSays({ label, radius }: { label: string | null; radius: number | null }) {
+  return label ? (
+    <span className="adm-row__kind">{`${label.split(",")[0]} · ${radius ?? 50} km`}</span>
+  ) : (
+    <span className="adm-row__kind adm-row__kind--bad">no base — Pool empty</span>
+  );
+}
+
+type FleetRowData = Pick<
+  AdminDriverPageRow,
+  | "id"
+  | "first_name"
+  | "last_name"
+  | "category"
+  | "body_type"
+  | "base_label"
+  | "service_radius_km"
+  | "trips"
+  | "held_unfinished"
+  | "last_took"
+>;
+
+/** A Driver in "Everyone" or in a search result: what they drive, whether they work, where. */
+function FleetRow({ d, pills }: { d: FleetRowData; pills: Blocker[] }) {
+  const worked = workedSays(d);
+  return (
+    <Link href={`/admin/drivers/${d.id}`} className="adm-row adm-row--fleet">
+      <span className="adm-row__name">
+        {d.first_name} {d.last_name}
+      </span>
+      <span className="adm-row__side">{classKeyLabel(d.category, d.body_type)}</span>
+      <span className={worked.idle ? "adm-row__side adm-row__side--idle" : "adm-row__side"}>
+        {worked.text}
+        {d.last_took && !worked.idle && ` · last ${formatShortDay(d.last_took)}`}
+      </span>
+      <BaseSays label={d.base_label} radius={d.service_radius_km} />
+      <Pills list={pills} />
+    </Link>
+  );
+}
+
+/** A Driver in "Can't work yet": no activity column — what is missing is the point of the row. */
+function BlockedRow({ d, pills, unread }: { d: AdminDriverFindRow; pills: Blocker[]; unread: boolean }) {
+  return (
+    <Link href={`/admin/drivers/${d.id}`} className="adm-row adm-row--blocked">
+      <span className="adm-row__name">
+        {d.first_name} {d.last_name}
+      </span>
+      <span className="adm-row__side">{classKeyLabel(d.category, d.body_type)}</span>
+      <BaseSays label={d.base_label} radius={d.service_radius_km} />
+      {/* ⚑ NEVER A SILENT ROW IN THIS SECTION. Who is listed is decided in SQL and the pills in
+          TypeScript. They are the same rule (tests/driver-blockers.test.ts and
+          .local/probe/driver-find.mts), but if they ever disagree the row must still say the
+          Driver is blocked. And when the approvals could not be read it says THAT, in grey,
+          rather than guessing a reason. */}
+      {pills.length > 0 ? (
+        <Pills list={pills} />
+      ) : unread ? (
+        <span className="adm-pill">Approvals unread</span>
+      ) : (
+        <span className="adm-pill adm-pill--warn">Can’t work yet</span>
+      )}
+    </Link>
+  );
+}
+
 export default async function AdminDriversPage({
   searchParams,
 }: {
   searchParams: Promise<{
+    q?: string | string[];
     category?: string;
     body?: string;
     make?: string;
@@ -139,7 +237,10 @@ export default async function AdminDriversPage({
     to?: string;
   }>;
 }) {
-  const { category, body, make, gender, page, period, anchor, from, to } = await searchParams;
+  const { q, category, body, make, gender, page, period, anchor, from, to } = await searchParams;
+  // ⚑ `?q=a&q=b` is an array. The box shows, and the search uses, the first (S79 review).
+  const typed = (Array.isArray(q) ? q[0] : q) ?? "";
+  const term = driverSearchTerm(q);
   const win = pageWindow(page, PER_PAGE);
   const db = await createClient();
   const filtered = Boolean(category || body || make || gender);
@@ -147,7 +248,7 @@ export default async function AdminDriversPage({
   // What every link on the page must carry to stay in the same period.
   const carry = { period: when.period, anchor: when.anchor, from, to };
 
-  const [overviewRes, listRes] = await Promise.all([
+  const [overviewRes, listRes, findRes] = await Promise.all([
     db.rpc("admin_driver_overview", { p_from: when.fromIso, p_to: when.toIso }),
     db.rpc("admin_driver_page", {
       p_category: category ?? null,
@@ -159,11 +260,78 @@ export default async function AdminDriversPage({
       p_from: when.fromIso,
       p_to: when.toIso,
     }),
+    // One function, two questions: with a term it searches everyone; without one it lists the
+    // Drivers who cannot work, longest blocked first.
+    db.rpc("admin_driver_find", {
+      p_q: term,
+      p_blocked: term === null,
+      p_limit: PER_PAGE,
+      p_offset: 0,
+    }),
   ]);
 
   const o = overviewRes.data as DriverOverview | null;
   const rows = listRes.data ?? [];
   const total = rows[0]?.total_count ?? 0;
+  const found = findRes.data ?? [];
+  const foundTotal = Number(found[0]?.total_count ?? 0);
+
+  // ⚑ THE PILLS ARE READ ONCE FOR EVERY ROW ON THE PAGE — the live cars and the papers of the
+  //   Drivers shown (at most two pages of them), never a query per row. What turns them into
+  //   words is the Driver's own file's rule: blockersOf → approvalPiles.
+  //   The admin's session reads both tables: p_vehicle_read and p_document_owner admit
+  //   app_role()='admin', and app/admin/layout.tsx has already settled that this is one.
+  const shown: Array<FleetRowData & { verified: boolean }> = term ? found : [...found, ...rows];
+  const ids = [...new Set(shown.map((d) => d.id))];
+  const verifiedOf = new Map(shown.map((d) => [d.id, d.verified]));
+  const papersRead = { failed: false };
+  const [carsRes, papers] = await Promise.all([
+    // At most one live car per Driver (vehicle_one_live_per_driver), so ≤ 120 rows: one select.
+    db
+      .from("vehicle")
+      .select("driver_id, approval_status, retired_at, created_at")
+      .in("driver_id", ids)
+      .is("retired_at", null),
+    // ⚑ PAGED, BECAUSE AN UNBOUNDED SELECT STOPS AT 1 000 ROWS WITHOUT A WORD (lib/admin-list.ts
+    //   readAll). Every upload is a new row, so 120 full files with a few re-uploads pass 1 000,
+    //   and a Driver whose newest rows fell off the end would read "papers to add" while their
+    //   file is with us (S79 review). Ordered by id, so the pages can neither overlap nor skip.
+    readAll(async (lo, hi) => {
+      const res = await db
+        .from("document")
+        .select("owner_id, type, side, status, uploaded_at, expires_at")
+        .eq("owner_type", "driver")
+        .in("owner_id", ids)
+        .order("id")
+        .range(lo, hi);
+      if (res.error) papersRead.failed = true;
+      return res;
+    }),
+  ]);
+  const carsBy = new Map<string, NonNullable<typeof carsRes.data>>();
+  for (const c of carsRes.data ?? []) carsBy.set(c.driver_id, [...(carsBy.get(c.driver_id) ?? []), c]);
+  const papersBy = new Map<string, typeof papers>();
+  for (const p of papers) papersBy.set(p.owner_id, [...(papersBy.get(p.owner_id) ?? []), p]);
+
+  // ⚑ A PILL THAT COULD NOT BE READ IS NOT DRAWN. An empty car read says "No car on file" and an
+  //   empty papers read says "papers to add" — confident, and false. So a failed read draws no
+  //   pills at all, and the note says exactly that (S79 review).
+  const pillsUnread = ids.length > 0 && (Boolean(carsRes.error) || papersRead.failed);
+  const now = new Date();
+  const pillsFor = (id: string): Blocker[] =>
+    pillsUnread
+      ? []
+      : blockersOf(
+          { verified: verifiedOf.get(id) ?? false },
+          liveCarOf(carsBy.get(id) ?? []),
+          latestSlots(papersBy.get(id) ?? [], DRIVER_DOC_TYPES),
+          now,
+        );
+  const unreadNote = pillsUnread && (
+    <p className="adm-quiet">
+      The approvals couldn’t be read, so these rows carry no pills — which does not mean they’re clear.
+    </p>
+  );
 
   // ⚑ A REFUSAL, NOT AN EMPTY SCREEN — the same one the Businesses page carries.
   // Four zeroes would read as "you have no Drivers" rather than "this needs a
@@ -188,6 +356,12 @@ export default async function AdminDriversPage({
 
   const genderNote = genderAnsweredNote(o);
   const mNote = medianNote(o);
+  const findMissing = findRes.error && (
+    <p className="adm-lede adm-lede--bad">
+      This needs admin_driver_find — run docs/migrations/2026-09-13d_admin_driver_find.sql.
+      {findRes.error.message && ` (${findRes.error.message})`}
+    </p>
+  );
 
   return (
     <main className="adm-main">
@@ -195,166 +369,218 @@ export default async function AdminDriversPage({
         <div className="adm-head__main">
           <h1>Drivers</h1>
           <p className="adm-head__meta">
-            Everyone who can take work, what they drive, and whether the Pool reaches them.
+            Every Driver, what they drive, and whether the Pool reaches them.
           </p>
         </div>
       </header>
 
-      <AdminPeriodBar now={when} base="/admin/drivers" keep={{ category, body, make, gender }} />
-
-      <section className="adm-sect adm-band">
-        <div className="adm-nums">
-          {/* ⚑ Two of these do not follow the period, and say so — see the
-              Businesses screen for the reasoning. */}
-          <div className="adm-n">
-            <div className="adm-n__v">{count.format(o.drivers)}</div>
-            <div className="adm-n__l">drivers</div>
-            <div className="adm-n__s">on the platform today</div>
-          </div>
-          <div className="adm-n">
-            <div className="adm-n__v">{count.format(o.taken)}</div>
-            <div className="adm-n__l">trips taken</div>
-            <div className="adm-n__s">{inPeriod(when)}</div>
-          </div>
-          <div className="adm-n">
-            <div className="adm-n__v">{count.format(o.never_took)}</div>
-            <div className="adm-n__l">never taken a trip</div>
-            <div className="adm-n__s">all time</div>
-          </div>
-          <div className="adm-n">
-            <div className="adm-n__v">{medianValue(o)}</div>
-            <div className="adm-n__l">trips each, typical</div>
-            {mNote && <div className="adm-n__s">{mNote}</div>}
-          </div>
-        </div>
-      </section>
-
-      {worthBreakingDown(o.by_class) && (
-        <section className="adm-sect">
-          <h2 className="adm-sect__h">What they drive</h2>
-          <BreakdownHead />
-          {o.by_class.map((row) => (
-            <BreakdownRow
-              key={`${row.key}-${row.parent}`}
-              label={classKeyLabel(row.key, row.parent)}
-              row={row}
-              href={qs({ category: row.key ?? undefined, body: row.parent ?? undefined }, carry)}
-            />
-          ))}
-        </section>
+      <form className="adm-search adm-search--drivers" action="/admin/drivers">
+        <Search size={17} strokeWidth={2} aria-hidden="true" />
+        <input
+          type="search"
+          name="q"
+          defaultValue={typed}
+          placeholder="Name, phone, email, plate or SIRET"
+          aria-label="Search Drivers"
+        />
+        {/* A search keeps the period, so clearing it lands back where you were. */}
+        {when.period && <input type="hidden" name="period" value={when.period} />}
+        {when.period === "range" && from && <input type="hidden" name="from" value={from} />}
+        {when.period === "range" && to && <input type="hidden" name="to" value={to} />}
+        {when.period && when.period !== "range" && when.anchor && (
+          <input type="hidden" name="anchor" value={when.anchor} />
+        )}
+      </form>
+      {/* ⚑ A term too short to search is said, not silently ignored (S79 review). */}
+      {term === null && typed.trim() !== "" && (
+        <p className="adm-quiet">Type at least 2 characters to search.</p>
       )}
 
-      {worthBreakingDown(o.by_make) && (
+      {term ? (
         <section className="adm-sect">
-          <h2 className="adm-sect__h">The cars themselves</h2>
-          <BreakdownHead />
-          {o.by_make.map((row) => (
-            <BreakdownRow
-              key={row.key ?? "none"}
-              label={makeKeyLabel(row.key)}
-              row={row}
-              href={qs({ make: row.key ?? undefined }, carry)}
-            />
-          ))}
+          <h2 className="adm-sect__h">Matching Drivers</h2>
+          <p className="adm-quiet">
+            “{term}” — <Link href={qs({}, carry)}>clear</Link>
+          </p>
+          {findMissing ||
+            (found.length === 0 ? (
+              <p className="adm-none">Nothing matches “{term}”.</p>
+            ) : (
+              <>
+                {unreadNote}
+                {found.map((d) => (
+                  <FleetRow key={d.id} d={d} pills={pillsFor(d.id)} />
+                ))}
+                {foundTotal > found.length && (
+                  <p className="adm-quiet">
+                    Showing the first {found.length} of {count.format(foundTotal)} — add a word to narrow it.
+                  </p>
+                )}
+              </>
+            ))}
         </section>
-      )}
+      ) : (
+        <>
+          <section className="adm-sect">
+            <h2 className="adm-sect__h">Can’t work yet</h2>
+            {findMissing ||
+              (found.length === 0 ? (
+                <p className="adm-none">{o.drivers === 0 ? "No Drivers yet." : "Every Driver can work."}</p>
+              ) : (
+                <>
+                  <p className="adm-quiet">Each row says what’s missing. Longest waiting first.</p>
+                  {unreadNote}
+                  {found.map((d) => (
+                    <BlockedRow key={d.id} d={d} pills={pillsFor(d.id)} unread={pillsUnread} />
+                  ))}
+                  {foundTotal > found.length && (
+                    <p className="adm-quiet">
+                      Showing the {found.length} who have waited longest, of {count.format(foundTotal)} — search to
+                      find one.
+                    </p>
+                  )}
+                </>
+              ))}
+          </section>
 
-      {/* ⚑ THIS SECTION DOES NOT FOLLOW `worthBreakingDown`, AND THE EXCEPTION IS
-          DELIBERATE. That rule hides a one-row table because "all four are
-          hotels" is a fact about the market and a table is a poor way to say it.
-          Here the single row is `Not asked × 13` — a fact about the ROLLOUT, not
-          the fleet, and the one thing worth knowing about a question that has
-          just shipped. Hiding it would show a founder who asked for this feature
-          a screen with no trace of it. So: the heading and the denominator
-          always render; only the TABLE waits for something to compare. */}
-      {o.drivers > 0 && (
-        <section className="adm-sect">
-          <h2 className="adm-sect__h">Who they are</h2>
-          {/* The denominator sits above the table, never implied by it. */}
-          {genderNote && <p className="adm-quiet">{genderNote}.</p>}
-          {worthBreakingDown(o.by_gender) ? (
-            <>
-              {o.by_gender.map((row) => (
-                <CensusRow
-                  key={row.key ?? "none"}
-                  label={genderKeyLabel(row.key)}
-                  n={row.drivers}
-                  href={qs({ gender: row.key ?? undefined }, carry)}
+          <AdminPeriodBar now={when} base="/admin/drivers" keep={{ category, body, make, gender }} />
+
+          <section className="adm-sect adm-band">
+            <div className="adm-nums">
+              {/* ⚑ Two of these do not follow the period, and say so — see the
+                  Businesses screen for the reasoning. */}
+              <div className="adm-n">
+                <div className="adm-n__v">{count.format(o.drivers)}</div>
+                <div className="adm-n__l">drivers</div>
+                <div className="adm-n__s">on the platform today</div>
+              </div>
+              <div className="adm-n">
+                <div className="adm-n__v">{count.format(o.taken)}</div>
+                <div className="adm-n__l">trips taken</div>
+                <div className="adm-n__s">{inPeriod(when)}</div>
+              </div>
+              <div className="adm-n">
+                <div className="adm-n__v">{count.format(o.never_took)}</div>
+                <div className="adm-n__l">never taken a trip</div>
+                <div className="adm-n__s">all time</div>
+              </div>
+              <div className="adm-n">
+                <div className="adm-n__v">{medianValue(o)}</div>
+                <div className="adm-n__l">trips each, typical</div>
+                {mNote && <div className="adm-n__s">{mNote}</div>}
+              </div>
+            </div>
+          </section>
+
+          {worthBreakingDown(o.by_class) && (
+            <section className="adm-sect">
+              <h2 className="adm-sect__h">What they drive</h2>
+              <BreakdownHead />
+              {o.by_class.map((row) => (
+                <BreakdownRow
+                  key={`${row.key}-${row.parent}`}
+                  label={classKeyLabel(row.key, row.parent)}
+                  row={row}
+                  href={qs({ category: row.key ?? undefined, body: row.parent ?? undefined }, carry)}
                 />
               ))}
-            </>
-          ) : (
-            <p className="adm-none">
-              {o.gender_answered === 0
-                ? "Nobody has answered yet. Drivers are asked on their own profile, and it is optional."
-                : `Every Driver who has answered said the same thing — ${genderKeyLabel(o.by_gender[0]?.key ?? null)}.`}
-            </p>
+            </section>
           )}
-        </section>
-      )}
 
-      <section className="adm-sect">
-        <h2 className="adm-sect__h">{filtered ? "Matching Drivers" : "Everyone"}</h2>
-        {filtered && (
-          <p className="adm-quiet">
-            {[
-              category && classKeyLabel(category, body ?? null),
-              make && makeKeyLabel(make),
-              gender && genderKeyLabel(gender),
-            ]
-              .filter(Boolean)
-              .join(" · ")}{" "}
-            — <Link href={qs({}, carry)}>clear</Link>
-          </p>
-        )}
-        {rows.length === 0 ? (
-          <p className="adm-none">No Driver matches.</p>
-        ) : (
-          rows.map((d) => {
-            const worked = workedSays(d);
-            const based = Boolean(d.base_label);
-            return (
-              <Link key={d.id} href={`/admin/drivers/${d.id}`} className="adm-row adm-row--4">
-                <span className="adm-row__name">
-                  {d.first_name} {d.last_name}
-                </span>
-                <span className="adm-row__side">
-                  {classKeyLabel(d.category, d.body_type)}
-                </span>
-                <span className={worked.idle ? "adm-row__side adm-row__side--idle" : "adm-row__side"}>
-                  {worked.text}
-                  {d.last_took && !worked.idle && ` · last ${formatShortDay(d.last_took)}`}
-                </span>
-                {/* The one fact that decides whether they ever see a trip. */}
-                <span className={based ? "adm-row__kind" : "adm-row__kind adm-row__kind--bad"}>
-                  {based
-                    ? `${d.base_label?.split(",")[0]} · ${d.service_radius_km ?? 50} km`
-                    : "no base — Pool empty"}
-                </span>
-                {!d.verified && <span className="adm-pill adm-pill--warn">Not verified</span>}
-              </Link>
-            );
-          })
-        )}
-        {(() => {
-          const n = pageNote(Number(total), win, PER_PAGE);
-          if (!n) return null;
-          const href = (p: number) => {
-            const base = qs({ category, body, make, gender }, carry);
-            const sep = base.includes("?") ? "&" : "?";
-            return p === 0 ? base : `${base}${sep}page=${p}`;
-          };
-          return (
-            <div className="adm-page">
-              <span>{n.says}</span>
-              <span className="adm-page__go">
-                {n.newer !== null && <Link href={href(n.newer)}>← Newer</Link>}
-                {n.older !== null && <Link href={href(n.older)}>Older →</Link>}
-              </span>
-            </div>
-          );
-        })()}
-      </section>
+          {worthBreakingDown(o.by_make) && (
+            <section className="adm-sect">
+              <h2 className="adm-sect__h">The cars themselves</h2>
+              <BreakdownHead />
+              {o.by_make.map((row) => (
+                <BreakdownRow
+                  key={row.key ?? "none"}
+                  label={makeKeyLabel(row.key)}
+                  row={row}
+                  href={qs({ make: row.key ?? undefined }, carry)}
+                />
+              ))}
+            </section>
+          )}
+
+          {/* ⚑ THIS SECTION DOES NOT FOLLOW `worthBreakingDown`, AND THE EXCEPTION IS
+              DELIBERATE. That rule hides a one-row table because "all four are
+              hotels" is a fact about the market and a table is a poor way to say it.
+              Here the single row is `Not asked × 13` — a fact about the ROLLOUT, not
+              the fleet, and the one thing worth knowing about a question that has
+              just shipped. Hiding it would show a founder who asked for this feature
+              a screen with no trace of it. So: the heading and the denominator
+              always render; only the TABLE waits for something to compare. */}
+          {o.drivers > 0 && (
+            <section className="adm-sect">
+              <h2 className="adm-sect__h">Who they are</h2>
+              {/* The denominator sits above the table, never implied by it. */}
+              {genderNote && <p className="adm-quiet">{genderNote}.</p>}
+              {worthBreakingDown(o.by_gender) ? (
+                <>
+                  {o.by_gender.map((row) => (
+                    <CensusRow
+                      key={row.key ?? "none"}
+                      label={genderKeyLabel(row.key)}
+                      n={row.drivers}
+                      href={qs({ gender: row.key ?? undefined }, carry)}
+                    />
+                  ))}
+                </>
+              ) : (
+                <p className="adm-none">
+                  {o.gender_answered === 0
+                    ? "Nobody has answered yet. Drivers are asked on their own profile, and it is optional."
+                    : `Every Driver who has answered said the same thing — ${genderKeyLabel(o.by_gender[0]?.key ?? null)}.`}
+                </p>
+              )}
+            </section>
+          )}
+
+          <section className="adm-sect">
+            <h2 className="adm-sect__h">{filtered ? "Matching Drivers" : "Everyone"}</h2>
+            {filtered && (
+              <p className="adm-quiet">
+                {[
+                  category && classKeyLabel(category, body ?? null),
+                  make && makeKeyLabel(make),
+                  gender && genderKeyLabel(gender),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}{" "}
+                — <Link href={qs({}, carry)}>clear</Link>
+              </p>
+            )}
+            {rows.length === 0 ? (
+              <p className="adm-none">No Driver matches.</p>
+            ) : (
+              <>
+                {unreadNote}
+                {rows.map((d) => (
+                  <FleetRow key={d.id} d={d} pills={pillsFor(d.id)} />
+                ))}
+              </>
+            )}
+            {(() => {
+              const n = pageNote(Number(total), win, PER_PAGE);
+              if (!n) return null;
+              const href = (p: number) => {
+                const base = qs({ category, body, make, gender }, carry);
+                const sep = base.includes("?") ? "&" : "?";
+                return p === 0 ? base : `${base}${sep}page=${p}`;
+              };
+              return (
+                <div className="adm-page">
+                  <span>{n.says}</span>
+                  <span className="adm-page__go">
+                    {n.newer !== null && <Link href={href(n.newer)}>← Newer</Link>}
+                    {n.older !== null && <Link href={href(n.older)}>Older →</Link>}
+                  </span>
+                </div>
+              );
+            })()}
+          </section>
+        </>
+      )}
     </main>
   );
 }

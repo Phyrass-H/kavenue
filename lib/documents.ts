@@ -5,7 +5,7 @@ import "server-only";
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { signedDocUrl } from "@/lib/supabase/storage";
-import { documentMeta } from "@/lib/account";
+import { latestSlots } from "@/lib/document-views";
 import type { DocumentType, DocumentStatus, DocumentSide } from "@/lib/database.types";
 // Re-exported so callers that already import from here keep working; the
 // implementation lives outside this server-only module so the client can use it.
@@ -59,16 +59,11 @@ type Row = {
 /** Extension of the stored path, not of a user-supplied name. */
 const isPdfPath = (p: string) => p.toLowerCase().endsWith(".pdf");
 
-// Worst-first, so one rejected side makes the whole document rejected.
-function rollUp(a: DocumentStatus, b: DocumentStatus): DocumentStatus {
-  if (a === "rejected" || b === "rejected") return "rejected";
-  if (a === "pending" || b === "pending") return "pending";
-  return "verified";
-}
-
 // Latest document per requested type, each with a fresh short-lived view URL.
 // Two-sided papers (licence, VTC card) keep the newest row *per side*, so
 // uploading a back doesn't bury the front.
+// ⚑ WHICH ROW IS ON FILE is decided by `latestSlots` (lib/document-views.ts) and only there —
+//   the admin Drivers list asks the same question for sixty Drivers at once, without URLs (S79).
 export async function getLatestDocuments(
   ownerType: "driver" | "business",
   ownerId: string,
@@ -82,21 +77,8 @@ export async function getLatestDocuments(
     .eq("owner_id", ownerId)
     .order("uploaded_at", { ascending: false });
 
-  // key = `${type}|${side ?? ""}` → newest row for that slot.
-  const latest = new Map<string, Row>();
-  for (const d of (data ?? []) as Row[]) {
-    const key = `${d.type}|${d.side ?? ""}`;
-    if (!latest.has(key)) latest.set(key, d);
-  }
-
   return Promise.all(
-    types.map(async (type) => {
-      const meta = documentMeta(type);
-      // A two-sided document may have been filed before sides existed (side null),
-      // so fall back to the sideless row for the front.
-      const front = latest.get(`${type}|front`) ?? latest.get(`${type}|`) ?? null;
-      const back = meta.twoSided ? (latest.get(`${type}|back`) ?? null) : null;
-
+    latestSlots((data ?? []) as Row[], types).map(async ({ type, front, back, status, expiresAt, incomplete }) => {
       if (!front && !back) {
         return {
           type,
@@ -112,14 +94,13 @@ export async function getLatestDocuments(
       }
 
       const rows = [front, back].filter(Boolean) as Row[];
-      const status = rows.map((r) => r.status).reduce(rollUp);
       const newest = rows.reduce((a, b) => (a.uploaded_at >= b.uploaded_at ? a : b));
 
       return {
         type,
         status,
         uploadedAt: newest.uploaded_at,
-        expiresAt: front?.expires_at ?? back?.expires_at ?? null,
+        expiresAt,
         reviewNote: rows.find((r) => r.review_note)?.review_note ?? null,
         viewUrl: front ? await signedDocUrl(front.file_url) : null,
         front: front
@@ -142,7 +123,7 @@ export async function getLatestDocuments(
               isPdf: isPdfPath(back.file_url),
             }
           : null,
-        incomplete: !!meta.twoSided && (!front || !back),
+        incomplete,
       };
     }),
   );

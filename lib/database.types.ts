@@ -223,6 +223,27 @@ export interface AdminDriverPageRow {
   total_count: number;
 }
 
+/** S79 — a row of admin_driver_find: /admin/drivers' search and its "Can't work yet" section
+ *  (docs/migrations/2026-09-13d_admin_driver_find.sql). */
+export interface AdminDriverFindRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  verified: boolean;
+  base_label: string | null;
+  service_radius_km: number | null;
+  category: string | null;
+  body_type: string | null;
+  /** The LIVE car's approval_status, or null when there is no live car at all. */
+  car_status: string | null;
+  /** Since when they could not work; null for a Driver who can. */
+  waiting_since: string | null;
+  trips: number;
+  held_unfinished: number;
+  last_took: string | null;
+  total_count: number;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -1494,6 +1515,12 @@ export interface Database {
           p_to?: string | null;
         };
         Returns: AdminDriverPageRow[];
+      };
+      // S79 — /admin/drivers step 4. ⚑ Needs 2026-09-13d_admin_driver_find.sql, which needs M5
+      // (2026-09-13b) for phone_key().
+      admin_driver_find: {
+        Args: { p_q?: string | null; p_blocked?: boolean; p_limit?: number; p_offset?: number };
+        Returns: AdminDriverFindRow[];
       };
     };
     Enums: {

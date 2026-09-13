@@ -17,7 +17,7 @@
 import { docState, driverDocTypes, type DocState } from "@/lib/account";
 import type { DocView } from "@/lib/documents";
 import type { DriverRow, VehicleRow } from "@/lib/database.types";
-import { statusOf } from "@/lib/vehicle-approval";
+import { carBlockOf, statusOf, type CarBlock } from "@/lib/vehicle-approval";
 
 export type ApprovalPile = "person" | "company" | "vehicle";
 
@@ -47,9 +47,13 @@ export const PILE_LABEL_ADMIN: Record<ApprovalPile, string> = {
   vehicle: "Vehicle",
 };
 
+/** ⚑ S79 — ONLY WHAT THE RULE READS. The Driver's own file passes whole DocViews; the admin
+ *  list passes one slot per paper from lib/document-views.ts, without the signed URLs. */
+export type DocFacts = Pick<DocView, "type" | "status" | "expiresAt">;
+
 const NEEDS_THEM: readonly DocState[] = ["missing", "rejected", "expired"];
 
-function papersState(docs: DocView[], now: Date): { state: PileState; says: string } {
+function papersState(docs: readonly DocFacts[], now: Date): { state: PileState; says: string } {
   if (docs.length === 0) return { state: "todo", says: "no papers yet" };
   const states = docs.map((d) => docState(d, now));
   const owed = states.filter((s) => NEEDS_THEM.includes(s)).length;
@@ -65,9 +69,9 @@ function papersState(docs: DocView[], now: Date): { state: PileState; says: stri
  *  date formatting is the caller's job — this module returns facts, not sentences with
  *  timezones in them. */
 export function approvalPiles(
-  driver: DriverRow,
-  liveCar: VehicleRow | null,
-  docs: DocView[],
+  driver: Pick<DriverRow, "verified">,
+  liveCar: Pick<VehicleRow, "approval_status" | "retired_at"> | null,
+  docs: readonly DocFacts[],
   now: Date = new Date(),
 ): Pile[] {
   const byGroup = (group: "personal" | "company" | "vehicle") => {
@@ -111,7 +115,63 @@ export function approvalPiles(
  *  half (driver.verified in accept_mission/place_hold, the car in the S78 trigger), and this
  *  must never be the only test. A screen that decides who may work is a screen someone can
  *  skip with a stale tab. */
-export function mayTakeWork(driver: DriverRow, liveCar: VehicleRow | null): boolean {
+export function mayTakeWork(
+  driver: Pick<DriverRow, "verified">,
+  liveCar: Pick<VehicleRow, "approval_status" | "retired_at"> | null,
+): boolean {
   return Boolean(driver.verified) && Boolean(liveCar) && !liveCar!.retired_at
     && statusOf(liveCar) === "approved";
+}
+
+// ── S79 — what the admin Drivers list says on a row ─────────────────────────────────────
+
+/** One pill on an admin row. `owed` is whose move it is: "us" = a person at Kavenue owes a
+ *  look, "them" = the Driver owes something. The page tones the two differently, because only
+ *  the first is work waiting for whoever is reading. */
+export interface Blocker {
+  pile: ApprovalPile;
+  says: string;
+  owed: "us" | "them";
+}
+
+/** ⚑ Keyed by CarBlock, so a new way for a car to be in the way is a compile error here. */
+const CAR_BLOCKER: Record<CarBlock, Blocker> = {
+  no_car: { pile: "vehicle", says: "No car on file", owed: "them" },
+  car_pending: { pile: "vehicle", says: "Car · with us", owed: "us" },
+  car_rejected: { pile: "vehicle", says: "Car · needs correcting", owed: "them" },
+};
+
+/**
+ * What stands between a Driver and the Pool, as the admin list names it — in the order a
+ * reviewer works through it: the person, their company, their car. Empty means they can work.
+ *
+ * ⚑ EMPTY EXACTLY WHEN mayTakeWork IS TRUE — tests/driver-blockers.test.ts walks every
+ * combination. The founder chose this section to mean "all three approvals" (2026-09-13); a
+ * row that says nothing while the Driver cannot work would be the one lie this list can tell.
+ * ⚑ THE COMPANY PILL SHOWS ONLY WHILE THE PERSON IS UNAPPROVED. It has no door ([[d137]] rule
+ * 1): once a person has been approved, a lapsed Kbis stops nobody working, and a pill for it
+ * here would contradict the section it sits in.
+ */
+export function blockersOf(
+  driver: Pick<DriverRow, "verified">,
+  liveCar: Pick<VehicleRow, "approval_status" | "retired_at"> | null,
+  docs: readonly DocFacts[],
+  now: Date = new Date(),
+): Blocker[] {
+  if (mayTakeWork(driver, liveCar)) return [];
+  const [person, company] = approvalPiles(driver, liveCar, docs, now);
+  const out: Blocker[] = [];
+  if (!driver.verified) {
+    out.push(
+      person.state === "todo"
+        ? { pile: "person", says: `Person · ${person.says}`, owed: "them" }
+        : { pile: "person", says: "Person · with us", owed: "us" },
+    );
+    if (company.state === "todo") {
+      out.push({ pile: "company", says: `Company · ${company.says}`, owed: "them" });
+    }
+  }
+  const car = carBlockOf(liveCar);
+  if (car) out.push(CAR_BLOCKER[car]);
+  return out;
 }

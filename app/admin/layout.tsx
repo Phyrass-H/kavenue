@@ -21,6 +21,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getAppContext, routeFor } from "@/lib/app-context";
 import { urlForRole, isProdDomain, roleSubOf, homePathForSub, PROD_BASE } from "@/lib/hosts";
+import { AdminAccountMenu } from "@/components/admin-account-menu";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getAppContext();
@@ -51,7 +52,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <Link href="/admin/businesses">Businesses</Link>
           <Link href="/admin/trips">Trips</Link>
         </nav>
-        <span className="adm-who">{ctx.user.email}</span>
+        <AdminAccountMenu email={ctx.user.email ?? ""} />
       </header>
       {children}
     </div>

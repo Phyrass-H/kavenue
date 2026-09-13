@@ -65,10 +65,32 @@ overclaimed "can never disagree" was reworded anyway.
 Re-check (2 lenses, 4 agents) → the CSS fixes hold; nothing new in code. Both lenses confirmed that my corrected
 § AK was STILL wrong ("no actor" → in fact a stale, false actor). Fixed in the docs.
 
+### Sign out for the admin console
+The founder: *"I cannot logout the activity console"* — true: the admin header only printed the email; sign-out
+existed in the Driver app (`components/driver-signout.tsx`) and Dispatch (`dispatch-shell.tsx`) only. Two previews
+(a visible link / a menu under the email); the founder chose the menu (*"B, build it"*) over my recommendation.
+- `components/admin-account-menu.tsx` (new, client) — the email is a disclosure button; the card says "Signed in as
+  …" and holds Sign out: `auth.signOut()` → `/login`. Closes on outside pointerdown and Escape; focus moves in and
+  back. ⚑ A failed sign-out is SAID ("Couldn't sign out. Try again."): the cookie would still be there, and /login
+  would bounce straight back into the console.
+- `app/admin/layout.tsx` uses it; `.adm-who` removed; `.adm-acct*` in `app/globals.css` (greys at --text-muted for AA).
+- Review (2 lenses, 8 read-only agents, verified) → 3 confirmed, all keyboard, all fixed: the document-level Escape
+  closed the card and pulled focus into the header from ANY field — a search box, even the document viewer's
+  reject note (now only an Escape from the card, and tabbing out closes it); a failed sign-out left focus on the
+  page because the focused button had disabled itself (focus returns once it is enabled). 3 refuted, incl. the
+  phone header overflow (pre-existing, logged below). Re-check of the fixes (2 agents) → 0 confirmed.
+- Also answered for the founder, from the code and one read-only count: **one admin** (`admin@kavenue.fr`); any
+  email gets a magic link and an account, but only onboarding writes a profile and only as driver/dispatcher —
+  nobody can make themselves admin; a second admin today = sign in once, then a manual `profile.role='admin'` in
+  Supabase. 3 auth users have no profile (a link clicked, onboarding never finished).
+
 ### Left open
 - ⚑ `setDriverVerified` logs a Driver's approval/suspension as done BY THE DRIVER (stale `last_written_by`), and
   never sets `verified_at`/`verified_by`. One write path, ~4 lines — raised with the founder, not built.
 - An "Everyone" row still prints the base label's first part ("Pl. du Casino") — founder: don't touch that list.
+- On a phone the admin header is wider than the screen (the four nav links do not shrink — measured 568px of
+  content in a 375px viewport, before S80 too), so the email and its Sign-out card sit off to the right. Not fixed:
+  the console is used on the Mac.
 - At 861–940px a fleet row's name gets 101px (was 117) — the price of the wider pill column.
 - The Car cell is the car's approval only; the vehicle papers are not part of it (unchanged rule).
 

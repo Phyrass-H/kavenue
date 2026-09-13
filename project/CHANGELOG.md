@@ -18,6 +18,8 @@
 - **A Driver's own admin page uses the same words.** The "Everyone" list keeps its layout.
 - **Noted for V2:** a full history of every document decision. Today a second decision on the same
   document replaces the first.
+- **You can sign out of the admin console.** Click your email at the top right, then "Sign out".
+  (On your Mac that means asking for a new sign-in link to come back in.)
 
 ## 13 September 2026 (later) — find any Driver, and see who is waiting for you
 

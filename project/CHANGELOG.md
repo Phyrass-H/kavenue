@@ -22,6 +22,11 @@
   (On your Mac that means asking for a new sign-in link to come back in.)
 - **Approving a Driver now records that you did it, and when.** Before, the history would have named the Driver
   themself. Nobody had been approved since that history started, so nothing needed correcting.
+- **The admin sign-in only lets admins in.** It no longer creates accounts or shows the Driver/Business sign-up. Any
+  email gets the same answer ("if this address has admin access, a link is on its way"), and someone who opens the
+  link without admin access is signed out and told so.
+- **Noted for V2:** a master admin who adds and removes staff accounts. Until then, a new admin's account is created
+  in Supabase first.
 
 ## 13 September 2026 (later) — find any Driver, and see who is waiting for you
 

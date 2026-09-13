@@ -2028,3 +2028,21 @@ foreign key (a delete must not take the log with it), events `uploaded` / `appro
 left out of the "To be approved" table in S80 because the only date available today measured the wrong thing.
 
 Related: § AG (the mission event log) · § AJ (training support to check papers) · [[d132]].
+
+---
+
+## AL. A master admin who adds and removes staff accounts 🅥 (founder, 2026-09-13, S80 — *"for the futur, maybe V2 I think we should have a master admin account to create/revoke sub-account for the staff"*)
+
+**Today (V1).** One admin — the founder (`admin@kavenue.fr`, measured S80). A second admin is added BY HAND: they sign
+in once on admin.kavenue.fr (the admin door never creates an account since S80, so their account must exist first
+— e.g. created in the Supabase dashboard), then `profile.role = 'admin'` is set in Supabase. Every admin has the
+same full access. Removing the role closes the console on their next page load (`app/admin/layout.tsx` reads the
+role on every request); there is no screen for either.
+
+**The V2 shape, to scope then.**
+- An **owner** above admin: invites a staff member by email and removes them — no SQL, no dashboard.
+- **What a staff member may do**, chosen per person: e.g. approve documents and cars, suspend a Driver, see money.
+- **Revoking** removes the access AND ends their open sessions (Supabase's admin sign-out), not just the next load.
+- Every act already names its actor: a Driver's approval stamps the admin since S80 (§ AK), a car's since S78.
+
+Related: § AJ (training the support team) · § AK (the approval log) · [[d141]] (the admin door).

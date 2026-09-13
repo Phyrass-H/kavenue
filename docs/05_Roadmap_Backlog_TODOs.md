@@ -137,6 +137,7 @@ pickup's coordinates are the fact; a town label is a convenience.
 - **Multiple vehicles** per Driver.
 - **Auto invoice / quote / purchase-order (PO) generation** for Drivers operating as companies, with a feature opt-in selector.
 - **Document review history (`document_event`)** — keep every upload AND every verdict on a Driver's papers. V1 keeps each upload as its own row, but a second verdict on the same paper overwrites the first. Founder, 2026-09-13: fine for V1, build for V2. Detail: `project/BACKLOG.md` § AK.
+- **Staff accounts — a master admin who adds and removes staff** — an owner invites staff by email, chooses what each may do (approve papers, suspend, see money), and revoking ends their sessions. V1: one admin, a second added by hand in Supabase. Founder, 2026-09-13: V2. Detail: `project/BACKLOG.md` § AL.
 
 ### Ratings & trust
 - **Mutual rating** after each ride; **excellence badge**; rating-based ride-access priority/throttling; automated punctuality/quality scoring.

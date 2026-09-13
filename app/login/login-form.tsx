@@ -3,6 +3,13 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { RoleSub } from "@/lib/hosts";
+import {
+  ADMIN_CHECK_FAILED,
+  ADMIN_SIGNIN,
+  NOT_ADMIN,
+  adminSigninCookie,
+  isNoSuchAccount,
+} from "@/lib/admin-signin";
 
 // ⚑ KEYED ON `RoleSub`, NOT A HAND-WRITTEN UNION. When "admin" joined RoleSub the
 // compiler stopped the build here rather than letting an admin see "Kavenue
@@ -31,21 +38,31 @@ export function LoginForm({
   const [message, setMessage] = useState("");
 
   const copy = COPY[side ?? "generic"];
+  // ⚑ S80 — THE ADMIN DOOR ([[d141]], lib/admin-signin.ts). It never creates an account, it answers
+  // every email with the same sentence, and it marks the link so /auth/callback can refuse a
+  // non-admin plainly instead of offering them "Driver or Business?" at the admin address.
+  const adminDoor = side === "admin";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("sending");
     setMessage("");
 
+    // Set on the admin door, cleared on every other one — see adminSigninCookie.
+    document.cookie = adminSigninCookie(adminDoor, window.location.protocol === "https:");
+
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
+        shouldCreateUser: !adminDoor,
       },
     });
 
-    if (error) {
+    // ⚑ On the admin door "no such account" is not an error to show: saying it would tell anyone
+    //   which addresses are admins. A rate limit or a network failure is still shown.
+    if (error && !(adminDoor && isNoSuchAccount(error.code))) {
       setStatus("error");
       setMessage(error.message);
       return;
@@ -67,16 +84,26 @@ export function LoginForm({
 
         {status === "sent" ? (
           <div className="notice success">
-            Check your email — we sent a sign-in link to{" "}
-            <strong>{email}</strong>. Open it on this device to continue.
+            {adminDoor ? (
+              ADMIN_SIGNIN.sent
+            ) : (
+              <>
+                Check your email — we sent a sign-in link to{" "}
+                <strong>{email}</strong>. Open it on this device to continue.
+              </>
+            )}
           </div>
         ) : (
           <form onSubmit={onSubmit}>
-            {/* Error from the magic-link callback (expired/invalid link). */}
+            {/* An error from the magic-link callback: a non-admin at the admin door, or an
+                expired/invalid link. */}
             {initialError && status === "idle" && (
               <div className="notice error">
-                Your sign-in link was invalid or has expired — request a new one
-                below.
+                {initialError === NOT_ADMIN
+                  ? ADMIN_SIGNIN.notAdmin
+                  : initialError === ADMIN_CHECK_FAILED
+                    ? ADMIN_SIGNIN.checkFailed
+                    : "Your sign-in link was invalid or has expired — request a new one below."}
               </div>
             )}
             {status === "error" && <div className="notice error">{message}</div>}
@@ -101,7 +128,9 @@ export function LoginForm({
             <p className="muted small" style={{ marginTop: 12 }}>
               No password needed. We email you a secure one-time link.
             </p>
-            {devEnabled && (
+            {/* /dev-login signs in as a Driver or a Business — never as admin — so the admin door
+                does not offer it. */}
+            {devEnabled && !adminDoor && (
               <p className="small" style={{ marginTop: 8 }}>
                 <a href="/dev-login" style={{ color: "var(--accent)" }}>
                   Local testing? Use one-click dev sign-in →

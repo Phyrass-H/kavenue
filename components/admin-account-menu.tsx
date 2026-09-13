@@ -70,7 +70,7 @@ export function AdminAccountMenu({ email }: { email: string }) {
         setFailed(true);
         return;
       }
-      router.replace("/login");
+      router.replace("/login?side=admin");
       router.refresh();
     });
   }

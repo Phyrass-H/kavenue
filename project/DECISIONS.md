@@ -4069,3 +4069,30 @@ support POV"* · *"needed"* · *"Keep Approved · 2 documents needed"* · *"go a
 
 ⚑ **Known and left:** an "Everyone" row still prints the base label's first part ("Pl. du Casino") —
 the founder said not to touch that list.
+
+### D141 — The admin door never creates an account, and says "no admin access" only to the mailbox's owner (2026-09-13, S80)
+
+**The founder, after testing the admin sign-in with a non-admin email:** *"it did not log me in so that's good! but
+it sent me to the driver business signup page with admin address which to me don't make any sens, if an address
+email isn't registered as admin the feedback should say so"*. Then, on my example of a Driver trying it: *"why in the
+world would a driver or a business ever try to login on the admin page?"* — fair: the real cases are the founder with
+another of their emails, a staff member not (or no longer) an admin, and a stranger who found the address.
+
+1. **NEVER CREATES AN ACCOUNT.** The admin door asks Supabase with `shouldCreateUser: false`. Measured: an unknown
+   address gets `422 "Signups not allowed for otp"`, no email, and no account (25 sign-in accounts before, 25 after).
+2. **ONE SENTENCE BEFORE THE LINK, WHATEVER THE EMAIL** — *"If this address has admin access, a sign-in link is on its
+   way."* A page that answered "not an admin" would let anyone test addresses to find the ones that are.
+3. **A PLAIN SENTENCE AFTER IT.** The person has proven the mailbox is theirs, so a non-admin is signed out of THAT
+   session (`scope: "local"` — never their Driver app on another device) and sent back: *"This email doesn't have
+   admin access."* ⚑ A role that could not be READ says it could not check — never "no access" (S79 lesson).
+4. **THE DOOR IS THE HOST, OR A MARKER.** admin.kavenue.fr always; on a shared host (localhost) `/login?side=admin`
+   and a one-hour cookie the admin form sets. ⚑ Not a `?next=` on the link: the Supabase redirect allowlist lists the
+   bare `/auth/callback`, and a link that fails to match falls back to the Site URL — a sign-in that silently fails.
+
+⚑ **Consequence:** a second admin can no longer create their account at the admin door. Until the V2 master admin
+(BACKLOG § AL), their account is created in the Supabase dashboard, then given `profile.role = 'admin'`.
+
+⚑ **Known and left (S80 review):** Supabase's per-address rate limit and response time can still hint that an address
+has an account — a property of the provider, not of this form. And a sign-out call that FAILS after the link would
+have left the session on the redirect (and /login would bounce to "Driver or Business?"): the callback now drops
+the session cookies by hand in that case, so the sentence still shows.

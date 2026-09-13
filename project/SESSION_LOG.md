@@ -5,14 +5,15 @@
 
 ---
 
-## 2026-09-13 — SESSION 80 — "To be approved" becomes a table · tests 1212 → 1221 · no database change
+## 2026-09-13 — SESSION 80 (close) — "To be approved" as a table · admin sign-out · the approval log · the admin door · tests 1212 → 1235 · no database change
 
 ### State
 | | |
 |---|---|
-| branch | `s80-approvals-columns` — NOT merged; the founder's browser check comes first |
+| `main` | fast-forwarded from `s80-approvals-columns`, `s80-handoff`, `s80-approval-actor`, `s80-admin-door`; CI green each time |
+| founder | checked /admin/drivers and the Driver page in Safari, then *"merge it"*; tested the admin sign-in with a non-admin email |
 | database | untouched: no migration, nothing to paste |
-| tests | **1221** (+9) · `tsc` clean |
+| tests | **1235** (+23) · `tsc` clean |
 
 ### How it started — and a lesson
 The founder asked to *"review the design of the driver page in activity console"* and meant **/admin/drivers**
@@ -81,8 +82,9 @@ existed in the Driver app (`components/driver-signout.tsx`) and Dispatch (`dispa
   phone header overflow (pre-existing, logged below). Re-check of the fixes (2 agents) → 0 confirmed.
 - Also answered for the founder, from the code and one read-only count: **one admin** (`admin@kavenue.fr`); any
   email gets a magic link and an account, but only onboarding writes a profile and only as driver/dispatcher —
-  nobody can make themselves admin; a second admin today = sign in once, then a manual `profile.role='admin'` in
-  Supabase. 3 auth users have no profile (a link clicked, onboarding never finished).
+  nobody can make themselves admin; a second admin = a manual `profile.role='admin'` in Supabase (⚑ superseded the
+  same day by the admin door below: their account must now be created in the Supabase dashboard first). 3 auth
+  users have no profile (a link clicked, onboarding never finished).
 
 ### The approval log, fixed — *"fix the approval log now"*
 Parked first ("fix before a second admin gets a login"), then the founder asked for it the same day.
@@ -100,6 +102,29 @@ Parked first ("fix before a second admin gets a login"), then the founder asked 
 - ⚑ **Measured before the fix (read-only): 0 `approved`/`suspended` events** — no Driver approved or suspended since
   the log began 2026-09-12 — so the bug never wrote a false row; nothing to correct. 11 verified Drivers, 0 with
   `verified_at` (not backfilled, by design).
+
+### The admin door — [[d141]]
+The founder tested the admin sign-in with a non-admin email: not let in (good), but landed on "Driver or Business?"
+at the admin address. ⚑ My example (a Driver trying it) was rejected as unrealistic — the real cases are the founder's
+other emails, staff not (or no longer) admin, and a stranger who found the address.
+- `lib/admin-signin.ts` (new, pure) — the marker cookie, the words, `isNoSuchAccount`, `cameThroughAdminDoor`.
+- `app/login/login-form.tsx` — on the admin door: `shouldCreateUser: false`, one neutral sentence for any email, the
+  marker set (cleared by every other door), no dev-login link.
+- `app/auth/callback/route.ts` — a sign-in from the admin door: an admin → `/admin`; anyone else →
+  `signOut({ scope: "local" })` and back with "no admin access"; an unreadable role → "couldn't check" (never a
+  confident "no access"). Every error path keeps `side=admin`.
+- `app/login/page.tsx` reads `?side=admin` on a shared host; `app/admin/layout.tsx` and the account menu send there.
+- `tests/admin-signin.test.ts` (new, 10).
+- Probe (a made-up `@kavenue.test` address, the public key, creation off): `otp_disabled` / 422, **0 accounts
+  created** (25 → 25). Browser pane, signed out, localhost: `/admin` → `/login?side=admin` ("Kavenue Admin", no
+  dev-login link); both error sentences render; the generic `/login` keeps its dev-login link.
+- BACKLOG § AL + docs/05 — V2: a master admin who adds and removes staff. ⚑ Because the admin door creates no
+  account, a second admin's account is now made in the Supabase dashboard first, then given the role.
+- Review (2 lenses, 7 read-only agents, verified) → 1 confirmed (by both lenses), fixed: a FAILED `signOut` (network /
+  5xx — auth-js then keeps the session) left the exchange's cookies on the redirect, so /login bounced a non-admin to
+  "Driver or Business?" at the admin address; the callback now deletes the `sb-…-auth-token*` cookies itself. 3
+  refuted: rate-limit/timing enumeration (the provider's, logged in D141), the second-admin steps, a test name (renamed
+  anyway).
 
 ### Left open
 - An "Everyone" row still prints the base label's first part ("Pl. du Casino") — founder: don't touch that list.

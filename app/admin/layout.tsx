@@ -27,7 +27,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const ctx = await getAppContext();
   const host = (await headers()).get("host");
 
-  if (!ctx.user) redirect("/login");
+  // ⚑ S80 — `?side=admin` so a shared host (localhost) shows the admin door, not the generic sign-in
+  //   ([[d141]]). On admin.kavenue.fr the host already says so; the parameter is harmless there.
+  if (!ctx.user) redirect("/login?side=admin");
   // Wrong role → their own area (crossing subdomain on production).
   if (ctx.profile?.role !== "admin") {
     redirect(urlForRole(host, ctx.profile?.role, routeFor(ctx)));

@@ -32,6 +32,7 @@ import {
   gridLabel,
   gridRowHref,
   nobodyTookOf,
+  personNotApprovedSays,
   replacedSays,
   rpcMissing,
   vehicleFilter,
@@ -100,7 +101,7 @@ function GridRow({ row, carry }: { row: VehicleGridRow; carry: PeriodCarry }) {
           <span className="adm-row__pills">
             {row.waiting > 0 && <span className="adm-pill adm-pill--warn">{count.format(row.waiting)}</span>}
             {row.personNotApproved > 0 && (
-              <span className="adm-pill">{count.format(row.personNotApproved)} person not approved</span>
+              <span className="adm-pill">{personNotApprovedSays(row.personNotApproved)}</span>
             )}
             {row.refused > 0 && <span className="adm-pill">{count.format(row.refused)} refused</span>}
           </span>
@@ -176,7 +177,7 @@ function CarRow({ c, piles, unread }: { c: AdminVehicleFindRow; piles: AdminPile
       <span className="adm-row__name" title={carModelOf(c)}>{carModelOf(c)}</span>
       <span className="adm-row__side">{c.plate ?? "—"}</span>
       <span className="adm-row__side">{classKeyLabel(c.category, c.body_type)}</span>
-      <span className="adm-row__side">
+      <span className="adm-row__side" title={`${c.first_name} ${c.last_name}`}>
         {c.first_name} {c.last_name}
       </span>
       {approvals}

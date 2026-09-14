@@ -23,6 +23,7 @@ import {
   vehicleGridRows,
   type AdminVehicleDemand,
   type AdminVehicleSupply,
+  personNotApprovedSays,
 } from "@/lib/admin-vehicles";
 
 const supply = (category: string, body_type: string, s: Partial<AdminVehicleSupply> = {}): AdminVehicleSupply => ({
@@ -126,6 +127,10 @@ describe("vehicleGridRows — the any row", () => {
 
   it("takes its trips from its own demand key, not from the body rows", () => {
     expect(by("business|any").trips).toBe(200);
+    // ⚑ S81 re-check: each count from its own field — a swap would print "198 of 198 · 100 %".
+    expect(by("business|any").settled).toBe(198);
+    expect(by("business|any").filled).toBe(158);
+    expect(by("business|any").nobodyTook).toBe(40);
     expect(by("business|sedan").trips).toBe(0);
   });
 });
@@ -233,5 +238,12 @@ describe("rpcMissing", () => {
     expect(rpcMissing({ code: "PGRST202" })).toBe(true);
     expect(rpcMissing({ code: "42501" })).toBe(false);
     expect(rpcMissing(null)).toBe(false);
+  });
+});
+
+describe("personNotApprovedSays — a count of people", () => {
+  it("says person for one, people for more", () => {
+    expect(personNotApprovedSays(1)).toBe("1 person not approved");
+    expect(personNotApprovedSays(2)).toBe("2 people not approved");
   });
 });

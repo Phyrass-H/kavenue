@@ -36,7 +36,8 @@
 --     can work           the Driver is verified AND the car is approved
 --     to approve         the car is waiting (Kavenue's move) — whatever the person's state
 --     refused            the car was refused (the Driver's move)
---     person to approve  the car is approved, the person is not
+--     person not approved  the car is approved, the person is not (our move or the Driver's —
+--                        it depends on their papers, which a count cannot see)
 --   `else` is to_approve because statusOf reads anything unknown as pending; the check
 --   constraint (2026-09-12_vehicle_lifecycle_columns.sql) makes that arm unreachable today.
 --
@@ -47,7 +48,7 @@
 --   it "Not taken" — the sweep simply has not reached the row. Leaving it out would let a class
 --   whose trips nobody took read "nothing settled" until a cron ran. The three parts are
 --   disjoint, so settled = filled + nobody_took + cancelled before anyone took it.
--- ⚑ AND THE PERIOD IS ON pickup_at, NOT created_at like the Businesses page ([[d142]] rule 4):
+-- ⚑ AND THE PERIOD IS ON pickup_at, NOT created_at like the Businesses page ([[d142]] rule 3):
 --   "were there enough Eco vans in May" is about the trips that had to be DRIVEN in May.
 create or replace function admin_vehicle_overview(
   p_from timestamptz default null,

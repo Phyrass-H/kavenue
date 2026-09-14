@@ -33,7 +33,7 @@ export interface AdminVehicleSupply {
   person_not_approved: number;
 }
 
-/** The trips of one class in the period, counted by PICKUP date ([[d142]] rule 4). */
+/** The trips of one class in the period, counted by PICKUP date ([[d142]] rule 3). */
 export interface AdminVehicleDemand {
   category: string;
   /** 'sedan' | 'van' | 'any' — `coalesce(required_body_type::text, 'any')`. */
@@ -234,6 +234,12 @@ export function vehicleFilter(
   if (!c) return null;
   const b = (Array.isArray(body) ? body[0] : body)?.trim();
   return { category: c, body: b || ANY_BODY };
+}
+
+/** "1 person not approved", "2 people not approved" — approved cars whose Driver is not approved. At most
+ *  one live car per Driver (vehicle_one_live_per_driver), so the count is a count of people. */
+export function personNotApprovedSays(n: number): string {
+  return n === 1 ? "1 person not approved" : `${count.format(n)} people not approved`;
 }
 
 /** "7 cars match “mercedes”", "1 car matches “AB-123”". */

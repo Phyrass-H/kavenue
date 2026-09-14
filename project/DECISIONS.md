@@ -4109,7 +4109,7 @@ and why they are not in the circuit anymore"*.
    no unfiltered list ([[d100]]).
 2. **SUPPLY IS "CAN WORK", COUNTED TODAY.** `mayTakeWork` — the Driver approved AND the live car approved ([[d137]]) — never
    "a car on file". The census never moves with the period ([[d103]]). "to be approved": an amber count of cars to
-   approve (our move); "N person not approved" and "N refused" stay neutral — whether the person is our move or the
+   approve (our move); "1 person / N people not approved" and "N refused" stay neutral — whether the person is our move or the
    Driver's depends on their papers, which a count cannot see, so the car list says it row by row (S81 review).
 3. **A PERIOD COUNTS A TRIP BY ITS PICKUP DATE.** Filled "a of b", a percentage only from `MIN_FOR_RATE` settled trips;
    "nobody took" = expired, or still in the Pool after pickup (`isExpired`).

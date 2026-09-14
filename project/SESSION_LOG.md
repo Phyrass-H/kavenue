@@ -5,14 +5,14 @@
 
 ---
 
-## 2026-09-14 — SESSION 81 — step 5: /admin/vehicles · tests 1235 → 1274 · one migration to paste
+## 2026-09-14 — SESSION 81 — step 5: /admin/vehicles · tests 1235 → 1275 · one migration to paste
 
 ### State
 | | |
 |---|---|
 | branch | `s81-vehicles-page` (not merged) |
 | to paste | **`docs/migrations/2026-09-14_admin_vehicles.sql`** — needs `fold_text` from 13d (live) · then `npx tsx .local/probe/vehicle-find.mts` |
-| tests | **1274** (+39) · `tsc` clean · dry run **89/89** on a throw-away Postgres 17, 9 broken copies each red |
+| tests | **1275** (+40) · `tsc` clean · dry run **89/89** on a throw-away Postgres 17, 9 broken copies each red |
 | founder | answered the scope on two previews; has not yet seen the real page |
 
 ### How it went
@@ -38,17 +38,23 @@ cars — *"Replaced by <plate> · <date>"* (replace_vehicle is the only way a ca
 - `lib/admin-vehicles.ts` (pure) · `app/admin/vehicles/page.tsx` · `components/admin-approval-cell.tsx` (moved out of
   the Drivers page, now imported by both) · nav link · S81 block in `app/globals.css` · `lib/admin-list.ts` `pageNote`
   gains a `"First"` lead (a class-ordered list is not "newest") · `lib/database.types.ts`.
-- Tests `admin-vehicles` (+24), `admin-vehicle-find` (+15), `admin-list` (+1). `handoff-check.ts` S81 block (red
+- Tests `admin-vehicles` (+25), `admin-vehicle-find` (+15), `admin-list` (+1). `handoff-check.ts` S81 block (red
   until pasted). `.local/probe/vehicle-find.mts` (read-only; says "not pasted" and exits harmless before the paste).
 
 ### Review — 8 read-only agents, 12 findings → 8 confirmed, all fixed
 Person column 100px let "2 documents needed" run 38px into Company (→ 142px, the Drivers table's) · the amber "to be
 approved" counted an approved car's unapproved Driver, who may owe documents — the Driver's move (→ amber = cars to
-approve only; "N person not approved" neutral; bucket renamed `person_not_approved`) · a failed read or a page past
+approve only; "1 person / N people not approved" neutral; bucket renamed `person_not_approved`) · a failed read or a page past
 the end said "0 cars match" (→ no count without rows; "This page is past the end of the list") · a lone pill sat
 under the end of its column name at 861–940px · "%" alone on a line at 375px (U+202F) · the SQL header's security
 sentence was false about what a Driver's RLS shows (the whole Pool) · the probe's NFD needle would false-FAIL on
 "Şahin". Refuted: header width with five nav links; "filled"/"nobody took" wording vs /admin/businesses.
+Re-check (2 agents: layout re-measured at 1280…375 with the real CSS and Geist; logic and words) → the 8 fixes hold,
+/admin/drivers' table geometry identical to main's. 6 small leftovers, 5 fixed: a long pill overflowing a stacked
+column on a phone; "2 person not approved" (→ `personNotApprovedSays`, people); two comments still saying "person to
+approve"; D142 cited as rule 4 for the pickup date (rule 3); a CSS comment overclaiming; grid tests never pinning
+settled/filled/nobodyTook. The Driver cell got a `title`. ⚑ Left: the admin header scrolls sideways below ~641px
+(pre-existing at 567px; the console is used on the Mac).
 
 ### Also this session
 - **Safari admin sign-in** (founder): Safari held a session for `phyrass.h@gmail.com` on admin.kavenue.fr — an account

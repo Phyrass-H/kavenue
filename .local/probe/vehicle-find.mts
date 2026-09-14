@@ -174,7 +174,7 @@ for (const [label, fromIso, toIso] of windows) {
   if (error || !o) { t(`admin_vehicle_overview answers for ${label}`, false, error?.message ?? "no answer"); continue; }
   const sqlSupply = new Map((o.supply ?? []).map((r) => [`${r.category}|${r.body_type}`, r as Supply]));
   const sqlDemand = new Map((o.demand ?? []).map((r) => [`${r.category}|${r.body}`, r as Demand]));
-  same("the cars: can work / to approve / refused / person to approve, per class, match mayTakeWork", appSupply, sqlSupply,
+  same("the cars: can work / to approve / refused / person not approved, per class, match mayTakeWork", appSupply, sqlSupply,
     ["live_cars", "can_work", "to_approve", "refused", "person_not_approved"]);
   same("the trips: trips / settled / filled / nobody took, per class, match isExpired on pickup_at", demandOfApp(fromIso, toIso, now), sqlDemand,
     ["trips", "settled", "filled", "nobody_took"]);

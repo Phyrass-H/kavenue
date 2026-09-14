@@ -4763,7 +4763,7 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
    content width. Fixed widths for .adm-row--4's reason: every row is its own grid. */
 
 /* The grid: blank · can work · to be approved · trips · filled · nobody took. */
-/* "to be approved" is 176px: it can hold "3", "1 person not approved" and "1 refused" side by side. */
+/* "to be approved" is 176px: "3" and "1 person not approved" side by side; a third pill wraps inside the cell. */
 .adm-vg { grid-template-columns: minmax(0, 1fr) 92px 176px 72px 128px 104px; }
 .adm-vg > :not(.adm-row__name) { text-align: right; justify-self: end; }
 /* A small gap before each class after the first — the rows read as three groups of three. */
@@ -4792,6 +4792,8 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   /* ⚑ .adm-row__pills is justify-self: end everywhere; between 861 and 940px nothing reset it, so a lone
      pill sat under the END of its column name (S81 review). */
   .adm-vg .adm-row__pills { justify-content: flex-start; justify-self: start; }
+  /* A stacked column is a third of a phone: a long pill wraps rather than covering the next value (S81 re-check). */
+  .adm-vg .adm-pill { white-space: normal; }
   /* Two classes beat .adm-apv's one, so the stacking has to be said again for the car table. */
   .adm-apv.adm-vcar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .adm-vcar .adm-apv__span { grid-column: 1 / -1; }

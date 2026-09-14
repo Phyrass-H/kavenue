@@ -1608,6 +1608,70 @@ console.log("\n── one dev server, on one port (S77) ──");
     !wcErr, wcErr ? `${wcErr.message} — paste docs/migrations/2026-09-13_vehicle_approval_gate.sql` : "");
 }
 
+// ── S81 · /admin/vehicles reads two functions the founder pastes ───────────────────────────
+//
+// ⚑ RED UNTIL docs/migrations/2026-09-14_admin_vehicles.sql IS PASTED, and it should be: without
+// the functions the page prints "couldn't be read", which looks like a broken page, not a paste
+// still to do. ⚑ AND THE PASTES HAVE AN ORDER. admin_vehicle_find calls fold_text(), which only
+// 2026-09-13d_admin_driver_find.sql creates — so a refusal naming fold_text means 13d first.
+// ⚑ THE SERVICE ROLE SEES WHAT AN ADMIN SEES HERE: both functions are SECURITY INVOKER, and the
+// service role bypasses RLS. The census lines below are the [[d103]] pair again — the cars must not
+// move with the period, and the trips must.
+console.log("\n── S81 · the Vehicles page's two functions ──");
+{
+  const mig = "docs/migrations/2026-09-14_admin_vehicles.sql";
+  // Comments stripped: the header QUOTES the money columns, is_active and SECURITY DEFINER to explain them.
+  const code = fs.existsSync(mig) ? fs.readFileSync(mig, "utf8").replace(/--.*$/gm, "") : "";
+  t("S81 the vehicles migration is in the repo, with invoker rights and no money column",
+    code !== "" && !/security\s+definer/i.test(code)
+      && !/\b(base_fare|ceiling|pdp_start|commission_[a-z_]+|is_active)\b/.test(code),
+    code === "" ? `⚑ ${mig} is missing` : "");
+
+  const { data: ovData, error: ovErr } = await db.rpc("admin_vehicle_overview", { p_from: null, p_to: null });
+  const pasteNote = (e: { message: string }) =>
+    `${e.message} — paste ${mig}${/fold_text/.test(e.message) ? " AFTER docs/migrations/2026-09-13d_admin_driver_find.sql" : ""}`;
+  t("S81 live: admin_vehicle_overview() is installed", !ovErr, ovErr ? pasteNote(ovErr) : "");
+  const { data: fdData, error: fdErr } = await db.rpc("admin_vehicle_find",
+    { p_q: null, p_category: null, p_body: null, p_include_replaced: true, p_limit: 1, p_offset: 0 });
+  t("S81 live: admin_vehicle_find() is installed", !fdErr, fdErr ? pasteNote(fdErr) : "");
+
+  if (!ovErr && ovData) {
+    type Ov = {
+      supply: { category: string; body_type: string; live_cars: number; can_work: number; to_approve: number; refused: number; person_not_approved: number }[];
+      demand: { trips: number }[];
+    };
+    const all = ovData as Ov;
+    const { count: liveCars, error: lcErr } = await db.from("vehicle").select("id", { count: "exact", head: true }).is("retired_at", null);
+    const supplyCars = all.supply.reduce((s, r) => s + Number(r.live_cars), 0);
+    t("S81 live: the supply counts every live car, and no replaced one",
+      !lcErr && supplyCars === liveCars, lcErr?.message ?? `supply ${supplyCars} · live cars in the table ${liveCars}`);
+    const split = all.supply.filter((r) =>
+      Number(r.live_cars) !== Number(r.can_work) + Number(r.to_approve) + Number(r.refused) + Number(r.person_not_approved));
+    t("S81 live: every live car sits in exactly one of the four buckets", split.length === 0,
+      split.map((r) => `${r.category}|${r.body_type}`).join(", "));
+
+    const { count: tripRows } = await db.from("mission").select("id", { count: "exact", head: true });
+    const allTrips = all.demand.reduce((s, r) => s + Number(r.trips), 0);
+    t("S81 live: All time counts every trip", allTrips === tripRows, `demand ${allTrips} · mission ${tripRows}`);
+
+    const { data: quietData, error: quietErr } = await db.rpc("admin_vehicle_overview",
+      { p_from: "2030-01-01T00:00:00Z", p_to: "2030-02-01T00:00:00Z" });
+    const quiet = quietData as Ov | null;
+    t("S81 live: the cars do not move with the period (census, [[d103]])",
+      !quietErr && !!quiet && JSON.stringify(quiet.supply) === JSON.stringify(all.supply),
+      quietErr?.message ?? "");
+    // ⚑ And the opposite direction, or the line above passes on a function that ignores the period.
+    t("S81 live: the trips DO move with the period", !!quiet && quiet.demand.length === 0,
+      quiet ? `Jan 2030 demand rows = ${quiet.demand.length}` : "no answer");
+  }
+  if (!fdErr) {
+    const { count: carRows } = await db.from("vehicle").select("id", { count: "exact", head: true });
+    const first = (fdData as { total_count: number }[] | null)?.[0];
+    t("S81 live: the car list with no term is every car, replaced ones included",
+      Number(first?.total_count ?? 0) === carRows, `total_count ${first?.total_count ?? 0} · vehicle ${carRows}`);
+  }
+}
+
 console.log("\n── the repo the handoff describes ──");
 const sh = (c: string) => { try { return execSync(c, { encoding: "utf8" }).trim(); } catch { return ""; } };
 t("git is clean", sh("git status --porcelain") === "", sh("git status --porcelain").split("\n")[0] ?? "");

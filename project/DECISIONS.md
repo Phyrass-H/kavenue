@@ -4096,3 +4096,27 @@ another of their emails, a staff member not (or no longer) an admin, and a stran
 has an account — a property of the provider, not of this form. And a sign-out call that FAILS after the link would
 have left the session on the redirect (and /login would bounce to "Driver or Business?"): the callback now drops
 the session cookies by hand in that case, so the sentence still shows.
+
+### D142 — The Vehicles page: cars against trips by class × body, in the Drivers page's words (2026-09-14, S81)
+
+**The founder, on two previews built from the live rows:** *"use the same wording as driver and clean rows same as
+driver on last session"* · on "Any body" trips having their own row, *"yes please"* · on which date puts a trip in a
+period, *"I guess pickup date"* · on search finding replaced cars, *"yes please so we can have a trace of older cars
+and why they are not in the circuit anymore"*.
+
+1. **/admin/vehicles, step 5.** Search above the numbers and period-free ([[d139]] rule 4); then one table, **"Cars and
+   trips, by class"**: Eco / Business / First × Sedan / Van / **Any body** (its own row per class). A row opens its cars;
+   no unfiltered list ([[d100]]).
+2. **SUPPLY IS "CAN WORK", COUNTED TODAY.** `mayTakeWork` — the Driver approved AND the live car approved ([[d137]]) — never
+   "a car on file". The census never moves with the period ([[d103]]). "to be approved": an amber count of cars to
+   approve (our move); "N person not approved" and "N refused" stay neutral — whether the person is our move or the
+   Driver's depends on their papers, which a count cannot see, so the car list says it row by row (S81 review).
+3. **A PERIOD COUNTS A TRIP BY ITS PICKUP DATE.** Filled "a of b", a percentage only from `MIN_FOR_RATE` settled trips;
+   "nobody took" = expired, or still in the Pool after pickup (`isExpired`).
+4. **THE CAR ROWS ARE D140's TABLE.** Model · Plate · Class · Driver · Person · Company · Car, the cell carrying the state
+   alone, the words from `adminPiles`. No insurance tag (dropped: "same as driver").
+5. **SEARCH FINDS REPLACED CARS**, each on its own row: *"Replaced by <new plate> · <date>"*. A car only ever leaves
+   through `replace_vehicle`, so that is the whole "why".
+
+⚑ **Parked:** whether any car could have REACHED a trip nobody took — the history needed starts 2026-09-12 and busy
+slots cannot be rebuilt.

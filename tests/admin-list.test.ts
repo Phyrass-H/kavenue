@@ -160,6 +160,12 @@ describe("pageNote — what a capped list admits about itself", () => {
     });
   });
 
+  // S81 — /admin/vehicles lists cars in class order, where "newest" would be false.
+  it("says 'First' for a list that is not in date order", () => {
+    expect(pageNote(42, pageWindow(undefined, 40), 40, "First")?.says).toBe("First 40 of 42");
+    expect(pageNote(42, pageWindow("1", 40), 40, "First")?.says).toBe("41–42 of 42");
+  });
+
   it("counts the window on a later page", () => {
     expect(pageNote(42, pageWindow("1", 40), 40)).toEqual({
       says: "41–42 of 42",

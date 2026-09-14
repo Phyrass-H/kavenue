@@ -5,6 +5,22 @@
 
 ---
 
+## 14 September 2026 — A Vehicles page in the admin console (built, waiting for one paste)
+
+- **A new "Vehicles" tab.** Every car, whether it can work, and whether there are enough of each kind for the trips.
+- **One table, class by class:** Eco, Business and First, each as Sedan, Van and "Any body". For each: how many
+  cars can work today, how many are waiting for you to approve, and the trips of the period (filled, nobody took).
+  Trips are counted by their pickup date. A percentage only shows from 20 trips.
+- **Click a row to see its cars**, with the same columns and words as "To be approved" on the Drivers page.
+- **Search by plate, make, model, colour, Driver or company.** It also finds cars that were replaced, marked
+  "Replaced by <new plate> · <date>", so you keep a trace of older cars.
+- **Before you can see it:** paste one file into Supabase (`docs/migrations/2026-09-14_admin_vehicles.sql`).
+- **Admin sign-in on Safari, explained:** Safari was still signed in as a non-admin email from an old test. Removing
+  the site's data fixed it. Next: that situation will show "This email doesn't have admin access" with a Sign out
+  button, instead of "Welcome to Kavenue".
+
+---
+
 ## 13 September 2026 (evening) — "To be approved" becomes a clean table
 
 - **One column per thing.** Driver, class, base, then person, company and car — each approval in its

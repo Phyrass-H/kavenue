@@ -4755,3 +4755,45 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   padding: 7px 9px; font: inherit; font-size: 13px; resize: vertical;
 }
 .wb-none { color: #6b7280; font-style: italic; }
+
+/* ── S81 · /admin/vehicles ──────────────────────────────────────────────────
+   ⚑ NEW RULES ONLY — the page reuses .adm-main--drivers for its titles, .adm-apv for the car table and
+   .adm-apv__l for the column names on a narrow screen, so it cannot drift from the Drivers page's look.
+   Column widths measured on the approved preview (scratchpad/preview a.html, b.html) at the real 900px
+   content width. Fixed widths for .adm-row--4's reason: every row is its own grid. */
+
+/* The grid: blank · can work · to be approved · trips · filled · nobody took. */
+/* "to be approved" is 176px: it can hold "3", "1 person not approved" and "1 refused" side by side. */
+.adm-vg { grid-template-columns: minmax(0, 1fr) 92px 176px 72px 128px 104px; }
+.adm-vg > :not(.adm-row__name) { text-align: right; justify-self: end; }
+/* A small gap before each class after the first — the rows read as three groups of three. */
+.adm-vg--gap { margin-top: 10px; }
+.adm-vg__head { font-size: 12px; color: var(--text-faint); }
+.adm-vg__num { font-variant-numeric: tabular-nums; }
+.adm-vg__faint { color: var(--text-faint); font-size: 12.5px; }
+
+/* The car table: Model · Plate · Class · Driver · Person · Company · Car. Seven columns, where the
+   Drivers table has six, so the one-line span starts a column later. */
+/* ⚑ Person and Company are the Drivers table's 142px (S80: the widest pill, "2 documents needed", is 138px).
+   At 100px a Person cell ran 38px into Company (S81 review). The model name ellipsizes, with a title. */
+.adm-apv.adm-vcar { grid-template-columns: minmax(0, 1fr) 80px 108px 112px 142px 142px 92px; }
+.adm-vcar .adm-apv__span { grid-column: 5 / -1; }
+/* A car that left the circuit: grey, not a pill — a trace to read, not a state to act on. */
+.adm-vcar__replaced { font-size: 13px; color: var(--text-faint); white-space: nowrap; }
+
+/* ⚑ 940px, .adm-apv's own breakpoint: the fixed columns of both tables leave the name too little room
+   below it. Below it both stack like the Drivers table — the name on
+   its own line, then the values three across, each with its column name above it (.adm-apv__l). */
+@media (max-width: 940px) {
+  .adm-vg { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 12px; align-items: start; }
+  .adm-vg > .adm-row__name { grid-column: 1 / -1; }
+  .adm-vg > :not(.adm-row__name) { text-align: left; justify-self: start; margin-top: 6px; }
+  .adm-vg__head { display: none; }
+  /* ⚑ .adm-row__pills is justify-self: end everywhere; between 861 and 940px nothing reset it, so a lone
+     pill sat under the END of its column name (S81 review). */
+  .adm-vg .adm-row__pills { justify-content: flex-start; justify-self: start; }
+  /* Two classes beat .adm-apv's one, so the stacking has to be said again for the car table. */
+  .adm-apv.adm-vcar { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .adm-vcar .adm-apv__span { grid-column: 1 / -1; }
+  .adm-vcar__replaced { white-space: normal; }
+}

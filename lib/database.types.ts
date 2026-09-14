@@ -244,6 +244,33 @@ export interface AdminDriverFindRow {
   total_count: number;
 }
 
+/** S81 — a row of admin_vehicle_find: /admin/vehicles' search and one class's cars
+ *  (docs/migrations/2026-09-14_admin_vehicles.sql). One row per CAR, so a replaced car is a row of
+ *  its own. ⚑ The column list is pinned against the SQL by tests/admin-vehicle-find.test.ts. */
+export interface AdminVehicleFindRow {
+  vehicle_id: string;
+  driver_id: string;
+  first_name: string;
+  last_name: string;
+  company_name: string | null;
+  verified: boolean;
+  /** `category::text` — a legacy value ('van') arrives as the string it is. */
+  category: string;
+  body_type: string;
+  make: string | null;
+  model: string | null;
+  colour: string | null;
+  plate: string | null;
+  approval_status: string;
+  /** Set when replace_vehicle retired this car; null for a live one. */
+  retired_at: string | null;
+  replaced_by: string | null;
+  /** The plate of the car that replaced it; null for a live car. */
+  replaced_by_plate: string | null;
+  created_at: string;
+  total_count: number;
+}
+
 export interface Database {
   public: {
     Tables: {
@@ -1521,6 +1548,23 @@ export interface Database {
       admin_driver_find: {
         Args: { p_q?: string | null; p_blocked?: boolean; p_limit?: number; p_offset?: number };
         Returns: AdminDriverFindRow[];
+      };
+      // S81 — /admin/vehicles. ⚑ Needs 2026-09-14_admin_vehicles.sql, which needs 2026-09-13d for
+      // fold_text(). The JSON shape lives beside the page's own words, in lib/admin-vehicles.ts.
+      admin_vehicle_overview: {
+        Args: { p_from?: string | null; p_to?: string | null };
+        Returns: import("./admin-vehicles").AdminVehicleOverview;
+      };
+      admin_vehicle_find: {
+        Args: {
+          p_q?: string | null;
+          p_category?: string | null;
+          p_body?: string | null;
+          p_include_replaced?: boolean;
+          p_limit?: number;
+          p_offset?: number;
+        };
+        Returns: AdminVehicleFindRow[];
       };
     };
     Enums: {

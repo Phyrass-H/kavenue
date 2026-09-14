@@ -5,6 +5,62 @@
 
 ---
 
+## 2026-09-14 — SESSION 81 — step 5: /admin/vehicles · tests 1235 → 1274 · one migration to paste
+
+### State
+| | |
+|---|---|
+| branch | `s81-vehicles-page` (not merged) |
+| to paste | **`docs/migrations/2026-09-14_admin_vehicles.sql`** — needs `fold_text` from 13d (live) · then `npx tsx .local/probe/vehicle-find.mts` |
+| tests | **1274** (+39) · `tsc` clean · dry run **89/89** on a throw-away Postgres 17, 9 broken copies each red |
+| founder | answered the scope on two previews; has not yet seen the real page |
+
+### How it went
+Map (6 read-only readers + a refuting critic + a completeness critic + a brief) → a READ-ONLY data script
+(`scratchpad/vehicles-preview-data.mts`, reviewed by a skeptic agent, which caught two blockers: the Supabase import
+resolved from the scratchpad, and **`mission_read` returns 0 rows to the service role** — its WHERE is on
+`app_role()`/`current_*_id()`; the script read the `mission` table with named safe columns instead) → preview v1 →
+the founder: *"use the same wording as driver and clean rows same as driver on last session"* → preview v2 → three
+answers ([[d142]]) → a contract (`scratchpad/S81-vehicles-spec.md`) → a build workflow (SQL builder with dry run ·
+app builder · integrator) → review workflow (4 lenses, each finding verified by a skeptic) → fixes → re-check.
+
+### Decided — [[d142]]
+Cars against trips by class × body, "Any body" its own row; supply = `mayTakeWork` today; a period counts a trip by
+PICKUP date; car rows are D140's table (Model · Plate · Class · Driver · Person · Company · Car); search finds replaced
+cars — *"Replaced by <plate> · <date>"* (replace_vehicle is the only way a car leaves).
+
+### Built
+- `docs/migrations/2026-09-14_admin_vehicles.sql` — `admin_vehicle_overview(p_from, p_to)` json (supply buckets
+  can_work / to_approve / refused / person_not_approved; demand trips / settled / filled / nobody_took by pickup date)
+  and `admin_vehicle_find(p_q, p_category, p_body, p_include_replaced, p_limit, p_offset)`; both invoker, stable,
+  `strpos` only, no money column, no `is_active`. ⚑ "settled" differs from admin_business_overview on purpose (a trip
+  still pooled after pickup counts, as `isExpired` says) — in the header.
+- `lib/admin-vehicles.ts` (pure) · `app/admin/vehicles/page.tsx` · `components/admin-approval-cell.tsx` (moved out of
+  the Drivers page, now imported by both) · nav link · S81 block in `app/globals.css` · `lib/admin-list.ts` `pageNote`
+  gains a `"First"` lead (a class-ordered list is not "newest") · `lib/database.types.ts`.
+- Tests `admin-vehicles` (+24), `admin-vehicle-find` (+15), `admin-list` (+1). `handoff-check.ts` S81 block (red
+  until pasted). `.local/probe/vehicle-find.mts` (read-only; says "not pasted" and exits harmless before the paste).
+
+### Review — 8 read-only agents, 12 findings → 8 confirmed, all fixed
+Person column 100px let "2 documents needed" run 38px into Company (→ 142px, the Drivers table's) · the amber "to be
+approved" counted an approved car's unapproved Driver, who may owe documents — the Driver's move (→ amber = cars to
+approve only; "N person not approved" neutral; bucket renamed `person_not_approved`) · a failed read or a page past
+the end said "0 cars match" (→ no count without rows; "This page is past the end of the list") · a lone pill sat
+under the end of its column name at 861–940px · "%" alone on a line at 375px (U+202F) · the SQL header's security
+sentence was false about what a Driver's RLS shows (the whole Pool) · the probe's NFD needle would false-FAIL on
+"Şahin". Refuted: header width with five nav links; "filled"/"nobody took" wording vs /admin/businesses.
+
+### Also this session
+- **Safari admin sign-in** (founder): Safari held a session for `phyrass.h@gmail.com` on admin.kavenue.fr — an account
+  with no profile, created by the pre-S80 admin door. The admin layout sent it to "/welcome", which has no Sign out.
+  Removing kavenue.fr website data fixed it; then Supabase's built-in mailer said "email rate limit exceeded".
+  ⚑ **Approved to fix next, on its own branch:** a signed-in non-admin at the admin door sees "This email doesn't
+  have admin access" + Sign out (preview sent, awaiting the founder's look).
+- ⚑ Lesson: a magic link's PKCE verifier lives in the window that ASKED; a link opened elsewhere fails, and /login then
+  forwards to whatever session that window already holds. Clearing Safari "caches" keeps cookies.
+
+---
+
 ## 2026-09-13 — SESSION 80 (close) — "To be approved" as a table · admin sign-out · the approval log · the admin door · tests 1212 → 1235 · no database change
 
 ### State

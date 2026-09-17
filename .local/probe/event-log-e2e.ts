@@ -1,5 +1,13 @@
 // § AG — DOES THE EVENT LOG HAVE HOLES?
 //
+// ⚑⚑ STALE — DO NOT RUN AS IS (noted S82, 2026-09-17). Two later migrations changed what it drives:
+//   · 2026-08-31g closed the raw SECURITY DEFINER RPCs to browser sessions, so its
+//     `asDriver.rpc("accept_mission")` calls now return 42501. The door is accept_mission_call.
+//   · 2026-09-17_mission_client_writes.sql (D144) closed the "direct PATCH of mission.status"
+//     that § 4 below proves is open, and its Dispatcher-session insert names columns a browser
+//     can no longer write (created_at, base_fare, pooled_at, accepted_*, cancellation_*, …).
+//   What it proved in August still stands; rewrite it before re-running.
+//
 // vitest cannot answer that: the guarantee lives in a Postgres trigger, not in
 // TypeScript. This drives REAL missions through the REAL RPCs with REAL
 // authenticated sessions and asserts the exact event sequence that comes out —

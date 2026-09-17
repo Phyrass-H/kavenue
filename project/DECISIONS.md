@@ -4137,3 +4137,40 @@ non-admin out at the callback ([[d141]]); a Driver's or Business's session is a 
 
 ⚑ **Revisit with BACKLOG § AL** — the first time an admin's role is REMOVED while they are signed in. (A role-less
 account lands on /welcome; an account with another role goes to its own area.)
+
+### D144 — A browser session writes only what the app writes on `mission`; money and status are the database's (2026-09-17, S82)
+
+**The founder, on the plain explanation** (a Business with a little tech could change the price of a trip a Driver
+already accepted, or zero Kavenue's commission, without the app): *"yes go ahead"*.
+
+**The hole.** `p_mission_business_update` checks only that the row is the Business's own, and 2026-08-31f granted UPDATE
+back on almost every column, money included. Nothing checked the values. INSERT was still Supabase's table-wide grant.
+Nobody tested this against the live database: it was proven on a throw-away Postgres 17 built from the real policy, grant
+and guard files. 19 attacks landed (a lower `accepted_fare` or `ceiling` on a confirmed trip, commission 0, `created_at`
+moved, a status set to `completed`, a trip inserted already accepted, …).
+
+1. **GRANTS = THE APP'S OWN WRITES.** A browser session writes `mission` in exactly three places: createMission's insert,
+   the draft resume's session update (lib/draft-resume.ts), and the info edit. UPDATE and INSERT are granted on those
+   columns and nothing else. DELETE and TRUNCATE are revoked. Every other writer is the service role or a SECURITY
+   DEFINER RPC, and neither is affected.
+2. **A POSTED TRIP IS FROZEN FROM THE BROWSER, EXCEPT ITS DETAILS.** A guard trigger (`trg_mission_guard_client_write`,
+   SECURITY INVOKER, `current_user in (anon, authenticated)` only) refuses any change to a non-draft trip outside the
+   13 info-edit columns. It compares whole rows, so a column added later is frozen by default.
+3. **A NEW TRIP OR A DRAFT IS ONLY EVER `draft` OR `pooled`.** Posting a draft sets `created_at` to the database's `now()`;
+   a draft that stays a draft keeps its `created_at`.
+4. **THE RATES COME FROM THE TABLE, NOT THE BROWSER.** On a client insert or draft write, the guard writes
+   `commission_*` and `standard_vat_rate` from `commission_for(now())`, whatever was sent. It reads them through
+   `mission_client_rates()` (SECURITY DEFINER, because `driver_rate_ht` is walled from `authenticated`), which answers only
+   from inside a trigger, so it cannot become an RPC that hands out the Driver's rate.
+5. **PROVEN BEFORE HANDOVER, AND THE PROOF IS KEPT.** `.local/probe/mission-client-writes/run.sh` rebuilds the stand-in and
+   runs 41 cases before and after: 82/82, idempotent, and 11 broken copies of the migration each turn it red.
+   `check.sql` is the read-only probe for the live database (`has_column_privilege` on every money column, a sweep of
+   every column, the trigger, the helper's privileges).
+
+⚑ **Known and left, on purpose:** at posting, the price inputs createMission computes (ceiling, `pdp_start`, distance,
+rate card, night) still come from the session, so a hand-built request could post its OWN trip below the rate-card
+floor. It sets only that Business's offer and moves no agreed money. Closing it means posting through a database
+function. `dispatcher_id` is not checked against the Business, and an info edit on a finished trip is refused by the
+app only.
+⚑ **The 31f trap, now twice:** a new `mission` column is not writable from a browser until it is added to the INSERT
+and/or UPDATE grant, and not changeable after posting until it is added to the guard's info list.

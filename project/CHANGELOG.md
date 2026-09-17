@@ -5,6 +5,26 @@
 
 ---
 
+## 17 September 2026 — Trip prices and statuses locked in the database (waiting for you to paste it)
+
+- **Found: a hole in the database rules for trips.** The app never offered it, but someone at a Business who knows a
+  little tech could skip the app and change their own trip in the database directly: lower the price on a trip a Driver
+  had already accepted, set Kavenue's commission to zero, mark a trip "completed", or restart its price climb.
+- **Proven on a practice copy of the database, not the real one.** 19 different ways in, and all 19 worked.
+- **The fix:** the database now accepts from the app only the changes the app actually makes. Once a trip is posted, a
+  Business can still change its details (Guest names, flight, luggage, languages, dress code, the board, the message to
+  the Driver), but not the price, route, time or status. Kavenue's commission on a new trip always comes from Kavenue's
+  own rate table, whatever is sent.
+- **Checked on the practice copy:** all 19 ways in are now refused, and every normal action still works (posting a trip,
+  saving and posting a draft, editing details, a Driver accepting). Broken versions of the fix were tried too, and the
+  test caught each one.
+- **Your step:** paste `2026-09-17_mission_client_writes.sql` into the Supabase SQL editor, then paste the check file
+  (`.local/probe/mission-client-writes/check.sql`). Every row should say "pass".
+- **Still open, on purpose:** a Business with the same tech skills could post its OWN new trip below Kavenue's minimum
+  price. That only hurts their own offer, and a Driver can refuse it. Closing that too is a bigger change, for later.
+
+---
+
 ## 17 September 2026 — The Vehicles page is live, and your V1 Runway is up to date
 
 - **The Vehicles page is on the live site** (admin.kavenue.fr → Vehicles), after you pasted its database part.

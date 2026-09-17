@@ -418,7 +418,9 @@ console.log(`\n── 6 · the guest_ready_at revoke, made real (2026-08-31f) �
 }
 {
   // And the Business must still be able to edit its own trips at all.
-  const r = await asBusiness.from("mission").update({ comment: "CLEAK probe" }).eq("id", id).select("id");
+  // ⚑ Through an INFO-EDIT column. Since 2026-09-17_mission_client_writes.sql (D144) a browser
+  // session holds UPDATE only on what the app writes, and `comment` is not one of them.
+  const r = await asBusiness.from("mission").update({ board_name: "CLEAK probe" }).eq("id", id).select("id");
   legit("a Business can still edit its own trip", !r.error && (r.data?.length ?? 0) === 1,
         r.error?.message ?? `${r.data?.length ?? 0} row(s) updated`);
 }

@@ -5,6 +5,77 @@
 
 ---
 
+## 2026-09-17 — SESSION 82 (parallel) · the mission write lock ([[d144]]) · migration WRITTEN, NOT APPLIED · tests 1275 (unchanged)
+
+**Handed to the founder to paste: `docs/migrations/2026-09-17_mission_client_writes.sql`, then
+`.local/probe/mission-client-writes/check.sql` (read-only, every row `pass`). Nothing live was written this session.**
+
+### The hole (read from the migrations, then proven on a throw-away PG17)
+- The only UPDATE policy on `mission` is `p_mission_business_update` (`docs/kavenue_schema.sql:320`): `using (business_id =
+  current_business_id())`. There is no WITH CHECK, so the USING doubles as the check and `business_id` cannot move, but
+  nothing else is checked. No later migration redefines it.
+- The newest UPDATE grant was `2026-08-31f` (lines 34-49): almost every column, including `status, driver_id, ceiling,
+  pdp_start, speed_win, accepted_fare, commission_*, transport_vat_rate, cancellation_fee, waiting_fee, created_at`.
+  INSERT/DELETE/TRUNCATE were still Supabase's table-wide default.
+- BEFORE triggers guarded only `guest_ready_at`, `pickup_at` after draft, and the driver_id stamps/gates.
+- **Driver session:** no UPDATE policy reaches a Driver, so before this file a Driver PATCH was 0 rows (RLS) and after it
+  is 42501. Every Driver write in `app/(app)/rides/actions.ts` is service role or an RPC (`board_guest_call`).
+- **User-session writes on `mission`, all of them** (grep of every `.from("mission")` in app/ lib/ components/, plus a
+  scan of the latest body of every SQL function that writes `mission`: all SECURITY DEFINER, none invoker): createMission's
+  INSERT and the draft resume UPDATE (`app/(dispatch)/dispatch/new/actions.ts`), and the info edit
+  (`app/(dispatch)/dispatch/[id]/edit/actions.ts`). `discardDraft`, the admin console and every seed use the service role.
+
+### The migration — two layers
+1. `revoke update/insert on mission from anon, authenticated`, then column grants. UPDATE = the 36
+   `DRAFT_RESUME_SESSION_COLUMNS` + `info_edited_at`. INSERT = createMission's 44 (the 35 session columns other than
+   `created_at` + the 9 snapshot columns; the insert is NOT split, so a pooled trip never exists without its rates).
+   `revoke delete, truncate`.
+2. `mission_client_rates()` — SECURITY DEFINER, `set search_path = public, pg_temp`, raises unless `pg_trigger_depth() > 0`;
+   `revoke all … from public, anon`, `grant execute … to authenticated` (the invoker trigger runs as it).
+3. `trg_mission_guard_client_write` BEFORE INSERT OR UPDATE → `mission_guard_client_write()` (INVOKER). Skips unless
+   `current_user in ('anon','authenticated')`. Non-draft UPDATE: `(to_jsonb(new) - v_info) is distinct from
+   (to_jsonb(old) - v_info)` → 42501 (13 info columns). Insert or draft: status must be draft/pooled; posting sets
+   `created_at := now()`, and a draft that stays a draft cannot move it; the four rate columns are overwritten from
+   `commission_for(now())`.
+- Fires first among the mission BEFORE triggers by name (`trg_mission_guard_c…` < `…_guest_ready_at` < `…_pickup_at`; the
+  `mission_*` driver_id triggers only fire on `update of driver_id`, which a client can no longer name).
+
+### Proof — `.local/probe/mission-client-writes/` (tracked; `run.sh` from the repo root)
+- `standin.sql`: Supabase's roles and default grants, `auth.uid()`, the full `mission` column list, a DEFINER RPC shaped
+  like accept. `run.sh` pulls the REAL policies, 31d, 31e, 31f, 09-04's select grant, both guards and `commission_for` out of
+  docs/ at run time and stops if any extract is missing.
+- `cases.sql`: 41 cases, each in a subtransaction always rolled back, run as the real role with a JWT `sub`. BEFORE: all 19
+  `HOLE` cases land (`ok rows=1`). AFTER: all 19 refused 42501, and a commission-0 insert is stored at the live 0.125 / 0.10 /
+  0.20 / 0.20 (the future generation 0.99 is ignored). The 11 `APP` cases keep working: createMission posted and draft, the
+  service-role snapshot stamp, the session post (created_at sent as 2020 → stored as now()), re-save as draft, the info edit
+  on confirmed and pooled trips with the action's own WHERE, a DEFINER accept, service-role steps, a seed that keeps its
+  own rates. **82/82**, applied twice (idempotent). `check.sql`: 58 FAILs before, 0 after.
+- **Mutation-checked:** 11 broken copies (the guard as DEFINER, `info_edited_at` off the list, `created_at` off the grant, no
+  depth gate, `standard_vat_rate` off the insert grant, no role check, no PUBLIC revoke, no created_at stamp, no rate stamp,
+  any status allowed, DELETE kept): every one exits 1.
+- The draft-resume session's `tests/draft-resume-grant.test.ts` (branch `claude/adoring-hertz-85d28e`), run in a temporary
+  worktree against this migration: 13/13, and red on two of the mutants, so it really reads the new grants.
+- Full suite 1275/1275 (no app code changed on this branch).
+
+### Coordination with the parallel draft-resume session
+Its fix (branch `claude/adoring-hertz-85d28e`, not merged when this was written) moves the 9 snapshot columns to the service
+role and keeps the typed 36 on the session. This grant is built to match it. **Order:** either can land first. Today's
+DEPLOYED resume already fails 42501 (standard_vat_rate, since 09-04), so this migration breaks nothing that works; the
+insert and the info edit work before and after. After both merge, run `npx vitest run tests/draft-resume-grant.test.ts`.
+
+### Also
+- `.local/probe/column-leak.mts`: its "a Business can still edit its own trip" write moved from `comment` (no longer granted)
+  to `board_name`.
+- `.local/probe/event-log-e2e.ts`: marked STALE at the top. It calls raw `accept_mission` (closed by 31g) and asserts the
+  direct status PATCH this file closes. Not rewritten.
+
+### Left open (in D144's text)
+Posting-time price inputs (ceiling, pdp_start, distance, rate card, night) still come from the session, so a hand-built
+request can post its own trip below the floor. `dispatcher_id` is not checked against the Business. An info edit on a
+finished trip is refused only by the app.
+
+---
+
 ## 2026-09-14 → 17 — SESSION 81 (close) — step 5 /admin/vehicles, live · D143 · the V1 Runway re-checked · tests 1235 → 1275
 
 ### State

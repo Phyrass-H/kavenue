@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import { pageWindow, pageNote, readAll } from "@/lib/admin-list";
 import { parseAdminPeriod, inPeriod } from "@/lib/admin-period";
 import { AdminPeriodBar } from "@/components/admin-period-bar";
+import { ApprovalCell } from "@/components/admin-approval-cell";
 import { worthBreakingDown } from "@/lib/admin-rollup";
 import { DRIVER_DOC_TYPES } from "@/lib/account";
 import { latestSlots } from "@/lib/document-views";
@@ -216,25 +217,8 @@ function BaseCell({ label, radius }: { label: string | null; radius: number | nu
   );
 }
 
-/** How each state looks. Keyed by the state, so a fourth one is a compile error, not an unstyled cell. */
-const CELL_LOOK: Record<AdminPile["state"], string> = {
-  waiting: "adm-pill adm-pill--warn", // yours to approve
-  todo: "adm-pill", //                   the Driver owes it
-  done: "adm-apv__done", //              nothing left — a quiet tick
-};
-
-const firstUpper = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
-
-/** One approval in its own column — and, under a done one, what the Driver still owes. */
-function ApprovalCell({ p }: { p: AdminPile }) {
-  return (
-    <span className="adm-apv__cell">
-      <span className="adm-apv__l">{PILL_WORD[p.pile]}</span>
-      <span className={CELL_LOOK[p.state]}>{firstUpper(p.says)}</span>
-      {p.detail && <span className="adm-apv__detail">{p.detail}</span>}
-    </span>
-  );
-}
+// ApprovalCell (one approval in its own column) lives in components/admin-approval-cell.tsx since S81,
+// so /admin/vehicles draws the very same cell ([[d142]] rule 4).
 
 /** The column names. Not a link, and hidden from a screen reader, which reads each cell's own name. */
 function ApprovalHead() {

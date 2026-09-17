@@ -161,7 +161,13 @@ export interface PageNote {
  * Returns null when everything fits — the console is silent by construction, and
  * "42 of 42" is noise on a page that is already showing all 42.
  */
-export function pageNote(total: number, { page }: PageWindow, size: number): PageNote | null {
+export function pageNote(
+  total: number,
+  { page }: PageWindow,
+  size: number,
+  // S81 — a list in class order (/admin/vehicles) is not "newest" anything.
+  lead: "Newest" | "First" = "Newest",
+): PageNote | null {
   if (total <= size && page === 0) return null;
   const first = page * size;
   const last = Math.min(first + size, total);
@@ -170,7 +176,7 @@ export function pageNote(total: number, { page }: PageWindow, size: number): Pag
   // Page 0 is the only one where "newest" is true of the rows on screen.
   const says =
     page === 0
-      ? `Newest ${last} of ${total}`
+      ? `${lead} ${last} of ${total}`
       : `${Math.min(first + 1, total)}–${last} of ${total}`;
   return { says, older, newer };
 }

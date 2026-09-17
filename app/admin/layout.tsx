@@ -51,6 +51,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <nav className="adm-nav">
           <Link href="/admin">Activity</Link>
           <Link href="/admin/drivers">Drivers</Link>
+          {/* S81 — between Drivers and Businesses: the cars belong to the Drivers' side ([[d142]]). */}
+          <Link href="/admin/vehicles">Vehicles</Link>
           <Link href="/admin/businesses">Businesses</Link>
           <Link href="/admin/trips">Trips</Link>
         </nav>

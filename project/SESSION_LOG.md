@@ -5,12 +5,13 @@
 
 ---
 
-## 2026-09-14 — SESSION 81 — step 5: /admin/vehicles · tests 1235 → 1275 · one migration to paste
+## 2026-09-14 → 17 — SESSION 81 (close) — step 5 /admin/vehicles, live · D143 · the V1 Runway re-checked · tests 1235 → 1275
 
 ### State
 | | |
 |---|---|
-| branch | `s81-vehicles-page` (not merged) |
+| `main` | `s81-vehicles-page` merged 2026-09-17 (`6611f6e`), CI green; admin.kavenue.fr/admin/vehicles answers 307 → admin sign-in |
+| branch | `s81-handoff` — D143 (`829f52d`) + this close. ⚑ The close docs may be UNCOMMITTED: git stopped working at close (see below) |
 | applied live | **`docs/migrations/2026-09-14_admin_vehicles.sql`** — pasted by the founder 2026-09-17 · `vehicle-find.mts` **33/33** (1 skip: no replaced car yet) · `handoff-check` not run (it writes test rows) |
 | tests | **1275** (+40) · `tsc` clean · dry run **89/89** on a throw-away Postgres 17, 9 broken copies each red |
 | founder | answered the scope on two previews; 2026-09-17 saw the page rendered from the REAL page code (stand-in DB following the SQL, live rows) → *"make 2 lines"* for the model name ("Mercedes-Benz Cla…" hid E / S / V) |
@@ -68,6 +69,37 @@ settled/filled/nobodyTook. The Driver cell got a `title`. ⚑ Left: the admin he
   cookie the previous fix had already made impossible; the founder's plain question found it.
 - ⚑ Lesson: a magic link's PKCE verifier lives in the window that ASKED; a link opened elsewhere fails, and /login then
   forwards to whatever session that window already holds. Clearing Safari "caches" keeps cookies.
+
+### Close — 2026-09-17
+- **The founder was away 3 days**, asked to see the page before pasting. Instead of the S81 mock-up, the REAL
+  `app/admin/vehicles/page.tsx` was rendered with `react-dom/server` against a stub Supabase client that follows the
+  migration line by line over rows read read-only (S81's session scratchpad, outside the repo and NOT kept:
+  `s81-render/` with `data.mts`, `stub-server.ts`, `stub-client.ts`, `stub-navigation.ts`, a `tsconfig.json` whose
+  `paths` send `@/lib/supabase/server`, `@/lib/supabase/client` and `next/navigation` to the stubs, and `render.tsx`
+  — rebuild from this description; NEXT_SESSION.md lesson 2 has the recipe). Four frames: as it opens · a class · a search · a replaced
+  car (made up, labelled — none exists). It showed what the mock-up hid: every Mercedes read "Mercedes-Benz Cla…".
+- Founder pasted the migration → `vehicle-find.mts` **33/33**, 1 skip (no replaced car) → *"make 2 lines"* → the model
+  name wraps (`.adm-vcar > .adm-row__name`) → *"merge it"* → CI green on the branch, merged `--no-ff`, CI green on main.
+  On resizable, Excel-style columns: recommended not now (one narrow column, client JS + saved widths, and it would
+  split the Drivers/Vehicles table look); founder did not push it.
+- **The admin-door question closed as option 3, no change** ([[d143]]).
+- **The V1 Runway** (artifact `Qq32gFCKGJ4hUQQHQTxQbg`, local copy `Kavenue/Artifacts/KavenueV1Runway.html`): a
+  read-only workflow checked all 59 items against the code (4 readers + 4 skeptics, who moved 4 claims back to open)
+  → **3 done** (`gating`, `urssaf`, `adminlayout`) · **11 still the founder's but worded wrong** (`verify`, `kbis`,
+  `exploitant`, `vatstatus`, `gdpr`, `payterms`, `incident`, `penalty`, `unfilled`, `mapbox`, `flight`) · **45 open**.
+  Founder: *"yes tick the 3 and correct the 11 lines"* → republished (version 7) and the local copy rewritten (the old
+  one kept in the scratchpad). ⚑ The Mapbox item's old advice (restrict the token to kavenue.fr) would have broken
+  routing: the servers call Mapbox with no Referer. Two "client" words fixed on the page.
+- **Next, the founder's choice:** work through the Runway's rulings, starting with `unfilled` — what a Business is
+  promised when nobody takes the trip. Explained at close; not decided.
+- ⚑ **A handoff check (2 read-only agents) found 14 false or loose claims in these notes** — fixed. One had reached the
+  founder: I quoted "Expired · Was not filled in time" (a stale code comment) as what the Business sees; since D63 it
+  is "No Driver yet" from T−3h, then "Unfilled". Corrected in chat. ⚑ Lesson: quote screen words from the code that
+  renders them (`lib/dispatch-status.ts`), never from a comment.
+- ⚑⚑ **git and python3 stopped working at close**: "You have not agreed to the Xcode license agreements" (the Apple
+  command-line shims). `node` still ran. The founder ran `sudo xcodebuild -license accept`; the close was then committed and merged.
+- ⚑ `handoff-check.ts` was NOT run in S81: it writes test rows (a `mission_cancellation` insert/delete, a refused
+  vehicle update). Ask before running it.
 
 ---
 

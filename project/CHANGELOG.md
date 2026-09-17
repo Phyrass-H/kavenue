@@ -5,7 +5,21 @@
 
 ---
 
-## 14 September 2026 — A Vehicles page in the admin console (built, waiting for one paste)
+## 17 September 2026 — The Vehicles page is live, and your V1 Runway is up to date
+
+- **The Vehicles page is on the live site** (admin.kavenue.fr → Vehicles), after you pasted its database part.
+- **Your V1 Runway page was checked against the app**, item by item. 3 items are ticked (verification now blocks
+  work, the URSSAF paper was dropped, the admin home order was already decided) and 11 were rewritten to say what
+  is true today. It now reads: 3 of 59 done, 28 left before a real booking, 14 decisions waiting on you. Your saved
+  copy in the Artifacts folder is updated too.
+- **One correction worth knowing:** when you replace the Mapbox key, do NOT restrict it to kavenue.fr — the servers
+  would be refused, and every trip posted or changed after that would lose its road distance.
+- **Closed, no change:** the admin sign-in follow-up. The case can't happen again since the 13 September fix.
+- **Next:** the first decision on your Runway — what a Business is promised when nobody takes its trip.
+
+---
+
+## 14 September 2026 — A Vehicles page in the admin console
 
 - **A new "Vehicles" tab.** Every car, whether it can work, and whether there are enough of each kind for the trips.
 - **One table, class by class:** Eco, Business and First, each as Sedan, Van and "Any body". For each: how many

@@ -11,9 +11,9 @@
 | | |
 |---|---|
 | branch | `s81-vehicles-page` (not merged) |
-| to paste | **`docs/migrations/2026-09-14_admin_vehicles.sql`** — needs `fold_text` from 13d (live) · then `npx tsx .local/probe/vehicle-find.mts` |
+| applied live | **`docs/migrations/2026-09-14_admin_vehicles.sql`** — pasted by the founder 2026-09-17 · `vehicle-find.mts` **33/33** (1 skip: no replaced car yet) · `handoff-check` not run (it writes test rows) |
 | tests | **1275** (+40) · `tsc` clean · dry run **89/89** on a throw-away Postgres 17, 9 broken copies each red |
-| founder | answered the scope on two previews; has not yet seen the real page |
+| founder | answered the scope on two previews; 2026-09-17 saw the page rendered from the REAL page code (stand-in DB following the SQL, live rows) → *"make 2 lines"* for the model name ("Mercedes-Benz Cla…" hid E / S / V) |
 
 ### How it went
 Map (6 read-only readers + a refuting critic + a completeness critic + a brief) → a READ-ONLY data script

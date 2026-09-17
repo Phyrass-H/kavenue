@@ -14,7 +14,8 @@
 - **Click a row to see its cars**, with the same columns and words as "To be approved" on the Drivers page.
 - **Search by plate, make, model, colour, Driver or company.** It also finds cars that were replaced, marked
   "Replaced by <new plate> · <date>", so you keep a trace of older cars.
-- **Before you can see it:** paste one file into Supabase (`docs/migrations/2026-09-14_admin_vehicles.sql`).
+- **The database part is in** (pasted 17 September) and checked against the live data: 33 checks pass.
+- **The car's model is written in full, on two lines if needed** — "Mercedes-Benz Classe S", not "Mercedes-Benz Cla…".
 - **Admin sign-in on Safari, explained:** Safari was still signed in as a non-admin email from an old test. Removing
   the site's data fixed it. Next: that situation will show "This email doesn't have admin access" with a Sign out
   button, instead of "Welcome to Kavenue".

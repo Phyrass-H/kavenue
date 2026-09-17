@@ -4778,6 +4778,9 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
    At 100px a Person cell ran 38px into Company (S81 review). The model name ellipsizes, with a title. */
 .adm-apv.adm-vcar { grid-template-columns: minmax(0, 1fr) 80px 108px 112px 142px 142px 92px; }
 .adm-vcar .adm-apv__span { grid-column: 5 / -1; }
+/* ⚑ THE MODEL WRAPS, NEVER CUTS (founder, 2026-09-17): "Mercedes-Benz Cla…" hid whether it was a Classe E, S or V —
+   and the Classe S is First. Two lines, not an ellipsis; the row centres its other cells on it. */
+.adm-vcar > .adm-row__name { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.35; }
 /* A car that left the circuit: grey, not a pill — a trace to read, not a state to act on. */
 .adm-vcar__replaced { font-size: 13px; color: var(--text-faint); white-space: nowrap; }
 

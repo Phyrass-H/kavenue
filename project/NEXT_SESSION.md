@@ -26,7 +26,7 @@ S81 shipped step 5 and moved the work onto the founder's V1 Runway:
 ### State
 | | |
 |---|---|
-| `main` | S81 merged 2026-09-17 (`6611f6e`), CI green; admin.kavenue.fr/admin/vehicles answers 307 → the admin sign-in |
+| `main` | **S82 merged 2026-09-17 (`677838e`), CI green** — the write lock ([[d144]], [[d145]]) and the draft-resume fix. S81 before it (`6611f6e`); admin.kavenue.fr/admin/vehicles answers 307 → the admin sign-in |
 | `s81-handoff` | D143 + this close, merged to `main` 2026-09-17. ⚑ git broke mid-close (Xcode license); the founder ran `sudo xcodebuild -license accept` |
 | applied live | every file in `docs/migrations/` up to and including `2026-09-14_admin_vehicles.sql` |
 | applied live, S82 | BOTH write-lock files, pasted by the founder 2026-09-17: `2026-09-17_mission_client_writes.sql` ([[d144]]) and `2026-09-17b_mission_read_is_read_only.sql` ([[d145]]). ⚑ `.local/probe/mission-client-writes/check.sql` reads ALL PASS on the live database (the 1 FAIL after (a) is what found (b)) |

@@ -16,6 +16,7 @@
   own session only writes what they typed. It was proven on a test copy of the database first; nothing live was touched.
 - **A new automatic check** compares what a draft writes with what the database allows, so this cannot come back
   unnoticed.
+- **It is on the live site** (merged 17 September, checks green).
 ## 17 September 2026 — Trip prices and statuses locked in the database, and a second door the check found
 
 - **Found: a hole in the database rules for trips.** The app never offered it, but someone at a Business who knows a

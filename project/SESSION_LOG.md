@@ -7,6 +7,9 @@
 
 ## 2026-09-17 — SESSION 82 · draft resume — every resumed draft was refused 42501 · tests 1275 → 1288 · no database change
 
+**CLOSED — merged to `main` `677838e` 2026-09-17, CI green (types · tests · build), deployed by Vercel. No database
+change from this branch; nothing to paste.**
+
 **Found by reading (S82), reproduced on a throw-away Postgres 17 before any fix. Nothing live was written.**
 
 ### The bug

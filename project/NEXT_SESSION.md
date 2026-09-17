@@ -30,8 +30,8 @@ S81 shipped step 5 and moved the work onto the founder's V1 Runway:
 | `s81-handoff` | D143 + this close, merged to `main` 2026-09-17. ⚑ git broke mid-close (Xcode license); the founder ran `sudo xcodebuild -license accept` |
 | applied live | every file in `docs/migrations/` up to and including `2026-09-14_admin_vehicles.sql` |
 | applied live, S82 | BOTH write-lock files, pasted by the founder 2026-09-17: `2026-09-17_mission_client_writes.sql` ([[d144]]) and `2026-09-17b_mission_read_is_read_only.sql` ([[d145]]). ⚑ `.local/probe/mission-client-writes/check.sql` reads ALL PASS on the live database (the 1 FAIL after (a) is what found (b)) |
-| ⚑ a resumed draft is still broken live | until the draft-resume code fix ships (branch `claude/adoring-hertz-85d28e`, S82 parallel). Broken since 2026-09-04, NOT by these files: the deployed resume still sends columns a browser may not write. New posts, the info edit and everything else are unaffected |
-| tests | **1275** |
+| draft resume, FIXED | `lib/draft-resume.ts` + `tests/draft-resume-grant.test.ts` (S82). The resume's snapshot columns (rates, both VAT rates, the opening) are stamped through the service role; only the typed columns go on the Dispatcher's session. ⚑ Adding a `mission` column means adding it to ONE of the two lists in that file — a column in neither is a compile error |
+| tests | **1288** |
 | probes | `vehicle-find.mts` 33/33 (S81, 1 skip: no replaced car) · `car-gate.mts` 20/20 · `never-twice.mts` 5/5 · `driver-find.mts` 15/15 (S79) |
 | ⚑ `handoff-check.ts` | NOT run in S81 (107 at S79). ⚑ It TRIES writes: a `mission_cancellation` insert the CHECK should refuse (deleted only if it got through), a vehicle update it expects refused, and three password sign-ins as probe accounts (auth sessions). Ask before running it |
 | live, measured S81 (2026-09-17) | 14 Drivers · 14 cars, 0 replaced · 385 trips · 66 Driver papers · 2 cars can work (the two probe Drivers' Business sedans); the other 12 wait for approval |

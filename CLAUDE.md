@@ -37,6 +37,18 @@ touches it; don't read them all at startup (see `project/NEXT_SESSION.md` for th
    drop, or re-run `docs/kavenue_schema.sql`. Generate TypeScript types FROM it.
 5. **Build NOTHING marked CUT in `docs/02_Product_Features_MVP.md`.** Build only KEEP.
    MANUAL items are done by a human in beta — don't build UI for them unless told.
+6. **`revoke … from public` takes NOTHING away from a signed-in session.** Supabase's default
+   privileges grant `anon` / `authenticated` / `service_role` their own rights on every new
+   **TABLE and every new VIEW** (a view is a table for default privileges), and a revoke from
+   PUBLIC leaves those untouched. Name the roles:
+   `revoke insert, update, delete, truncate on <obj> from anon, authenticated;` — then prove it
+   with `has_table_privilege`. Fourth time this shape has bitten (2026-08-31d/e/f; 2026-09-17b,
+   where a Driver's session could DELETE another Business's pooled trip through `mission_read`).
+   ⚑ **Functions are the opposite:** `create function` grants EXECUTE to PUBLIC, so there
+   `revoke … from public` IS the fix — but never on an index-expression helper such as
+   `phone_key` ([[d138]] rule 5), which makes every phone save a 42501.
+   ⚑ A new `mission` column is unwritable from a browser until it is in the grants and the guard
+   of `docs/migrations/2026-09-17_mission_client_writes.sql` ([[d144]]).
 
 ## Stack (decided)
 - Next.js (App Router, TypeScript) on Vercel · PWA-first.

@@ -4120,3 +4120,20 @@ and why they are not in the circuit anymore"*.
 
 ⚑ **Parked:** whether any car could have REACHED a trip nobody took — the history needed starts 2026-09-12 and busy
 slots cannot be rebuilt.
+
+### D143 — A signed-in non-admin at the admin console: no change (2026-09-17, S81)
+
+**What happened.** Safari still held a sign-in for `phyrass.h@gmail.com` on admin.kavenue.fr — an account with no
+profile, created by the founder's own test on 2026-09-13, minutes before [[d141]] shipped. The admin layout sends a
+role-less account to "/welcome", which has no Sign out, so the founder could not reach the form to sign in as
+admin. Removing kavenue.fr's website data fixed it.
+
+**The founder, on the fix proposed (a "no admin access" screen, or a silent sign-out):** *"why do we need to sign out
+someone who has nothing to do here?"* — then *"yes close it, option 3"*.
+
+**Why nothing is built.** The case cannot be created again: the admin door never creates an account and signs a
+non-admin out at the callback ([[d141]]); a Driver's or Business's session is a host-only cookie on driver./dispatch.
+([[d91]]) that admin.kavenue.fr never receives. The one stale cookie was pre-fix, and it is gone.
+
+⚑ **Revisit with BACKLOG § AL** — the first time an admin's role is REMOVED while they are signed in. (A role-less
+account lands on /welcome; an account with another role goes to its own area.)

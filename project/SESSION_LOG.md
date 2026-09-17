@@ -58,8 +58,12 @@ moving `standard_vat_rate` back into the session list turns 3 red, the first nam
   update list; 31f line 48 lists it. No SQL changed; nothing to re-paste.
 
 ### ⚑ Coordination — OPEN
-A parallel session, **"Close the Dispatcher write hole on mission"**, is narrowing the same grants in
-`docs/migrations/2026-09-17_mission_client_writes.sql` (its PLAN, not yet proven when it answered). **Agreed:**
+A parallel session, **"Close the Dispatcher write hole on mission"**, narrowed the same grants in
+`docs/migrations/2026-09-17_mission_client_writes.sql` — ⚑⚑ **PASTED LIVE by the founder on 2026-09-17, while the code
+below sat on this branch.** The new UPDATE grant leaves the 9 snapshot columns out, so **this fix is now what makes a
+resumed draft work at all** (it was already refused before, for the same column). Its own code is on
+`claude/ecstatic-bhabha-6fca9f` (`595c068`, plus `9576af1` = D145, `2026-09-17b_mission_read_is_read_only.sql`, waiting to
+be pasted). **Agreed:**
 - its UPDATE grant = exactly the 36 session columns + `info_edited_at`; the 9 stamped columns are NOT granted — this split fits.
 - its `grant insert (…)` keeps every column a new post inserts today, snapshot included — the insert is NOT split (a pooled
   trip must never exist without its rates).
@@ -69,6 +73,11 @@ A parallel session, **"Close the Dispatcher write hole on mission"**, is narrowi
   needs it unless that trigger computes it).
 - If a later migration removes a session column, this test goes red on whichever branch merges second: move it to
   `DRAFT_RESUME_STAMPED_COLUMNS` — except `status` (the event-log actor).
+- **Checked here, not taken on trust:** its two files copied into this branch → `draft-resume-grant.test.ts` 13/13, the
+  replay reading its `grant update` (37 columns) and `grant insert` (44). It reports the reverse check too: this test red
+  on two broken copies of its migration, and the split resume working on its own throw-away PG17.
+- ⚑ **Merge order:** this branch first (code for a constraint that is already live), then its branch, then the founder
+  pastes `17b`. Both branches insert at the top of `SESSION_LOG.md` and `CHANGELOG.md` — keep both entries.
 - ⚑ Seen, not in scope: the session CAN update `commission_business_rate`, `commission_driver_rate`, `commission_vat_rate`,
   `ceiling`, `pdp_start`, `created_at` on its own trips via PostgREST — that is the other session's write hole.
 ## 2026-09-17 — SESSION 82 (parallel) · the mission write lock ([[d144]]) and the view beside it ([[d145]]) · both APPLIED live, probe all pass · tests 1275 (unchanged)

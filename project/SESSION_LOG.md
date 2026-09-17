@@ -5,11 +5,12 @@
 
 ---
 
-## 2026-09-17 — SESSION 82 (parallel) · the mission write lock ([[d144]]) and the view beside it ([[d145]]) · part (a) APPLIED live, part (b) waiting · tests 1275 (unchanged)
+## 2026-09-17 — SESSION 82 (parallel) · the mission write lock ([[d144]]) and the view beside it ([[d145]]) · both APPLIED live, probe all pass · tests 1275 (unchanged)
 
-**Part (a) `2026-09-17_mission_client_writes.sql` was pasted by the founder and its probe run: 76 rows pass, ONE FAIL —
-which found part (b). `2026-09-17b_mission_read_is_read_only.sql` is written, proven, and waiting to be pasted.
-No write was made to the live database from this session; the founder ran both files themselves.**
+**BOTH FILES ARE LIVE.** The founder pasted `2026-09-17_mission_client_writes.sql`, ran the probe (76 pass, ONE FAIL —
+which is what found part (b)), then pasted `2026-09-17b_mission_read_is_read_only.sql` and ran the probe again:
+**every row pass on the live database.** No write was made to the live database from this session; the founder ran
+both files themselves.
 
 ### The hole (read from the migrations, then proven on a throw-away PG17)
 - The only UPDATE policy on `mission` is `p_mission_business_update` (`docs/kavenue_schema.sql:320`): `using (business_id =

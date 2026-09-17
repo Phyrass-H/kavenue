@@ -5,7 +5,7 @@
 
 ---
 
-## 17 September 2026 — Trip prices and statuses locked in the database, and a second door found by the check
+## 17 September 2026 — Trip prices and statuses locked in the database, and a second door the check found
 
 - **Found: a hole in the database rules for trips.** The app never offered it, but someone at a Business who knows a
   little tech could skip the app and change their own trip in the database directly: lower the price on a trip a Driver
@@ -28,8 +28,10 @@
   own draft. Creating a fake trip that way was already blocked, by luck: the price is hidden in that view.
 - **The second fix is one line** — the view keeps being readable and stops being writable. Nothing in the app writes
   through it, so nothing changes for you. The check now also looks at every other view, so this can't come back quietly.
-- **Your step:** paste `2026-09-17b_mission_read_is_read_only.sql`, then paste the check file again
-  (`.local/probe/mission-client-writes/check.sql`). Every row should say "pass".
+- **Both fixes are live** (you pasted them on 17 September) and the check reads **all pass**.
+- **Still to come, from the other piece of work:** reopening a saved draft has been broken since 4 September and stays
+  broken until that fix goes live. It is not caused by these two files. Posting a new trip, editing a trip's details and
+  everything else are unaffected.
 - **Still open, on purpose:** a Business with the same tech skills could post its OWN new trip below Kavenue's minimum
   price. That only hurts their own offer, and a Driver can refuse it. Closing that too is a bigger change, for later.
 

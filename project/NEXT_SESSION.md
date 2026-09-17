@@ -29,7 +29,8 @@ S81 shipped step 5 and moved the work onto the founder's V1 Runway:
 | `main` | S81 merged 2026-09-17 (`6611f6e`), CI green; admin.kavenue.fr/admin/vehicles answers 307 → the admin sign-in |
 | `s81-handoff` | D143 + this close, merged to `main` 2026-09-17. ⚑ git broke mid-close (Xcode license); the founder ran `sudo xcodebuild -license accept` |
 | applied live | every file in `docs/migrations/` up to and including `2026-09-14_admin_vehicles.sql` |
-| ⚑ NOT applied yet | `2026-09-17_mission_client_writes.sql` ([[d144]], S82 parallel) — the founder pastes it, then `.local/probe/mission-client-writes/check.sql` (read-only, every row `pass`). Proof: `bash .local/probe/mission-client-writes/run.sh` on a throw-away PG17, 82/82 |
+| applied live, S82 | `2026-09-17_mission_client_writes.sql` ([[d144]]) — pasted by the founder 2026-09-17; its probe: 76 pass, 1 FAIL, which found [[d145]] |
+| ⚑ NOT applied yet | `2026-09-17b_mission_read_is_read_only.sql` ([[d145]]) — the `mission_read` view is writable by any signed-in session (a Driver could delete any pooled trip). Written and proven; the founder pastes it, then `.local/probe/mission-client-writes/check.sql` again (read-only, every row `pass`). Proof: `bash .local/probe/mission-client-writes/run.sh` on a throw-away PG17, 98/98 |
 | tests | **1275** |
 | probes | `vehicle-find.mts` 33/33 (S81, 1 skip: no replaced car) · `car-gate.mts` 20/20 · `never-twice.mts` 5/5 · `driver-find.mts` 15/15 (S79) |
 | ⚑ `handoff-check.ts` | NOT run in S81 (107 at S79). ⚑ It TRIES writes: a `mission_cancellation` insert the CHECK should refuse (deleted only if it got through), a vehicle update it expects refused, and three password sign-ins as probe accounts (auth sessions). Ask before running it |

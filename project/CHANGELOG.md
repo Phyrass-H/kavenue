@@ -5,7 +5,7 @@
 
 ---
 
-## 17 September 2026 — Trip prices and statuses locked in the database (waiting for you to paste it)
+## 17 September 2026 — Trip prices and statuses locked in the database, and a second door found by the check
 
 - **Found: a hole in the database rules for trips.** The app never offered it, but someone at a Business who knows a
   little tech could skip the app and change their own trip in the database directly: lower the price on a trip a Driver
@@ -18,7 +18,17 @@
 - **Checked on the practice copy:** all 19 ways in are now refused, and every normal action still works (posting a trip,
   saving and posting a draft, editing details, a Driver accepting). Broken versions of the fix were tried too, and the
   test caught each one.
-- **Your step:** paste `2026-09-17_mission_client_writes.sql` into the Supabase SQL editor, then paste the check file
+- **You pasted it, and the check found a SECOND door** — one that was there since 30 August, nothing to do with
+  today's fix. Kavenue reads trips through a "view" (a saved way of looking at the trips table, which hides each side's
+  money from the other). That view was left writable by any signed-in session, and a write through a view is checked as
+  the view's owner — so it went around the rules we had just tightened, and around the rule that a Business only sees
+  its own trips.
+- **What it allowed, measured on the practice copy:** a Driver could DELETE any trip that was in the Pool, from any
+  Business, and could rewrite the Guest's name and the message on it. A Business could put a Driver and a fare on its
+  own draft. Creating a fake trip that way was already blocked, by luck: the price is hidden in that view.
+- **The second fix is one line** — the view keeps being readable and stops being writable. Nothing in the app writes
+  through it, so nothing changes for you. The check now also looks at every other view, so this can't come back quietly.
+- **Your step:** paste `2026-09-17b_mission_read_is_read_only.sql`, then paste the check file again
   (`.local/probe/mission-client-writes/check.sql`). Every row should say "pass".
 - **Still open, on purpose:** a Business with the same tech skills could post its OWN new trip below Kavenue's minimum
   price. That only hurts their own offer, and a Driver can refuse it. Closing that too is a bigger change, for later.

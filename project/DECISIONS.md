@@ -4174,3 +4174,35 @@ function. `dispatcher_id` is not checked against the Business, and an info edit 
 app only.
 ⚑ **The 31f trap, now twice:** a new `mission` column is not writable from a browser until it is added to the INSERT
 and/or UPDATE grant, and not changeable after posting until it is added to the guard's info list.
+
+### D145 — `mission_read` is a READ view: the write privileges come off it (2026-09-17, S82)
+
+**Found by the probe, on the LIVE database, minutes after [[d144]] was pasted.** `check.sql`'s single FAIL:
+*authenticated writes through the mission_read view → true*. Not a consequence of D144 — open since the view shipped
+on 2026-08-30, and it is the wider hole of the two.
+
+**Why it was open.** Every rebuild of the view (2026-08-30, 31h, 09-04, 09-12a) ends with `revoke all on
+public.mission_read from public;` + `grant select … to authenticated;`. **PUBLIC is not `authenticated`**: Supabase's
+`alter default privileges … grant all on tables to anon, authenticated, service_role` had already given both browser
+roles INSERT, UPDATE, DELETE and TRUNCATE on the view in their own right, and a PUBLIC revoke leaves that untouched.
+The same no-op shape as 2026-08-31d/e/f, one object along. ⚑ **A view is a "table" for default privileges.**
+
+**Why it mattered more than the table's hole.** The view is a single-table view with no aggregate, so Postgres makes it
+auto-updatable, and it is deliberately `security_invoker = false` — it must read as its owner or the money-column walls
+would blind every screen. A write through it is therefore checked as the OWNER: past D144's column grants and past the
+`mission` policies. The view's own WHERE was the only limit left, and that WHERE shows a **Driver every pooled trip
+there is**. Measured on the throw-away Postgres with the real view, D144 already applied:
+a Driver's session DELETED another Business's pooled trip · a Driver rewrote the Guest's name and the Driver message on
+another Business's pooled trip · a Dispatcher put `driver_id` and `accepted_fare` on its own draft.
+D144's guard trigger did still fire (a trigger is not a privilege), so the posted-trip freeze held — everything the
+trigger does not cover went through.
+⚑ An INSERT through the view was refused anyway (0A000), and by luck rather than design: `ceiling` is a CASE expression
+there, so it is not insertable, and `mission.ceiling` is NOT NULL with no default.
+
+1. **`revoke insert, update, delete, truncate on public.mission_read from anon, authenticated`** — SELECT stays.
+   Nothing in the app writes through the view (every `from("mission_read")` is a read), so no behaviour changes.
+2. **`security_invoker` is NOT touched.** Turning it on would look like a fix and would blind the app: it is how a
+   Driver sees a pooled trip's price at all. `check.sql` asserts the view still reads as its owner — turning it on
+   turns three cases red.
+3. **THE RULE FOR EVERY FUTURE VIEW:** `revoke all … from public` is not enough. Name `anon, authenticated`.
+   `check.sql` now sweeps every view in `public` for a browser write privilege and must read `(none)`.

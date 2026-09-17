@@ -5,10 +5,11 @@
 
 ---
 
-## 2026-09-17 — SESSION 82 (parallel) · the mission write lock ([[d144]]) · migration WRITTEN, NOT APPLIED · tests 1275 (unchanged)
+## 2026-09-17 — SESSION 82 (parallel) · the mission write lock ([[d144]]) and the view beside it ([[d145]]) · part (a) APPLIED live, part (b) waiting · tests 1275 (unchanged)
 
-**Handed to the founder to paste: `docs/migrations/2026-09-17_mission_client_writes.sql`, then
-`.local/probe/mission-client-writes/check.sql` (read-only, every row `pass`). Nothing live was written this session.**
+**Part (a) `2026-09-17_mission_client_writes.sql` was pasted by the founder and its probe run: 76 rows pass, ONE FAIL —
+which found part (b). `2026-09-17b_mission_read_is_read_only.sql` is written, proven, and waiting to be pasted.
+No write was made to the live database from this session; the founder ran both files themselves.**
 
 ### The hole (read from the migrations, then proven on a throw-away PG17)
 - The only UPDATE policy on `mission` is `p_mission_business_update` (`docs/kavenue_schema.sql:320`): `using (business_id =
@@ -68,6 +69,29 @@ insert and the info edit work before and after. After both merge, run `npx vites
   to `board_name`.
 - `.local/probe/event-log-e2e.ts`: marked STALE at the top. It calls raw `accept_mission` (closed by 31g) and asserts the
   direct status PATCH this file closes. Not rewritten.
+
+### ⚑ THE PROBE EARNED ITS KEEP THE SAME HOUR — part (b), the view ([[d145]])
+`check.sql` row 23 on the LIVE database: **authenticated writes through the mission_read view → true**, the only FAIL.
+Open since 2026-08-30, not caused by part (a), and the wider hole of the two.
+- **Cause.** Every rebuild of the view ends `revoke all on public.mission_read from public;` + `grant select … to
+  authenticated;`. PUBLIC is not `authenticated`: Supabase's default privileges had already granted both browser roles
+  INSERT/UPDATE/DELETE/TRUNCATE on the view itself. ⚑ **A VIEW IS A "TABLE" FOR `alter default privileges`.**
+- **Why it beat part (a).** Single-table view, no aggregate → auto-updatable; `security_invoker = false` (deliberate —
+  the money walls) → a write through it is checked as the OWNER, so past the column grants AND past the policies. The
+  view's WHERE was the only limit, and it shows a Driver every pooled trip there is.
+- **Measured on the throw-away DB with the real 09-12a view and part (a) applied:** a Driver DELETED another Business's
+  pooled trip · a Driver rewrote the Guest and the driver_message on it · a Dispatcher set `driver_id` +
+  `accepted_fare` on its own draft. Part (a)'s trigger DID fire (a trigger is not a privilege), so the posted-trip
+  freeze held; everything the trigger does not cover went through. An INSERT was refused anyway (0A000) — `ceiling` is a
+  CASE expression in the view and NOT NULL on the table. Luck, not design.
+- **The fix** is one line: `revoke insert, update, delete, truncate on public.mission_read from anon, authenticated`.
+  SELECT stays; no code writes through the view. `security_invoker` is NOT touched — turning it on looks like a fix and
+  blinds the app (three cases red).
+- **check.sql grew** a sweep of EVERY view in `public` for a browser write privilege (`(none)`), a "reads as its owner"
+  row, and a "can still read" row. Cases 60-67 cover the view door; 49 cases now, **98/98**, and the four part-(b)
+  mutants: revoke from PUBLIC only (the original mistake) → 3 cases + 2 check rows red · revoke UPDATE only → red ·
+  `security_invoker = true` → red. (Dropping the redundant `grant select` line changes nothing and stays green — the
+  view file already granted it.)
 
 ### Left open (in D144's text)
 Posting-time price inputs (ceiling, pdp_start, distance, rate card, night) still come from the session, so a hand-built

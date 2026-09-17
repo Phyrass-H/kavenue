@@ -287,4 +287,39 @@ insert into kv_case values
  null, 'refused %', 'refused 42501%'),
 (59, 'WALL anon calls mission_client_rates()', 'anon', null,
  $$select * from mission_client_rates()$$,
- null, 'refused %', 'refused 42501%');
+ null, 'refused %', 'refused 42501%'),
+
+-- ─── the door BESIDE the table: mission_read is auto-updatable and reads as its OWNER, so a
+--     write through it skips part (a)'s column grants AND the mission policies. Its own WHERE is
+--     the only limit left — and that WHERE shows a DRIVER every pooled trip there is.
+(60, 'VIEW a Driver DELETES another Business''s pooled trip through mission_read', 'authenticated', :DR,
+ $$delete from mission_read where id = '11111111-0000-0000-0000-000000000005'$$,
+ null, 'ok rows=1', 'refused 42501%'),
+(61, 'VIEW a Driver rewrites the Guest on another Business''s pooled trip', 'authenticated', :DR,
+ $$update mission_read set passenger_name = 'Not their Guest', driver_message = 'x'
+   where id = '11111111-0000-0000-0000-000000000005'$$,
+ null, 'ok rows=1', 'refused 42501%'),
+(62, 'VIEW a Dispatcher lowers accepted_fare on its own CONFIRMED trip', 'authenticated', :DA,
+ $$update mission_read set accepted_fare = 1 where id = '11111111-0000-0000-0000-000000000003'$$,
+ null, 'ok rows=1', 'refused 42501%'),
+(63, 'VIEW a Dispatcher puts a Driver and a fare on its own DRAFT (columns part (a) took away)', 'authenticated', :DA,
+ $$update mission_read set driver_id = '0000000e-0000-0000-0000-000000000001', accepted_fare = 1
+   where id = '11111111-0000-0000-0000-000000000001'$$,
+ null, 'ok rows=1', 'refused 42501%'),
+-- ⚑ MEASURED: an INSERT through the view is refused even BEFORE the fix, and not by any rule of
+--    ours — `ceiling` is a CASE expression in the view (the money wall), so it is not insertable,
+--    and `mission.ceiling` is NOT NULL with no default. The price wall blocks the forged trip.
+(64, 'VIEW an INSERT through the view: refused either way (ceiling is masked, and NOT NULL)', 'authenticated', :DA,
+ $$insert into mission_read (business_id, dispatcher_id, status, category, pickup_address, pickup_at, ceiling)
+   values ('0000000a-0000-0000-0000-000000000002', '0000000d-0000-0000-0000-000000000002', 'pooled',
+   'business', 'Not their trip', now() + interval '1 day', 100)$$,
+ null, 'refused 0A000%', 'refused %'),
+(65, 'VIEW a Dispatcher still READS its own trip through mission_read', 'authenticated', :DA,
+ $$select ceiling from mission_read where id = '11111111-0000-0000-0000-000000000003'$$,
+ null, 'ok rows=1', 'ok rows=1'),
+(66, 'VIEW a Driver still READS a pooled trip''s price through the view (the money wall''s own door)', 'authenticated', :DR,
+ $$select ceiling from mission_read where id = '11111111-0000-0000-0000-000000000005'$$,
+ null, 'ok rows=1', 'ok rows=1'),
+(67, 'VIEW a Driver reads nothing of a DRAFT (the view''s WHERE)', 'authenticated', :DR,
+ $$select ceiling from mission_read where id = '11111111-0000-0000-0000-000000000001'$$,
+ null, 'ok rows=0', 'ok rows=0');

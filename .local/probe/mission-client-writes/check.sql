@@ -97,6 +97,35 @@ checks(n, name, expected, actual) as (
                      from pg_class c join pg_namespace s on s.oid = c.relnamespace
                     where s.nspname = 'public' and c.relname = 'mission_read'), false)::text
   union all
+  -- ⚑ EVERY view in public, not just this one. Supabase's default privileges grant ALL on each new
+  --   view to anon and authenticated, and a view that reads as its owner is a way past the table's
+  --   policies and column grants (2026-09-17b). A new view is writable until someone revokes it.
+  select 24, 'views in public a browser session can write through', '(none)',
+         coalesce((select string_agg(distinct c.relname, ', ' order by c.relname)
+                     from pg_class c join pg_namespace s on s.oid = c.relnamespace
+                    where s.nspname = 'public' and c.relkind in ('v', 'm')
+                      and (has_table_privilege('authenticated', c.oid, 'INSERT')
+                        or has_table_privilege('authenticated', c.oid, 'UPDATE')
+                        or has_table_privilege('authenticated', c.oid, 'DELETE')
+                        or has_table_privilege('authenticated', c.oid, 'TRUNCATE')
+                        or has_table_privilege('anon', c.oid, 'INSERT')
+                        or has_table_privilege('anon', c.oid, 'UPDATE')
+                        or has_table_privilege('anon', c.oid, 'DELETE')
+                        or has_table_privilege('anon', c.oid, 'TRUNCATE'))), '(none)')
+  union all
+  select 25, 'a Business and a Driver can still READ through mission_read', 'true',
+         coalesce((select has_table_privilege('authenticated', c.oid, 'SELECT')
+                     from pg_class c join pg_namespace s on s.oid = c.relnamespace
+                    where s.nspname = 'public' and c.relname = 'mission_read'), false)::text
+  union all
+  -- ⚑ It MUST keep reading as its owner: that is how a Driver sees a pooled trip's price at all
+  --   (the money-column walls leave authenticated no SELECT on ceiling on the table).
+  select 26, 'mission_read still reads as its owner', 'owner',
+         coalesce((select case when coalesce(array_to_string(c.reloptions, ','), '') like '%security_invoker=true%'
+                               then 'INVOKER' else 'owner' end
+                     from pg_class c join pg_namespace s on s.oid = c.relnamespace
+                    where s.nspname = 'public' and c.relname = 'mission_read'), 'missing')
+  union all
   -- 4 · the guard is installed, enabled, and INVOKER (a DEFINER guard never fires: 2026-07-22)
   select 30, 'trigger trg_mission_guard_client_write on mission, enabled', 'true',
          exists (select 1 from pg_trigger t

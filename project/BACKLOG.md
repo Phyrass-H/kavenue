@@ -2045,4 +2045,7 @@ role on every request); there is no screen for either.
 - **Revoking** removes the access AND ends their open sessions (Supabase's admin sign-out), not just the next load.
 - Every act already names its actor: a Driver's approval stamps the admin since S80 (§ AK), a car's since S78.
 
-Related: § AJ (training the support team) · § AK (the approval log) · [[d141]] (the admin door).
+⚑ **And when it is built, handle a signed-in account that LOST its admin role** — today it would land on /welcome
+with no Sign out ([[d143]]: nothing built in V1, because V1 cannot create that case).
+
+Related: § AJ (training the support team) · § AK (the approval log) · [[d141]] (the admin door) · [[d143]].

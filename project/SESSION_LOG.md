@@ -60,8 +60,12 @@ settled/filled/nobodyTook. The Driver cell got a `title`. ⚑ Left: the admin he
 - **Safari admin sign-in** (founder): Safari held a session for `phyrass.h@gmail.com` on admin.kavenue.fr — an account
   with no profile, created by the pre-S80 admin door. The admin layout sent it to "/welcome", which has no Sign out.
   Removing kavenue.fr website data fixed it; then Supabase's built-in mailer said "email rate limit exceeded".
-  ⚑ **Approved to fix next, on its own branch:** a signed-in non-admin at the admin door sees "This email doesn't
-  have admin access" + Sign out (preview sent, awaiting the founder's look).
+  ⚑ **Closed, no change ([[d143]]).** A fix was approved and previewed (a "no admin access" screen + Sign out), then
+  the founder asked *"why do we need to sign out someone who has nothing to do here?"* — and the honest answer was
+  that the case can no longer arise: S80's door creates no account and signs a non-admin out at the callback, and
+  Driver/Business sessions are host-only cookies that admin.kavenue.fr never receives. Founder: option 3, leave it.
+- ⚑ Lesson: **before designing a fix, ask whether the case can still happen.** I built three options for a stale
+  cookie the previous fix had already made impossible; the founder's plain question found it.
 - ⚑ Lesson: a magic link's PKCE verifier lives in the window that ASKED; a link opened elsewhere fails, and /login then
   forwards to whatever session that window already holds. Clearing Safari "caches" keeps cookies.
 

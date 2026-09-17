@@ -17,8 +17,7 @@
 - **The database part is in** (pasted 17 September) and checked against the live data: 33 checks pass.
 - **The car's model is written in full, on two lines if needed** — "Mercedes-Benz Classe S", not "Mercedes-Benz Cla…".
 - **Admin sign-in on Safari, explained:** Safari was still signed in as a non-admin email from an old test. Removing
-  the site's data fixed it. Next: that situation will show "This email doesn't have admin access" with a Sign out
-  button, instead of "Welcome to Kavenue".
+  the site's data fixed it. Nothing to build: since the 13 September fix, no such sign-in can be created again.
 
 ---
 

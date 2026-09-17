@@ -77,6 +77,15 @@ grant select (standard_vat_rate) on public.mission to authenticated;
 -- ⚑ NO `grant update`. Nothing in a browser session may write a tax rate. It is
 -- stamped once, server-side, when the mission is created — the same discipline as
 -- commission_vat_rate, which is likewise absent from 2026-08-31f's update list.
+--
+-- ⚑⚑ CORRECTED S82 (2026-09-17) — comment only, nothing above or below changed:
+--   1. commission_vat_rate IS in 2026-08-31f's update list (its line 48). The
+--      sentence above is wrong about it.
+--   2. Leaving standard_vat_rate out of the grant was right, but the draft action
+--      still sent it in the user-session UPDATE that resumes a draft — so every
+--      resumed draft ("Save as draft" or "Post") was refused 42501 from this file
+--      on. Fixed in code, not here: lib/draft-resume.ts stamps it through the
+--      service role; tests/draft-resume-grant.test.ts compares the two lists.
 
 -- ───────────────────────────────────── 3 · the view, rebuilt authoritatively ───
 -- ⚑ READ THIS BEFORE TOUCHING mission_read AGAIN. Until today TWO files carried a

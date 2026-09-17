@@ -5,6 +5,72 @@
 
 ---
 
+## 2026-09-17 — SESSION 82 · draft resume — every resumed draft was refused 42501 · tests 1275 → 1288 · no database change
+
+**Found by reading (S82), reproduced on a throw-away Postgres 17 before any fix. Nothing live was written.**
+
+### The bug
+- `app/(dispatch)/dispatch/new/actions.ts` resumed a draft (`/dispatch/new?draft=<id>`, both "Save as draft" and "Post")
+  with ONE `.from("mission").update(updateRow)` on the USER session (`lib/supabase/server.ts`). `updateRow` spreads
+  `row`, which since 27870bd (S75, 2026-09-04) carries `standard_vat_rate`.
+- The mission UPDATE grant is an explicit column list since `2026-08-31f`; `2026-09-04_standard_vat_rate.sql` added the
+  column and on purpose did NOT grant UPDATE on it. Postgres checks UPDATE privilege on every SET column before reading
+  a row → 42501 → `redirect(backTo("db"))` → the Business read *"Something went wrong. Please try again."* A retry could
+  never succeed. New posts were unaffected (INSERT is not column-granted). Broken from the 09-04 deploy until this fix.
+
+### Proof (throw-away PG17 in the session scratchpad, TCP only — the scratchpad path is too long for a Unix socket)
+Stand-in `mission` with every column from `lib/database.types.ts`, Supabase's table-wide grant, the REAL `2026-08-31f`
+file verbatim, then 09-04's `alter table … add column` + `grant select`. As `authenticated`:
+- the 45-column resume SET list read out of actions.ts → **permission denied for table mission**
+- the same minus `standard_vat_rate` → 1 row · a new-post INSERT incl. it → 1 row
+- a resume on a non-existent id → still 42501 (the check precedes any row)
+- `has_column_privilege`: standard_vat_rate UPDATE **f** · commission_vat_rate UPDATE **t** · standard_vat_rate INSERT **t**
+After the fix: service role stamps the 9 snapshot columns on the draft → 1 row; the session writes the 36 others and
+posts → 1 row, `pooled`. The two lists together are exactly the old 45 columns (diffed).
+
+### The fix — code only, no migration, the grant NOT widened
+- **`lib/draft-resume.ts`** (new): `DRAFT_RESUME_SESSION_COLUMNS` (36 — what the form says, plus `status` and the post-time
+  `created_at`) and `DRAFT_RESUME_STAMPED_COLUMNS` (9 — `rate_card_id`, `night_applied`, `commission_business_rate`,
+  `commission_driver_rate`, `commission_vat_rate`, `standard_vat_rate`, `pdp_start`, `pdp_step`, `pdp_interval`, the
+  docs/06 §9 snapshot the server derives). `splitDraftResume(row)` carries only keys present (the conditional spreads
+  keep meaning "not overwritten"); a key in neither list is a COMPILE error (checked with a probe file) and failing that
+  a throw — never a silent drop.
+- **actions.ts**: stamp FIRST through `createAdminClient()`, scoped `id` + `business_id` + `status='draft'` (0 rows → `gone`),
+  then the session update with `session`. Stamped while still a draft, so a failure between the two leaves a draft that is
+  re-stamped next time, never a posted trip without its snapshot.
+- ⚑ **`status` stays on the user session on purpose:** `trg_mission_event_log` takes the actor from `auth.uid()`; a
+  service-role post would be logged "unknown".
+- ⚑ The literal `created_at: new Date().toISOString()` stays in actions.ts — `handoff-check.ts` § V greps for it.
+
+### The test — `tests/draft-resume-grant.test.ts` (13)
+Replays EVERY `docs/migrations/*.sql` in filename order to compute the effective UPDATE grant of `authenticated` on
+`mission` (start "all"; a table-wide revoke clears; a column revoke against "all" is a no-op — the 31e/31f lesson; a
+column grant adds), then asserts: the grant is a column list containing `id` and not `guest_ready_at` (parser sanity) ·
+every session column ⊆ grant · `standard_vat_rate` stamped, not in the session list, not granted · lists disjoint ·
+split semantics · the action stamps before the session update and no longer sends `updateRow`. Same replay for INSERT:
+(session ∪ stamped) − `created_at` ⊆ the INSERT grant — a no-op while INSERT is table-wide, live once a `grant insert (…)`
+lands; sound because the insert and the resume are built from the same spreads (asserted) and the split is compile-checked.
+The sanity check reads `status`, not `id` (the write-hole migration drops `id`). **Mutation-checked:**
+moving `standard_vat_rate` back into the session list turns 3 red, the first naming the column.
+
+### Also
+- `2026-09-04_standard_vat_rate.sql`: comment-only correction — it claimed `commission_vat_rate` is absent from 31f's
+  update list; 31f line 48 lists it. No SQL changed; nothing to re-paste.
+
+### ⚑ Coordination — OPEN
+A parallel session, **"Close the Dispatcher write hole on mission"**, is narrowing the same grants in
+`docs/migrations/2026-09-17_mission_client_writes.sql` (its PLAN, not yet proven when it answered). **Agreed:**
+- its UPDATE grant = exactly the 36 session columns + `info_edited_at`; the 9 stamped columns are NOT granted — this split fits.
+- its `grant insert (…)` keeps every column a new post inserts today, snapshot included — the insert is NOT split (a pooled
+  trip must never exist without its rates).
+- its guard trigger (anon/authenticated only) re-stamps live rates on client INSERT and on a client UPDATE of a draft, allows
+  only `draft`/`pooled` from a client, sets `created_at = now()` on draft → pooled, and freezes a non-draft trip to the 13
+  info-edit columns. The service-role stamp here then becomes redundant but harmless (same generation; `pdp_start` still
+  needs it unless that trigger computes it).
+- If a later migration removes a session column, this test goes red on whichever branch merges second: move it to
+  `DRAFT_RESUME_STAMPED_COLUMNS` — except `status` (the event-log actor).
+- ⚑ Seen, not in scope: the session CAN update `commission_business_rate`, `commission_driver_rate`, `commission_vat_rate`,
+  `ceiling`, `pdp_start`, `created_at` on its own trips via PostgREST — that is the other session's write hole.
 ## 2026-09-17 — SESSION 82 (parallel) · the mission write lock ([[d144]]) and the view beside it ([[d145]]) · both APPLIED live, probe all pass · tests 1275 (unchanged)
 
 **BOTH FILES ARE LIVE.** The founder pasted `2026-09-17_mission_client_writes.sql`, ran the probe (76 pass, ONE FAIL —

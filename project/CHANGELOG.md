@@ -5,6 +5,17 @@
 
 ---
 
+## 17 September 2026 — Reopening a saved draft works again
+
+- **Fixed: a saved draft could not be posted or saved again.** When a Business reopened a draft trip and clicked
+  "Post" or "Save as draft", it always said "Something went wrong. Please try again." — since 4 September. New trips
+  were never affected.
+- **Why:** since 4 September each trip stores the VAT rate (20 %). The database refuses to let a browser write a tax
+  rate, on purpose. Reopening a draft tried to write it anyway.
+- **The fix keeps that protection.** Kavenue's server now stamps the rates on the draft itself, and the Business's
+  own session only writes what they typed. It was proven on a test copy of the database first; nothing live was touched.
+- **A new automatic check** compares what a draft writes with what the database allows, so this cannot come back
+  unnoticed.
 ## 17 September 2026 — Trip prices and statuses locked in the database, and a second door the check found
 
 - **Found: a hole in the database rules for trips.** The app never offered it, but someone at a Business who knows a

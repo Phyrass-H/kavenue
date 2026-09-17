@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isNightPickup } from "@/lib/rate-card";
 import { COMMISSION_RATE_COLS, courseFromBusinessTotal, ratesFromRow } from "@/lib/commission";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { splitDraftResume } from "@/lib/draft-resume";
 import { getAppContext } from "@/lib/app-context";
 import { businessReadiness } from "@/lib/business-readiness";
 import { recordBusinessEvent } from "@/lib/business-events-server";
@@ -459,9 +460,24 @@ export async function createMission(formData: FormData) {
     const updateRow = asDraft
       ? { ...row, ...eta, ...opening, ...boardUpload, ...labels }
       : { ...row, ...eta, ...opening, ...boardUpload, ...labels, created_at: new Date().toISOString() };
+    // ⚑ TWO WRITES, STAMP FIRST (S82). The snapshot columns (rates, VAT, the opening)
+    // are not in the session's UPDATE grant — `standard_vat_rate` never was, and a
+    // single update carrying it 42501'd every resumed draft. See lib/draft-resume.ts.
+    // Stamped while the row is still a draft, so a failure after it leaves a draft
+    // that is re-stamped next time — never a posted trip missing its snapshot.
+    const { session, stamped } = splitDraftResume(updateRow);
+    const { data: stampedRows, error: stampErr } = await createAdminClient()
+      .from("mission")
+      .update(stamped)
+      .eq("id", missionId)
+      .eq("business_id", ctx.business.id)
+      .eq("status", "draft")
+      .select("id");
+    if (stampErr) redirect(backTo("db"));
+    if (!stampedRows || stampedRows.length === 0) redirect(backTo("gone"));
     const { data: updated, error } = await supabase
       .from("mission")
-      .update(updateRow)
+      .update(session)
       .eq("id", missionId)
       .eq("business_id", ctx.business.id)
       .eq("status", "draft")

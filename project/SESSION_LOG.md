@@ -5,12 +5,24 @@
 
 ---
 
-## 2026-09-18 — SESSION 83 · unfilled ruled (D147) · raise the Ceiling + change the car · built, proven, AWAITING THE PASTE · tests 1288 → 1319
+## 2026-09-18 — SESSION 83 · unfilled ruled (D147) · raise the Ceiling + change the car · built, proven, PASTED LIVE · tests 1288 → 1336
 
 **BRANCH `s83-unfilled` — NOT merged.** ⚑ The code names `mission.pdp_step_count`: it must not reach `main` before
 2026-09-18c and 18d are live, and those go AFTER the S83 security sweep's 18a/18b ([[d146]], branch
 `claude/dazzling-mendeleev-f3a500`). Paste order: 18a → 18b → 18c → 18d → `.local/probe/pooled-trip-changes/check.sql`
 (read-only, every row `pass`).
+
+**PASTED 2026-09-18 (founder):** 18a → 18b → the sweep's `rls-audit/check.sql` → 18c → 18d → our check.sql, all green.
+(An early 18c paste before 18a was refused by its §0 guard — `begin;` first, nothing ran.) Read-only live probe after:
+PostgREST serves `pdp_step_count` (200 on `mission` and `mission_read`); anon `rpc/raise_ceiling` → 401 · 42501.
+- ⚑ **The sweep's check had ONE FAIL on live: `rls_auto_enable()`** (DEFINER, EXECUTE X/X + PUBLIC, "(not reviewed)").
+  Not ours — on no branch. Founder's read-only query: returns `event_trigger`, owner postgres, `search_path=pg_catalog`,
+  fired by event trigger `ensure_rls` on `ddl_command_end`, enabled — Supabase's "auto-enable RLS on new tables" helper.
+  Postgres refuses to run an event-trigger function called directly, so the EXECUTE is inert. **TO DO at merge:** in
+  `rls-audit/check.sql` add `('rls_auto_enable()','trigger')` and make `is_trigger` also match `'event_trigger'::regtype`;
+  and add 18c/18d's objects (`raise_ceiling` / `change_trip_car` `-/X`, `pdp_ladder_steps` / `course_from_business_total`
+  `-/-`, `trg_mission_price_terms_log()` trigger, trigger `mission.mission_price_terms_log`, `pdp_step_count` in the
+  mission SELECT (walled) list if it lands there) — else that check reads FAIL "(not reviewed)" after 18c.
 
 ### The ruling (founder)
 `unfilled`: Kavenue neither covers an untaken trip nor phones the Business — **the expiry stands**. Instead, while

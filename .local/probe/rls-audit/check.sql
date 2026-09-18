@@ -46,7 +46,8 @@ rel_expected(rel, anon, auth) as (values
   ('status_event',          '-----', 'S----'),
   ('vehicle',               '-----', 'S----'),
   ('vehicle_event',         '-----', 'S----'),
-  ('mission_read',          '-----', 'S----')),
+  ('mission_read',          '-----', 'S----'),
+  ('mission_accept_quote',  '-----', '-----')),
 -- ══ REVIEWED STATE 2 · column-level grants to authenticated (only where the table-wide one is off) ══
 col_expected(rel, priv, cols) as (values
   ('mission', 'INSERT', 'board_file_path,board_name,business_id,category,ceiling,commission_business_rate,commission_driver_rate,commission_vat_rate,dispatcher_id,distance_km,dress_code,driver_flags,driver_message,dropoff_address,dropoff_label,dropoff_lat,dropoff_lng,duration_min,flight_number,luggage_count,luggage_only,night_applied,passenger_name,passenger_names,pax_count,pdp_interval,pdp_start,pdp_step,pickup_address,pickup_at,pickup_label,pickup_lat,pickup_lng,rate_card_id,reference,required_body_type,required_languages,required_make,required_model,speed_win,standard_vat_rate,status,waypoints,zone'),
@@ -123,6 +124,8 @@ fn_expected(fn, exec) as (values
   ('vehicle_identity_frozen()','trigger'), ('mission_guard_client_write()','trigger'),
   ('mission_guard_guest_ready_at()','trigger'), ('mission_guard_pickup_at()','trigger'),
   ('trg_snapshot_transport_vat()','trigger'), ('mission_guard_board_file()','trigger'),
+  ('mission_accept_quote_guard()','trigger'),
+  ('mission_accept_quote_invalidate()','trigger'),
   -- S83 · 18c/18d (D147): raise the Ceiling / change the car on a pooled trip
   ('raise_ceiling(uuid, numeric)','-/X'),
   ('change_trip_car(uuid, vehicle_category, body_type, text, text, numeric)','-/X'),
@@ -138,6 +141,8 @@ trg_expected(tbl, trg) as (values
   ('mission','trg_mission_guard_client_write'), ('mission','trg_mission_guard_guest_ready_at'),
   ('mission','trg_mission_guard_pickup_at'), ('mission','trg_mission_guard_board_file'),
   ('mission','mission_price_terms_log'),
+  ('mission_accept_quote','trg_mission_accept_quote_guard'),
+  ('mission','trg_mission_accept_quote_invalidate'),
   ('mission_amendment','trg_amendment_replaces_release'),
   ('mission_hold','hold_requires_approved_car'), ('mission_hold','mission_hold_apply'),
   ('vehicle','vehicle_event_write'), ('vehicle','vehicle_identity_frozen')),

@@ -28,6 +28,15 @@ cases, `check.sql` 68 FAIL → 0.
 **Original plan (unchanged):** the two files were PROVEN on a throw-away Postgres 17 before handover; nothing live was
 written BY CLAUDE — the founder pasted.
 
+**⚑ FINDING #11 CLOSED (2026-09-18, later): `2026-09-18e_accept_fare_from_the_server.sql` ([[d148]]).** The founder said
+"fix it now". A 3-way design panel (Claude) ranked the SERVICE-ROLE FARE STAMP first over a SQL curve port (float ln()
+differs ~1 ULP → mispricing) and a signed token (more rule-6 surface). The server stamps the honest Course into a new
+service-role-only table `mission_accept_quote` (revoked from browsers, RLS no-policy, a ceiling-bound trigger); accept_mission
+/ place_hold read the stamp and ignore p_fare (kept in the signature). Forged accept → accepted_fare NULL → settledFare
+recomputes honest. App: lib/pool-fares.ts stampAcceptQuote, wired into acceptMission/holdMission; lib/database.types.ts
+carries the table. Proven: run.sh 102/102 (cases 58–62), check.sql 0 FAIL, tsc + 1336 tests. Adversarially re-verified on
+the throw-away. Migration NOT applied by Claude — the founder pastes 18e after 18d. ⚑ ALL 11 findings now closed.
+
 **Why this session (from D144/D145, S82).** Those two holes were the same shape — Supabase grants both browser roles
 every right on every new object, and `revoke … from public` takes none of it back. Neither was found by reading. So S83
 did not read: it rebuilt the entire live schema offline and asked the database.

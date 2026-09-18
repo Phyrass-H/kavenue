@@ -79,8 +79,8 @@ insert into kv_case values
    'mission/0000000a-0000-0000-0000-000000000001/board-9b2c.pdf', 'Hôtel de Paris', 'Nice T1',
    null, false, 0.125, 0.1, 0.2, 0.2, 60, null, null)$$,
  null, 'ok rows=1', 'ok rows=1'),
-(2, 'APP  draft resume: post draft A1 (session columns + created_at)', 'authenticated', :DA,
- $$update mission set status = 'pooled', created_at = now(), pickup_address = 'Hôtel de Paris'
+(2, 'APP  draft resume: post draft A1 (session cols + created_at + ceiling -> fires the invalidate trigger)', 'authenticated', :DA,
+ $$update mission set status = 'pooled', created_at = now(), pickup_address = 'Hôtel de Paris', ceiling = 120
     where id = '11111111-0000-0000-0000-0000000000a1' and business_id = '0000000a-0000-0000-0000-000000000001' and status = 'draft'$$,
  null, 'ok rows=1', 'ok rows=1'),
 (3, 'APP  info edit on confirmed A3 (Guest name, board file)', 'authenticated', :DA,
@@ -124,10 +124,10 @@ insert into kv_case values
  $$create temp table kv_o on commit drop as select passenger_name, reference, board_file_path, dispatcher_id from mission_read where id = '11111111-0000-0000-0000-0000000000b1'$$,
  $$select passenger_name || '/' || reference || '/' || (board_file_path is not null) || '/' || (dispatcher_id is not null) from kv_o$$,
  'ok rows=1 Grace Kelly/ROOM-512/true/true', 'ok rows=1 Grace Kelly/ROOM-512/true/true'),
-(12, 'APP  Driver accepts a pooled trip (honest fare)', 'authenticated', :DR1,
+(12, 'APP  Driver accepts a pooled trip — status confirms; the FARE now needs a server stamp (see 59)', 'authenticated', :DR1,
  $$select accept_mission_call('11111111-0000-0000-0000-0000000000b1', 90)$$,
- $$select status || ' ' || accepted_fare from mission where id = '11111111-0000-0000-0000-0000000000b1'$$,
- 'ok rows=1 confirmed 90.00', 'ok rows=1 confirmed 90.00'),
+ $$select status || ' ' || coalesce(accepted_fare::text,'NULL') from mission where id = '11111111-0000-0000-0000-0000000000b1'$$,
+ 'ok rows=1 confirmed 90.00', 'ok rows=1 confirmed NULL'),
 (13, 'APP  the lazy sweep, from a signed-in page', 'authenticated', :DR1,
  $$select expire_stale_missions(), sweep_lapsed_holds()$$, null, 'ok rows=1', 'ok rows=1'),
 (14, 'APP  Driver reads own trips on the mission TABLE (layout badge)', 'authenticated', :DR1,
@@ -237,7 +237,29 @@ insert into kv_case values
 (57, 'HOLE Driver logs an event on a CONFIRMED trip they do not hold', 'authenticated', :DR2,
  $$select log_mission_event('11111111-0000-0000-0000-0000000000b2', 'contact_revealed', '{}')$$,
  null, 'ok rows=1', 'refused P0001%'),
-(58, 'NOTE the raw accept fare still clamps to the ceiling (finding #1, NOT fixed here)', 'authenticated', :DR1,
+(58, 'HOLE #11 a Driver hand-accepts with a forged fare -> was paid the Ceiling', 'authenticated', :DR1,
  $$select accept_mission_call('11111111-0000-0000-0000-0000000000b1', 999999)$$,
- $$select accepted_fare from mission where id='11111111-0000-0000-0000-0000000000b1'$$,
- 'ok rows=1 150.00', 'ok rows=1 150.00');
+ $$select coalesce(accepted_fare::text,'NULL') from mission where id='11111111-0000-0000-0000-0000000000b1'$$,
+ 'ok rows=1 150.00', 'ok rows=1 NULL'),
+-- ── #11: the server stamp is the only source of a fare now (18e) ────────────────────────────────
+(59, 'APP  the honest path: server stamps 90, Driver accepts -> paid 90 (forged p_fare ignored)', 'postgres', :DR1,
+ $$insert into mission_accept_quote (mission_id, driver_id, course) values ('11111111-0000-0000-0000-0000000000b1','0000000e-0000-0000-0000-000000000001', 90);
+   select accept_mission_call('11111111-0000-0000-0000-0000000000b1', 999999)$$,
+ $$select coalesce(accepted_fare::text,'NULL') from mission where id='11111111-0000-0000-0000-0000000000b1'$$,
+ 'refused 42P01%', 'ok rows=1 90.00'),
+(60, 'HOLE #11 a Driver hand-HOLDS with a forged fare -> planted a high floor', 'authenticated', :DR1,
+ $$select place_hold('11111111-0000-0000-0000-0000000000b1', 999999)$$,
+ $$select coalesce(max(held_fare)::text,'NULL') from mission_hold where mission_id='11111111-0000-0000-0000-0000000000b1'$$,
+ 'ok rows=1 150.00', 'ok rows=1 NULL'),
+(61, 'LOCK a browser session cannot write the stamp table', 'authenticated', :DR1,
+ $$insert into mission_accept_quote (mission_id, driver_id, course) values ('11111111-0000-0000-0000-0000000000b1','0000000e-0000-0000-0000-000000000001', 1)$$,
+ null, 'refused 42P01%', 'refused 42501%'),
+(62, 'LOCK the stamp can never exceed the trip Ceiling (defense in depth)', 'postgres', null,
+ $$insert into mission_accept_quote (mission_id, driver_id, course) values ('11111111-0000-0000-0000-0000000000b1','0000000e-0000-0000-0000-000000000001', 9999)$$,
+ null, 'refused 42P01%', 'refused 23514%'),
+(63, 'HOLE #11b a stale stamp survives a price drop then a hand-accept -> paid the new Ceiling', 'postgres', :DR1,
+ $$insert into mission_accept_quote (mission_id, driver_id, course) values ('11111111-0000-0000-0000-0000000000b1','0000000e-0000-0000-0000-000000000001', 140);
+   update mission set pdp_start = 60, ceiling = 100 where id = '11111111-0000-0000-0000-0000000000b1';
+   select accept_mission_call('11111111-0000-0000-0000-0000000000b1', 0)$$,
+ $$select coalesce(accepted_fare::text,'NULL') from mission where id='11111111-0000-0000-0000-0000000000b1'$$,
+ 'refused 42P01%', 'ok rows=1 NULL');

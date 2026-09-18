@@ -4347,3 +4347,48 @@ mutants red (.local/probe/pooled-trip-changes/).
 computed where the fleet check runs, the schedule); the "raise your Ceiling" nudge by email waits on notifications (§ AB,
 integrations phase). S83 security sweep finding #11 — a Driver can forge the accept fare — is the founder's to decide
 ([[d146]]); any SQL port of the curve must take `pdp_step_count`.
+
+### D148 — The accept fare comes from the server, not the caller (finding #11 closed, 2026-09-18, S83)
+
+**The founder, on the last open hole:** *"Fix it now."* Approach chosen by Claude after a 3-way design panel (the
+engineering call, not the founder's) — the founder was shown the plain mechanism, not the alternatives.
+
+**The hole ([[d146]] finding #11).** A trip's price climbs to the Business's Ceiling; the Driver is paid the fare at
+accept, frozen into `accepted_fare`. `accept_mission` / `place_hold` took that fare as `p_fare` FROM THE CALLER and only
+clamped it to `[opening, ceiling]` — never checking it against the true current price, because the §6 curve lives only in
+`lib/pdp.ts` and Postgres cannot evaluate it. `accept_mission_call` is EXECUTE-able by `authenticated`, so a Driver
+holding their own JWT could POST the call by hand with `p_fare = ceiling` and be paid it (150 vs 90 on a probe). Nobody is
+billed above the Ceiling the Business set, but the auction is bypassed.
+
+**The fix (`2026-09-18e_accept_fare_from_the_server.sql`) — D144's lesson applied to the fare.** The server already
+computes the honest fare with the service role (`lib/pool-fares.ts`); it now STAMPS that number into a tiny table only the
+service role may write, keyed to the Driver, just before the accept/hold. `accept_mission` and `place_hold` read the stamp
+for `current_driver_id()` and ignore `p_fare`.
+- **Honest accept:** the stamp = the exact number the app computed today → `accepted_fare` byte-identical.
+- **Forged accept:** no stamp → `accepted_fare` NULL → `settledFare()` recomputes the honest curve on read (legacy rows
+  are already NULL) → the honest price, NEVER the Ceiling. Proven: 150 → NULL on the throw-away.
+- The hold's "you get at least what you were shown" rule is untouched — `held_fare` stays a floor inside `greatest()`;
+  only its source moved from `p_fare` to the stamp.
+
+**Three locks on the one wall** (`mission_accept_quote`), because a leaked grant is the whole risk (rule 6, bitten 4+
+times): (1) `revoke … from anon, authenticated` naming the roles; (2) RLS enabled with NO policy; (3) `check.sql` asserts
+`has_table_privilege` false for both browser roles. Plus a BEFORE trigger bounding `course` into `[0, ceiling]` so even a
+server bug or a leaked grant cannot stamp above the Ceiling. `p_fare` stays in both signatures (ignored) → no signature
+change, no deploy window under dev=prod.
+
+**Why not the alternatives** (3-way panel, S83): (b) porting `currentFare` to SQL was ranked WRONG — Postgres `ln()` and
+V8's differ ~1 ULP, so a SQL port would misprice by up to ~€0.50 at a jittered step boundary, and it duplicates a
+load-bearing function the repo deliberately keeps in one place; (c) a signed fare token needs a DB secret and two more
+functions (more rule-6 surface). Approach A (the stamp) won 2 of 3 first-place votes.
+
+**⚑ An adversarial pass found one residual, now closed.** A stamp quoted at the OLD price could outlive a term change: a
+Driver holds a pooled trip (stamp at 140), the Business swaps to a cheaper car ([[d147]], Ceiling 150→100), nothing
+deleted the stamp, and a hand-built accept clamped the stale 140 to the new Ceiling 100 — the #11 shape via a stale stamp.
+Fixed at the root: a trigger `trg_mission_accept_quote_invalidate` on `mission` drops a trip's stamps whenever ANY
+price-determining column changes (so `change_trip_car` / `raise_ceiling` and any future price path all clear it; the honest
+accept never trips it). A raise only ever made a stale stamp UNDER-pay, but the trigger clears it there too.
+
+**Proven, kept:** `.local/probe/rls-audit/` cases 58–63 (forged accept → NULL, forged hold → NULL, browser cannot write
+the table, the ceiling-bound guard, the honest stamp path pays the stamped fare, and the stale-stamp-after-a-price-drop →
+NULL) — `run.sh` 104/104, `check.sql` 0 FAIL, `npm test` 1336, plus a 3-agent adversarial re-attack on the throw-away.
+Migration NOT applied by Claude; the founder pastes `2026-09-18e` after `18d`.

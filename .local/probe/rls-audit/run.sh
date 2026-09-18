@@ -36,7 +36,7 @@ resolve() {  # <migration filename> -> a path on disk (local, or extracted from 
 if [ -n "${MIGRATIONS:-}" ]; then
   MIGS="$MIGRATIONS"
 else
-  MIGS="$(resolve 2026-09-18a_browser_surface_locked.sql) $(resolve 2026-09-18b_money_from_the_row.sql) $(resolve 2026-09-18c_pooled_trip_changes.sql) $(resolve 2026-09-18d_mission_read_step_count.sql)" || exit 2
+  MIGS="$(resolve 2026-09-18a_browser_surface_locked.sql) $(resolve 2026-09-18b_money_from_the_row.sql) $(resolve 2026-09-18c_pooled_trip_changes.sql) $(resolve 2026-09-18d_mission_read_step_count.sql) $(resolve 2026-09-18e_accept_fare_from_the_server.sql)" || exit 2
 fi
 
 bash "$HERE/replay.sh" "$DB" >/dev/null 2>&1 || { bash "$HERE/replay.sh" "$DB"; exit 2; }

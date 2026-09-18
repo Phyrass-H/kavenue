@@ -5,6 +5,18 @@
 
 ---
 
+## 18 September 2026 — Closed the last security hole: a Driver can no longer pay themselves the top price
+
+- **The problem.** A trip's price climbs from a low start up to your Ceiling, and the Driver is paid whatever it is when
+  they accept. Because the price maths lives in the app (not the database), a technical Driver could skip the app and send
+  the "accept" by hand with the Ceiling as the price — and get paid it. Nobody was ever charged above your Ceiling, but
+  the Driver could grab the top instead of the live price.
+- **The fix.** Kavenue's server now writes the honest price into a private place the Driver's phone cannot touch, and the
+  database reads it from there instead of trusting the phone. An honest accept is paid exactly what it always was; a
+  hand-built accept simply gets the honest live price, never the Ceiling.
+- **Nothing you see changes** — same prices, same screens. One more file to paste (the database part); the code is ready.
+- With this, all 11 problems from the security check are closed.
+
 ## 18 September 2026 — We checked every door a phone or browser can push on, and shut the ones that were open
 
 - **What we did.** After the two problems found on 17 September, we rebuilt a full copy of the database on a

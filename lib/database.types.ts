@@ -1274,6 +1274,26 @@ export interface Database {
         Update: Partial<Database["public"]["Tables"]["booking_voucher"]["Insert"]>;
         Relationships: [];
       };
+      // S83 #11 (docs/migrations/2026-09-18e). The honest accept/hold fare, stamped by the SERVER
+      // (service role) so accept_mission / place_hold read it instead of trusting the caller's
+      // p_fare. Browser roles hold NOTHING here (RLS on, no policy; grants to service_role only) —
+      // the only writer is lib/pool-fares.ts stampAcceptQuote via the admin client.
+      mission_accept_quote: {
+        Row: {
+          mission_id: string;
+          driver_id: string;
+          course: number;
+          quoted_at: string;
+        };
+        Insert: {
+          mission_id: string;
+          driver_id: string;
+          course: number;
+          quoted_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["mission_accept_quote"]["Insert"]>;
+        Relationships: [];
+      };
     };
     Views: {
       // ── THE ONLY DOOR ONTO `mission` FOR A BROWSER SESSION ────────────────

@@ -700,7 +700,7 @@ export function TripRow({
             <p className="dx-amend__reassure">
               {/* ⚑ Short on purpose (founder, S83: "less text please"). */}
               The price has stopped climbing and may not be attractive enough. Raise your Ceiling
-              to offer Drivers more.
+              to attract more Drivers.
             </p>
             <RaiseCeilingPanel
               pdp={pdpOf(mission)}

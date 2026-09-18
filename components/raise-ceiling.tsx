@@ -100,7 +100,8 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: 
   return (
     <div className="rc">
       <label className="field rc__field">
-        <span>New Ceiling € — everything in</span>
+        {/* Founder, S83: no "— everything in" here — a Business knows its Ceiling is all-in. */}
+        <span>New Ceiling €</span>
         <input
           type="text"
           inputMode="decimal"
@@ -164,7 +165,7 @@ export function RaiseCeilingAction(props: Omit<Props, "atCeiling">) {
         <span className="dx-act__t">
           <TrendingUp size={14} aria-hidden /> Raise the Ceiling
         </span>
-        <span className="dx-act__s">Offer Drivers more · can’t be lowered</span>
+        <span className="dx-act__s">Attract more Drivers · can’t be lowered</span>
       </button>
       {open && (
         <div className="rc-wrap">

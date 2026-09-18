@@ -2448,6 +2448,21 @@ textarea::placeholder {
 .dx-amend__btn { font-size: 12.5px; font-weight: 600; text-decoration: none; border-radius: var(--radius-md); padding: 8px 12px; border: 1px solid var(--border-strong); color: #334155; background: #fff; cursor: pointer; font-family: inherit; }
 .dx-amend__btn--primary { background: var(--accent); color: #fff; border-color: var(--accent); }
 .dx-amend__link { background: none; border: none; color: var(--text-muted); font-size: 12.5px; cursor: pointer; text-decoration: underline; font-family: inherit; padding: 0; }
+/* S83 — the at-Ceiling advice card and the raise panel. The warn tone's own pale wash,
+   quieter than the peach of a decline: this is advice, not something that went wrong. */
+.dx-amend--warn { background: var(--tone-warn-bg); border: 1px solid #f3dcc4; margin-bottom: 12px; }
+.dx-amend__tag--warn { color: var(--tone-warn-fg); }
+.dx-amend__btn:disabled { opacity: 0.5; cursor: default; }
+.dx-act--btn { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+.dx-act--btn[aria-expanded="true"] { background: var(--surface-2); border-color: var(--border-strong); }
+.rc-wrap { grid-column: 1 / -1; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 11px 13px; background: var(--surface); }
+.rc { margin-top: 10px; }
+.rc-wrap .rc { margin-top: 0; }
+label.field.rc__field { margin-bottom: 0; max-width: 300px; }
+.rc__effect { margin: 7px 0 0; font-size: 12.5px; color: #475569; line-height: 1.5; }
+.rc__effect--warn { color: var(--tone-warn-fg); }
+.rc__confirm { margin: 0; font-size: 12.5px; color: var(--text); line-height: 1.55; }
+.rc__done { margin: 10px 0 0; font-size: 12.5px; color: var(--text-muted); }
 
 /* ============================================================================
    Driver — mission detail (pre-accept) + accepted trip card (S45).

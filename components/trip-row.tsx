@@ -721,23 +721,15 @@ export function TripRow({
         {/* S83 — no Driver in the fleet can take it as asked. Said as soon as it is
             true (waiting for the top of the climb helps nobody), and it deliberately
             does NOT offer a raise: more money cannot fix a car nobody has. */}
-        {/* ⚑ "within reach of this trip", not "near this pickup": the Pool keeps a trip
-            when the pickup OR the dropoff is inside a Driver's radius (lib/geo.ts).
-            ⚑ "until a Driver takes it", not "while no Driver holds it": "hold" is the
-            product's word for the 15-second review, and cancelling is free during it too. */}
         {noMatch && (
           <div className="dx-amend dx-amend--warn">
             <div className="dx-amend__head">
               <span className="dx-amend__tag dx-amend__tag--warn">No car match</span>
             </div>
             <p className="dx-amend__reassure">
-              {/* ⚑ Short on purpose (founder, S83: "less text please"). */}
-              No Driver within reach has{" "}
-              {specificCar
-                ? `${/^[aeiou]/i.test(specificCar) ? "an" : "a"} ${specificCar}`
-                : `a car of this class (${serviceLabel})`}{" "}
-              yet
-              — a higher Ceiling won’t help. Cancelling is free until a Driver takes it.
+              {/* ⚑ Generic on purpose (founder, S83 test: "simpler and more generic") — no car
+                  name, no Ceiling or cancel advice; the button below is the way out. */}
+              No Driver available for this car yet. Try changing the car.
             </p>
             {carProps && <ChangeCarAction key={carPanelKey} {...carProps} variant="button" />}
           </div>

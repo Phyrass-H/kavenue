@@ -4242,6 +4242,8 @@ means to act on its own offer, and an in-app nudge when it matters.
    and reach (pickup OR dropoff within their radius). The busy slot and the luggage opt-in are left out — those are
    price questions. Said as soon as it is true, no raise push, and the card offers "Change the car". **Fails closed:** an
    unreadable fleet shows no advice at all (lib/fleet-match.ts; `readAll` would have answered "nobody").
+   ⚑ **Words (founder's Mac test, S83: *"simpler and more generic"*):** *No Driver available for this car yet. Try
+   changing the car.* — no car name, no Ceiling or cancel advice; the button under it is the way out.
 5. **THE PRICE NEVER DIPS ON A RAISE.** The staircase used to be redrawn from the new gap — measured: up to €0,95 lower,
    ~1 raise in 8. The first change freezes the step count (`mission.pdp_step_count`); with the steps fixed the price at
    every instant is (1−s)·opening + s·Ceiling for the same s. Not frozen before the climb opens (T−14 d) or with no gap.

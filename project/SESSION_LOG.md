@@ -5,9 +5,9 @@
 
 ---
 
-## 2026-09-18 — SESSION 83 · unfilled ruled (D147) · raise the Ceiling + change the car · built, proven, PASTED LIVE · tests 1288 → 1336
+## 2026-09-18 — SESSION 83 · unfilled ruled (D147) · raise the Ceiling + change the car · pasted, tested by the founder, MERGED · tests 1288 → 1336
 
-**BRANCH `s83-unfilled` — NOT merged.** ⚑ The code names `mission.pdp_step_count`: it must not reach `main` before
+**CLOSED — `s83-unfilled` merged to `main` 2026-09-18 (see the close below).** ~~BRANCH `s83-unfilled` — NOT merged.~~ ⚑ The code names `mission.pdp_step_count`: it must not reach `main` before
 2026-09-18c and 18d are live, and those go AFTER the S83 security sweep's 18a/18b ([[d146]], branch
 `claude/dazzling-mendeleev-f3a500`). Paste order: 18a → 18b → 18c → 18d → `.local/probe/pooled-trip-changes/check.sql`
 (read-only, every row `pass`).
@@ -49,6 +49,28 @@ card), with an in-app nudge when the price tops out untaken, and "No car match" 
   "In the Pool" for such a trip.
 - Worked on the founder's feedback: "less text", "the math explanation is confusing" (two lines: *Price now: A → B*,
   *Top: C at <when>*), "Raise your Ceiling to attract more Drivers", "no need they know" (everything in).
+
+### The close (2026-09-18)
+- **The founder's Mac test — all green:** posted a trip · "No car match" showed · changed the car ("works perfect") ·
+  raised the Ceiling ("worked perfect") · the demo Driver saw the new price. One ask: the No-car-match sentence
+  "simpler and more generic" → *No Driver available for this car yet. Try changing the car.* (`9846dd3`; the status
+  hint in `lib/dispatch-status.ts` follows). Nothing else changed after the test.
+- **Review fixes before the paste** (`2b3343a`, a 30-finding review workflow): the Driver-side accept guard reads through
+  the caller's own `mission_read` first (it was a price oracle for any trip id) · the car panel's floor is integer-cent
+  exact (`exactFloorAllIn`, 928/36 000 off by a cent before) · a Driver who lost a race no longer sees a blank page ·
+  wording. Probe after: 53/53 · check 20/20 · parity 0/32 180 · 0/284 288 · floor 0/108 000 · mutants 15/15 red.
+- **Tests 1336 · tsc clean · `npm run build` OK.**
+- **Merged `s83-unfilled` → `main` ALONE.** The security sweep (`claude/dazzling-mendeleev-f3a500`, `e1b78ac`, D146) is
+  NOT on main: its migrations are live, its one app change (`lib/mission-board-actions.ts`, a read-side refusal) is
+  additive, and the founder keeps that session going in its own worktree after this one. It merges itself — and must
+  bring `rls-audit/check.sql` up to date with 18c/18d (the handoff in `project/NEXT_SESSION.md` § FOR THE SECURITY SESSION).
+- ⚑ **Another session touches `app/(dispatch)/dispatch/page.tsx`** ("Page the Dispatch schedule's trip read past 1,000",
+  chip `task_78e0da44`) from a base BEFORE this merge — it must rebase on `main`; S83 changed that file heavily.
+- **Not done, on purpose:** the V1 Runway artifact was not edited (`unfilled` is ruled and `raiseceiling` is built
+  in-app) — the founder's list; update it with them next session.
+- **Open, the founder's call:** (1) a car change can LOWER the Ceiling (a cheaper car, or switching away and back) — keep,
+  or never below the highest ever set? (2) sweep finding #11 (a Driver can forge the accept fare) — with the security
+  session.
 
 ## 2026-09-17 — SESSION 82 · draft resume — every resumed draft was refused 42501 · tests 1275 → 1288 · no database change
 

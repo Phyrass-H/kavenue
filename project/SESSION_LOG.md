@@ -5,6 +5,17 @@
 
 ---
 
+## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
+
+**⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted
+`2026-09-18e_accept_fare_from_the_server.sql` ([[d148]], finding #11) and re-ran `.local/probe/rls-audit/check.sql` on
+the LIVE database — **every row `pass`/`info`, zero `FAIL`** (the full sweep: mission_accept_quote holds nothing for a
+browser, RLS-no-policy, both its triggers enabled, the raw accept/hold fare door closed, 0 sign-files off-prefix, the
+root-cause default-privilege revoke in force, Supabase's own event triggers surfaced as info). The branch
+`claude/dazzling-mendeleev-f3a500` merged to `main` via **PR #2 (`1cb6c5c`)**, CI green — deploying the fare-stamp code,
+the board-file read guard, and D146/D148. ⚑ `check.sql` is the standing trip-wire: a future hole of this shape reads
+`FAIL` on a paste. Nothing left to do on security. Next: the founder's V1 Runway (step 6, or the next ruling).
+
 ## 2026-09-18 — SESSION 83 · the whole browser surface, swept · 11 holes found, 10 closed · tests 1288 · TWO migrations to paste
 
 **⚑ UPDATE 2026-09-18 (later same day): the founder PASTED all four migrations live** — 18a → 18b → my `check.sql`

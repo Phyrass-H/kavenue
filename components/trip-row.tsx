@@ -3,10 +3,10 @@ import Link from "next/link";
 import { Pencil, GitPullRequestArrow, Lock, Phone, Car, Clock, Star, TrendingUp } from "lucide-react";
 import type { MissionRow, AmendmentStatus, ReleaseStatus } from "@/lib/database.types";
 import { closeAmendment } from "@/app/(dispatch)/dispatch/[id]/amend/actions";
-import { closeRelease } from "@/app/(dispatch)/dispatch/actions";
+import { changeTripCar, closeRelease, raiseCeiling } from "@/app/(dispatch)/dispatch/actions";
 import { ceilingReachedAt, settledFare } from "@/lib/pdp";
 import { fareCell } from "@/lib/fare-cell";
-import { atCeilingUntaken, canRaiseCeiling, type CeilingRaiseBrief } from "@/lib/ceiling-raise";
+import { atCeilingUntaken, canRaiseCeiling, type PriceChangeBrief } from "@/lib/ceiling-raise";
 // ⚑ Live pages carry this client module in their JS bundle from now on (a few kB). Their
 // HTML is unchanged until a page passes `showRaise`.
 import { RaiseCeilingAction, RaiseCeilingPanel } from "@/components/raise-ceiling";
@@ -164,6 +164,13 @@ function pdpOf(m: MissionRow) {
   };
 }
 
+/** When the trip has sat at its current Ceiling since: the top of the climb, or a later change. */
+function atCeilingSince(m: MissionRow, changes: PriceChangeBrief[] | null): string {
+  const top = ceilingReachedAt(m).toISOString();
+  const last = changes?.[0]?.at ?? null; // newest first
+  return last && Date.parse(last) > Date.parse(top) ? last : top;
+}
+
 /** The trip's car as the "Change the car" panel starts from it. */
 function carOf(m: MissionRow): CarChoice {
   const tier: ServiceTier = m.category === "eco" || m.category === "luxury" ? m.category : "business";
@@ -195,8 +202,9 @@ export function TripRow({
   query = "",
   matchedOn = null,
   nobodyCanTake = null,
-  ceilingRaises = null,
+  priceChanges = null,
   showRaise = false,
+  previewOnly = false,
   rateCard = null,
 }: {
   mission: MissionRow;
@@ -232,10 +240,13 @@ export function TripRow({
    * cars — not a busy slot or a luggage opt-in, which the card below does not name.
    */
   nobodyCanTake?: boolean | null;
-  /** S83 — every raise of this trip's Ceiling, newest first (rule 4: who, from, to, when). */
-  ceilingRaises?: CeilingRaiseBrief[] | null;
-  /** S83 — ⚑ PREVIEW GATE: everything S83 adds shows only where a page asks for it. */
+  /** S83 — every raise / car change of this trip, newest first (rule 4: who, from, to, when). */
+  priceChanges?: PriceChangeBrief[] | null;
+  /** S83 — raise the Ceiling / change the car: shown only where a page asks for it (the live
+   *  schedule and the dev preview), never in the archive. */
   showRaise?: boolean;
+  /** S83 — the dev-only preview: the panels work but save nothing. */
+  previewOnly?: boolean;
   /** S83 — the rate card, for "Change the car" (the price follows the new class). */
   rateCard?: RateCardRow[] | null;
 }) {
@@ -252,6 +263,9 @@ export function TripRow({
   // luggage run (always Business · Van, forced at posting), and only with a rate card
   // to re-price from.
   const carChangeable = live && !mission.luggage_only && !!rateCard && rateCard.length > 0;
+  // Server actions bound to this trip — a Server Component may hand these to a client panel.
+  const onRaise = previewOnly ? undefined : raiseCeiling.bind(null, mission.id);
+  const onChangeCar = previewOnly ? undefined : changeTripCar.bind(null, mission.id);
   const t = missionTone(mission, undefined, { archived, atCeiling, nobodyCanTake: noMatch });
   const reference = mission.reference?.trim() || null;
   // Every named Guest, aligned by index with its phone/share state from the side
@@ -381,6 +395,7 @@ export function TripRow({
         night: !!mission.night_applied,
         paxCount: mission.pax_count,
         topsOutAt: ceilingReachedAt(mission).toISOString(),
+        onChange: onChangeCar,
       }
     : null;
   const specificCar =
@@ -729,7 +744,9 @@ export function TripRow({
             <div className="dx-amend__head">
               <span className="dx-amend__tag dx-amend__tag--warn">No Driver yet at your Ceiling</span>
               <span className="muted small">
-                since {deadlineWords(ceilingReachedAt(mission).toISOString())}
+                {/* Since the later of the top of the climb and the last raise or car change:
+                    after a raise at the top, "since 05:00" would claim hours at the NEW price. */}
+                since {deadlineWords(atCeilingSince(mission, priceChanges))}
               </span>
             </div>
             <p className="dx-amend__reassure">
@@ -742,6 +759,7 @@ export function TripRow({
               rates={businessRatesOf(mission)}
               topsOutAt={ceilingReachedAt(mission).toISOString()}
               atCeiling
+              onRaise={onRaise}
             />
           </div>
         )}
@@ -781,6 +799,7 @@ export function TripRow({
                 pdp={pdpOf(mission)}
                 rates={businessRatesOf(mission)}
                 topsOutAt={ceilingReachedAt(mission).toISOString()}
+                onRaise={onRaise}
               />
             )}
             {carProps && !noMatch && <ChangeCarAction {...carProps} />}
@@ -865,17 +884,24 @@ export function TripRow({
           </div>
         )}
 
-        {/* S83 rule 4 — every raise, who and when. Newest first. */}
-        {ceilingRaises && ceilingRaises.length > 0 && (
+        {/* S83 rule 4 — every raise and car change, who, from, to, when. Newest first. */}
+        {priceChanges && priceChanges.length > 0 && (
           <div className="dx-trail">
             <TrendingUp size={13} aria-hidden />
             <span>
-              {ceilingRaises.map((r, i) => (
-                <Fragment key={`${r.at}-${i}`}>
+              {priceChanges.map((c, i) => (
+                <Fragment key={`${c.at}-${i}`}>
                   {i > 0 && <br />}
-                  <strong>{formatDateTime(r.at)}</strong> — Ceiling raised {formatMoney(r.from)} →{" "}
-                  {formatMoney(r.to)}
-                  {` · by ${r.by}`}
+                  <strong>{formatDateTime(c.at)}</strong> —{" "}
+                  {c.kind === "car"
+                    ? `Car changed ${c.carFrom ?? ""} → ${c.carTo ?? ""}`
+                    : c.kind === "raise"
+                      ? "Ceiling raised"
+                      : "Price terms changed"}
+                  {c.from != null && c.to != null && c.from !== c.to
+                    ? `${c.kind === "car" ? " · Ceiling " : " "}${formatMoney(c.from)} → ${formatMoney(c.to)}`
+                    : ""}
+                  {` · by ${c.by}`}
                 </Fragment>
               ))}
             </span>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { NOT_APPROVED_RAISE, UNDER_REVIEW } from "@/lib/driver-review";
 import { CAR_REVIEW, isCarAwaitingError } from "@/lib/vehicle-approval";
 import { createClient } from "@/lib/supabase/server";
-import { courseForAccept } from "@/lib/pool-fares";
+import { acceptTerms, courseForAccept } from "@/lib/pool-fares";
 import { recordMissionEvent } from "@/lib/mission-events-server";
 import { getDriverContext } from "@/lib/driver";
 
@@ -86,8 +86,37 @@ function holdMessage(raw: string): string {
   return "This trip is no longer available.";
 }
 
-export async function acceptMission(missionId: string): Promise<AcceptResult> {
+/** What the Driver's screen showed when they tapped: the net fare and the car (lib/pool-fares carKey). */
+export type SeenTerms = { net: number | null; car: string };
+
+/** S83 — the trip moved under the Driver's thumb (a raise is fine; a cheaper car or a new car is not). */
+const TRIP_CHANGED = "The Business just changed this trip — check the details and the price again.";
+
+export async function acceptMission(missionId: string, seen?: SeenTerms): Promise<AcceptResult> {
   const supabase = await createClient();
+
+  // ⚑ S83 ([[d147]]) — A DRIVER CONFIRMS THE NUMBER ON THEIR SCREEN, OR NOTHING. A Business may now
+  //   change the car of a trip still in the Pool, and a cheaper car lowers the price. Without
+  //   this, a Driver who opened the trip before the change would accept the NEW (lower) price, or
+  //   a car they never saw. `seen` is only a guard, never the price: a forged value can only ever
+  //   refuse its own sender. A higher price than shown (a raise, or the climb's next step) is not
+  //   a surprise worth refusing, so only a LOWER net or a different car stops the accept.
+  const terms = await acceptTerms(missionId);
+  if (seen && terms) {
+    const lower = seen.net != null && terms.net < seen.net - 0.005;
+    if (terms.car !== seen.car || lower) {
+      const { driver } = await getDriverContext();
+      await recordMissionEvent({
+        missionId,
+        type: "accept_rejected",
+        actorKind: driver ? "driver" : "unknown",
+        actorId: driver?.id ?? null,
+        driverId: driver?.id ?? null,
+        payload: { reason: "trip_changed", seen_car: seen.car, car: terms.car, seen_net: seen.net, net: terms.net },
+      });
+      return { ok: false, message: TRIP_CHANGED };
+    }
+  }
 
   // ⚑ THE FARE IS COMPUTED HERE, ON THE SERVER, AND FROZEN BY THE RPC.
   // docs/06 §9: "the fare freezes at acceptance… that frozen figure is the
@@ -106,7 +135,7 @@ export async function acceptMission(missionId: string): Promise<AcceptResult> {
   // browser-supplied id to the service role is safe HERE and only here: the
   // number never goes back to the browser, and `accept_mission` re-clamps it
   // into [floor, ceiling] and enforces every eligibility rule itself.
-  const course = await courseForAccept(missionId);
+  const course = terms?.course ?? (await courseForAccept(missionId));
 
   const { error } = await supabase.rpc("accept_mission_call", {
     p_mission_id: missionId,

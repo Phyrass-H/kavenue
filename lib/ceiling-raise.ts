@@ -24,6 +24,7 @@
  */
 import { ceilingReachedAt, frozenStepCount, type PdpInputs } from "@/lib/pdp";
 import type { MissionStatus } from "@/lib/database.types";
+import { PRICE_EVENTS } from "@/lib/mission-events";
 
 type RaiseInputs = PdpInputs & {
   status: MissionStatus;
@@ -77,11 +78,60 @@ export function withNewOffer(
   };
 }
 
-/** A raise, as the schedule row shows it. Amounts are the Business's all-in figures. */
-export interface CeilingRaiseBrief {
+/**
+ * One change to a pooled trip's price terms, as the schedule row shows it (rule 4: who, from,
+ * to, when). Built from the `mission_event` rows the 2026-09-18c trigger writes — the record,
+ * not the row, so every change is shown, not just the last.
+ */
+export interface PriceChangeBrief {
   at: string;
-  from: number;
-  to: number;
-  /** The Dispatcher who raised it. Never null in the build: a raise always has a session. */
+  kind: "raise" | "car" | "other";
+  /** The Business's all-in Ceiling before and after. Equal when only the car changed. */
+  from: number | null;
+  to: number | null;
+  /** "Business · Sedan" → "First · Sedan · BMW Série 7", for a car change. */
+  carFrom: string | null;
+  carTo: string | null;
+  /** Who: the Dispatcher's name, or "Kavenue" for an admin or system change. */
   by: string;
 }
+
+type Terms = { category?: string | null; required_body_type?: string | null; required_make?: string | null; required_model?: string | null };
+
+function carWords(t: Terms | undefined, label: (c: string, b: string | null) => string): string | null {
+  if (!t?.category) return null;
+  const base = label(t.category, t.required_body_type ?? null);
+  return t.required_make && t.required_model ? `${base} · ${t.required_make} ${t.required_model}` : base;
+}
+
+const num = (v: unknown): number | null => (v == null || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+
+/** mission_event rows (ceiling_raised / trip_car_changed / price_terms_changed) → briefs, newest first. */
+export function priceChangesFrom(
+  events: { occurred_at: string; event_type: string; actor_kind: string; actor_id: string | null; payload: unknown }[],
+  dispatcherNames: Map<string, string>,
+  classLabel: (category: string, body: string | null) => string,
+): PriceChangeBrief[] {
+  return [...events]
+    .sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1))
+    .map((e) => {
+      const p = (e.payload ?? {}) as { from?: Terms; to?: Terms; all_in_from?: unknown; all_in_to?: unknown };
+      const kind: PriceChangeBrief["kind"] =
+        e.event_type === "ceiling_raised" ? "raise" : e.event_type === "trip_car_changed" ? "car" : "other";
+      return {
+        at: e.occurred_at,
+        kind,
+        from: num(p.all_in_from),
+        to: num(p.all_in_to),
+        carFrom: kind === "car" ? carWords(p.from, classLabel) : null,
+        carTo: kind === "car" ? carWords(p.to, classLabel) : null,
+        by:
+          e.actor_kind === "dispatcher" && e.actor_id
+            ? (dispatcherNames.get(e.actor_id) ?? "your team")
+            : "Kavenue",
+      };
+    });
+}
+
+/** The event types a schedule row reads its change history from — the vocabulary's own list. */
+export const PRICE_CHANGE_EVENTS = PRICE_EVENTS;

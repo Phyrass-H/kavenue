@@ -89,6 +89,14 @@ export const HOLD_EVENTS = [
   "hold_void",
 ] as const;
 
+/**
+ * S83 ([[d147]]) — a change to the price terms of a trip still in the Pool. Written by the
+ * `mission_price_terms_log` TRIGGER (2026-09-18c), so guaranteed, whatever path made it.
+ * ⚑ `trip_car_changed` is the TRIP's car (the Business changed what it asks for) — not
+ *   `car_changed`, which elsewhere means a Driver replacing their own vehicle.
+ */
+export const PRICE_EVENTS = ["ceiling_raised", "trip_car_changed", "price_terms_changed"] as const;
+
 /** The subset log_mission_event() will accept from a browser JWT. */
 export const CLIENT_LOGGABLE = [
   "pool_impression",
@@ -100,7 +108,8 @@ export const CLIENT_LOGGABLE = [
 export type TriggerEvent = (typeof TRIGGER_EVENTS)[number];
 export type AppEvent = (typeof APP_EVENTS)[number];
 export type HoldEvent = (typeof HOLD_EVENTS)[number];
-export type MissionEventType = TriggerEvent | AppEvent | HoldEvent;
+export type PriceEvent = (typeof PRICE_EVENTS)[number];
+export type MissionEventType = TriggerEvent | AppEvent | HoldEvent | PriceEvent;
 
 export type EventSource =
   | "db_trigger"
@@ -169,6 +178,11 @@ export function audienceFor(type: string): Audience[] {
     case "created":
     case "pooled":
     case "expired":
+    // S83 — the Business's own offer. A Driver sees the price, never its history: a raise
+    // that a Driver could read would say "wait, this one goes up".
+    case "ceiling_raised":
+    case "trip_car_changed":
+    case "price_terms_changed":
       return ["business", "admin"];
     case "pool_impression":
     case "contact_revealed":

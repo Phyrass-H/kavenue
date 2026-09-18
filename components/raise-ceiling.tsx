@@ -5,9 +5,11 @@
 // Business ALL-IN (docs/06 §3); the Course is what the curve runs on, so the typed
 // figure goes through the trip's OWN saved rates, never today's.
 //
-// ⚑ PREVIEW STAGE: with no `action`, confirming saves nothing and says so.
+// With no `onRaise` (the dev-only preview page) confirming saves nothing and says so.
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import type { ActionResult } from "@/app/(dispatch)/dispatch/actions";
 import { TrendingUp } from "lucide-react";
 import { commissionSplit, courseFromBusinessTotal, type Rates } from "@/lib/commission";
 import { currentFare, type PdpInputs } from "@/lib/pdp";
@@ -21,14 +23,18 @@ type Props = {
   /** When the climb tops out — already passed on a trip at its Ceiling. */
   topsOutAt: string;
   atCeiling: boolean;
-  action?: (fd: FormData) => void | Promise<void>;
+  /** The server action, bound to this trip. Absent on the preview page. */
+  onRaise?: (ceilingAllIn: number) => Promise<ActionResult>;
 };
 
 const decimalOnly = (s: string) => s.replace(",", ".").replace(/[^\d.]/g, "");
 
-export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: Props) {
+export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }: Props) {
   const [value, setValue] = useState("");
   const [step, setStep] = useState<"edit" | "confirm" | "done">("edit");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   const allIn = (course: number) => commissionSplit(course, rates).businessTotal;
   const nowCeiling = allIn(Number(pdp.ceiling));
@@ -65,9 +71,7 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: 
   if (step === "done") {
     return (
       <p className="rc__done">
-        {action
-          ? `Ceiling raised to ${formatMoney(newCeiling)}.`
-          : "Preview only — nothing was saved."}
+        {onRaise ? `Ceiling raised to ${formatMoney(newCeiling)}.` : "Preview only — nothing was saved."}
       </p>
     );
   }
@@ -79,20 +83,30 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: 
           Raise your Ceiling from <b>{formatMoney(nowCeiling)}</b> to <b>{formatMoney(newCeiling)}</b>?
           It can’t be lowered afterwards.
         </p>
-        <form
-          className="dx-amend__actions"
-          action={action}
-          onSubmit={action ? undefined : (e) => { e.preventDefault(); setStep("done"); }}
-        >
-          <input type="hidden" name="mission_id" value={pdp.id} />
-          <input type="hidden" name="ceiling" value={newCeiling.toFixed(2)} />
-          <button type="submit" className="dx-amend__btn dx-amend__btn--primary">
-            Confirm raise
+        {error && <div className="notice error" style={{ margin: "10px 0 0" }}>{error}</div>}
+        <div className="dx-amend__actions">
+          <button
+            type="button"
+            className="dx-amend__btn dx-amend__btn--primary"
+            disabled={pending}
+            onClick={() => {
+              if (!onRaise) return setStep("done");
+              setError(null);
+              startTransition(async () => {
+                const res = await onRaise(newCeiling);
+                if (res.ok) {
+                  setStep("done");
+                  router.refresh();
+                } else setError(res.message);
+              });
+            }}
+          >
+            {pending ? "Raising…" : "Confirm raise"}
           </button>
-          <button type="button" className="dx-amend__link" onClick={() => setStep("edit")}>
+          <button type="button" className="dx-amend__link" disabled={pending} onClick={() => setStep("edit")}>
             Back
           </button>
-        </form>
+        </div>
       </div>
     );
   }

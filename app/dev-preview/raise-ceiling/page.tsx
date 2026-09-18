@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import type { MissionRow } from "@/lib/database.types";
 import { DispatchShell } from "@/components/dispatch-shell";
 import { TripRow } from "@/components/trip-row";
-import type { CeilingRaiseBrief } from "@/lib/ceiling-raise";
+import type { PriceChangeBrief } from "@/lib/ceiling-raise";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { priceFor, RATE_CARD_COLS, type RateCardRow } from "@/lib/rate-card";
 import { commissionSplit, courseFromBusinessTotal } from "@/lib/commission";
@@ -194,11 +194,14 @@ export default async function RaiseCeilingPreview() {
       raises: [
         {
           at: iso(now - 40 * 60_000),
+          kind: "raise",
           from: allIn(raisedFrom.ceiling ?? 0),
           to: allIn(raisedTo.ceiling ?? 0),
+          carFrom: null,
+          carTo: null,
           by: "Camille Martin",
         },
-      ] as CeilingRaiseBrief[],
+      ] as PriceChangeBrief[],
       mission: trip({
         id: "preview-raised-0005",
         pickup_at: iso(now + 7 * H),
@@ -242,7 +245,8 @@ export default async function RaiseCeilingPreview() {
               // The fleet check's answer: in the build it is computed server-side; here
               // every row but the no-match one says "a Driver could take this".
               nobodyCanTake={r.nobodyCanTake ?? false}
-              ceilingRaises={r.raises ?? null}
+              priceChanges={r.raises ?? null}
+              previewOnly
               rateCard={rateCard}
               showDate
             />

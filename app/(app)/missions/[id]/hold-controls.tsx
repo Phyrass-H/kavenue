@@ -17,6 +17,8 @@ type Props = {
   holdSpent: boolean;
   /** The fare they are being shown, so Confirm can name it. */
   netFare: number | null;
+  /** S83 — the car they are being shown (lib/pool-fares carKey). Sent back with the accept. */
+  seenCar: string;
 };
 
 /**
@@ -34,6 +36,7 @@ export function HoldControls({
   othersHoldExpiresAt,
   holdSpent,
   netFare,
+  seenCar,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -84,7 +87,12 @@ export function HoldControls({
     startTransition(async () => {
       const res = await fn();
       if (res.ok) (onOk ?? (() => router.refresh()))();
-      else setError(res.message);
+      else {
+        setError(res.message);
+        // Re-read the trip: if the Business just changed it, the Driver sees the new terms
+        // under the message instead of the ones they tapped on.
+        router.refresh();
+      }
     });
   }
 
@@ -110,7 +118,7 @@ export function HoldControls({
           disabled={pending}
           onClick={() =>
             run(
-              () => acceptMission(missionId),
+              () => acceptMission(missionId, { net: netFare, car: seenCar }),
               () => {
                 router.push("/rides");
                 router.refresh();
@@ -140,7 +148,7 @@ export function HoldControls({
         disabled={pending}
         onClick={() =>
           run(
-            () => acceptMission(missionId),
+            () => acceptMission(missionId, { net: netFare, car: seenCar }),
             () => {
               router.push("/rides");
               router.refresh();

@@ -20,6 +20,8 @@
 //      that prints something ugly.
 import {
   TRIGGER_EVENTS,
+  PRICE_EVENTS,
+  HOLD_EVENTS,
   APP_EVENTS,
   isImported,
   isSeeded,
@@ -73,9 +75,16 @@ export const PHRASES: Record<MissionEventType, { says: string; phase: StoryPhase
   hold_lapsed: { says: "Ran out of time deciding", phase: "booking" },
   hold_released: { says: "Let it go before the clock", phase: "booking" },
   hold_void: { says: "Trip withdrawn while held", phase: "booking" },
+  // S83 — the Business changed its own offer while the trip was in the Pool.
+  ceiling_raised: { says: "Ceiling raised", phase: "booking" },
+  trip_car_changed: { says: "Car changed", phase: "booking" },
+  price_terms_changed: { says: "Price terms changed", phase: "booking" },
 };
 
-const KNOWN = new Set<string>([...TRIGGER_EVENTS, ...APP_EVENTS]);
+// ⚑ S83 — HOLD_EVENTS was missing here, so every hold rendered as its raw type ("hold_taken")
+//   and was flagged unknown on the console's trip story, although PHRASES has had a sentence
+//   for each since § 7 shipped. The type-keyed PHRASES cannot catch this half: keep them together.
+const KNOWN = new Set<string>([...TRIGGER_EVENTS, ...APP_EVENTS, ...HOLD_EVENTS, ...PRICE_EVENTS]);
 
 export interface StoryEntry {
   id: string;
@@ -124,6 +133,23 @@ function detailOf(e: MissionEventRow): string | null {
     }
     case "repooled":
       return str(p.previous_driver_name) ? `${str(p.previous_driver_name)} walked away` : null;
+    case "ceiling_raised":
+    case "trip_car_changed":
+    case "price_terms_changed": {
+      const eur = (v: unknown) =>
+        v == null || !Number.isFinite(Number(v))
+          ? null
+          : `${Number(v).toLocaleString("fr-FR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+      const from = eur(p.all_in_from);
+      const to = eur(p.all_in_to);
+      const money = from && to && from !== to ? `Ceiling ${from} → ${to}` : null;
+      const cls = (t: unknown) => (t && typeof t === "object" ? str((t as Record<string, unknown>).category) : null);
+      const car =
+        e.event_type === "trip_car_changed" && cls(p.from) && cls(p.to) && cls(p.from) !== cls(p.to)
+          ? `${cls(p.from)} → ${cls(p.to)}`
+          : null;
+      return [car, money].filter(Boolean).join(" · ") || null;
+    }
     default:
       return null;
   }

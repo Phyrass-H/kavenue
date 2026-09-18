@@ -13,9 +13,11 @@
 // Everything typed and shown is the Business ALL-IN; the Course is converted with the
 // trip's OWN saved rates (docs/06 §3, the same rule as the raise).
 //
-// ⚑ PREVIEW STAGE: with no `action`, confirming saves nothing and says so.
+// With no `onChange` (the dev-only preview page) confirming saves nothing and says so.
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import type { ActionResult } from "@/app/(dispatch)/dispatch/actions";
 import { Car } from "lucide-react";
 import { ServiceClassFields } from "@/components/service-class-fields";
 import { commissionSplit, courseFromBusinessTotal, type Rates } from "@/lib/commission";
@@ -38,7 +40,8 @@ type Props = {
   night: boolean;
   paxCount: number | null;
   topsOutAt: string;
-  action?: (fd: FormData) => void | Promise<void>;
+  /** The server action, bound to this trip. `ceilingAllIn` is null when the price does not move. */
+  onChange?: (car: CarChoice, ceilingAllIn: number | null) => Promise<ActionResult>;
 };
 
 const decimalOnly = (s: string) => s.replace(",", ".").replace(/[^\d.]/g, "");
@@ -53,6 +56,9 @@ export function ChangeCarPanel(p: Props) {
   const [choice, setChoice] = useState<CarChoice>(p.current);
   const [ceiling, setCeiling] = useState("");
   const [step, setStep] = useState<"edit" | "confirm" | "done">("edit");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+  const router = useRouter();
 
   const allIn = (course: number) => commissionSplit(course, p.rates).businessTotal;
   const nowCeiling = allIn(Number(p.pdp.ceiling));
@@ -106,7 +112,7 @@ export function ChangeCarPanel(p: Props) {
   const ready = changed && !tooManyGuests && !noPrice && (!priceMoves || (hasCeiling && !belowFloor));
 
   if (step === "done") {
-    return <p className="rc__done">{p.action ? "Car changed." : "Preview only — nothing was saved."}</p>;
+    return <p className="rc__done">{p.onChange ? "Car changed." : "Preview only — nothing was saved."}</p>;
   }
 
   if (step === "confirm") {
@@ -123,20 +129,31 @@ export function ChangeCarPanel(p: Props) {
             </>
           )}
         </p>
-        <form
-          className="dx-amend__actions"
-          action={p.action}
-          onSubmit={p.action ? undefined : (e) => { e.preventDefault(); setStep("done"); }}
-        >
-          <input type="hidden" name="mission_id" value={p.pdp.id} />
-          <input type="hidden" name="category" value={choice.tier} />
-          <input type="hidden" name="required_body_type" value={choice.body ?? ""} />
-          <input type="hidden" name="required_make" value={choice.make} />
-          <input type="hidden" name="required_model" value={choice.model} />
-          {priceMoves && <input type="hidden" name="ceiling" value={newCeilingAllIn.toFixed(2)} />}
-          <button type="submit" className="dx-amend__btn dx-amend__btn--primary">Confirm change</button>
-          <button type="button" className="dx-amend__link" onClick={() => setStep("edit")}>Back</button>
-        </form>
+        {error && <div className="notice error" style={{ margin: "10px 0 0" }}>{error}</div>}
+        <div className="dx-amend__actions">
+          <button
+            type="button"
+            className="dx-amend__btn dx-amend__btn--primary"
+            disabled={pending}
+            onClick={() => {
+              if (!p.onChange) return setStep("done");
+              const onChange = p.onChange;
+              setError(null);
+              startTransition(async () => {
+                const res = await onChange(choice, priceMoves ? newCeilingAllIn : null);
+                if (res.ok) {
+                  setStep("done");
+                  router.refresh();
+                } else setError(res.message);
+              });
+            }}
+          >
+            {pending ? "Changing…" : "Confirm change"}
+          </button>
+          <button type="button" className="dx-amend__link" disabled={pending} onClick={() => setStep("edit")}>
+            Back
+          </button>
+        </div>
       </div>
     );
   }

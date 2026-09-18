@@ -99,3 +99,35 @@ export async function courseForAccept(id: string, now: Date = new Date()): Promi
     .maybeSingle();
   return data ? currentFare(data, now) : null;
 }
+
+/**
+ * ⚑ S83 #11 — STAMP THE HONEST FARE WHERE THE BROWSER CANNOT REACH IT.
+ *
+ * accept_mission / place_hold no longer trust the p_fare the browser sends; they read this stamp
+ * for the calling Driver instead (docs/migrations/2026-09-18e). The server writes it here, under
+ * the service role, from the SAME `course` it just computed — so the honest path freezes the exact
+ * number it always did, and a hand-built accept (no stamp) can only ever recompute the honest curve
+ * on read, never plant the Ceiling. The table is service-role-only + RLS-with-no-policy, so this is
+ * the one and only writer.
+ *
+ * Best effort, like the board upload: a failed stamp means the accept stores accepted_fare = NULL
+ * and settledFare() recomputes at accepted_at — the honest price — so a slow write never overpays
+ * and never blocks the accept (losing the trip to it would be worse).
+ */
+export async function stampAcceptQuote(
+  missionId: string,
+  driverId: string,
+  course: number,
+  now: Date = new Date(),
+): Promise<void> {
+  try {
+    await createAdminClient()
+      .from("mission_accept_quote")
+      .upsert(
+        { mission_id: missionId, driver_id: driverId, course, quoted_at: now.toISOString() },
+        { onConflict: "mission_id,driver_id" },
+      );
+  } catch (e) {
+    console.error("[accept-quote] stamp failed:", e instanceof Error ? e.message : e);
+  }
+}

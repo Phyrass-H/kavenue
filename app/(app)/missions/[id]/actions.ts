@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { NOT_APPROVED_RAISE, UNDER_REVIEW } from "@/lib/driver-review";
 import { CAR_REVIEW, isCarAwaitingError } from "@/lib/vehicle-approval";
 import { createClient } from "@/lib/supabase/server";
-import { acceptTerms, courseForAccept } from "@/lib/pool-fares";
+import { acceptTerms, courseForAccept, stampAcceptQuote } from "@/lib/pool-fares";
 import { recordMissionEvent } from "@/lib/mission-events-server";
 import { getDriverContext } from "@/lib/driver";
 
@@ -28,6 +28,11 @@ export type AcceptResult = { ok: true } | { ok: false; message: string; changed?
 export async function holdMission(missionId: string): Promise<AcceptResult> {
   const supabase = await createClient();
   const course = await courseForAccept(missionId);
+
+  // ⚑ S83 #11 — place_hold reads held_fare from a server stamp, not p_fare. Stamp the honest Course
+  //   for THIS Driver before the call; a forged hold with no stamp gets no fabricated floor.
+  const { driver } = await getDriverContext();
+  if (driver && course != null) await stampAcceptQuote(missionId, driver.id, course);
 
   const { error } = await supabase.rpc("place_hold", {
     p_mission_id: missionId,
@@ -170,6 +175,14 @@ export async function acceptMission(missionId: string, seenRaw?: unknown): Promi
   // into [floor, ceiling] and enforces every eligibility rule itself.
   const course = terms?.course ?? (await courseForAccept(missionId));
 
+  // ⚑ S83 #11 — THE FARE IS STAMPED, NOT SENT. accept_mission now reads accepted_fare from a
+  //   service-role stamp keyed to this Driver, ignoring p_fare (which stays only for signature
+  //   compatibility). Without this stamp a hand-built accept could POST p_fare = the Ceiling and be
+  //   paid it. The stamp holds the SAME `course` computed just above, so the honest fare is
+  //   unchanged; a stampless (forged) accept stores NULL and settledFare recomputes the honest curve.
+  const { driver } = await getDriverContext();
+  if (driver && course != null) await stampAcceptQuote(missionId, driver.id, course);
+
   const { error } = await supabase.rpc("accept_mission_call", {
     p_mission_id: missionId,
     p_fare: course,
@@ -185,8 +198,7 @@ export async function acceptMission(missionId: string, seenRaw?: unknown): Promi
     // Worth having: a Driver who TRIED is not browsing, they wanted the work and
     // Kavenue's own rules said no. If one reason dominates, the rule is wrong.
     // The raw message is kept, not the Driver-facing wording — the point is which
-    // guard fired.
-    const { driver } = await getDriverContext();
+    // guard fired. `driver` was resolved above for the stamp; reuse it.
     await recordMissionEvent({
       missionId,
       type: "accept_rejected",

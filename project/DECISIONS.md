@@ -4207,6 +4207,77 @@ there, so it is not insertable, and `mission.ceiling` is NOT NULL with no defaul
 3. **THE RULE FOR EVERY FUTURE VIEW:** `revoke all … from public` is not enough. Name `anon, authenticated`.
    `check.sql` now sweeps every view in `public` for a browser write privilege and must read `(none)`.
 
+### D146 — A browser session holds only what the app writes, and new objects start locked (2026-09-18, S83)
+
+**The founder, asked what a Driver should see on a pooled trip:** *"trip, not Guest"*; asked to fix the root cause:
+*"yes, start locked"*; asked about posting below the rate-card floor: *"park it"*.
+
+**Why now.** D144 and D145 (S82) were one shape — Supabase's `alter default privileges … grant all … to anon,
+authenticated` hands both browser roles every right on every new table, view and function, and `revoke … from public`
+takes none of it back ([[d145]], CLAUDE.md rule 6). Neither was found by reading. S83 rebuilt the whole live schema on a
+throw-away Postgres 17 (`.local/probe/rls-audit/`: the Supabase stand-in, `docs/kavenue_schema.sql`, then all 89
+migrations in apply order) and swept **every** object — one row per table, view, column grant, policy, function,
+trigger, storage bucket and the realtime publication — with `check.sql`. **61 rows failed the reviewed state on the
+clean rebuild.** Every finding below was PROVEN on the throw-away as a real `anon` / `authenticated` login, before and
+after the fix (`run.sh`: 94/94 cases, 21 holes open before, 0 after; `check.sql` 61 FAIL → 0). Nothing live was
+written; the founder pastes.
+
+**Ranked by what a real login could do.** ⚑ = closed this session.
+
+1. ⚑ **A Business rewrites another Business's confirmed trip.** `p_amendment_business_update` was `USING`-only over a
+   table-wide UPDATE, so a Business could re-point its own change request's `mission_id` at another Business's trip (and
+   change `new_fare`); that trip's Driver saw the request and accepted it — pickup moved, agreed fare 150 → 500. Also:
+   switch the fare/drop-off after the Driver saw it, or forge the Driver's "declined"/"accepted". Fix: grant only
+   `update(status)`, a real `WITH CHECK` (`status = 'superseded'`), and `status = 'proposed'` on insert.
+2. ⚑ **Cancellation and no-show fees took the caller's number as the money.** `business_/driver_cancel_mission` clamped
+   `coalesce(p_fare_snapshot, 0)` and never read `accepted_fare` — a Business sending 0 paid a fee on the floor (49.50 →
+   36.00), a Driver sending 0 owed a penalty on the floor (55 → 40). `mark_no_show` / `business_declare_no_show` wrote
+   `p_fare_snapshot` verbatim (99 999; −500). Fix: the basis is the frozen `accepted_fare`; the argument is ignored.
+3. ⚑ **Any Driver sign-up read every Business's Guest data.** A signed-up Driver — no papers, car pending — read every
+   pooled trip through `mission_read` and the `mission` table WITH the Guest's name, room reference and sign file. Fix
+   (founder, *"trip, not Guest"*): the view's pooled branch needs an approved, unretired car (working_car's own test,
+   inlined because a view calls functions as the caller), and the Guest's identity (name, names, reference, board name,
+   board file, driver message, dispatcher) is NULL to a Driver who does not hold the trip. Route, time, flight, price
+   stay. The `mission` table's driver policy drops its pooled branch (the app reads the Pool only through the view).
+4. ⚑ **`log_mission_event` trusted the caller.** Any Driver could write `accept_rejected` / `pool_impression` — the
+   admin-only Pool signals — onto any trip, with any payload, and the "no such mission" message before the caller check
+   was a minor id-probe. Fix: resolve the caller first, require they are party to the trip (its Dispatcher, its Driver,
+   or a Driver while pooled), cap the payload.
+5. ⚑ **Authorship forged.** A Business could name another Business's Dispatcher on its trip (`dispatcher_id`, printed on
+   the Driver's page and Waybill), its info-change log (`edited_by`, plus a back-dated `created_at`), and its release
+   (`propose_release` trusted `p_proposed_by` and `p_from_fare`, incl. negative). Fix: every author is checked to belong
+   to the caller's Business; the release author and fare come from the server; `created_at` is off the insert grant.
+6. ⚑ **A finished trip's Guest could still be rewritten from the browser** — the info-edit path. Fix: the Business's
+   UPDATE policy reaches only `draft`/`pooled`/`accepted`/`confirmed`, the statuses the app itself writes.
+7. ⚑ **The sign file pointed anywhere.** `board_file_path` is a Business-written column, and the server signed a link for
+   whatever it held — including a Driver's papers in the same private bucket (the millisecond filename made it hard, not
+   safe). Fix: a trigger requires `mission/<business>/board-…`, and `getMissionBoardUrl` refuses any other path on read.
+8. ⚑ **A Driver wrote trip steps** (`status_event` insert policy) with any date. The app never does — the service role
+   and the RPCs write every step. Policy dropped.
+9. ⚑ **Two clean-up sweeps and every RPC were callable signed-out** (`anon`). Revoked from `anon` and PUBLIC, kept for
+   `authenticated`.
+10. ⚑ **Signed-out and signed-in sessions held blanket table rights** — `anon` had SELECT/INSERT/UPDATE/DELETE/TRUNCATE
+    on every table, `authenticated` had writes on 20 tables the app touches only through the service role; only RLS
+    stood in front (and RLS does not gate TRUNCATE). Revoked to exactly the four tables the browser writes (`mission`,
+    `mission_amendment`, `mission_info_change`, `mission_guest_contact`), each to named columns.
+11. **NOT fixed — a Driver can forge the ACCEPT fare and be paid the Ceiling.** `accept_mission` / `place_hold` take
+    `p_fare` and clamp it to `[opening, ceiling]`; the server passes the honest current price, but the RPC is callable
+    directly, so a Driver can send the Ceiling and be paid it (150 vs 90 on a probe). The Business's Ceiling is their
+    own stated maximum, so nobody is billed past what they set — but it is real. **It has no privilege-only fix:** the
+    PDP curve lives only in `lib/pdp.ts`, so the database cannot know the current price. Two honest options, both bigger
+    than a migration and so the founder's call: (a) a service-role fare handoff the browser cannot write, read by the
+    accept; (b) port `currentFare` to SQL and clamp to it. Left for its own session.
+
+**Also decided:** the root cause is closed — `alter default privileges for role postgres` now revokes the browser roles
+on new tables, views, sequences and functions (a global `revoke execute … from public` for functions, since PUBLIC's
+EXECUTE is built in, not a per-schema default). ⚑ **From S83 on, every migration GRANTS what the app needs** (SELECT on
+a new table to `authenticated`, EXECUTE on a new RPC or policy/index helper) — a forgotten grant is a loud 42501 on the
+first throw-away run, not a silent hole. Posting below the rate-card floor (D144's residual) stays parked.
+
+**The proof, kept:** `.local/probe/rls-audit/` — `replay.sh` (rebuild), `fixtures.sql`, `cases.sql` (94), `run.sh`,
+`check.sql` (the read-only sweep, one row per object, extended to every future object), `browser-probe.js` (a paste the
+founder runs signed in as a Driver: `kvRead()` safe, `kvWrite()` after the throw-away says refused). Migrations:
+`2026-09-18a_browser_surface_locked.sql` then `2026-09-18b_money_from_the_row.sql`. ⚑ NOT applied by Claude.
 ### D147 — Unfilled: the expiry stands; the Business may raise its own Ceiling or change the car while nobody holds the trip (2026-09-18, S83)
 
 **The ruling the V1 Runway asked for (`unfilled`) — founder, 2026-09-17/18.** When nobody takes a trip, Kavenue does
@@ -4276,3 +4347,48 @@ mutants red (.local/probe/pooled-trip-changes/).
 computed where the fleet check runs, the schedule); the "raise your Ceiling" nudge by email waits on notifications (§ AB,
 integrations phase). S83 security sweep finding #11 — a Driver can forge the accept fare — is the founder's to decide
 ([[d146]]); any SQL port of the curve must take `pdp_step_count`.
+
+### D148 — The accept fare comes from the server, not the caller (finding #11 closed, 2026-09-18, S83)
+
+**The founder, on the last open hole:** *"Fix it now."* Approach chosen by Claude after a 3-way design panel (the
+engineering call, not the founder's) — the founder was shown the plain mechanism, not the alternatives.
+
+**The hole ([[d146]] finding #11).** A trip's price climbs to the Business's Ceiling; the Driver is paid the fare at
+accept, frozen into `accepted_fare`. `accept_mission` / `place_hold` took that fare as `p_fare` FROM THE CALLER and only
+clamped it to `[opening, ceiling]` — never checking it against the true current price, because the §6 curve lives only in
+`lib/pdp.ts` and Postgres cannot evaluate it. `accept_mission_call` is EXECUTE-able by `authenticated`, so a Driver
+holding their own JWT could POST the call by hand with `p_fare = ceiling` and be paid it (150 vs 90 on a probe). Nobody is
+billed above the Ceiling the Business set, but the auction is bypassed.
+
+**The fix (`2026-09-18e_accept_fare_from_the_server.sql`) — D144's lesson applied to the fare.** The server already
+computes the honest fare with the service role (`lib/pool-fares.ts`); it now STAMPS that number into a tiny table only the
+service role may write, keyed to the Driver, just before the accept/hold. `accept_mission` and `place_hold` read the stamp
+for `current_driver_id()` and ignore `p_fare`.
+- **Honest accept:** the stamp = the exact number the app computed today → `accepted_fare` byte-identical.
+- **Forged accept:** no stamp → `accepted_fare` NULL → `settledFare()` recomputes the honest curve on read (legacy rows
+  are already NULL) → the honest price, NEVER the Ceiling. Proven: 150 → NULL on the throw-away.
+- The hold's "you get at least what you were shown" rule is untouched — `held_fare` stays a floor inside `greatest()`;
+  only its source moved from `p_fare` to the stamp.
+
+**Three locks on the one wall** (`mission_accept_quote`), because a leaked grant is the whole risk (rule 6, bitten 4+
+times): (1) `revoke … from anon, authenticated` naming the roles; (2) RLS enabled with NO policy; (3) `check.sql` asserts
+`has_table_privilege` false for both browser roles. Plus a BEFORE trigger bounding `course` into `[0, ceiling]` so even a
+server bug or a leaked grant cannot stamp above the Ceiling. `p_fare` stays in both signatures (ignored) → no signature
+change, no deploy window under dev=prod.
+
+**Why not the alternatives** (3-way panel, S83): (b) porting `currentFare` to SQL was ranked WRONG — Postgres `ln()` and
+V8's differ ~1 ULP, so a SQL port would misprice by up to ~€0.50 at a jittered step boundary, and it duplicates a
+load-bearing function the repo deliberately keeps in one place; (c) a signed fare token needs a DB secret and two more
+functions (more rule-6 surface). Approach A (the stamp) won 2 of 3 first-place votes.
+
+**⚑ An adversarial pass found one residual, now closed.** A stamp quoted at the OLD price could outlive a term change: a
+Driver holds a pooled trip (stamp at 140), the Business swaps to a cheaper car ([[d147]], Ceiling 150→100), nothing
+deleted the stamp, and a hand-built accept clamped the stale 140 to the new Ceiling 100 — the #11 shape via a stale stamp.
+Fixed at the root: a trigger `trg_mission_accept_quote_invalidate` on `mission` drops a trip's stamps whenever ANY
+price-determining column changes (so `change_trip_car` / `raise_ceiling` and any future price path all clear it; the honest
+accept never trips it). A raise only ever made a stale stamp UNDER-pay, but the trigger clears it there too.
+
+**Proven, kept:** `.local/probe/rls-audit/` cases 58–63 (forged accept → NULL, forged hold → NULL, browser cannot write
+the table, the ceiling-bound guard, the honest stamp path pays the stamped fare, and the stale-stamp-after-a-price-drop →
+NULL) — `run.sh` 104/104, `check.sql` 0 FAIL, `npm test` 1336, plus a 3-agent adversarial re-attack on the throw-away.
+Migration NOT applied by Claude; the founder pastes `2026-09-18e` after `18d`.

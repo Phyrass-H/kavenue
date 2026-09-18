@@ -21,8 +21,12 @@ S83 ruled the first V1 Runway item and built what the ruling gives the Business 
    out untaken (*"Raise your Ceiling to attract more Drivers"*) · **No car match** when no Driver's car can take it
    (*"No Driver available for this car yet. Try changing the car."*) · **Change the car** (class, body or model; the
    price follows the rate card) · a Driver's accept is refused if the car or a lower net changed under them.
-3. **The security sweep ([[d146]]) ran as a parallel session.** Its two migrations are LIVE (pasted 2026-09-18); its
-   branch is NOT merged — the founder continues that session in its own worktree right after S83.
+3. **The security sweep ([[d146]]) ran as a parallel session — now DONE, all 11 findings closed ([[d146]], [[d148]]).**
+   18a / 18b are LIVE (pasted 2026-09-18). ⚑ **ONE MORE TO PASTE: `2026-09-18e_accept_fare_from_the_server.sql`** (finding
+   #11, [[d148]]) — paste it after 18d, then re-paste `.local/probe/rls-audit/check.sql` (all `pass`/`info`). Its branch
+   `claude/dazzling-mendeleev-f3a500` is merged with `main` and green (1336 tests, harness 104/104) but **NOT pushed to
+   `main`** — pushing deploys the live site (board-file read guard + the #11 stamp code + docs), so it waits on the
+   founder's explicit go-ahead.
 
 ### ⏭ FIRST THING
 1. Ask the founder what today is ([[wait-for-go-ahead]]). Expected: the security session finishes first (in ITS

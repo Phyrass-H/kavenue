@@ -5,6 +5,43 @@
 
 ---
 
+## 18 September 2026 — Closed the last security hole: a Driver can no longer pay themselves the top price
+
+- **The problem.** A trip's price climbs from a low start up to your Ceiling, and the Driver is paid whatever it is when
+  they accept. Because the price maths lives in the app (not the database), a technical Driver could skip the app and send
+  the "accept" by hand with the Ceiling as the price — and get paid it. Nobody was ever charged above your Ceiling, but
+  the Driver could grab the top instead of the live price.
+- **The fix.** Kavenue's server now writes the honest price into a private place the Driver's phone cannot touch, and the
+  database reads it from there instead of trusting the phone. An honest accept is paid exactly what it always was; a
+  hand-built accept simply gets the honest live price, never the Ceiling.
+- **Nothing you see changes** — same prices, same screens. One more file to paste (the database part); the code is ready.
+- With this, all 11 problems from the security check are closed.
+
+## 18 September 2026 — We checked every door a phone or browser can push on, and shut the ones that were open
+
+- **What we did.** After the two problems found on 17 September, we rebuilt a full copy of the database on a
+  throw-away machine and tested every single table, view and action the way a real Driver or Business login would —
+  not by reading the code, by attacking the copy. We found **11 ways** a technically-minded user could misuse the
+  system, and closed **10** of them. Nothing on the live site was touched; you paste two files when you're ready.
+- **The ones that mattered most (all fixed):**
+  - A Business could **rewrite another Business's confirmed trip** — move it and change its agreed price — by editing
+    its own change request. Closed.
+  - The **cancellation and no-show fees** were worked out from a number the app sent, which a hand-built request could
+    replace with a cheaper one (or an absurd one). Now they always use the trip's agreed fare. Closed.
+  - **Anyone who signed up as a Driver** — no papers, car not approved — could read **the Guest's name, room number
+    and printed sign** on every Business's pooled trips. Now a Driver sees the trip (where, when, the flight, the
+    price) but **not who the Guest is until they take it**, and only Drivers with an approved car see the pool at all.
+    This is the "trip, not Guest" rule you chose.
+  - A few more: fake entries in the admin activity log, one Business naming another's staff on its trips, a finished
+    trip's details being changed, the meet-and-greet sign file pointing at someone else's documents, and a batch of
+    permissions that were open but only held shut by one safety net. All closed.
+- **The one we did NOT close, and why.** A Driver could pay themselves the **ceiling price** (your stated maximum for
+  the trip) instead of the live auction price, by sending the accept by hand. Nobody is charged above the maximum you
+  set, but it's real. Fixing it properly is a bigger change than a settings tweak — it needs the price calculation to
+  live inside the database, or a new protected step — so it's **your call**, and it's waiting for you as its own job.
+- **We also fixed the root cause.** New tables and actions used to be open to everyone by default; now they start
+  **locked**, and each future change has to explicitly open exactly what it needs. That turns a forgotten permission
+  into a loud error we'll catch, instead of a silent hole.
 ## 18 September 2026 — When nobody takes a trip: raise the Ceiling, or change the car
 
 - **Decided: when nobody takes a trip, it simply expires.** Kavenue does not find a Driver itself and does not phone

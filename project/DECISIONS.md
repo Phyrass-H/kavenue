@@ -4231,8 +4231,11 @@ means to act on its own offer, and an in-app nudge when it matters.
    on the new selection"*. Class, body, make, model, with the booking form's own picker. When the rate-card ROW changes,
    the new market Ceiling is pre-filled, the Business may edit it, never below the new floor; the floor is priced in SQL
    from the trip's own distance and night flag, never sent. When it does not (make/model, Any↔Sedan, any Eco body) the
-   panel says "Same price" and asks for no number, and the database refuses a Ceiling sent anyway — so this door can
-   never LOWER a price. A cheaper car may read cheaper. Refused: luggage runs (always Business · Van), a Sedan for more
+   panel says "Same price" and asks for no number, and the database refuses a Ceiling sent anyway. A cheaper car may
+   read cheaper. ⚑ So a re-priced change CAN lower the Ceiling — including a round trip through a cheaper car (Sedan →
+   Van → Sedan). The panel's default never lowers it on a dearer car (it pre-fills the higher of the market Ceiling and
+   the current one); the database requires only the new floor. The raise door's words say "raise only", not "can't be
+   lowered". A hard "never below the highest Ceiling ever set" is the founder's call if they want it. Refused: luggage runs (always Business · Van), a Sedan for more
    than 4 Guests. Its own tile, not inside "Edit details": that page works after acceptance and promises "never changes
    the price" (founder: *"I understand now why you did it"*).
 4. **"NO CAR MATCH" INSTEAD OF "RAISE"** when no approved Driver's approved car fits the trip's class, body, specific car
@@ -4251,6 +4254,14 @@ means to act on its own offer, and an in-app nudge when it matters.
 7. **THE RECORD IS A TRIGGER** (`mission_price_terms_log`), so no path skips it — not the service role, not an admin in
    the SQL editor: `ceiling_raised`, `trip_car_changed`, `price_terms_changed`, audience Business + admin (a Driver never
    reads a trip's price history). The row shows them newest first: *"Ceiling raised 97,20 € → 115,00 € · by Camille"*.
+
+**Review fixes (8 read-only reviewers + skeptics, S83):** the accept guard reads a trip's numbers only for a trip
+the caller can already open (it was a price oracle on any id), validates what the browser sends and logs server values
+only; a refused Driver re-reads the trip only when it changed (a lost race used to 404); the panel's floor is computed
+to the cent as SQL does (`exactFloorAllIn` — the float was a cent off in 928 of 36 000 cases); "Top … at" is never
+shown past the top; the panels remount after a change; the fleet read takes only the columns the rules use; the
+schedule's event read is newest-first and bounded, with a partial index; 18c/18d REFUSE to run out of order; the trip
+story knows the hold events (they printed raw) and says "by the Business" (glossary).
 
 **How:** docs/migrations/2026-09-18c_pooled_trip_changes.sql + 18d (mission_read = [[d146]]'s 18a view + the masked
 column), both pasted after the S83 security sweep's 18a/18b. `raise_ceiling` / `change_trip_car` are SECURITY DEFINER

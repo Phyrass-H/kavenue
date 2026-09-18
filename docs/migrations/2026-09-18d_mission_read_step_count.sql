@@ -15,6 +15,18 @@
 
 begin;
 
+-- ⚑ The paste order, ENFORCED: this is 18a's view plus one column, so 18a must already be in
+--   (or it would half-apply here and fail later), and 18c must be (the column lives there).
+do $$
+begin
+  if to_regprocedure('public.mission_guard_board_file()') is null then
+    raise exception 'Paste 2026-09-18a first, then 18b, 18c, and only then this file (18d).';
+  end if;
+  if to_regprocedure('public.raise_ceiling(uuid, numeric)') is null then
+    raise exception 'Paste 2026-09-18c_pooled_trip_changes.sql first, then this file (18d).';
+  end if;
+end $$;
+
 create or replace view public.mission_read
 with (security_invoker = false, security_barrier = true) as
 select

@@ -8,7 +8,7 @@ import { acceptTerms, courseForAccept } from "@/lib/pool-fares";
 import { recordMissionEvent } from "@/lib/mission-events-server";
 import { getDriverContext } from "@/lib/driver";
 
-export type AcceptResult = { ok: true } | { ok: false; message: string };
+export type AcceptResult = { ok: true } | { ok: false; message: string; changed?: true };
 
 // Accept a mission. ALL the hard logic — atomic first-wins, slot-conflict, the
 // immediate confirm (D55), and the § P expiry check — lives in the DB function
@@ -90,10 +90,23 @@ function holdMessage(raw: string): string {
 export type SeenTerms = { net: number | null; car: string };
 
 /** S83 — the trip moved under the Driver's thumb (a raise is fine; a cheaper car or a new car is not). */
-const TRIP_CHANGED = "The Business just changed this trip — check the details and the price again.";
+const TRIP_CHANGED = "This trip just changed — check the details and the price again.";
 
-export async function acceptMission(missionId: string, seen?: SeenTerms): Promise<AcceptResult> {
+/**
+ * `seen` arrives from the browser: a server action's argument is whatever was sent, the type is
+ * only a hope. Anything not exactly this shape is dropped (no guard, never an error).
+ */
+function seenFrom(raw: unknown): SeenTerms | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { net, car } = raw as { net?: unknown; car?: unknown };
+  if (typeof car !== "string" || car.length > 200 || car.split("|").length !== 4) return null;
+  if (net !== null && (typeof net !== "number" || !Number.isFinite(net))) return null;
+  return { net: net as number | null, car };
+}
+
+export async function acceptMission(missionId: string, seenRaw?: unknown): Promise<AcceptResult> {
   const supabase = await createClient();
+  const seen = seenFrom(seenRaw);
 
   // ⚑ S83 ([[d147]]) — A DRIVER CONFIRMS THE NUMBER ON THEIR SCREEN, OR NOTHING. A Business may now
   //   change the car of a trip still in the Pool, and a cheaper car lowers the price. Without
@@ -101,22 +114,42 @@ export async function acceptMission(missionId: string, seen?: SeenTerms): Promis
   //   a car they never saw. `seen` is only a guard, never the price: a forged value can only ever
   //   refuse its own sender. A higher price than shown (a raise, or the climb's next step) is not
   //   a surprise worth refusing, so only a LOWER net or a different car stops the accept.
-  const terms = await acceptTerms(missionId);
+  // ⚑ ONLY FOR A TRIP THIS CALLER CAN ALREADY OPEN (review, S83). The numbers come from the service
+  //   role, so the comparison must not become an oracle: asked about any id, "changed / not
+  //   changed" would let anyone binary-search a trip's price. The caller's OWN session reads the id
+  //   through mission_read first — a Driver sees pooled trips (with an approved car) and their own,
+  //   and /missions/[id] already shows them this net. Anything else: no guard; accept_mission
+  //   refuses by itself.
+  let terms: Awaited<ReturnType<typeof acceptTerms>> = null;
+  if (seen) {
+    const { data: visible } = await supabase
+      .from("mission_read")
+      .select("id, status")
+      .eq("id", missionId)
+      .maybeSingle();
+    if (visible?.status === "pooled") terms = await acceptTerms(missionId);
+  }
   if (seen && terms) {
-    const lower = seen.net != null && terms.net < seen.net - 0.005;
-    if (terms.car !== seen.car || lower) {
+    const carChanged = terms.car !== seen.car;
+    const netLower = seen.net != null && terms.net < seen.net - 0.005;
+    if (carChanged || netLower) {
       const { driver } = await getDriverContext();
+      // ⚑ Server values and two booleans — never the caller's strings (review, S83; the shape the
+      //   sweep's 18b closed for log_mission_event).
       await recordMissionEvent({
         missionId,
         type: "accept_rejected",
         actorKind: driver ? "driver" : "unknown",
         actorId: driver?.id ?? null,
         driverId: driver?.id ?? null,
-        payload: { reason: "trip_changed", seen_car: seen.car, car: terms.car, seen_net: seen.net, net: terms.net },
+        payload: { reason: "trip_changed", car_changed: carChanged, net_lower: netLower, net: terms.net },
       });
-      return { ok: false, message: TRIP_CHANGED };
+      return { ok: false, message: TRIP_CHANGED, changed: true };
     }
   }
+  // ⚑ KNOWN WINDOW, stated: this check and the accept below are two transactions. A car change that
+  //   commits in the milliseconds between them passes; accept_mission then clamps the fare into
+  //   the NEW band. A live hold blocks every change, so only the direct Accept has the window.
 
   // ⚑ THE FARE IS COMPUTED HERE, ON THE SERVER, AND FROZEN BY THE RPC.
   // docs/06 §9: "the fare freezes at acceptance… that frozen figure is the

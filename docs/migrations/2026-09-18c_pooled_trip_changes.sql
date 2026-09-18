@@ -34,6 +34,20 @@
 
 begin;
 
+-- ── 0 · the paste order, ENFORCED (review, S83) ─────────────────────────────────────────────
+-- 18d is built on 18a's view, and this file on the sweep's grants. Pasted early, 18d would half-
+-- apply 18a and then 18a itself would fail on the view. So: refuse loudly, change nothing.
+do $$
+begin
+  if to_regprocedure('public.mission_guard_board_file()') is null then
+    raise exception 'Paste 2026-09-18a_browser_surface_locked.sql first, then 18b, then this file (18c).';
+  end if;
+  if position('THE BASIS IS THE FROZEN FARE'
+              in pg_get_functiondef('public.business_cancel_mission(uuid, text, numeric)'::regprocedure)) = 0 then
+    raise exception 'Paste 2026-09-18b_money_from_the_row.sql first, then this file (18c).';
+  end if;
+end $$;
+
 -- ── 1 · the frozen step count ───────────────────────────────────────────────────────────────
 alter table public.mission add column if not exists pdp_step_count smallint;
 
@@ -376,6 +390,12 @@ end;
 $$;
 
 revoke all on function public.trg_mission_price_terms_log() from public, anon, authenticated;
+
+-- The schedule reads a Business's price-terms events on every render (it refreshes every 4 s
+-- while open): a partial index keeps that read on the rows it wants.
+create index if not exists mission_event_price_terms_idx
+  on public.mission_event (business_id, occurred_at desc)
+  where event_type in ('ceiling_raised', 'trip_car_changed', 'price_terms_changed');
 
 drop trigger if exists mission_price_terms_log on public.mission;
 create trigger mission_price_terms_log

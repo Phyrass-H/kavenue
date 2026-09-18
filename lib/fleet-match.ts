@@ -20,6 +20,17 @@ import { nobodyFits, type Fleet } from "@/lib/fleet-fit";
 import { liveCarOf, workingCarOf } from "@/lib/vehicle-approval";
 import type { DriverRow, MissionRow, VehicleRow } from "@/lib/database.types";
 
+type FleetDriverCol =
+  | "first_name" | "last_name" | "accepts_luggage_runs" | "base_lat" | "base_lng" | "base_label"
+  | "service_radius_km" | "verified" | "operational_zones";
+const DRIVER_COLS =
+  "id, first_name, last_name, accepts_luggage_runs, base_lat, base_lng, base_label, service_radius_km, verified, operational_zones";
+type FleetCar = Pick<
+  VehicleRow,
+  "id" | "driver_id" | "category" | "body_type" | "make" | "model" | "approval_status" | "retired_at" | "created_at"
+>;
+const CAR_COLS = "id, driver_id, category, body_type, make, model, approval_status, retired_at, created_at";
+
 const TTL_MS = 60_000;
 let cache: { at: number; fleet: Fleet } | null = null;
 
@@ -41,11 +52,15 @@ async function pagedOrThrow<T>(
 async function readFleet(now: number): Promise<Fleet> {
   if (cache && now - cache.at < TTL_MS) return cache.fleet;
   const db = createAdminClient();
+  // ⚑ Only the columns the rules read (review, S83): this cache is process-wide and lives a
+  //   minute, so it must not hold anyone's phone, papers or bank details it never uses.
   const [drivers, vehicles] = await Promise.all([
-    pagedOrThrow<DriverRow>((f, t) => db.from("driver").select("*").order("id").range(f, t)),
-    pagedOrThrow<VehicleRow>((f, t) => db.from("vehicle").select("*").order("id").range(f, t)),
+    pagedOrThrow<Pick<DriverRow, "id" | FleetDriverCol>>((f, t) =>
+      db.from("driver").select(DRIVER_COLS).order("id").range(f, t),
+    ),
+    pagedOrThrow<FleetCar>((f, t) => db.from("vehicle").select(CAR_COLS).order("id").range(f, t)),
   ]);
-  const byDriver = new Map<string, VehicleRow[]>();
+  const byDriver = new Map<string, FleetCar[]>();
   for (const v of vehicles) {
     if (!v.driver_id) continue;
     byDriver.set(v.driver_id, [...(byDriver.get(v.driver_id) ?? []), v]);

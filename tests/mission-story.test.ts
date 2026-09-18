@@ -8,7 +8,7 @@
 // current database produces.
 import { describe, expect, it } from "vitest";
 import { missionStory, approxCount, PHRASES } from "@/lib/mission-story";
-import { TRIGGER_EVENTS, APP_EVENTS, type MissionEventRow } from "@/lib/mission-events";
+import { TRIGGER_EVENTS, APP_EVENTS, HOLD_EVENTS, PRICE_EVENTS, type MissionEventRow } from "@/lib/mission-events";
 
 function ev(over: Partial<MissionEventRow> = {}): MissionEventRow {
   return {
@@ -53,7 +53,7 @@ describe("order", () => {
 describe("every event in the vocabulary has a sentence", () => {
   // The compiler already enforces this via Record<MissionEventType, …>; this
   // asserts the sentences are for humans, not enum names in disguise.
-  it.each([...TRIGGER_EVENTS, ...APP_EVENTS])("%s reads as English", (type) => {
+  it.each([...TRIGGER_EVENTS, ...APP_EVENTS, ...HOLD_EVENTS, ...PRICE_EVENTS])("%s reads as English", (type) => {
     const phrase = PHRASES[type];
     expect(phrase.says).toBeTruthy();
     expect(phrase.says).not.toContain("_");
@@ -102,6 +102,14 @@ describe("an unknown event type is shown, never dropped", () => {
   it("known types are not flagged", () => {
     expect(missionStory([ev()])[0].unknown).toBe(false);
   });
+
+  // ⚑ S83 — the hold events had phrases but were never in the KNOWN set, so the console's story
+  //   printed "hold_taken" and flagged it unknown. Every vocabulary list must be recognised.
+  it.each([...HOLD_EVENTS, ...PRICE_EVENTS])("%s is recognised and phrased", (type) => {
+    const [entry] = missionStory([ev({ event_type: type })]);
+    expect(entry.unknown).toBe(false);
+    expect(entry.says).toBe(PHRASES[type].says);
+  });
 });
 
 describe("the aside", () => {
@@ -119,7 +127,7 @@ describe("the aside", () => {
     const [entry] = missionStory([
       ev({ event_type: "cancelled", payload: { cancelled_by: "business", fee: 34.5 } }),
     ]);
-    expect(entry.detail).toBe("by the hotel · 34,50 € charged");
+    expect(entry.detail).toBe("by the Business · 34,50 € charged"); // glossary rule 1 (S83): never "hotel" for a Business
   });
 
   it("a free cancellation says who, and nothing about money", () => {
@@ -134,6 +142,21 @@ describe("the aside", () => {
       ev({ event_type: "repooled", payload: { previous_driver_name: "Marc Dubois" } }),
     ]);
     expect(entry.detail).toBe("Marc Dubois walked away");
+  });
+
+  it("a car change names both cars in the row's own words, and the Ceiling move", () => {
+    const [entry] = missionStory([
+      ev({
+        event_type: "trip_car_changed",
+        payload: {
+          all_in_from: 97.2,
+          all_in_to: 172.5,
+          from: { category: "business", required_body_type: "sedan" },
+          to: { category: "luxury", required_body_type: "sedan", required_make: "BMW", required_model: "Série 7" },
+        },
+      }),
+    ]);
+    expect(entry.detail).toBe("Business · Sedan → First · Sedan · BMW Série 7 — Ceiling 97,20 € → 172,50 €");
   });
 
   it("stays silent when the payload adds nothing", () => {

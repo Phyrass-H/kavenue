@@ -82,16 +82,20 @@ export function HoldControls({
     };
   }, [missionId, myHoldExpiresAt]);
 
-  function run(fn: () => Promise<{ ok: true } | { ok: false; message: string }>, onOk?: () => void) {
+  function run(
+    fn: () => Promise<{ ok: true } | { ok: false; message: string; changed?: true }>,
+    onOk?: () => void,
+  ) {
     setError(null);
     startTransition(async () => {
       const res = await fn();
       if (res.ok) (onOk ?? (() => router.refresh()))();
       else {
         setError(res.message);
-        // Re-read the trip: if the Business just changed it, the Driver sees the new terms
-        // under the message instead of the ones they tapped on.
-        router.refresh();
+        // Re-read the trip ONLY when it changed under the Driver, so they see the new terms under
+        // the message. ⚑ Not on every refusal: a Driver who lost the race would re-read a trip that
+        // is no longer theirs to see, and get a bare 404 instead of "no longer available".
+        if (res.changed) router.refresh();
       }
     });
   }

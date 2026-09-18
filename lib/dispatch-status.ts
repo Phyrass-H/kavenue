@@ -460,7 +460,7 @@ export function missionTone(
         return {
           tone: "warn",
           label: "No car match",
-          hint: "No Driver on Kavenue can take this trip as it is asked for.",
+          hint: "No Driver within reach has the car this trip asks for yet.",
           needsAttention: true,
         };
       // "No Driver yet" (still fixable) vs "Unfilled" (over) — founder's wording.

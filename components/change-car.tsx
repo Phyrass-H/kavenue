@@ -23,11 +23,11 @@ import { ServiceClassFields } from "@/components/service-class-fields";
 import { commissionSplit, courseFromBusinessTotal, type Rates } from "@/lib/commission";
 import { currentFare, type PdpInputs } from "@/lib/pdp";
 import { withNewOffer } from "@/lib/ceiling-raise";
-import { isBelowFloor, isMarketRate, priceFor, rateCardFor, type RateCardRow } from "@/lib/rate-card";
-import { TIER_LABEL, BODY_LABEL, type ServiceTier, type BodyType } from "@/lib/vehicle-catalog";
+import { exactFloorAllIn, isMarketRate, priceFor, rateCardFor, type RateCardRow } from "@/lib/rate-card";
+import type { ServiceTier, BodyType } from "@/lib/vehicle-catalog";
 import { seatCap, SEDAN_SEATS } from "@/lib/passengers";
 import { deadlineWords } from "@/lib/dispatch-status";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, serviceClassLabel } from "@/lib/format";
 
 export type CarChoice = { tier: ServiceTier; body: BodyType | null; make: string; model: string };
 
@@ -47,8 +47,9 @@ type Props = {
 const decimalOnly = (s: string) => s.replace(",", ".").replace(/[^\d.]/g, "");
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** The car in the same words as the row and the history line ("Business", "First · Sedan · Audi A8"). */
 export function carLabel(c: CarChoice): string {
-  const base = `${TIER_LABEL[c.tier]} · ${c.body ? BODY_LABEL[c.body] : "Any body"}`;
+  const base = serviceClassLabel(c.tier, c.body);
   return c.make && c.model ? `${base} · ${c.make} ${c.model}` : base;
 }
 
@@ -75,28 +76,42 @@ export function ChangeCarPanel(p: Props) {
   const newRow = rateCardFor(p.rateCard, choice.tier, choice.body);
   const priceMoves = !!newRow && oldRow?.id !== newRow.id;
   const quote = priceMoves ? priceFor(p.rateCard, choice.tier, choice.body, p.distanceKm, { night: p.night }) : null;
+  // ⚑ The floor to the cent as change_trip_car computes it (lib/rate-card exactFloorAllIn), never
+  //   the float — at a half cent the two can round apart and the panel would pass a Ceiling the
+  //   database refuses (review, S83).
+  const floorOf = (c: CarChoice) =>
+    exactFloorAllIn(p.rateCard, c.tier, c.body, p.distanceKm, { night: p.night });
+  const floor = priceMoves ? floorOf(choice) : null;
 
-  // Re-price to the new market Ceiling when the class or body changes — the booking
-  // form's own rule — and never when the panel merely opens.
+  // Re-price when the class or body changes — the booking form's own rule — and never when the
+  // panel merely opens. ⚑ To a DEARER car (its floor at or above the old one's) the default is
+  // never below the Ceiling the Business already has: a raised trip must not quietly lose its
+  // raise by picking a better car. To a cheaper car, the new market Ceiling — the price follows.
   function pick(next: CarChoice) {
     const rowNext = rateCardFor(p.rateCard, next.tier, next.body);
     const q = rowNext && rowNext.id !== oldRow?.id
       ? priceFor(p.rateCard, next.tier, next.body, p.distanceKm, { night: p.night })
       : null;
-    if (next.tier !== choice.tier || next.body !== choice.body) setCeiling(q ? round2(q.ceiling).toFixed(2) : "");
+    if (next.tier !== choice.tier || next.body !== choice.body) {
+      const oldFloor = floorOf(p.current);
+      const newFloor = floorOf(next);
+      const dearer = oldFloor != null && newFloor != null && newFloor >= oldFloor;
+      const market = q ? round2(q.ceiling) : null;
+      setCeiling(market == null ? "" : (dearer ? Math.max(market, nowCeiling) : market).toFixed(2));
+    }
     setChoice(next);
   }
 
   const typed = Number(ceiling);
   const hasCeiling = ceiling !== "" && Number.isFinite(typed) && typed > 0;
-  const belowFloor = priceMoves && hasCeiling && isBelowFloor(typed, quote);
+  const belowFloor = priceMoves && hasCeiling && floor != null && Math.round(typed * 100) < Math.round(floor * 100);
   const atMarket = priceMoves && hasCeiling && isMarketRate(typed, quote);
   const belowMarket = priceMoves && hasCeiling && !belowFloor && quote != null && !atMarket && typed < quote.ceiling;
   const tooManyGuests = choice.body === "sedan" && (p.paxCount ?? 0) > seatCap("sedan");
   const noPrice = priceMoves && quote == null;
 
   const newCourse = priceMoves && hasCeiling ? courseFromBusinessTotal(typed, p.rates) : Number(p.pdp.ceiling);
-  const newStart = priceMoves && quote ? courseFromBusinessTotal(quote.floor, p.rates) : p.pdp.pdp_start;
+  const newStart = priceMoves && floor != null ? courseFromBusinessTotal(floor, p.rates) : p.pdp.pdp_start;
   const now = new Date();
   // Exactly what change_trip_car stores: the new terms, the step count frozen as the SQL
   // freezes it. With the steps fixed, a dearer car (floor and Ceiling both up) can never
@@ -108,6 +123,8 @@ export function ChangeCarPanel(p: Props) {
   const priceAfter = allIn(currentFare(offer, now));
   const newCeilingAllIn = allIn(newCourse);
   const when = deadlineWords(p.topsOutAt, now.getTime());
+  // Past the top of the climb there is no "Top … at <time>" to promise: the price is already there.
+  const topped = now.getTime() >= Date.parse(p.topsOutAt);
 
   const ready = changed && !tooManyGuests && !noPrice && (!priceMoves || (hasCeiling && !belowFloor));
 
@@ -199,9 +216,9 @@ export function ChangeCarPanel(p: Props) {
               onChange={(e) => setCeiling(decimalOnly(e.target.value))}
             />
           </label>
-          {belowFloor && (
+          {belowFloor && floor != null && (
             <div className="notice error" style={{ margin: "10px 0 0" }}>
-              The lowest this trip can be offered at is <strong>{formatMoney(round2(quote.floor))}</strong>.
+              The lowest this trip can be offered at is <strong>{formatMoney(floor)}</strong>.
             </div>
           )}
           {belowMarket && (
@@ -212,8 +229,12 @@ export function ChangeCarPanel(p: Props) {
           {hasCeiling && !belowFloor && (
             <p className="rc__effect">
               Price now: {formatMoney(priceNow)} → {formatMoney(priceAfter)}
-              <br />
-              Top: {formatMoney(newCeilingAllIn)} at {when}
+              {!topped && (
+                <>
+                  <br />
+                  Top: {formatMoney(newCeilingAllIn)} at {when}
+                </>
+              )}
             </p>
           )}
         </>
@@ -243,7 +264,7 @@ export function ChangeCarAction({ variant = "tile", ...props }: Props & { varian
           <span className="dx-act__t">
             <Car size={14} aria-hidden /> Change the car
           </span>
-          <span className="dx-act__s">Class, body or model · the price follows</span>
+          <span className="dx-act__s">Class, body or model</span>
         </button>
       ) : (
         <div className="dx-amend__actions">

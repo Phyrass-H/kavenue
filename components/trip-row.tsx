@@ -385,6 +385,8 @@ export function TripRow({
         .join("")
     : "";
   const serviceLabel = serviceClassLabel(mission.category, mission.required_body_type);
+  // The car and the Ceiling as stored: a change remounts the panel on the new terms.
+  const carPanelKey = `${mission.category}|${mission.required_body_type ?? ""}|${mission.required_make ?? ""}|${mission.required_model ?? ""}|${mission.ceiling}`;
   const carProps = carChangeable
     ? {
         pdp: pdpOf(mission),
@@ -731,10 +733,13 @@ export function TripRow({
             <p className="dx-amend__reassure">
               {/* ⚑ Short on purpose (founder, S83: "less text please"). */}
               No Driver within reach has{" "}
-              {specificCar ? `a ${specificCar}` : `a car of this class (${serviceLabel})`} yet
+              {specificCar
+                ? `${/^[aeiou]/i.test(specificCar) ? "an" : "a"} ${specificCar}`
+                : `a car of this class (${serviceLabel})`}{" "}
+              yet
               — a higher Ceiling won’t help. Cancelling is free until a Driver takes it.
             </p>
-            {carProps && <ChangeCarAction {...carProps} variant="button" />}
+            {carProps && <ChangeCarAction key={carPanelKey} {...carProps} variant="button" />}
           </div>
         )}
         {/* S83 — the founder's trigger: the price has topped out and nobody took it.
@@ -754,11 +759,13 @@ export function TripRow({
               The price has stopped climbing and may not be attractive enough. Raise your Ceiling
               to attract more Drivers.
             </p>
+            {/* key = the stored Ceiling: after a raise the refreshed row remounts the panel empty,
+                ready for another one, instead of sitting on "Ceiling raised" (review, S83). */}
             <RaiseCeilingPanel
+              key={String(mission.ceiling)}
               pdp={pdpOf(mission)}
               rates={businessRatesOf(mission)}
               topsOutAt={ceilingReachedAt(mission).toISOString()}
-              atCeiling
               onRaise={onRaise}
             />
           </div>
@@ -796,13 +803,14 @@ export function TripRow({
             )}
             {raisable && !atCeiling && (
               <RaiseCeilingAction
+                key={String(mission.ceiling)}
                 pdp={pdpOf(mission)}
                 rates={businessRatesOf(mission)}
                 topsOutAt={ceilingReachedAt(mission).toISOString()}
                 onRaise={onRaise}
               />
             )}
-            {carProps && !noMatch && <ChangeCarAction {...carProps} />}
+            {carProps && !noMatch && <ChangeCarAction key={carPanelKey} {...carProps} />}
             {canAmend && (
               <Link href={`/dispatch/${mission.id}/amend`} className="dx-act">
                 <span className="dx-act__t">
@@ -899,9 +907,9 @@ export function TripRow({
                       ? "Ceiling raised"
                       : "Price terms changed"}
                   {c.from != null && c.to != null && c.from !== c.to
-                    ? `${c.kind === "car" ? " · Ceiling " : " "}${formatMoney(c.from)} → ${formatMoney(c.to)}`
+                    ? `${c.kind === "car" ? " — Ceiling " : " "}${formatMoney(c.from)} → ${formatMoney(c.to)}`
                     : ""}
-                  {` · by ${c.by}`}
+                  {` — by ${c.by}`}
                 </Fragment>
               ))}
             </span>

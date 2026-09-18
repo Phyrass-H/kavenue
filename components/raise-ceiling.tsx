@@ -22,14 +22,13 @@ type Props = {
   rates: Rates | null;
   /** When the climb tops out — already passed on a trip at its Ceiling. */
   topsOutAt: string;
-  atCeiling: boolean;
   /** The server action, bound to this trip. Absent on the preview page. */
   onRaise?: (ceilingAllIn: number) => Promise<ActionResult>;
 };
 
 const decimalOnly = (s: string) => s.replace(",", ".").replace(/[^\d.]/g, "");
 
-export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }: Props) {
+export function RaiseCeilingPanel({ pdp, rates, topsOutAt, onRaise }: Props) {
   const [value, setValue] = useState("");
   const [step, setStep] = useState<"edit" | "confirm" | "done">("edit");
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +53,9 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }:
   const priceNow = hasValue ? allIn(currentFare(pdp, now)) : 0;
   const priceAfter = higher ? allIn(currentFare(withNewOffer(pdp, { ceiling: course }, now), now)) : 0;
   const when = deadlineWords(topsOutAt, now.getTime());
+  // Past the top there is no "Top … at <time>" to promise — decided by the clock, not by which
+  // door opened the panel (review, S83: the tile could show a Top time already gone).
+  const topped = now.getTime() >= Date.parse(topsOutAt);
 
   // ⚑ THE BUSINESS'S OWN NUMBER, named as the row names it ("Auction"). Never "Drivers
   // will see €X": this is the all-in, fee included, and a Driver is shown their own share
@@ -66,7 +68,7 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }:
     priceAfter > priceNow
       ? `Price now: ${formatMoney(priceNow)} → ${formatMoney(priceAfter)}`
       : `Price now: ${formatMoney(priceNow)}, unchanged for now`;
-  const topLine = atCeiling ? null : `Top: ${formatMoney(newCeiling)} at ${when}`;
+  const topLine = topped ? null : `Top: ${formatMoney(newCeiling)} at ${when}`;
 
   if (step === "done") {
     return (
@@ -81,7 +83,6 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }:
       <div className="rc">
         <p className="rc__confirm">
           Raise your Ceiling from <b>{formatMoney(nowCeiling)}</b> to <b>{formatMoney(newCeiling)}</b>?
-          It can’t be lowered afterwards.
         </p>
         {error && <div className="notice error" style={{ margin: "10px 0 0" }}>{error}</div>}
         <div className="dx-amend__actions">
@@ -129,7 +130,9 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }:
         {!hasValue ? (
           `Current Ceiling: ${formatMoney(nowCeiling)}`
         ) : !higher ? (
-          `Enter more than ${formatMoney(nowCeiling)} — a Ceiling can only go up.`
+          typed > nowCeiling
+            ? `Rounded down to ${formatMoney(nowCeiling)} so it bills exactly — enter a little more.`
+            : `Enter more than ${formatMoney(nowCeiling)}.`
         ) : (
           <>
             {nowLine}
@@ -140,7 +143,7 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }:
               <>
                 <br />
                 <span className="rc__snap">
-                  {formatMoney(typed)} can’t split exactly into trip, fee and VAT — {formatMoney(newCeiling)} is the closest.
+                  Rounded down to {formatMoney(newCeiling)} so it bills exactly.
                 </span>
               </>
             )}
@@ -166,7 +169,7 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, onRaise }:
  * that opens the same panel. The founder's reason for it (2026-09-18): *"in case they
  * made a mistake or they realize the price was too low"* — no need to wait for the top.
  */
-export function RaiseCeilingAction(props: Omit<Props, "atCeiling">) {
+export function RaiseCeilingAction(props: Props) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -179,11 +182,11 @@ export function RaiseCeilingAction(props: Omit<Props, "atCeiling">) {
         <span className="dx-act__t">
           <TrendingUp size={14} aria-hidden /> Raise the Ceiling
         </span>
-        <span className="dx-act__s">Attract more Drivers · can’t be lowered</span>
+        <span className="dx-act__s">Attract more Drivers · raise only</span>
       </button>
       {open && (
         <div className="rc-wrap">
-          <RaiseCeilingPanel {...props} atCeiling={false} />
+          <RaiseCeilingPanel {...props} />
         </div>
       )}
     </>

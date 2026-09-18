@@ -6,7 +6,7 @@ import type { DriverRow, MissionRow, VehicleRow } from "@/lib/database.types";
 export type Fleet = {
   driver: Pick<DriverRow, "first_name" | "last_name" | "accepts_luggage_runs" | "base_lat" | "base_lng" | "base_label" | "service_radius_km" | "verified" | "operational_zones">;
   vehicle: Pick<VehicleRow, "category" | "body_type" | "make" | "model"> | null;
-  liveCar: VehicleRow | null;
+  liveCar: Pick<VehicleRow, "approval_status" | "retired_at"> | null;
 }[];
 
 /**

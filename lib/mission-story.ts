@@ -18,6 +18,8 @@
 //   3. DROP AN EVENT IT DOESN'T RECOGNISE. An unknown type is shown as itself.
 //      A log that silently hides a row it wasn't taught about is worse than one
 //      that prints something ugly.
+import { serviceClassLabel } from "@/lib/format";
+import type { BodyType, VehicleCategory } from "@/lib/database.types";
 import {
   TRIGGER_EVENTS,
   PRICE_EVENTS,
@@ -124,7 +126,7 @@ function detailOf(e: MissionEventRow): string | null {
     case "cancelled": {
       const by = str(p.cancelled_by);
       const fee = p.fee;
-      const who = by === "business" ? "by the hotel" : by === "driver" ? "by the Driver" : null;
+      const who = by === "business" ? "by the Business" : by === "driver" ? "by the Driver" : null;
       const money =
         typeof fee === "number" && fee > 0
           ? `${fee.toLocaleString("fr-FR", { minimumFractionDigits: 2 })} € charged`
@@ -143,12 +145,23 @@ function detailOf(e: MissionEventRow): string | null {
       const from = eur(p.all_in_from);
       const to = eur(p.all_in_to);
       const money = from && to && from !== to ? `Ceiling ${from} → ${to}` : null;
-      const cls = (t: unknown) => (t && typeof t === "object" ? str((t as Record<string, unknown>).category) : null);
+      // The row's own words for a car (serviceClassLabel + make and model), so the console's
+      // story and the Business's schedule name it alike — and a body- or model-only change shows.
+      const words = (t: unknown) => {
+        if (!t || typeof t !== "object") return null;
+        const o = t as Record<string, unknown>;
+        const cat = str(o.category);
+        if (!cat) return null;
+        const base = serviceClassLabel(cat as VehicleCategory, (str(o.required_body_type) as BodyType | null) ?? null);
+        const mk = str(o.required_make);
+        const md = str(o.required_model);
+        return mk && md ? `${base} · ${mk} ${md}` : base;
+      };
       const car =
-        e.event_type === "trip_car_changed" && cls(p.from) && cls(p.to) && cls(p.from) !== cls(p.to)
-          ? `${cls(p.from)} → ${cls(p.to)}`
+        e.event_type === "trip_car_changed" && words(p.from) && words(p.to) && words(p.from) !== words(p.to)
+          ? `${words(p.from)} → ${words(p.to)}`
           : null;
-      return [car, money].filter(Boolean).join(" · ") || null;
+      return [car, money].filter(Boolean).join(" — ") || null;
     }
     default:
       return null;

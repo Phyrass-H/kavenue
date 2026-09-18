@@ -70,6 +70,8 @@ if [ -n "$view_diff" ]; then echo "VIEW DIFF (18d vs 18a):"; echo "$view_diff"; 
 parity="skipped"
 if [ "${PARITY:-1}" = 1 ]; then
   tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
+  # the replayed rate card, so the TypeScript floor is computed from the very rows SQL prices with
+  q -d "$DB" -c "\\copy (select id, market, tier::text, body::text, effective_from, floor_base, floor_per_km, ceiling_base, ceiling_per_km, ceiling_per_km_long, long_threshold_km, night_multiplier from rate_card) to '$tmp/cards.csv' csv"
   (cd "$ROOT" && npx --offline tsx "$HERE/parity.mts" "$tmp") >/dev/null
   q -d "$DB" -c "create temp table pl (c numeric, s numeric, w boolean, n int)" \
              -c "\\copy pl from '$tmp/ladder.csv' csv" \
@@ -77,11 +79,16 @@ if [ "${PARITY:-1}" = 1 ]; then
   q -d "$DB" -c "create temp table pc (t numeric, b numeric, v numeric, c numeric)" \
              -c "\\copy pc from '$tmp/course.csv' csv" \
              -c "create table kv.parity_course as select count(*) filter (where public.course_from_business_total(t, b, v) is distinct from c) as bad, count(*) as total from pc"
+  q -d "$DB" -c "create temp table pf (tier text, body text, km numeric, night boolean, f numeric)" \
+             -c "\\copy pf from '$tmp/floor.csv' csv" \
+             -c "create table kv.parity_floor as select count(*) filter (where round((select p.floor_price from public.mission_price(tier::vehicle_category, nullif(body, '')::body_type, km, night) p), 2) is distinct from f) as bad, count(*) as total from pf"
   lb=$(q -d "$DB" -At -c "select bad || '/' || total from kv.parity_ladder")
+  fb=$(q -d "$DB" -At -c "select bad || '/' || total from kv.parity_floor")
   cb=$(q -d "$DB" -At -c "select bad || '/' || total from kv.parity_course")
-  parity="ladder mismatches $lb · course mismatches $cb"
+  parity="ladder mismatches $lb · course mismatches $cb · floor mismatches $fb"
   case "$lb" in 0/*) ;; *) bad=1 ;; esac
   case "$cb" in 0/*) ;; *) bad=1 ;; esac
+  case "$fb" in 0/*) ;; *) bad=1 ;; esac
 fi
 
 echo "cases: $((total - fails))/$total match · check.sql FAILs: $check_fails · view diff: $([ -z "$view_diff" ] && echo none || echo YES) · parity: $parity"

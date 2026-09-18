@@ -196,7 +196,9 @@ export async function reclaimMission(missionId: string): Promise<ActionResult> {
 /** The database's refusals, in the Business's words. Anything unknown gets the generic line. */
 const POOL_EDIT_WORDS: ReadonlyArray<readonly [RegExp, string]> = [
   [/A Driver is reviewing this trip/, "A Driver is looking at this trip right now — try again in a few seconds."],
-  [/no longer in the Pool/, "A Driver has just taken this trip, so its price and car can’t change now."],
+  // ⚑ Not "a Driver has just taken it": the same refusal covers a trip cancelled or swept to
+  //   expired (review, S83). This is true in every case.
+  [/no longer in the Pool/, "This trip has just left the Pool — its price and car can’t change now."],
   [/Mission has expired/, "The pickup time has passed."],
   [/A raise must be higher/, "Enter more than your current Ceiling."],
   [/Below the lowest price/, "That’s below the lowest price for this car."],
@@ -245,7 +247,10 @@ export async function raiseCeiling(missionId: string, ceilingAllIn: number): Pro
 /**
  * Change this trip's car. `ceilingAllIn` is the new Ceiling when the new car is priced
  * differently, and NULL when it is not (the panel knows from the rate card; the RPC refuses a
- * Ceiling sent where the price does not move, so this can never become a way to LOWER one).
+ * Ceiling sent where the price does not move, so a same-price change cannot lower it).
+ * ⚑ A re-priced change CAN lower the Ceiling — a cheaper car reads cheaper, by the founder's rule,
+ *   and so does a round trip through one (Sedan → Van → Sedan). The panel's default never lowers
+ *   it on a dearer car; the database requires only the new floor (D147).
  */
 export async function changeTripCar(
   missionId: string,
@@ -280,7 +285,7 @@ export async function changeTripCar(
   if (make || model) {
     const offered = body ? carsFor(tier, body).some((c) => c.make === make && c.model === model) : false;
     const kept = make === (m.required_make ?? "") && model === (m.required_model ?? "");
-    if (!offered && !kept) return { ok: false, message: "That car isn’t one Kavenue offers for this class." };
+    if (!offered && !kept) return { ok: false, message: "That car isn’t on the list for this class." };
   }
 
   const course = ceilingAllIn == null ? null : courseFromBusinessTotal(ceilingAllIn, businessRatesOf(m));

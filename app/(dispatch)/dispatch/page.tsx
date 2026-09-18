@@ -310,11 +310,16 @@ export default async function DispatchSchedule({
   //     closed: an unreadable fleet answers NULL, which shows no advice at all).
   const [{ data: cardRows }, { data: priceEvents }, { data: teammates }, noMatch] = await Promise.all([
     supabase.from("rate_card").select(RATE_CARD_COLS),
+    // ⚑ Newest first and bounded: this runs on every 4-second refresh, and PostgREST stops at
+    //   1 000 rows without an error — truncation must drop the OLDEST changes, never today's.
+    //   (2026-09-18c's partial index serves exactly this read.)
     supabase
       .from("mission_event")
       .select("mission_id, occurred_at, event_type, actor_kind, actor_id, payload")
       .eq("business_id", ctx.business.id)
-      .in("event_type", [...PRICE_CHANGE_EVENTS]),
+      .in("event_type", [...PRICE_CHANGE_EVENTS])
+      .order("occurred_at", { ascending: false })
+      .range(0, 999),
     supabase.from("dispatcher").select("id, name").eq("business_id", ctx.business.id),
     noCarMatch(missions ?? []),
   ]);

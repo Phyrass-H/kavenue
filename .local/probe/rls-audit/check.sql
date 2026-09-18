@@ -51,7 +51,7 @@ rel_expected(rel, anon, auth) as (values
 col_expected(rel, priv, cols) as (values
   ('mission', 'INSERT', 'board_file_path,board_name,business_id,category,ceiling,commission_business_rate,commission_driver_rate,commission_vat_rate,dispatcher_id,distance_km,dress_code,driver_flags,driver_message,dropoff_address,dropoff_label,dropoff_lat,dropoff_lng,duration_min,flight_number,luggage_count,luggage_only,night_applied,passenger_name,passenger_names,pax_count,pdp_interval,pdp_start,pdp_step,pickup_address,pickup_at,pickup_label,pickup_lat,pickup_lng,rate_card_id,reference,required_body_type,required_languages,required_make,required_model,speed_win,standard_vat_rate,status,waypoints,zone'),
   ('mission', 'UPDATE', 'board_file_path,board_name,business_id,category,ceiling,created_at,dispatcher_id,distance_km,dress_code,driver_flags,driver_message,dropoff_address,dropoff_label,dropoff_lat,dropoff_lng,duration_min,flight_number,info_edited_at,luggage_count,luggage_only,passenger_name,passenger_names,pax_count,pickup_address,pickup_at,pickup_label,pickup_lat,pickup_lng,reference,required_body_type,required_languages,required_make,required_model,speed_win,status,waypoints,zone'),
-  ('mission', 'SELECT (walled)', 'base_fare,ceiling,commission_business_rate,commission_driver_rate,hold_expires_at,pdp_start,vehicle_body_type,vehicle_colour,vehicle_energy,vehicle_first_registration_date,vehicle_make,vehicle_model,vehicle_plate,vehicle_seats'),
+  ('mission', 'SELECT (walled)', 'base_fare,ceiling,commission_business_rate,commission_driver_rate,hold_expires_at,pdp_start,pdp_step_count,vehicle_body_type,vehicle_colour,vehicle_energy,vehicle_first_registration_date,vehicle_make,vehicle_model,vehicle_plate,vehicle_seats'),
   ('commission_rate', 'SELECT (walled)', 'driver_rate_ht,standard_vat_rate'),
   -- S83: a change request is inserted whole, then only ever withdrawn
   ('mission_amendment', 'INSERT', 'business_id,from_snapshot,mission_id,new_distance_km,new_dropoff_address,new_dropoff_label,new_dropoff_lat,new_dropoff_lng,new_duration_min,new_fare,new_pickup_address,new_pickup_label,new_pickup_lat,new_pickup_lng,new_waypoints,note,proposed_by,status'),
@@ -122,7 +122,13 @@ fn_expected(fn, exec) as (values
   ('trg_mission_event_log()','trigger'), ('vehicle_event_write()','trigger'),
   ('vehicle_identity_frozen()','trigger'), ('mission_guard_client_write()','trigger'),
   ('mission_guard_guest_ready_at()','trigger'), ('mission_guard_pickup_at()','trigger'),
-  ('trg_snapshot_transport_vat()','trigger'), ('mission_guard_board_file()','trigger')),
+  ('trg_snapshot_transport_vat()','trigger'), ('mission_guard_board_file()','trigger'),
+  -- S83 · 18c/18d (D147): raise the Ceiling / change the car on a pooled trip
+  ('raise_ceiling(uuid, numeric)','-/X'),
+  ('change_trip_car(uuid, vehicle_category, body_type, text, text, numeric)','-/X'),
+  ('pdp_ladder_steps(numeric, numeric, boolean)','-/-'),
+  ('course_from_business_total(numeric, numeric, numeric)','-/-'),
+  ('trg_mission_price_terms_log()','trigger')),
 -- ⚑ a guard that compares current_user must run as the caller: a DEFINER guard never fires (2026-07-22)
 must_be_invoker(fn) as (values ('mission_guard_client_write()'), ('mission_guard_guest_ready_at()'), ('mission_guard_pickup_at()')),
 -- ══ REVIEWED STATE 5 · triggers on public tables (all must be enabled) ══════════════════════════
@@ -131,6 +137,7 @@ trg_expected(tbl, trg) as (values
   ('mission','mission_snapshot_transport_vat'), ('mission','mission_stamp_vehicle'),
   ('mission','trg_mission_guard_client_write'), ('mission','trg_mission_guard_guest_ready_at'),
   ('mission','trg_mission_guard_pickup_at'), ('mission','trg_mission_guard_board_file'),
+  ('mission','mission_price_terms_log'),
   ('mission_amendment','trg_amendment_replaces_release'),
   ('mission_hold','hold_requires_approved_car'), ('mission_hold','mission_hold_apply'),
   ('vehicle','vehicle_event_write'), ('vehicle','vehicle_identity_frozen')),
@@ -165,7 +172,7 @@ fns as (
          case when has_function_privilege('authenticated', p.oid, 'EXECUTE') then 'X' else '-' end as exec,
          exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) x where x.grantee = 0) as public_exec
     from pg_proc p join pg_namespace s on s.oid = p.pronamespace
-   where s.nspname = 'public' and p.prokind = 'f'
+   where s.nspname = 'public' and p.prokind = 'f' and p.prorettype <> 'event_trigger'::regtype
      and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')),
 checks(area, obj, chk, expected, actual) as (
   -- ── 0 · the platform facts everything else depends on (info) ──────────────────────────────
@@ -204,6 +211,14 @@ checks(area, obj, chk, expected, actual) as (
          (select bool_or(rolbypassrls or rolsuper) from pg_roles where rolname = 'authenticated')::text
   union all
   select '0 platform', 'server', 'Postgres version', null, current_setting('server_version')
+  union all
+  -- event triggers are not API-callable, but they run on every DDL as their owner — surfaced so a
+  -- new one (a Supabase hook, or anything added in the dashboard) is never invisible. rls_auto_enable
+  -- is Supabase's "enable RLS on each new table" helper; confirmed benign on live 2026-09-18 (S83).
+  select '0 platform', 'event trigger ' || t.evtname, t.evtevent || ' -> ' || p.proname ||
+         '() [' || case when p.prosecdef then 'definer' else 'invoker' end || ']', null,
+         case t.evtenabled when 'O' then 'enabled' when 'D' then 'disabled' else t.evtenabled::text end
+    from pg_event_trigger t join pg_proc p on p.oid = t.evtfoid
   union all
   select '0 platform', 'extensions', 'installed', null,
          (select string_agg(e.extname || '@' || e.extnamespace::regnamespace, ', ' order by e.extname) from pg_extension e)

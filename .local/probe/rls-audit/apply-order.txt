@@ -87,5 +87,9 @@
 2026-09-14_admin_vehicles.sql
 2026-09-17_mission_client_writes.sql
 2026-09-17b_mission_read_is_read_only.sql
+# ⚑ #pending = applied by run.sh ON TOP of the replay baseline, NOT by the baseline itself (so replay
+#   builds the pre-S83 shape and run.sh proves the migrations against it). Both are LIVE since 2026-09-18;
+#   the marker is about the harness split, not live status. 18c/18d (D147) are applied by run.sh too,
+#   sourced from origin/main until the merge — they are deliberately NOT listed here.
 #pending 2026-09-18a_browser_surface_locked.sql
 #pending 2026-09-18b_money_from_the_row.sql

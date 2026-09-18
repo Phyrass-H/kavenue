@@ -17,10 +17,27 @@ PSQL="${PSQL:-/opt/homebrew/opt/postgresql@17/bin/psql}"
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../../.." && pwd)"
 DB=kv_rls_audit
-# the S83 files, in paste order; MIGRATIONS="…" points it at broken copies to prove it turns red
-MIGS="${MIGRATIONS:-$ROOT/docs/migrations/2026-09-18a_browser_surface_locked.sql $ROOT/docs/migrations/2026-09-18b_money_from_the_row.sql}"
 q() { "$PSQL" -h 127.0.0.1 -p "$PORT" -U postgres -X -v ON_ERROR_STOP=1 -q "$@"; }
 strip() { sed 's/;[[:space:]]*$//' "$HERE/check.sql"; }
+
+# The four S83 migrations, in PASTE ORDER — check.sql describes the state AFTER all four (the live
+# database, 2026-09-18). 18a/18b are mine; 18c/18d (D147, the raise-Ceiling / change-car session)
+# are on `main` and land in this branch at the merge. Until then, resolve each from the local file
+# if present, else from origin/main — so the harness proves check.sql against the real live shape.
+# ⚑ MIGRATIONS="…" overrides the list (point it at broken copies to prove the harness turns red).
+TMPMIG="$(mktemp -d)"; trap 'rm -rf "$TMPMIG"' EXIT
+resolve() {  # <migration filename> -> a path on disk (local, or extracted from origin/main)
+  local f="$1"
+  if [ -f "$ROOT/docs/migrations/$f" ]; then echo "$ROOT/docs/migrations/$f"; return; fi
+  git -C "$ROOT" show "origin/main:docs/migrations/$f" > "$TMPMIG/$f" 2>/dev/null \
+    && { echo "$TMPMIG/$f"; return; }
+  echo "run.sh: cannot find $f locally or on origin/main" >&2; return 1
+}
+if [ -n "${MIGRATIONS:-}" ]; then
+  MIGS="$MIGRATIONS"
+else
+  MIGS="$(resolve 2026-09-18a_browser_surface_locked.sql) $(resolve 2026-09-18b_money_from_the_row.sql) $(resolve 2026-09-18c_pooled_trip_changes.sql) $(resolve 2026-09-18d_mission_read_step_count.sql)" || exit 2
+fi
 
 bash "$HERE/replay.sh" "$DB" >/dev/null 2>&1 || { bash "$HERE/replay.sh" "$DB"; exit 2; }
 q -d "$DB" -f "$HERE/fixtures.sql"
@@ -30,9 +47,13 @@ echo "════ BEFORE — the live state as the migration files leave it"
 q -d "$DB" -c "select kv.kv_run('before')"
 check_before=$(q -d "$DB" -At -c "select count(*) from ($(strip)) x where result = 'FAIL'")
 
-for pass in 1 2; do   # twice: every file must be idempotent
-  for m in $MIGS; do
-    [ -f "$m" ] || { echo "run.sh: missing $m"; exit 2; }
+# In paste order; each file applied TWICE IN A ROW — the real idempotency test (a re-paste of the
+# same file is a no-op). ⚑ Not the whole sequence twice: 18a and 18d both `create or replace` the
+# view with different column sets, so re-running 18a after 18d would (rightly) refuse to drop 18d's
+# column — a scenario that never happens on live, where each file is pasted once, in order.
+for m in $MIGS; do
+  [ -f "$m" ] || { echo "run.sh: missing $m"; exit 2; }
+  for pass in 1 2; do
     echo "════ APPLY $(basename "$m") (pass $pass)"
     out=$(q -d "$DB" -f "$m" 2>&1) || { echo "$out"; echo "run.sh: $(basename "$m") FAILED to apply"; exit 1; }
   done

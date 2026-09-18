@@ -72,6 +72,17 @@ insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_typ
 -- ── realtime: Supabase creates the publication empty ───────────────────────
 create publication supabase_realtime;
 
+-- ── Supabase's "auto-enable RLS on every new table" event trigger (S83) ─────
+-- Confirmed on live 2026-09-18: an EVENT TRIGGER function (owner postgres, SECURITY DEFINER,
+-- search_path=pg_catalog), fired by `ensure_rls` on ddl_command_end. It has EXECUTE for PUBLIC
+-- (create function's default), but Postgres refuses to CALL an event-trigger function directly, so
+-- that grant is moot — check.sql lists it as info, not a hole. Stood in here so the replay carries
+-- the same object the live sweep sees. ⚑ NO-OP body: a working body would enable RLS on the tables
+-- kavenue_schema.sql creates next and change the replay; the catalog SHAPE is all check.sql reads.
+create function rls_auto_enable() returns event_trigger
+  language plpgsql security definer set search_path = pg_catalog as $$ begin return; end $$;
+create event trigger ensure_rls on ddl_command_end execute function rls_auto_enable();
+
 -- ── public: Supabase's grants and DEFAULT PRIVILEGES ────────────────────────
 -- ⚑ This is the whole class of bug: every table, VIEW, function and sequence the SQL editor
 --   creates is granted to anon + authenticated IN THEIR OWN RIGHT, so a revoke from PUBLIC

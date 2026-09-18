@@ -7,9 +7,26 @@
 
 ## 2026-09-18 — SESSION 83 · the whole browser surface, swept · 11 holes found, 10 closed · tests 1288 · TWO migrations to paste
 
-**NOT merged, NOT applied.** Two migration files are written and PROVEN on a throw-away Postgres 17; the founder pastes
-them into the Supabase SQL editor, in order, then re-pastes `check.sql`. Nothing live was written this session
-(read-only against live was never needed — the whole audit ran on a rebuild).
+**⚑ UPDATE 2026-09-18 (later same day): the founder PASTED all four migrations live** — 18a → 18b → my `check.sql`
+→ 18c → 18d → the pooled-trip probe's `check.sql` — Mac test green. 18c/18d are the parallel raise-Ceiling /
+change-car session (D147, merged to `main` at `fb80984`). My branch `claude/dazzling-mendeleev-f3a500` (`e1b78ac`
++ this follow-up) is **still NOT merged** — it carries 18a/18b (now live), the board-file code fix, the probe and D146.
+**Merging it to `main` deploys the live site, so it waits on the founder's explicit go-ahead** (the peer relayed the
+ask; a peer's word is not the founder's approval).
+
+**Follow-up done this session:** my `check.sql` came back all `pass`/`info` on live except ONE FAIL — `rls_auto_enable()`,
+which the founder's read-only query confirmed is **Supabase's own event trigger** (`ensure_rls` on
+`ddl_command_end`, owner postgres, SECURITY DEFINER, search_path=pg_catalog): it auto-enables RLS on every new table,
+and Postgres refuses to call an event-trigger function directly, so its PUBLIC EXECUTE is moot — **benign**. I fixed
+`check.sql` to classify event-trigger functions correctly (they leave the API-callable review and are surfaced as an
+`info` row per event trigger, so a new DDL hook is never invisible), added Supabase's `ensure_rls` to the replay
+stand-in, and extended the reviewed state to the live 18c/18d objects (`raise_ceiling`, `change_trip_car`,
+`pdp_ladder_steps`, `course_from_business_total`, the `mission_price_terms_log` trigger, and `pdp_step_count` walled).
+`run.sh` now applies all four in paste order (18c/18d sourced from `origin/main` until the merge). Re-proven: 94/94
+cases, `check.sql` 68 FAIL → 0.
+
+**Original plan (unchanged):** the two files were PROVEN on a throw-away Postgres 17 before handover; nothing live was
+written BY CLAUDE — the founder pasted.
 
 **Why this session (from D144/D145, S82).** Those two holes were the same shape — Supabase grants both browser roles
 every right on every new object, and `revoke … from public` takes none of it back. Neither was found by reading. So S83

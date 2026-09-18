@@ -167,9 +167,11 @@ export default async function DispatchSchedule({
   const supabase = await createClient();
 
   // § P — a trip nobody accepted is dead at its pickup time. Sweeping here (as
-  // well as on the Driver's Pool) means the Business sees "Expired · Was not
-  // filled in time" on their own schedule without waiting for a Driver to happen
-  // to open the app. Idempotent; never throws.
+  // well as on the Driver's Pool) means the Business sees "Unfilled" — "No Driver
+  // accepted it before the pickup time." (lib/dispatch-status.ts expiredTone, D63) —
+  // on their own schedule without waiting for a Driver to happen to open the app.
+  // ⚑ This comment said "Expired · Was not filled in time" until S83; it misled S81.
+  // Idempotent; never throws.
   await sweepExpiredMissions(supabase);
 
   const { data: missions, error } = await supabase

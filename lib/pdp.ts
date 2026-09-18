@@ -263,9 +263,10 @@ function stepPositions(id: string, n: number): number[] {
  * is there. Recomputing stays the fallback, and has to: every trip accepted
  * before that migration has NULL, and nothing was backfilled.
  *
- * Storing it is also what makes the re-pool floor work — a re-pool raises
- * `pdp_start` to the fare the last Driver agreed to, so the trip can never
- * re-open below a price the market already cleared (founder, 2026-08-22).
+ * ⚑ A re-pool does NOT raise `pdp_start` (it used to; removed by
+ * 2026-08-22e_repool_touches_nothing.sql, [[d82]]). The curve alone keeps a
+ * re-pooled trip at or above what the last Driver agreed to: it only rises as the
+ * pickup approaches (see `curveOpensAt`).
  */
 export function settledFare(
   m: PdpInputs & { accepted_at: string | null; accepted_fare: number | null },

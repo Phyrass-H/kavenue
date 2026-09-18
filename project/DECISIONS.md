@@ -4206,3 +4206,59 @@ there, so it is not insertable, and `mission.ceiling` is NOT NULL with no defaul
    turns three cases red.
 3. **THE RULE FOR EVERY FUTURE VIEW:** `revoke all … from public` is not enough. Name `anon, authenticated`.
    `check.sql` now sweeps every view in `public` for a browser write privilege and must read `(none)`.
+
+### D147 — Unfilled: the expiry stands; the Business may raise its own Ceiling or change the car while nobody holds the trip (2026-09-18, S83)
+
+**The ruling the V1 Runway asked for (`unfilled`) — founder, 2026-09-17/18.** When nobody takes a trip, Kavenue does
+**not** cover it from a network (*"No way and I don't have my own network, it's the network period"*) and does **not**
+ring the Business (*"That is not our job"*). **The expiry stands** (D62/D63). What the Business gets instead is the
+means to act on its own offer, and an in-app nudge when it matters.
+
+1. **THE TRIGGER: the price reached the Ceiling and nobody took it** (T−5h, or halfway for a trip posted inside 5 h —
+   lib/pdp.ts `topLeadFor`). The row's pill reads **"At Ceiling"** (short on purpose: the status column's floor), the
+   fare cell *"ceiling reached"*, and the open row carries the card *"No Driver yet at your Ceiling · since HH:MM — The
+   price has stopped climbing and may not be attractive enough. Raise your Ceiling to attract more Drivers."* (the
+   founder's words) **with the raise box in it** — advice never comes without the way to act on it. From T−3h the pill
+   says "No Driver yet" as before; the card stays. "Since" is the later of the top and the last change.
+2. **RAISE THE CEILING — the founder's five rules.** (1) raise only; (2) only while the trip is in the Pool — pooled, no
+   Driver, pickup ahead, **and not during a Driver's live 15-second hold** (the price must not move under the Driver who
+   is deciding; founder "ok"); (3) the price keeps its place on the climb — same progress, taller climb, the top-out time
+   never moves; under SPEED WIN the 70 % opening rises with the Ceiling (founder "ok"); (4) every change recorded — who,
+   from, to, when; (5) as many raises as they like (*"it's an auction so no one is certain to get a trip before someone
+   else. remember the FOMO"* — Drivers do not wait for raises; saved as a memory). A tile beside "Edit details" makes it
+   available at any time in the Pool (*"in case they made a mistake or they realize the price was too low"*).
+3. **CHANGE THE CAR** — *"they can change at any time for any reasons before Driver takes it and update the price based
+   on the new selection"*. Class, body, make, model, with the booking form's own picker. When the rate-card ROW changes,
+   the new market Ceiling is pre-filled, the Business may edit it, never below the new floor; the floor is priced in SQL
+   from the trip's own distance and night flag, never sent. When it does not (make/model, Any↔Sedan, any Eco body) the
+   panel says "Same price" and asks for no number, and the database refuses a Ceiling sent anyway — so this door can
+   never LOWER a price. A cheaper car may read cheaper. Refused: luggage runs (always Business · Van), a Sedan for more
+   than 4 Guests. Its own tile, not inside "Edit details": that page works after acceptance and promises "never changes
+   the price" (founder: *"I understand now why you did it"*).
+4. **"NO CAR MATCH" INSTEAD OF "RAISE"** when no approved Driver's approved car fits the trip's class, body, specific car
+   and reach (pickup OR dropoff within their radius). The busy slot and the luggage opt-in are left out — those are
+   price questions. Said as soon as it is true, no raise push, and the card offers "Change the car". **Fails closed:** an
+   unreadable fleet shows no advice at all (lib/fleet-match.ts; `readAll` would have answered "nobody").
+5. **THE PRICE NEVER DIPS ON A RAISE.** The staircase used to be redrawn from the new gap — measured: up to €0,95 lower,
+   ~1 raise in 8. The first change freezes the step count (`mission.pdp_step_count`); with the steps fixed the price at
+   every instant is (1−s)·opening + s·Ceiling for the same s. Not frozen before the climb opens (T−14 d) or with no gap.
+   Every existing trip keeps NULL, so no past or present price moved. docs/06:380 now reads: never down over time, nor
+   on a raise; a car change re-prices for the new car. After a mid-climb raise the steps are larger than ~€2 — a
+   consequence of rule 3.
+6. **A DRIVER CONFIRMS THE NUMBER ON THEIR SCREEN OR NOTHING.** The Driver's page sends the net fare and the car it
+   showed; accept refuses (logged `accept_rejected`, reason `trip_changed`) when the car changed or the net went DOWN.
+   A higher price (a raise, the next step) is not refused.
+7. **THE RECORD IS A TRIGGER** (`mission_price_terms_log`), so no path skips it — not the service role, not an admin in
+   the SQL editor: `ceiling_raised`, `trip_car_changed`, `price_terms_changed`, audience Business + admin (a Driver never
+   reads a trip's price history). The row shows them newest first: *"Ceiling raised 97,20 € → 115,00 € · by Camille"*.
+
+**How:** docs/migrations/2026-09-18c_pooled_trip_changes.sql + 18d (mission_read = [[d146]]'s 18a view + the masked
+column), both pasted after the S83 security sweep's 18a/18b. `raise_ceiling` / `change_trip_car` are SECURITY DEFINER
+(D144 froze a posted trip from the browser and stays closed). Proven on a throw-away Postgres that replays the whole live
+schema: 53/53 cases, check.sql 20/20, parity with the TypeScript on 32 180 step counts and 284 288 conversions, 15/15
+mutants red (.local/probe/pooled-trip-changes/).
+
+**Not done here:** the calendar and the edit/amend pages still show "In the Pool" for an at-Ceiling trip (the state is
+computed where the fleet check runs, the schedule); the "raise your Ceiling" nudge by email waits on notifications (§ AB,
+integrations phase). S83 security sweep finding #11 — a Driver can forge the accept fare — is the founder's to decide
+([[d146]]); any SQL port of the curve must take `pdp_step_count`.

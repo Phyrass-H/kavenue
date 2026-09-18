@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-09-18 — SESSION 83 · unfilled ruled (D147) · raise the Ceiling + change the car · built, proven, AWAITING THE PASTE · tests 1288 → 1319
+
+**BRANCH `s83-unfilled` — NOT merged.** ⚑ The code names `mission.pdp_step_count`: it must not reach `main` before
+2026-09-18c and 18d are live, and those go AFTER the S83 security sweep's 18a/18b ([[d146]], branch
+`claude/dazzling-mendeleev-f3a500`). Paste order: 18a → 18b → 18c → 18d → `.local/probe/pooled-trip-changes/check.sql`
+(read-only, every row `pass`).
+
+### The ruling (founder)
+`unfilled`: Kavenue neither covers an untaken trip nor phones the Business — **the expiry stands**. Instead, while
+nobody holds the trip, the Business can **raise its own Ceiling** (5 rules) and **change the car** (price follows the rate
+card), with an in-app nudge when the price tops out untaken, and "No car match" when money cannot help. Full text: D147.
+
+### What shipped on the branch
+| | |
+|---|---|
+| database | `2026-09-18c_pooled_trip_changes.sql` — `mission.pdp_step_count` (frozen on the first change: a raise used to dip up to €0,95, ~1 in 8), `raise_ceiling` / `change_trip_car` SECURITY DEFINER (ownership, Pool, pickup, live hold by outcome AND clock, floor priced in SQL), trigger `mission_price_terms_log` (3 guaranteed event types), helpers `pdp_ladder_steps` / `course_from_business_total` (no browser EXECUTE). `18d` — mission_read = 18a's view (extracted from e1b78ac) + the masked column. |
+| proof | `.local/probe/pooled-trip-changes/` replays the WHOLE live schema (91 migrations) on a throw-away PG17: 53/53 cases, check.sql 20/20, view diff vs 18a empty, TS⇄SQL parity 0/32 180 step counts + 0/284 288 conversions, `mutants.sh` 15/15 red |
+| app | server actions `raiseCeiling` / `changeTripCar` (all-in → Course with the trip's saved rates); the schedule reads rate card + price events + dispatcher names + `noCarMatch`; TripRow cards (At Ceiling / No car match), tiles (Raise the Ceiling / Change the car), history line; `lib/fleet-fit.ts` + `lib/fleet-match.ts` (fails closed, fleet cached 60 s); Driver accept sends the net + car it showed and is refused on a different car or a LOWER net (`accept_rejected` · `trip_changed`); dead `accept-button.tsx` removed; PRICE_EVENTS vocabulary; ⚑ the trip story's KNOWN set now includes HOLD_EVENTS (they rendered raw) |
+| preview | `/dev-preview/raise-ceiling` (dev-only, 404 hosted), real row, real rate card, saves nothing, real links off |
+| copy | booking form "Ceiling €" (no "— everything in"); docs/06 §6 wording (never down over time or on a raise; frozen steps); stale comments fixed (dispatch/page.tsx "Unfilled"; pdp.ts re-pool) |
+| tests | 1319 (31 new in `tests/pool-edits.test.ts`) · tsc clean |
+
+### Worth knowing
+- ⚑ Two parallel sessions ran from this one (S82 write lock + draft resume, merged; the S83 security sweep, awaiting its
+  own paste). The sweep confirmed by message that 18a's view will not change again; 18d is built from it and `run.sh`
+  diffs the two.
+- ⚑ **Sweep finding #11 (a Driver can forge the accept fare and be paid the Ceiling) is open and the founder's call.** Any
+  SQL port of the curve must take `pdp_step_count`.
+- The "At Ceiling" state lives where the fleet check runs (the schedule); the calendar / edit / amend pages still say
+  "In the Pool" for such a trip.
+- Worked on the founder's feedback: "less text", "the math explanation is confusing" (two lines: *Price now: A → B*,
+  *Top: C at <when>*), "Raise your Ceiling to attract more Drivers", "no need they know" (everything in).
+
 ## 2026-09-17 — SESSION 82 · draft resume — every resumed draft was refused 42501 · tests 1275 → 1288 · no database change
 
 **CLOSED — merged to `main` `677838e` 2026-09-17, CI green (types · tests · build), deployed by Vercel. No database

@@ -5,6 +5,29 @@
 
 ---
 
+## 18 September 2026 — When nobody takes a trip: raise the Ceiling, or change the car
+
+- **Decided: when nobody takes a trip, it simply expires.** Kavenue does not find a Driver itself and does not phone
+  the Business. Instead the Business gets the tools to act on its own offer.
+- **New: "Raise the Ceiling".** While no Driver has taken a trip, the Business can raise its maximum price — as often as
+  it likes, never lower. The price keeps its place on the climb and reaches the new top at the usual time. Not possible
+  during the 15 seconds a Driver is reviewing the trip.
+- **New: a message when the price hits the Ceiling and nobody has taken the trip:** "At Ceiling" on the row, and
+  *"The price has stopped climbing and may not be attractive enough. Raise your Ceiling to attract more Drivers."* with
+  the raise box right there.
+- **New: "Change the car".** While no Driver has taken it, the Business can change the class, body or model; the price
+  follows the rate card for the new car (the Business can adjust it, never below the lowest price).
+- **New: "No car match".** When no Driver on Kavenue within reach has the car the trip asks for, the row says so instead
+  of suggesting a higher price — and offers "Change the car".
+- **Every raise and car change is recorded** — who, from what, to what, when — and shown on the trip.
+- **Fairer for Drivers:** a Driver now always confirms the exact price and car on their screen; if the Business changed
+  the trip a moment before, the app shows the new details instead of accepting.
+- **Fixed on the way:** raising a price could, in about 1 case in 8, make the price shown to Drivers drop by up to €0.95
+  for a moment. The price now never goes down.
+- **The booking form now says "Ceiling €"** (without "— everything in").
+- **Status:** built and tested on a full practice copy of the database. Not live yet: waiting for the database files to
+  be pasted (after the security session's two files), then the founder's test on the Mac.
+
 ## 17 September 2026 — Reopening a saved draft works again
 
 - **Fixed: a saved draft could not be posted or saved again.** When a Business reopened a draft trip and clicked

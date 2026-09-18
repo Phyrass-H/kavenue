@@ -373,11 +373,16 @@ price is alive whether you look a fortnight out or the same morning.
 
 - **Roughly one step per €2 of gap**, floored at ~8 and capped at ~60, so every rise stays visible
   on a cheap trip and the app still feels alive on an expensive one.
+  ⚑ **S83 ([[d147]]) — once a Business raises its Ceiling (or changes the car and the price moves)
+  mid-climb, the step COUNT is frozen** (`mission.pdp_step_count`), so the steps of that trip grow
+  larger than ~€2 rather than being redrawn. Redrawing them could show a LOWER price after a raise.
 - **Step times are log-spaced, then jittered.** Uneven step *sizes* fall out of that for free —
   one source of randomness, not two.
 - **The jitter is seeded from the mission id.** The curve is unguessable from outside but perfectly
   reproducible: every read agrees, and any past price can be replayed and proved in a dispute.
-- **The price never goes down**, and always lands exactly on the ceiling.
+- **The price never goes down** — not as time passes, and not when the Business raises its Ceiling
+  (S83, [[d147]]: the step count is frozen for exactly this). A car change re-prices for the new car:
+  a cheaper car may read cheaper. It always lands exactly on the ceiling.
 
 ⚑ **BUILT 2026-08-22 (S64) — `lib/pdp.ts`.** The climb is **linear in `log(time remaining)`**, which is
 what "equal movement every time the remaining time halves" means arithmetically. The staircase is that
@@ -567,8 +572,8 @@ adjusts routes relative to that; it never sets the level on its own.
   ✅ **BUILT 2026-08-22 (S64)** — `mission.accepted_fare`, written by `accept_mission` from a number
   computed server-side by `lib/pdp.ts` (Postgres cannot evaluate the §6 curve) and clamped into
   `[floor, ceiling]` in SQL. **NULL means priced before this existed** — readers recompute, and nothing
-  was backfilled. It is also what makes [[d80]] possible: a re-pool raises `pdp_start` to it, so a trip
-  never re-opens below a fare a Driver already agreed to.
+  was backfilled. ⚑ A re-pool does NOT raise `pdp_start` (removed by 2026-08-22e_repool_touches_nothing.sql
+  — [[d82]]); the curve alone keeps a re-pooled trip at or above what the last Driver agreed to.
 - **Rounding: store full precision, round only at render.** Never back-derive a fare from a rounded
   displayed total.
 - **Category, never model.** The Business picks a service class, never a make or model.

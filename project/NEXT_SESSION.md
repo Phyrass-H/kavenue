@@ -147,8 +147,8 @@ through `/api/dev-login` · a question is not a task — answer first ([[wait-fo
 
 
 ### ⚑ LEFT OPEN — none blocks
-- **Two founder calls from S83:** (1) a car change can LOWER the Ceiling (a cheaper car; or switching away and back) —
-  keep, or never below the highest Ceiling ever set? (D147 item 3) · (2) sweep finding #11, with the security session.
+- **The founder's call from S83:** sweep finding #11 (a Driver can forge the accept fare), with the security session.
+  (The other one is decided: a car change MAY lower the Ceiling — D147 item 3, founder 2026-09-18.)
 - "At Ceiling" / "No car match" show only on the Dispatch schedule (where the fleet check runs); the calendar, edit and
   amend pages still say "In the Pool" for such a trip.
 - A millisecond window remains on a direct accept (the Driver's price check reads, then the RPC runs); the RPC's own

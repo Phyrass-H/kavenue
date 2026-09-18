@@ -68,9 +68,8 @@ card), with an in-app nudge when the price tops out untaken, and "No car match" 
   chip `task_78e0da44`) from a base BEFORE this merge — it must rebase on `main`; S83 changed that file heavily.
 - **Not done, on purpose:** the V1 Runway artifact was not edited (`unfilled` is ruled and `raiseceiling` is built
   in-app) — the founder's list; update it with them next session.
-- **Open, the founder's call:** (1) a car change can LOWER the Ceiling (a cheaper car, or switching away and back) — keep,
-  or never below the highest ever set? (2) sweep finding #11 (a Driver can forge the accept fare) — with the security
-  session.
+- **Decided after the merge (founder):** *"Keep it, a car change can lower the Ceiling"* — D147 item 3, no lock.
+- **Open, the founder's call:** sweep finding #11 (a Driver can forge the accept fare) — with the security session.
 
 ## 2026-09-17 — SESSION 82 · draft resume — every resumed draft was refused 42501 · tests 1275 → 1288 · no database change
 

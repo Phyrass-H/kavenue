@@ -4235,7 +4235,8 @@ means to act on its own offer, and an in-app nudge when it matters.
    read cheaper. ⚑ So a re-priced change CAN lower the Ceiling — including a round trip through a cheaper car (Sedan →
    Van → Sedan). The panel's default never lowers it on a dearer car (it pre-fills the higher of the market Ceiling and
    the current one); the database requires only the new floor. The raise door's words say "raise only", not "can't be
-   lowered". A hard "never below the highest Ceiling ever set" is the founder's call if they want it. Refused: luggage runs (always Business · Van), a Sedan for more
+   lowered". ⚑ **Kept, founder 2026-09-18: *"Keep it, a car change can lower the Ceiling"*** — no "never below the highest
+   Ceiling ever set" lock; a cheaper car reads cheaper, and switching away and back may end lower. Refused: luggage runs (always Business · Van), a Sedan for more
    than 4 Guests. Its own tile, not inside "Edit details": that page works after acceptance and promises "never changes
    the price" (founder: *"I understand now why you did it"*).
 4. **"NO CAR MATCH" INSTEAD OF "RAISE"** when no approved Driver's approved car fits the trip's class, body, specific car

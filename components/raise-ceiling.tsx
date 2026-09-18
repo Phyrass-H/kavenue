@@ -55,11 +55,12 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: 
   // ⚑ AND NEVER "goes up straight away" when it doesn't. Before the climb starts, and on
   // its first step, the price is the opening price, which a raise does not move (lib/pdp.ts
   // currentFare, u ≤ 0 and steps[0] = 0) — so the sentence says what actually happens.
-  const effect = atCeiling
-    ? `The auction price goes from ${formatMoney(priceNow)} to ${formatMoney(priceAfter)} straight away.`
-    : priceAfter > priceNow
-      ? `The auction price goes from ${formatMoney(priceNow)} to ${formatMoney(priceAfter)} now, and climbs to ${formatMoney(newCeiling)} by ${when}.`
-      : `The auction price stays at ${formatMoney(priceNow)} for now, and climbs to ${formatMoney(newCeiling)} by ${when} instead of ${formatMoney(nowCeiling)}.`;
+  // ⚑ Two short lines, not a sentence (founder, S83: "the math explanation is confusing").
+  const nowLine =
+    priceAfter > priceNow
+      ? `Price now: ${formatMoney(priceNow)} → ${formatMoney(priceAfter)}`
+      : `Price now: ${formatMoney(priceNow)}, unchanged for now`;
+  const topLine = atCeiling ? null : `Top: ${formatMoney(newCeiling)} at ${when}`;
 
   if (step === "done") {
     return (
@@ -75,8 +76,8 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: 
     return (
       <div className="rc">
         <p className="rc__confirm">
-          Raise your Ceiling from <b>{formatMoney(nowCeiling)}</b> to <b>{formatMoney(newCeiling)}</b>?{" "}
-          {effect} You can raise it again later, but not lower it.
+          Raise your Ceiling from <b>{formatMoney(nowCeiling)}</b> to <b>{formatMoney(newCeiling)}</b>?
+          It can’t be lowered afterwards.
         </p>
         <form
           className="dx-amend__actions"
@@ -110,13 +111,26 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: 
         />
       </label>
       <p className={`rc__effect${hasValue && !higher ? " rc__effect--warn" : ""}`}>
-        {!hasValue
-          ? `Current Ceiling: ${formatMoney(nowCeiling)}.`
-          : !higher
-            ? `Enter more than ${formatMoney(nowCeiling)} — a Ceiling can be raised, not lowered.`
-            : snapped
-              ? `${effect} Rounded down from ${formatMoney(typed)} so the three lines bill exactly.`
-              : effect}
+        {!hasValue ? (
+          `Current Ceiling: ${formatMoney(nowCeiling)}`
+        ) : !higher ? (
+          `Enter more than ${formatMoney(nowCeiling)} — a Ceiling can only go up.`
+        ) : (
+          <>
+            {nowLine}
+            {topLine && <><br />{topLine}</>}
+            {/* The booking form's rule: some totals can't split to the cent into trip +
+                fee + VAT, so the nearest one BELOW is used — a maximum is a promise. */}
+            {snapped && (
+              <>
+                <br />
+                <span className="rc__snap">
+                  {formatMoney(typed)} can’t split exactly into trip, fee and VAT — {formatMoney(newCeiling)} is the closest.
+                </span>
+              </>
+            )}
+          </>
+        )}
       </p>
       <div className="dx-amend__actions">
         <button
@@ -150,7 +164,7 @@ export function RaiseCeilingAction(props: Omit<Props, "atCeiling">) {
         <span className="dx-act__t">
           <TrendingUp size={14} aria-hidden /> Raise the Ceiling
         </span>
-        <span className="dx-act__s">The auction climbs to a higher top · can’t be lowered</span>
+        <span className="dx-act__s">Offer Drivers more · can’t be lowered</span>
       </button>
       {open && (
         <div className="rc-wrap">

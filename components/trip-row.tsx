@@ -680,11 +680,10 @@ export function TripRow({
               <span className="dx-amend__tag dx-amend__tag--warn">No car match</span>
             </div>
             <p className="dx-amend__reassure">
-              {specificCar
-                ? `No Driver on Kavenue within reach of this trip has the car it asks for (${specificCar}) yet`
-                : `No Driver on Kavenue within reach of this trip has a car of the class it asks for (${serviceLabel}) yet`}
-              , so raising your Ceiling won’t change that. If another car would do, you can cancel
-              this trip free of charge until a Driver takes it, and post it again with a wider choice.
+              {/* ⚑ Short on purpose (founder, S83: "less text please"). */}
+              No Driver within reach has{" "}
+              {specificCar ? `a ${specificCar}` : `a car of this class (${serviceLabel})`} yet
+              — a higher Ceiling won’t help. Cancelling is free until a Driver takes it.
             </p>
           </div>
         )}
@@ -699,10 +698,9 @@ export function TripRow({
               </span>
             </div>
             <p className="dx-amend__reassure">
-              Your trip reached its Ceiling of <b>{formatMoney(ceilingSplit.businessTotal)}</b> and
-              the price stops climbing there. No Driver has taken it yet — the price may not be
-              attractive enough for this trip. Raising your Ceiling shows Drivers a higher price
-              straight away.
+              {/* ⚑ Short on purpose (founder, S83: "less text please"). */}
+              The price has stopped climbing and may not be attractive enough. Raise your Ceiling
+              to offer Drivers more.
             </p>
             <RaiseCeilingPanel
               pdp={pdpOf(mission)}

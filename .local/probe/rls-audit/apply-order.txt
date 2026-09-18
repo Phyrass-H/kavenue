@@ -93,3 +93,5 @@
 #   sourced from origin/main until the merge — they are deliberately NOT listed here.
 #pending 2026-09-18a_browser_surface_locked.sql
 #pending 2026-09-18b_money_from_the_row.sql
+#pending 2026-09-18c_pooled_trip_changes.sql
+#pending 2026-09-18d_mission_read_step_count.sql

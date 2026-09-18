@@ -248,7 +248,7 @@ async function makeTrip(b: (typeof BIZ)[number], day: number): Promise<boolean> 
 
 async function walk(id: string, b: (typeof BIZ)[number], t: any) {
   const pickupMs = t.pickupAt.getTime();
-  const pdp = { id, ceiling: t.ceiling, pdp_start: t.floor, speed_win: t.speedWin, pickup_at: iso(t.pickupAt), created_at: iso(t.postedAt) };
+  const pdp = { id, ceiling: t.ceiling, pdp_start: t.floor, pdp_step_count: null, speed_win: t.speedWin, pickup_at: iso(t.pickupAt), created_at: iso(t.postedAt) };
 
   const roll = rnd();
   const upcoming = pickupMs > NOW.getTime();

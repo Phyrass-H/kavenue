@@ -123,7 +123,7 @@ for (const a of AWKWARD) {
   const postedAt = pickupAt - 9 * DAY;
   const m = await post({ bizName: a.biz, from: a.from, to: a.to, km: a.km, min: a.min, cat: a.cat, body: null, pickupAt, postedAt, pax: 3, bags: 4, guest: a.guest });
   const times = [postedAt, postedAt];   // created + pooled
-  const pdp = { id: m.id, ceiling: m.ceiling, pdp_start: m.floor, speed_win: false, pickup_at: iso(pickupAt), created_at: iso(postedAt) };
+  const pdp = { id: m.id, ceiling: m.ceiling, pdp_start: m.floor, pdp_step_count: null, speed_win: false, pickup_at: iso(pickupAt), created_at: iso(postedAt) };
 
   // Candidates who genuinely match the class — Business sedans near the route.
   const pool = ["Marc", "Sofia", "Inès", "Nadia"].map(driverNamed);

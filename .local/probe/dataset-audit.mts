@@ -164,7 +164,7 @@ t("every trip has a ceiling and a floor", priced.length === missions.length, `${
 t("the floor is always below the ceiling", missions.every((m) => Number(m.pdp_start) < Number(m.ceiling)));
 const withFare = missions.filter((m) => m.accepted_fare != null);
 const badFare = withFare.filter((m) => {
-  const open = openingPrice({ id: m.id, ceiling: Number(m.ceiling), pdp_start: Number(m.pdp_start), speed_win: m.speed_win, pickup_at: m.pickup_at, created_at: m.created_at });
+  const open = openingPrice({ id: m.id, ceiling: Number(m.ceiling), pdp_start: Number(m.pdp_start), pdp_step_count: m.pdp_step_count ?? null, speed_win: m.speed_win, pickup_at: m.pickup_at, created_at: m.created_at });
   return Number(m.accepted_fare) < open - 0.01 || Number(m.accepted_fare) > Number(m.ceiling) + 0.01;
 });
 t("every agreed fare sits between where the auction opened and the Ceiling",

@@ -20,6 +20,7 @@ import { Car } from "lucide-react";
 import { ServiceClassFields } from "@/components/service-class-fields";
 import { commissionSplit, courseFromBusinessTotal, type Rates } from "@/lib/commission";
 import { currentFare, type PdpInputs } from "@/lib/pdp";
+import { withNewOffer } from "@/lib/ceiling-raise";
 import { isBelowFloor, isMarketRate, priceFor, rateCardFor, type RateCardRow } from "@/lib/rate-card";
 import { TIER_LABEL, BODY_LABEL, type ServiceTier, type BodyType } from "@/lib/vehicle-catalog";
 import { seatCap, SEDAN_SEATS } from "@/lib/passengers";
@@ -90,15 +91,15 @@ export function ChangeCarPanel(p: Props) {
 
   const newCourse = priceMoves && hasCeiling ? courseFromBusinessTotal(typed, p.rates) : Number(p.pdp.ceiling);
   const newStart = priceMoves && quote ? courseFromBusinessTotal(quote.floor, p.rates) : p.pdp.pdp_start;
-  const offer: PdpInputs = { ...p.pdp, ceiling: newCourse, pdp_start: newStart };
   const now = new Date();
+  // Exactly what change_trip_car stores: the new terms, the step count frozen as the SQL
+  // freezes it. With the steps fixed, a dearer car (floor and Ceiling both up) can never
+  // read cheaper at any instant; a cheaper car can, and should.
+  const offer: PdpInputs = priceMoves
+    ? withNewOffer(p.pdp, { ceiling: newCourse, pdp_start: newStart }, now)
+    : p.pdp;
   const priceNow = allIn(currentFare(p.pdp, now));
-  // ⚑ PREVIEW STAND-IN, as in lib/ceiling-raise.ts: when the floor and the Ceiling both go
-  // up, the trip must never read cheaper — lib/pdp.ts would redraw its step ladder and could
-  // dip a few cents. The build freezes the step count instead. A cheaper car CAN be cheaper.
-  const upgrade = newCourse >= Number(p.pdp.ceiling) && (newStart ?? 0) >= (p.pdp.pdp_start ?? 0);
-  const afterCourse = currentFare(offer, now);
-  const priceAfter = allIn(upgrade ? Math.max(afterCourse, currentFare(p.pdp, now)) : afterCourse);
+  const priceAfter = allIn(currentFare(offer, now));
   const newCeilingAllIn = allIn(newCourse);
   const when = deadlineWords(p.topsOutAt, now.getTime());
 

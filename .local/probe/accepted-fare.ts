@@ -35,11 +35,11 @@ const signIn = async (email: string): Promise<SupabaseClient> => {
 
 const TAG = "AFPROBE";
 const HOUR = 3_600_000;
-const FARE_COLS = "id, business_id, ceiling, pdp_start, speed_win, pickup_at, created_at, pooled_at, accepted_at, accepted_fare";
+const FARE_COLS = "id, business_id, ceiling, pdp_start, pdp_step_count, speed_win, pickup_at, created_at, pooled_at, accepted_at, accepted_fare";
 /** Exactly the columns FARE_COLS selects — keep the two in step. */
 type FareRow = Pick<
   MissionRow,
-  "id" | "business_id" | "ceiling" | "pdp_start" | "speed_win"
+  "id" | "business_id" | "ceiling" | "pdp_start" | "pdp_step_count" | "speed_win"
   | "pickup_at" | "created_at" | "pooled_at" | "accepted_at" | "accepted_fare"
 >;
 let checks = 0; const fails: string[] = [];

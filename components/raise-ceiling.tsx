@@ -11,7 +11,7 @@ import { useState } from "react";
 import { TrendingUp } from "lucide-react";
 import { commissionSplit, courseFromBusinessTotal, type Rates } from "@/lib/commission";
 import { currentFare, type PdpInputs } from "@/lib/pdp";
-import { fareAfterRaise } from "@/lib/ceiling-raise";
+import { withNewOffer } from "@/lib/ceiling-raise";
 import { formatMoney } from "@/lib/format";
 import { deadlineWords } from "@/lib/dispatch-status";
 
@@ -46,7 +46,7 @@ export function RaiseCeilingPanel({ pdp, rates, topsOutAt, atCeiling, action }: 
   // render and the first client render never disagree about the clock.
   const now = new Date();
   const priceNow = hasValue ? allIn(currentFare(pdp, now)) : 0;
-  const priceAfter = higher ? allIn(fareAfterRaise(pdp, course, now)) : 0;
+  const priceAfter = higher ? allIn(currentFare(withNewOffer(pdp, { ceiling: course }, now), now)) : 0;
   const when = deadlineWords(topsOutAt, now.getTime());
 
   // ⚑ THE BUSINESS'S OWN NUMBER, named as the row names it ("Auction"). Never "Drivers

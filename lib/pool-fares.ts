@@ -33,7 +33,7 @@ import { driverNet } from "@/lib/commission";
 
 /** Exactly the curve's inputs plus the Driver's own rate. Nothing else. */
 const FARE_COLS =
-  "id, ceiling, pdp_start, speed_win, pickup_at, created_at, commission_driver_rate, commission_vat_rate";
+  "id, ceiling, pdp_start, pdp_step_count, speed_win, pickup_at, created_at, commission_driver_rate, commission_vat_rate";
 
 /**
  * What the Driver banks on each of these trips, right now — net of commission,

@@ -157,6 +157,7 @@ function pdpOf(m: MissionRow) {
     id: m.id,
     ceiling: Number(m.ceiling),
     pdp_start: m.pdp_start == null ? null : Number(m.pdp_start),
+    pdp_step_count: m.pdp_step_count ?? null,
     speed_win: m.speed_win,
     pickup_at: m.pickup_at,
     created_at: m.created_at,

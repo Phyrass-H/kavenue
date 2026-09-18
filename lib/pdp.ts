@@ -31,6 +31,15 @@ export interface PdpInputs {
   /** The curve is anchored HERE, not to when the trip was posted. */
   pickup_at: string;
   created_at: string; // when the mission first entered the Pool
+  /**
+   * S83 ([[d147]]) — the staircase's step count, FROZEN by the first Ceiling raise or
+   * price-moving car change (docs/migrations/2026-09-18c_pooled_trip_changes.sql). NULL on
+   * every trip never changed: the count derives from the gap, as it always did.
+   * ⚑ REQUIRED, not optional, for the reason `settledFare` spells out below: a select list
+   * that forgot it would draw the unfrozen staircase for a raised trip — the very dip the
+   * column exists to stop — and nothing would say so. A missing column is a compile error.
+   */
+  pdp_step_count: number | null;
 }
 
 // ⚑ `pooled_at` IS DELIBERATELY NOT AN INPUT. A re-pool does NOT restart the
@@ -95,7 +104,7 @@ export function currentFare(m: PdpInputs, now: Date = new Date()): number {
   if (u <= 0) return round2(open);
   if (u >= 1) return round2(ceiling);
 
-  const steps = stepPositions(m.id, stepCount(gap));
+  const steps = stepPositions(m.id, m.pdp_step_count ?? stepCount(gap));
   let taken = 0;
   for (let i = 0; i < steps.length; i++) if (steps[i] <= u) taken = i;
   return round2(open + gap * steps[taken]);
@@ -184,6 +193,30 @@ function topLeadFor(lead: number): number {
 /** §6 — one step per €2 of gap, floored at 8 and capped at 60. */
 function stepCount(gap: number): number {
   return Math.min(MAX_STEPS, Math.max(MIN_STEPS, Math.round(gap / STEP_PER_EURO)));
+}
+
+/**
+ * The step count the staircase uses: the frozen one when a change froze it, else derived
+ * from the gap. NULL when there is no gap to climb. Mirrored in SQL by
+ * `pdp_ladder_steps()` (2026-09-18c), which the probe checks against this on a grid.
+ */
+export function ladderSteps(m: PdpInputs): number | null {
+  if (m.pdp_step_count != null) return m.pdp_step_count;
+  const gap = Number(m.ceiling) - openingPrice(m);
+  return gap > 0 ? stepCount(gap) : null;
+}
+
+/**
+ * S83 ([[d147]]) — the count a raise or a price-moving car change freezes, exactly as the
+ * SQL does it: the count in force BEFORE the change, kept if already frozen, and not
+ * frozen at all when there is nothing to protect — before the climb opens (the price is
+ * the opening price either way) or with no gap.
+ */
+export function frozenStepCount(m: PdpInputs, now: Date = new Date()): number | null {
+  if (m.pdp_step_count != null) return m.pdp_step_count;
+  const pickup = new Date(m.pickup_at).getTime();
+  if (!(now.getTime() > pickup - HORIZON_MS)) return null;
+  return ladderSteps(m);
 }
 
 /**

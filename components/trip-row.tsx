@@ -10,6 +10,9 @@ import { atCeilingUntaken, canRaiseCeiling, type CeilingRaiseBrief } from "@/lib
 // ⚑ Live pages carry this client module in their JS bundle from now on (a few kB). Their
 // HTML is unchanged until a page passes `showRaise`.
 import { RaiseCeilingAction, RaiseCeilingPanel } from "@/components/raise-ceiling";
+import { ChangeCarAction, type CarChoice } from "@/components/change-car";
+import type { RateCardRow } from "@/lib/rate-card";
+import type { ServiceTier } from "@/lib/vehicle-catalog";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
 import { businessCost, carriesCommission, businessRatesOf, businessSplitFor,
@@ -160,6 +163,17 @@ function pdpOf(m: MissionRow) {
   };
 }
 
+/** The trip's car as the "Change the car" panel starts from it. */
+function carOf(m: MissionRow): CarChoice {
+  const tier: ServiceTier = m.category === "eco" || m.category === "luxury" ? m.category : "business";
+  return {
+    tier,
+    body: m.required_body_type === "sedan" || m.required_body_type === "van" ? m.required_body_type : null,
+    make: m.required_make ?? "",
+    model: m.required_model ?? "",
+  };
+}
+
 // One dense schedule line. Click to expand full detail. The coloured left edge +
 // status pill are the at-a-glance signal a hotel scans (red = needs a call).
 // A tone carrying `wash` tints the WHOLE row so it can't be scrolled past: amber
@@ -182,6 +196,7 @@ export function TripRow({
   nobodyCanTake = null,
   ceilingRaises = null,
   showRaise = false,
+  rateCard = null,
 }: {
   mission: MissionRow;
   driver?: DriverContact | null;
@@ -220,6 +235,8 @@ export function TripRow({
   ceilingRaises?: CeilingRaiseBrief[] | null;
   /** S83 — ⚑ PREVIEW GATE: everything S83 adds shows only where a page asks for it. */
   showRaise?: boolean;
+  /** S83 — the rate card, for "Change the car" (the price follows the new class). */
+  rateCard?: RateCardRow[] | null;
 }) {
   // S83 — the price has topped out and nobody has taken the trip (the founder's trigger).
   // Only where the fleet check says a Driver COULD take it: otherwise a raise changes nothing.
@@ -230,6 +247,10 @@ export function TripRow({
   const noMatch = live && nobodyCanTake === true;
   const atCeiling = live && nobodyCanTake === false && atCeilingUntaken(mission);
   const raisable = live && !noMatch;
+  // S83 — "Change the car": any time before a Driver takes it (founder), never on a
+  // luggage run (always Business · Van, forced at posting), and only with a rate card
+  // to re-price from.
+  const carChangeable = live && !mission.luggage_only && !!rateCard && rateCard.length > 0;
   const t = missionTone(mission, undefined, { archived, atCeiling, nobodyCanTake: noMatch });
   const reference = mission.reference?.trim() || null;
   // Every named Guest, aligned by index with its phone/share state from the side
@@ -349,6 +370,18 @@ export function TripRow({
         .join("")
     : "";
   const serviceLabel = serviceClassLabel(mission.category, mission.required_body_type);
+  const carProps = carChangeable
+    ? {
+        pdp: pdpOf(mission),
+        rates: businessRatesOf(mission),
+        rateCard: rateCard!,
+        current: carOf(mission),
+        distanceKm: mission.distance_km == null ? null : Number(mission.distance_km),
+        night: !!mission.night_applied,
+        paxCount: mission.pax_count,
+        topsOutAt: ceilingReachedAt(mission).toISOString(),
+      }
+    : null;
   const specificCar =
     mission.required_make && mission.required_model
       ? `${mission.required_make} ${mission.required_model}`
@@ -685,6 +718,7 @@ export function TripRow({
               {specificCar ? `a ${specificCar}` : `a car of this class (${serviceLabel})`} yet
               — a higher Ceiling won’t help. Cancelling is free until a Driver takes it.
             </p>
+            {carProps && <ChangeCarAction {...carProps} variant="button" />}
           </div>
         )}
         {/* S83 — the founder's trigger: the price has topped out and nobody took it.
@@ -748,6 +782,7 @@ export function TripRow({
                 topsOutAt={ceilingReachedAt(mission).toISOString()}
               />
             )}
+            {carProps && !noMatch && <ChangeCarAction {...carProps} />}
             {canAmend && (
               <Link href={`/dispatch/${mission.id}/amend`} className="dx-act">
                 <span className="dx-act__t">

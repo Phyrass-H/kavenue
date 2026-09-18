@@ -2462,6 +2462,8 @@ label.field.rc__field { margin-bottom: 0; max-width: 300px; }
 .rc__effect { margin: 7px 0 0; font-size: 12.5px; color: #475569; line-height: 1.5; }
 .rc__effect--warn { color: var(--tone-warn-fg); }
 .rc__snap { color: var(--text-muted); font-size: 12px; }
+.rc-inline { margin-top: 10px; border-top: 1px solid #f3dcc4; padding-top: 10px; }
+.cc .tier-tile__eg { display: none; } /* the panel is narrow; the class names carry it */
 .rc__confirm { margin: 0; font-size: 12.5px; color: var(--text); line-height: 1.55; }
 .rc__done { margin: 10px 0 0; font-size: 12.5px; color: var(--text-muted); }
 

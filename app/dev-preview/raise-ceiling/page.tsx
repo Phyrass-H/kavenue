@@ -3,6 +3,10 @@ import type { MissionRow } from "@/lib/database.types";
 import { DispatchShell } from "@/components/dispatch-shell";
 import { TripRow } from "@/components/trip-row";
 import type { CeilingRaiseBrief } from "@/lib/ceiling-raise";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { priceFor, RATE_CARD_COLS, type RateCardRow } from "@/lib/rate-card";
+import { commissionSplit, courseFromBusinessTotal } from "@/lib/commission";
+import type { ServiceTier, BodyType } from "@/lib/vehicle-catalog";
 import { OpenAll } from "./open-all";
 
 // S83 PREVIEW — the "At your Ceiling" message and the raise control, rendered by the REAL
@@ -91,14 +95,36 @@ function trip(o: Partial<MissionRow> & Pick<MissionRow, "id" | "pickup_at" | "cr
   } as MissionRow;
 }
 
-export default function RaiseCeilingPreview() {
+// The trips' own saved rates, as the Business sees them (12,5 % HT + 20 % VAT on the fee).
+const R = { businessHt: 0.125, driverHt: 0.1, feeVat: 0.2 };
+const allIn = (course: number) => commissionSplit(course, R).businessTotal;
+
+export default async function RaiseCeilingPreview() {
   if (process.env.NODE_ENV === "production" || process.env.VERCEL) notFound();
+
+  // The REAL rate card, read-only, so every price here is one Kavenue would quote. The only
+  // read on this page; a failed read hides "Change the car" and nothing else.
+  const { data: cardRows } = await createAdminClient().from("rate_card").select(RATE_CARD_COLS);
+  const rateCard = (cardRows ?? []) as unknown as RateCardRow[];
+
+  // A fixture priced like a real post: the market Ceiling (times `factor`) and the floor.
+  const priced = (tier: ServiceTier, body: BodyType | null, km: number, factor = 1) => {
+    const q = priceFor(rateCard, tier, body, km);
+    if (!q) return {};
+    return {
+      ceiling: courseFromBusinessTotal(Math.round(q.ceiling * factor * 100) / 100, R),
+      pdp_start: courseFromBusinessTotal(q.floor, R),
+    };
+  };
+  const raisedFrom = priced("business", "sedan", 24.6);
+  const raisedTo = priced("business", "sedan", 24.6, 1.2);
 
   const now = Date.now();
   const rows = [
     {
-      note: "Still climbing — the raise is a tile beside “Edit details”, open at any time.",
+      note: "Still climbing — “Raise the Ceiling” and “Change the car” are tiles beside “Edit details”, open at any time.",
       mission: trip({
+        ...priced("business", "sedan", 24.6),
         id: "preview-climbing-0001",
         pickup_at: iso(now + 9 * H),
         created_at: iso(now - 6 * H),
@@ -112,6 +138,7 @@ export default function RaiseCeilingPreview() {
       note: "Booked three weeks ahead — the climb hasn’t started, so a raise lifts the top, not today’s price.",
       mission: trip({
         id: "preview-far-ahead-0006",
+        ...priced("business", "sedan", 24.6),
         pickup_at: iso(now + 21 * 24 * H),
         created_at: iso(now - 2 * H),
         pickup_address: "8 Avenue de Verdun, 06000 Nice, France",
@@ -123,6 +150,7 @@ export default function RaiseCeilingPreview() {
       note: "Your trigger — the price reached the Ceiling and nobody has taken it.",
       mission: trip({
         id: "preview-at-ceiling-0002",
+        ...priced("business", "sedan", 24.6),
         pickup_at: iso(now + 4.5 * H),
         created_at: iso(now - 18 * H),
         pickup_address: "12 Boulevard de la Croisette, 06400 Cannes, France",
@@ -135,6 +163,7 @@ export default function RaiseCeilingPreview() {
       note: "Inside 3 hours — the pill says “No Driver yet” as today; the advice stays.",
       mission: trip({
         id: "preview-within-3h-0003",
+        ...priced("business", "sedan", 24.6),
         pickup_at: iso(now + 2 * H),
         created_at: iso(now - 20 * H),
         pickup_address: "Place du Casino, 98000 Monaco",
@@ -152,8 +181,7 @@ export default function RaiseCeilingPreview() {
         category: "luxury",
         required_make: "Mercedes-Benz",
         required_model: "Classe S",
-        ceiling: 180,
-        pdp_start: 110,
+        ...priced("luxury", "sedan", 102),
         pickup_address: "Quai des États-Unis, 06300 Nice, France",
         dropoff_address: "Place des Lices, 83990 Saint-Tropez, France",
         passenger_name: "Mrs Hartley",
@@ -163,13 +191,20 @@ export default function RaiseCeilingPreview() {
     },
     {
       note: "After a raise — the new Ceiling on the row, and who raised it, from what, when.",
-      raises: [{ at: iso(now - 40 * 60_000), from: 115, to: 138, by: "Camille Martin" }] as
-        CeilingRaiseBrief[],
+      raises: [
+        {
+          at: iso(now - 40 * 60_000),
+          from: allIn(raisedFrom.ceiling ?? 0),
+          to: allIn(raisedTo.ceiling ?? 0),
+          by: "Camille Martin",
+        },
+      ] as CeilingRaiseBrief[],
       mission: trip({
         id: "preview-raised-0005",
         pickup_at: iso(now + 7 * H),
         created_at: iso(now - 5 * H),
-        ceiling: 120,
+        ...raisedTo,
+        pdp_start: raisedFrom.pdp_start,
         pickup_address: "5 Rue de France, 06000 Nice, France",
         dropoff_address: "Aéroport Nice Côte d'Azur, Terminal 2, 06200 Nice, France",
         passenger_name: "M. Rossi",
@@ -181,8 +216,8 @@ export default function RaiseCeilingPreview() {
     <DispatchShell businessName="Preview Business">
       <OpenAll />
       <div className="notice" style={{ marginBottom: 14 }}>
-        <strong>Preview · S83 — raise the Ceiling.</strong> Made-up trips, rendered by the real
-        schedule row. Nothing is read from or saved to the database.
+        <strong>Preview · S83 — raise the Ceiling, change the car.</strong> Made-up trips, rendered
+        by the real schedule row, priced with the real rate card. Nothing is saved.
       </div>
       <div className="dx-sched">
         <div className="dx-colhead">
@@ -208,6 +243,7 @@ export default function RaiseCeilingPreview() {
               // every row but the no-match one says "a Driver could take this".
               nobodyCanTake={r.nobodyCanTake ?? false}
               ceilingRaises={r.raises ?? null}
+              rateCard={rateCard}
               showDate
             />
           </section>

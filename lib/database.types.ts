@@ -673,6 +673,10 @@ export interface Database {
           pdp_start: number | null;
           pdp_step: number | null;
           pdp_interval: number | null;
+          // S83 (D147) — the PDP staircase's step count, frozen by the first Ceiling raise or
+          // price-moving car change (2026-09-18c). NULL = never changed. Written only by the
+          // raise_ceiling / change_trip_car RPCs; no browser grant.
+          pdp_step_count: number | null;
           speed_win: boolean;
           required_body_type: BodyType | null;
           required_make: string | null;
@@ -791,6 +795,7 @@ export interface Database {
           pdp_start?: number | null;
           pdp_step?: number | null;
           pdp_interval?: number | null;
+          pdp_step_count?: number | null;
           speed_win?: boolean;
           required_body_type?: BodyType | null;
           required_make?: string | null;
@@ -1294,6 +1299,20 @@ export interface Database {
       // subject to column privileges, so no row shape may cross to a browser session. The
       // screen re-reads mission_hold under its own RLS. Nothing ever read this value.
       place_hold: { Args: { p_mission_id: string; p_fare?: number | null }; Returns: undefined };
+      // S83 (D147) — a Business on its own trip still in the Pool. VOID by the 31g rule.
+      // p_ceiling is COURSE space; the server action converts the all-in with the trip's rates.
+      raise_ceiling: { Args: { p_mission_id: string; p_ceiling: number }; Returns: undefined };
+      change_trip_car: {
+        Args: {
+          p_mission_id: string;
+          p_category: VehicleCategory;
+          p_body: BodyType | null;
+          p_make: string | null;
+          p_model: string | null;
+          p_ceiling: number | null;
+        };
+        Returns: undefined;
+      };
       release_hold: { Args: { p_mission_id: string }; Returns: undefined };
       sweep_lapsed_holds: { Args: Record<string, never>; Returns: number };
       // Kavenue's price for a trip (docs/06 §4), from the rate_card table. The
@@ -1591,10 +1610,12 @@ export type MissionRow = Database["public"]["Tables"]["mission"]["Row"];
  * and that is the point: the compiler refuses it, so the price has to come from
  * `lib/pool-fares.ts` where the Ceiling never leaves the server.
  */
-export type PoolMissionRow = Omit<MissionRow, "ceiling" | "pdp_start" | "base_fare"> & {
+export type PoolMissionRow = Omit<MissionRow, "ceiling" | "pdp_start" | "base_fare" | "pdp_step_count"> & {
   ceiling: null;
   pdp_start: null;
   base_fare: null;
+  // S83 — masked like the Ceiling (2026-09-18d): the frozen count is about gap ÷ 2.
+  pdp_step_count: null;
 };
 export type MissionAmendmentRow = Database["public"]["Tables"]["mission_amendment"]["Row"];
 export type MissionInfoChangeRow = Database["public"]["Tables"]["mission_info_change"]["Row"];

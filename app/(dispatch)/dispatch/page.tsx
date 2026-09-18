@@ -29,6 +29,10 @@ import {
   declineReasonLabel,
 } from "@/lib/amendments";
 import type { MissionRow, MissionAmendmentRow, MissionReleaseRow } from "@/lib/database.types";
+import { RATE_CARD_COLS, type RateCardRow } from "@/lib/rate-card";
+import { PRICE_CHANGE_EVENTS, priceChangesFrom, type PriceChangeBrief } from "@/lib/ceiling-raise";
+import { noCarMatch } from "@/lib/fleet-match";
+import { serviceClassLabel } from "@/lib/format";
 
 // Reduce a stored amendment to the compact brief the schedule row renders.
 // ⚑ `m` is here for one reason: both fares are Course-basis in the row and a
@@ -82,6 +86,13 @@ function ColumnHead() {
   );
 }
 
+/** S83 — what the schedule's pooled rows need for raise / change the car ([[d147]]). */
+type PoolEdits = {
+  rateCard: RateCardRow[];
+  noMatch: Map<string, boolean | null>;
+  changes: Map<string, PriceChangeBrief[]>;
+};
+
 function DayGroup({
   dayKey,
   missions,
@@ -91,6 +102,7 @@ function DayGroup({
   releases,
   driverWalks,
   infoChanges,
+  pool,
   liftedIds,
   today,
 }: {
@@ -102,6 +114,8 @@ function DayGroup({
   releases: Map<string, ReleaseBrief>;
   driverWalks: Map<string, DriverWalk[]>;
   infoChanges: Map<string, InfoChangeBrief>;
+  /** S83 — raise the Ceiling / change the car, and the "No car match" answer. */
+  pool: PoolEdits;
   /** § Q — rows shown outside their own day, so they print their date. */
   liftedIds?: Set<string>;
   today?: boolean;
@@ -131,6 +145,10 @@ function DayGroup({
           driverWalks={driverWalks.get(m.id) ?? null}
           infoChange={infoChanges.get(m.id) ?? null}
           showDate={liftedIds?.has(m.id) ?? false}
+          showRaise
+          rateCard={pool.rateCard}
+          nobodyCanTake={pool.noMatch.get(m.id) ?? null}
+          priceChanges={pool.changes.get(m.id) ?? null}
         />
       ))}
     </section>
@@ -149,9 +167,11 @@ export default async function DispatchSchedule({
   const supabase = await createClient();
 
   // § P — a trip nobody accepted is dead at its pickup time. Sweeping here (as
-  // well as on the Driver's Pool) means the Business sees "Expired · Was not
-  // filled in time" on their own schedule without waiting for a Driver to happen
-  // to open the app. Idempotent; never throws.
+  // well as on the Driver's Pool) means the Business sees "Unfilled" — "No Driver
+  // accepted it before the pickup time." (lib/dispatch-status.ts expiredTone, D63) —
+  // on their own schedule without waiting for a Driver to happen to open the app.
+  // ⚑ This comment said "Expired · Was not filled in time" until S83; it misled S81.
+  // Idempotent; never throws.
   await sweepExpiredMissions(supabase);
 
   const { data: missions, error } = await supabase
@@ -282,6 +302,41 @@ export default async function DispatchSchedule({
     }
   }
 
+  // S83 ([[d147]]) — raise the Ceiling, change the car, and "No car match".
+  //   · the rate card, so "Change the car" re-prices as the booking form does (same read);
+  //   · every recorded raise / car change of this Business's trips (the 18c trigger's rows,
+  //     RLS-scoped to it — ⚑ § R rule 1: Business-scoped, not .in(<every id>));
+  //   · whether ANY Driver's car and reach fit each pooled trip (lib/fleet-match.ts — fails
+  //     closed: an unreadable fleet answers NULL, which shows no advice at all).
+  const [{ data: cardRows }, { data: priceEvents }, { data: teammates }, noMatch] = await Promise.all([
+    supabase.from("rate_card").select(RATE_CARD_COLS),
+    // ⚑ Newest first and bounded: this runs on every 4-second refresh, and PostgREST stops at
+    //   1 000 rows without an error — truncation must drop the OLDEST changes, never today's.
+    //   (2026-09-18c's partial index serves exactly this read.)
+    supabase
+      .from("mission_event")
+      .select("mission_id, occurred_at, event_type, actor_kind, actor_id, payload")
+      .eq("business_id", ctx.business.id)
+      .in("event_type", [...PRICE_CHANGE_EVENTS])
+      .order("occurred_at", { ascending: false })
+      .range(0, 999),
+    supabase.from("dispatcher").select("id, name").eq("business_id", ctx.business.id),
+    noCarMatch(missions ?? []),
+  ]);
+  const names = new Map((teammates ?? []).map((d) => [d.id, d.name ?? "your team"]));
+  const byTrip = new Map<string, NonNullable<typeof priceEvents>>();
+  for (const e of priceEvents ?? []) byTrip.set(e.mission_id, [...(byTrip.get(e.mission_id) ?? []), e]);
+  const pool: PoolEdits = {
+    rateCard: (cardRows ?? []) as unknown as RateCardRow[],
+    noMatch,
+    changes: new Map(
+      [...byTrip].map(([id, evs]) => [
+        id,
+        priceChangesFrom(evs, names, (c, b) => serviceClassLabel(c as MissionRow["category"], b as MissionRow["required_body_type"])),
+      ]),
+    ),
+  };
+
   // Group by Paris day; split into today / future / past.
   const todayKey = parisDayKey(new Date());
   const groups = new Map<string, MissionRow[]>();
@@ -343,6 +398,7 @@ export default async function DispatchSchedule({
               releases={releases}
                 driverWalks={driverWalks}
               infoChanges={infoChanges}
+              pool={pool}
               liftedIds={liftedIds}
               today
             />
@@ -363,6 +419,7 @@ export default async function DispatchSchedule({
                 releases={releases}
                 driverWalks={driverWalks}
                 infoChanges={infoChanges}
+                pool={pool}
               />
             ))}
           </div>
@@ -385,6 +442,7 @@ export default async function DispatchSchedule({
                     releases={releases}
                 driverWalks={driverWalks}
                     infoChanges={infoChanges}
+                    pool={pool}
                   />
                 ))}
               </div>

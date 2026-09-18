@@ -17,6 +17,8 @@ type Props = {
   holdSpent: boolean;
   /** The fare they are being shown, so Confirm can name it. */
   netFare: number | null;
+  /** S83 — the car they are being shown (lib/pool-fares carKey). Sent back with the accept. */
+  seenCar: string;
 };
 
 /**
@@ -34,6 +36,7 @@ export function HoldControls({
   othersHoldExpiresAt,
   holdSpent,
   netFare,
+  seenCar,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -79,12 +82,21 @@ export function HoldControls({
     };
   }, [missionId, myHoldExpiresAt]);
 
-  function run(fn: () => Promise<{ ok: true } | { ok: false; message: string }>, onOk?: () => void) {
+  function run(
+    fn: () => Promise<{ ok: true } | { ok: false; message: string; changed?: true }>,
+    onOk?: () => void,
+  ) {
     setError(null);
     startTransition(async () => {
       const res = await fn();
       if (res.ok) (onOk ?? (() => router.refresh()))();
-      else setError(res.message);
+      else {
+        setError(res.message);
+        // Re-read the trip ONLY when it changed under the Driver, so they see the new terms under
+        // the message. ⚑ Not on every refusal: a Driver who lost the race would re-read a trip that
+        // is no longer theirs to see, and get a bare 404 instead of "no longer available".
+        if (res.changed) router.refresh();
+      }
     });
   }
 
@@ -110,7 +122,7 @@ export function HoldControls({
           disabled={pending}
           onClick={() =>
             run(
-              () => acceptMission(missionId),
+              () => acceptMission(missionId, { net: netFare, car: seenCar }),
               () => {
                 router.push("/rides");
                 router.refresh();
@@ -140,7 +152,7 @@ export function HoldControls({
         disabled={pending}
         onClick={() =>
           run(
-            () => acceptMission(missionId),
+            () => acceptMission(missionId, { net: netFare, car: seenCar }),
             () => {
               router.push("/rides");
               router.refresh();

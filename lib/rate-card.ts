@@ -166,3 +166,32 @@ export function isBelowFloor(ceiling: number | null | undefined, quote: Quote | 
   if (quote == null || ceiling == null || !Number.isFinite(ceiling)) return false;
   return Math.round(ceiling * 100) < Math.round(quote.floor * 100);
 }
+
+/**
+ * S83 ([[d147]]) — the floor to the CENT exactly as SQL computes it: `round(floor_price, 2)` on
+ * exact numerics, rounding half away from zero. `priceFor().floor` is a float, and floors land on
+ * a half cent often (0,75 €/km × an odd tenth of a km): the float can round one way and Postgres
+ * the other, so a panel checking the float would accept a Ceiling one cent under the floor that
+ * `change_trip_car` then refuses. Integers only: base in cents, per-km in 1/10 000 €, km in tenths,
+ * the multiplier in 1/10 000 — the columns' own scales (numeric(10,2), (10,4), (6,1), (10,4)).
+ * The probe checks it against `mission_price` on a grid (.local/probe/pooled-trip-changes/).
+ */
+export function exactFloorAllIn(
+  rows: RateCardRow[],
+  tier: ServiceTier,
+  body: BodyType | null,
+  km: number | null | undefined,
+  opts: { night?: boolean; market?: string; at?: Date } = {},
+): number | null {
+  if (km == null || !Number.isFinite(km) || km <= 0) return null;
+  const card = rateCardFor(rows, tier, body, opts.market ?? "riviera", opts.at ?? new Date());
+  if (!card) return null;
+  const b = BigInt(Math.round(Number(card.floor_base) * 100)); //          cents
+  const p = BigInt(Math.round(Number(card.floor_per_km) * 10_000)); //     1e-4 € per km
+  const k = BigInt(Math.round(km * 10)); //                                 tenths of a km
+  const m = BigInt(Math.round((opts.night ? Number(card.night_multiplier) : 1) * 10_000));
+  // (b/100 + p·k/100 000) · m/10 000 € = (b·1 000 + p·k) · m / 10^9 €  →  in cents: / 10^7
+  const units = (b * 1_000n + p * k) * m;
+  const cents = (units + 5_000_000n) / 10_000_000n; // half up (all terms are positive)
+  return Number(cents) / 100;
+}

@@ -77,12 +77,22 @@ describe("the two rules a writer must not break", () => {
   // ⚑ accept_mission refuses by RAISE, and a raise rolls back the transaction —
   // so a row written INSIDE the RPC would disappear with the error it records.
   // The only place the fact survives is the app, after the call returned.
+  // ⚑ S83 — this needle was `rpc("accept_mission"` (with the quote), which the `_call` wrapper
+  //   never matched: rpcAt was -1 and the test passed without checking anything since S66.
+  //   Two writers now, both out of the RPC: the refusal AFTER the call, and the "trip changed"
+  //   guard BEFORE it (no RPC ran, so there is no rollback to lose it in).
   it("accept_rejected is written from the app, never from inside the RPC", () => {
     const action = read("app/(app)/missions/[id]/actions.ts");
-    const rejectedAt = action.indexOf('type: "accept_rejected"');
-    const rpcAt = action.indexOf('rpc("accept_mission"');
-    expect(rejectedAt).toBeGreaterThan(-1);
-    expect(rejectedAt).toBeGreaterThan(rpcAt); // after the call, out of band
+    const rpcAt = action.indexOf('rpc("accept_mission_call"');
+    expect(rpcAt).toBeGreaterThan(-1);
+    const writes = [...action.matchAll(/type: "accept_rejected"/g)].map((m) => m.index!);
+    expect(writes.length).toBe(2);
+    // the refusal: after the call, out of band
+    expect(writes.some((at) => at > rpcAt)).toBe(true);
+    // the guard: before the call, and only for a trip that changed under the Driver
+    const before = writes.filter((at) => at < rpcAt);
+    expect(before.length).toBe(1);
+    expect(action.slice(before[0], before[0] + 400)).toContain('reason: "trip_changed"');
   });
 });
 

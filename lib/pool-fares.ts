@@ -33,7 +33,7 @@ import { driverNet } from "@/lib/commission";
 
 /** Exactly the curve's inputs plus the Driver's own rate. Nothing else. */
 const FARE_COLS =
-  "id, ceiling, pdp_start, speed_win, pickup_at, created_at, commission_driver_rate, commission_vat_rate";
+  "id, ceiling, pdp_start, pdp_step_count, speed_win, pickup_at, created_at, commission_driver_rate, commission_vat_rate";
 
 /**
  * What the Driver banks on each of these trips, right now — net of commission,
@@ -61,6 +61,29 @@ export async function poolFaresNet(
 /** The same, for one trip. */
 export async function poolFareNet(id: string, now: Date = new Date()): Promise<number | null> {
   return (await poolFaresNet([id], now)).get(id) ?? null;
+}
+
+export { carKey } from "@/lib/trip-terms";
+import { carKey } from "@/lib/trip-terms";
+
+/**
+ * S83 — everything accept needs in ONE read: the gross Course it freezes, the Driver's net it
+ * compares with what their screen showed, and the car. Service role, for the reason
+ * `courseForAccept` gives; the car columns are a separate list so FARE_COLS stays "exactly the
+ * curve's inputs plus the Driver's own rate".
+ */
+export async function acceptTerms(
+  id: string,
+  now: Date = new Date(),
+): Promise<{ course: number; net: number; car: string } | null> {
+  const { data } = await createAdminClient()
+    .from("mission")
+    .select(`${FARE_COLS}, category, required_body_type, required_make, required_model`)
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+  const course = currentFare(data, now);
+  return { course, net: driverNet(data, course), car: carKey(data) };
 }
 
 /**

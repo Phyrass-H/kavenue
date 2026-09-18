@@ -6,13 +6,15 @@ import { createClient } from "@/lib/supabase/server";
 import { getAppContext } from "@/lib/app-context";
 import { recordMissionEvent } from "@/lib/mission-events-server";
 import { settledFare } from "@/lib/pdp";
+import { businessRatesOf, courseFromBusinessTotal } from "@/lib/commission";
+import { carsFor, SERVICE_TIERS, type BodyType, type ServiceTier } from "@/lib/vehicle-catalog";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
 // ⚑ `id` and `pickup_at` are curve INPUTS (the jitter seed and the anchor), not
 // bookkeeping — drop either and settledFare stops compiling, which is the point.
 const FARE_COLS =
-  "id, business_id, ceiling, pdp_start, speed_win, pickup_at, created_at, pooled_at, accepted_at, accepted_fare";
+  "id, business_id, ceiling, pdp_start, pdp_step_count, speed_win, pickup_at, created_at, pooled_at, accepted_at, accepted_fare";
 
 function revalidateDispatch() {
   revalidatePath("/dispatch", "layout");
@@ -176,6 +178,127 @@ export async function reclaimMission(missionId: string): Promise<ActionResult> {
       ok: false,
       message: msg && msg.length < 120 ? msg : "Couldn’t reclaim — please refresh and try again.",
     };
+  }
+
+  revalidateDispatch();
+  return { ok: true };
+}
+
+// ── S83 · raise the Ceiling, change the car ([[d147]]) ─────────────────────────────────────
+// Both run through a SECURITY DEFINER RPC (2026-09-18c): D144 freezes a posted trip from the
+// browser, and the RPC re-checks ownership, the Pool, the pickup, a Driver's live hold and —
+// for a car — the rate-card floor, priced in SQL from the trip's own distance. The browser
+// sends only what the Business chose. Every change is recorded by a TRIGGER, not here.
+//
+// ⚑ THE AMOUNT IS ALL-IN, THE COLUMN IS THE COURSE — converted with the trip's OWN saved rates
+//   (docs/06 §3), never today's, exactly as the booking form converts a new trip.
+
+/** The database's refusals, in the Business's words. Anything unknown gets the generic line. */
+const POOL_EDIT_WORDS: ReadonlyArray<readonly [RegExp, string]> = [
+  [/A Driver is reviewing this trip/, "A Driver is looking at this trip right now — try again in a few seconds."],
+  // ⚑ Not "a Driver has just taken it": the same refusal covers a trip cancelled or swept to
+  //   expired (review, S83). This is true in every case.
+  [/no longer in the Pool/, "This trip has just left the Pool — its price and car can’t change now."],
+  [/Mission has expired/, "The pickup time has passed."],
+  [/A raise must be higher/, "Enter more than your current Ceiling."],
+  [/Below the lowest price/, "That’s below the lowest price for this car."],
+  [/A new Ceiling is needed/, "Enter a Ceiling for the new car."],
+  [/A Sedan seats 4/, "A Sedan seats 4 — this trip has more Guests."],
+  [/Nothing changed/, "That’s the car the trip already has."],
+  [/no distance on record/, "This trip has no distance on record, so the new price can’t be worked out."],
+  [/A luggage run/, "A luggage run is always Business · Van."],
+  [/No price for this class/, "Kavenue has no price for that class yet."],
+];
+
+function poolEditMessage(raw: string | undefined, fallback: string): string {
+  const hit = POOL_EDIT_WORDS.find(([re]) => re.test(raw ?? ""));
+  return hit ? hit[1] : fallback;
+}
+
+const RATE_COLS = "id, business_id, category, required_body_type, required_make, required_model, commission_business_rate, commission_vat_rate";
+
+/** Raise this trip's Ceiling to `ceilingAllIn` (the Business's all-in figure). */
+export async function raiseCeiling(missionId: string, ceilingAllIn: number): Promise<ActionResult> {
+  const ctx = await getAppContext();
+  if (!ctx.business) return { ok: false, message: "You’re not signed in as a Business." };
+  if (!Number.isFinite(ceilingAllIn) || ceilingAllIn <= 0 || ceilingAllIn > 100_000) {
+    return { ok: false, message: "Enter a valid amount." };
+  }
+
+  const supabase = await createClient();
+  const { data: m } = await supabase
+    .from("mission_read")
+    .select(RATE_COLS)
+    .eq("id", missionId)
+    .eq("business_id", ctx.business.id)
+    .maybeSingle();
+  if (!m) return { ok: false, message: "This isn’t one of your trips." };
+
+  const course = courseFromBusinessTotal(ceilingAllIn, businessRatesOf(m));
+  const { error } = await supabase.rpc("raise_ceiling", { p_mission_id: missionId, p_ceiling: course });
+  if (error) {
+    return { ok: false, message: poolEditMessage(error.message, "Couldn’t raise the Ceiling — please refresh and try again.") };
+  }
+
+  revalidateDispatch();
+  return { ok: true };
+}
+
+/**
+ * Change this trip's car. `ceilingAllIn` is the new Ceiling when the new car is priced
+ * differently, and NULL when it is not (the panel knows from the rate card; the RPC refuses a
+ * Ceiling sent where the price does not move, so a same-price change cannot lower it).
+ * ⚑ A re-priced change CAN lower the Ceiling — a cheaper car reads cheaper, by the founder's rule,
+ *   and so does a round trip through one (Sedan → Van → Sedan). The panel's default never lowers
+ *   it on a dearer car; the database requires only the new floor (D147).
+ */
+export async function changeTripCar(
+  missionId: string,
+  car: { tier: string; body: string | null; make: string; model: string },
+  ceilingAllIn: number | null,
+): Promise<ActionResult> {
+  const ctx = await getAppContext();
+  if (!ctx.business) return { ok: false, message: "You’re not signed in as a Business." };
+
+  const tier = (SERVICE_TIERS as string[]).includes(car.tier) ? (car.tier as ServiceTier) : null;
+  const body: BodyType | null = car.body === "sedan" || car.body === "van" ? car.body : null;
+  if (!tier || (car.body != null && car.body !== "" && body == null)) {
+    return { ok: false, message: "Pick a class and a body type." };
+  }
+  if (ceilingAllIn != null && (!Number.isFinite(ceilingAllIn) || ceilingAllIn <= 0 || ceilingAllIn > 100_000)) {
+    return { ok: false, message: "Enter a valid amount." };
+  }
+
+  const supabase = await createClient();
+  const { data: m } = await supabase
+    .from("mission_read")
+    .select(RATE_COLS)
+    .eq("id", missionId)
+    .eq("business_id", ctx.business.id)
+    .maybeSingle();
+  if (!m) return { ok: false, message: "This isn’t one of your trips." };
+
+  // A specific car must be one the booking form offers for this class and body — or the one the
+  // trip already names (a legacy model no longer in the catalog stays selectable, as in the form).
+  const make = car.make.trim();
+  const model = car.model.trim();
+  if (make || model) {
+    const offered = body ? carsFor(tier, body).some((c) => c.make === make && c.model === model) : false;
+    const kept = make === (m.required_make ?? "") && model === (m.required_model ?? "");
+    if (!offered && !kept) return { ok: false, message: "That car isn’t on the list for this class." };
+  }
+
+  const course = ceilingAllIn == null ? null : courseFromBusinessTotal(ceilingAllIn, businessRatesOf(m));
+  const { error } = await supabase.rpc("change_trip_car", {
+    p_mission_id: missionId,
+    p_category: tier,
+    p_body: body,
+    p_make: make || null,
+    p_model: model || null,
+    p_ceiling: course,
+  });
+  if (error) {
+    return { ok: false, message: poolEditMessage(error.message, "Couldn’t change the car — please refresh and try again.") };
   }
 
   revalidateDispatch();

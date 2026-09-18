@@ -826,7 +826,8 @@ console.log("\n── the money-column walls (S72, [[d114]]) ──");
     const dir = "docs/migrations";
     const files = fs.existsSync(dir)
       ? fs.readdirSync(dir).filter((f) => f.endsWith(".sql"))
-          .filter((f) => /create view public\.mission_read/i.test(fs.readFileSync(`${dir}/${f}`, "utf8")))
+          // ⚑ S83 — `create OR REPLACE view` too: 2026-09-18a and 18d rebuild the view in place.
+          .filter((f) => /create (or replace )?view public\.mission_read/i.test(fs.readFileSync(`${dir}/${f}`, "utf8")))
           .sort()
       : [];
     return files.length ? `${dir}/${files[files.length - 1]}` : "";

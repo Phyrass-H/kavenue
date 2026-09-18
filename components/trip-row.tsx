@@ -1,11 +1,18 @@
 import { Fragment } from "react";
 import Link from "next/link";
-import { Pencil, GitPullRequestArrow, Lock, Phone, Car, Clock, Star } from "lucide-react";
+import { Pencil, GitPullRequestArrow, Lock, Phone, Car, Clock, Star, TrendingUp } from "lucide-react";
 import type { MissionRow, AmendmentStatus, ReleaseStatus } from "@/lib/database.types";
 import { closeAmendment } from "@/app/(dispatch)/dispatch/[id]/amend/actions";
-import { closeRelease } from "@/app/(dispatch)/dispatch/actions";
-import { settledFare } from "@/lib/pdp";
+import { changeTripCar, closeRelease, raiseCeiling } from "@/app/(dispatch)/dispatch/actions";
+import { ceilingReachedAt, settledFare } from "@/lib/pdp";
 import { fareCell } from "@/lib/fare-cell";
+import { atCeilingUntaken, canRaiseCeiling, type PriceChangeBrief } from "@/lib/ceiling-raise";
+// ⚑ Live pages carry this client module in their JS bundle from now on (a few kB). Their
+// HTML is unchanged until a page passes `showRaise`.
+import { RaiseCeilingAction, RaiseCeilingPanel } from "@/components/raise-ceiling";
+import { ChangeCarAction, type CarChoice } from "@/components/change-car";
+import type { RateCardRow } from "@/lib/rate-card";
+import type { ServiceTier } from "@/lib/vehicle-catalog";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
 import { businessCost, carriesCommission, businessRatesOf, businessSplitFor,
@@ -27,6 +34,7 @@ import {
 import {
   canEditInfo,
   checkInOpen,
+  deadlineWords,
   isExpired,
   missionTone,
   needsClosing,
@@ -143,6 +151,37 @@ function Hl({ text, q }: { text: string; q: string }) {
 /** How a hit reads when it landed somewhere the table has no column for. */
 const MATCH_NOTE: Partial<Record<MatchField, string>> = { car: "Car", class: "Class" };
 
+/** The curve's own inputs, as plain values a client component can take. */
+function pdpOf(m: MissionRow) {
+  return {
+    id: m.id,
+    ceiling: Number(m.ceiling),
+    pdp_start: m.pdp_start == null ? null : Number(m.pdp_start),
+    pdp_step_count: m.pdp_step_count ?? null,
+    speed_win: m.speed_win,
+    pickup_at: m.pickup_at,
+    created_at: m.created_at,
+  };
+}
+
+/** When the trip has sat at its current Ceiling since: the top of the climb, or a later change. */
+function atCeilingSince(m: MissionRow, changes: PriceChangeBrief[] | null): string {
+  const top = ceilingReachedAt(m).toISOString();
+  const last = changes?.[0]?.at ?? null; // newest first
+  return last && Date.parse(last) > Date.parse(top) ? last : top;
+}
+
+/** The trip's car as the "Change the car" panel starts from it. */
+function carOf(m: MissionRow): CarChoice {
+  const tier: ServiceTier = m.category === "eco" || m.category === "luxury" ? m.category : "business";
+  return {
+    tier,
+    body: m.required_body_type === "sedan" || m.required_body_type === "van" ? m.required_body_type : null,
+    make: m.required_make ?? "",
+    model: m.required_model ?? "",
+  };
+}
+
 // One dense schedule line. Click to expand full detail. The coloured left edge +
 // status pill are the at-a-glance signal a hotel scans (red = needs a call).
 // A tone carrying `wash` tints the WHOLE row so it can't be scrolled past: amber
@@ -162,6 +201,11 @@ export function TripRow({
   farePending = false,
   query = "",
   matchedOn = null,
+  nobodyCanTake = null,
+  priceChanges = null,
+  showRaise = false,
+  previewOnly = false,
+  rateCard = null,
 }: {
   mission: MissionRow;
   driver?: DriverContact | null;
@@ -186,8 +230,43 @@ export function TripRow({
   query?: string;
   /** History only: which fields the search hit, for the "matched on" line. */
   matchedOn?: MatchField[] | null;
+  /**
+   * S83 — can any Driver in the fleet take this trip as asked? A fleet check, server-side:
+   * `true` = nobody can, `false` = somebody can, `null` = NOT CHECKED. ⚑ Three states on
+   * purpose: the raise advice needs a checked `false`, so a page that forgets the check
+   * shows no "raise your price" push on a trip money cannot fill.
+   * ⚑ For the build: the check must test only car fit and reach (class, body, specific
+   * car, within radius of the pickup OR the dropoff) over approved Drivers with approved
+   * cars — not a busy slot or a luggage opt-in, which the card below does not name.
+   */
+  nobodyCanTake?: boolean | null;
+  /** S83 — every raise / car change of this trip, newest first (rule 4: who, from, to, when). */
+  priceChanges?: PriceChangeBrief[] | null;
+  /** S83 — raise the Ceiling / change the car: shown only where a page asks for it (the live
+   *  schedule and the dev preview), never in the archive. */
+  showRaise?: boolean;
+  /** S83 — the dev-only preview: the panels work but save nothing. */
+  previewOnly?: boolean;
+  /** S83 — the rate card, for "Change the car" (the price follows the new class). */
+  rateCard?: RateCardRow[] | null;
 }) {
-  const t = missionTone(mission, undefined, { archived });
+  // S83 — the price has topped out and nobody has taken the trip (the founder's trigger).
+  // Only where the fleet check says a Driver COULD take it: otherwise a raise changes nothing.
+  // ⚑ Gated with the raise UI for now, so the live schedule is untouched until the
+  // founder approves the preview — advice with no way to act on it is the one thing
+  // they ruled out.
+  const live = showRaise && !archived && canRaiseCeiling(mission);
+  const noMatch = live && nobodyCanTake === true;
+  const atCeiling = live && nobodyCanTake === false && atCeilingUntaken(mission);
+  const raisable = live && !noMatch;
+  // S83 — "Change the car": any time before a Driver takes it (founder), never on a
+  // luggage run (always Business · Van, forced at posting), and only with a rate card
+  // to re-price from.
+  const carChangeable = live && !mission.luggage_only && !!rateCard && rateCard.length > 0;
+  // Server actions bound to this trip — a Server Component may hand these to a client panel.
+  const onRaise = previewOnly ? undefined : raiseCeiling.bind(null, mission.id);
+  const onChangeCar = previewOnly ? undefined : changeTripCar.bind(null, mission.id);
+  const t = missionTone(mission, undefined, { archived, atCeiling, nobodyCanTake: noMatch });
   const reference = mission.reference?.trim() || null;
   // Every named Guest, aligned by index with its phone/share state from the side
   // table (Drivers can't read those numbers). Phone-less guests still list; the
@@ -306,6 +385,21 @@ export function TripRow({
         .join("")
     : "";
   const serviceLabel = serviceClassLabel(mission.category, mission.required_body_type);
+  // The car and the Ceiling as stored: a change remounts the panel on the new terms.
+  const carPanelKey = `${mission.category}|${mission.required_body_type ?? ""}|${mission.required_make ?? ""}|${mission.required_model ?? ""}|${mission.ceiling}`;
+  const carProps = carChangeable
+    ? {
+        pdp: pdpOf(mission),
+        rates: businessRatesOf(mission),
+        rateCard: rateCard!,
+        current: carOf(mission),
+        distanceKm: mission.distance_km == null ? null : Number(mission.distance_km),
+        night: !!mission.night_applied,
+        paxCount: mission.pax_count,
+        topsOutAt: ceilingReachedAt(mission).toISOString(),
+        onChange: onChangeCar,
+      }
+    : null;
   const specificCar =
     mission.required_make && mission.required_model
       ? `${mission.required_make} ${mission.required_model}`
@@ -581,8 +675,10 @@ export function TripRow({
               <span className="dxs-fare__lab">{cell.label}</span>
               {cell.amount != null && <b>{formatMoney(cell.amount)}</b>}
             </span>
-            <span className={`dxs-fare__sub${cell.reached ? " dxs-fare__sub--warn" : ""}`}>
-              {cell.reached ? "ceiling reached" : `ceiling ${formatMoney(cell.ceiling)}`}
+            <span
+              className={`dxs-fare__sub${cell.reached || atCeiling ? " dxs-fare__sub--warn" : ""}`}
+            >
+              {cell.reached || atCeiling ? "ceiling reached" : `ceiling ${formatMoney(cell.ceiling)}`}
             </span>
           </span>
         )}
@@ -622,6 +718,50 @@ export function TripRow({
             urgent={reclaimUrgent}
           />
         )}
+        {/* S83 — no Driver in the fleet can take it as asked. Said as soon as it is
+            true (waiting for the top of the climb helps nobody), and it deliberately
+            does NOT offer a raise: more money cannot fix a car nobody has. */}
+        {noMatch && (
+          <div className="dx-amend dx-amend--warn">
+            <div className="dx-amend__head">
+              <span className="dx-amend__tag dx-amend__tag--warn">No car match</span>
+            </div>
+            <p className="dx-amend__reassure">
+              {/* ⚑ Generic on purpose (founder, S83 test: "simpler and more generic") — no car
+                  name, no Ceiling or cancel advice; the button below is the way out. */}
+              No Driver available for this car yet. Try changing the car.
+            </p>
+            {carProps && <ChangeCarAction key={carPanelKey} {...carProps} variant="button" />}
+          </div>
+        )}
+        {/* S83 — the founder's trigger: the price has topped out and nobody took it.
+            The advice comes WITH the way to act on it, never alone. */}
+        {atCeiling && (
+          <div className="dx-amend dx-amend--warn">
+            <div className="dx-amend__head">
+              <span className="dx-amend__tag dx-amend__tag--warn">No Driver yet at your Ceiling</span>
+              <span className="muted small">
+                {/* Since the later of the top of the climb and the last raise or car change:
+                    after a raise at the top, "since 05:00" would claim hours at the NEW price. */}
+                since {deadlineWords(atCeilingSince(mission, priceChanges))}
+              </span>
+            </div>
+            <p className="dx-amend__reassure">
+              {/* ⚑ Short on purpose (founder, S83: "less text please"). */}
+              The price has stopped climbing and may not be attractive enough. Raise your Ceiling
+              to attract more Drivers.
+            </p>
+            {/* key = the stored Ceiling: after a raise the refreshed row remounts the panel empty,
+                ready for another one, instead of sitting on "Ceiling raised" (review, S83). */}
+            <RaiseCeilingPanel
+              key={String(mission.ceiling)}
+              pdp={pdpOf(mission)}
+              rates={businessRatesOf(mission)}
+              topsOutAt={ceilingReachedAt(mission).toISOString()}
+              onRaise={onRaise}
+            />
+          </div>
+        )}
         {/* Top meta line: the private Reference tag (Business-only) + the detail-only
             "Edited · time" stamp. The stamp stays even after the trip is frozen so the
             edit record remains visible. */}
@@ -653,6 +793,16 @@ export function TripRow({
                 <span className="dx-act__s">Update guest, flight &amp; service info · applies now</span>
               </Link>
             )}
+            {raisable && !atCeiling && (
+              <RaiseCeilingAction
+                key={String(mission.ceiling)}
+                pdp={pdpOf(mission)}
+                rates={businessRatesOf(mission)}
+                topsOutAt={ceilingReachedAt(mission).toISOString()}
+                onRaise={onRaise}
+              />
+            )}
+            {carProps && !noMatch && <ChangeCarAction key={carPanelKey} {...carProps} />}
             {canAmend && (
               <Link href={`/dispatch/${mission.id}/amend`} className="dx-act">
                 <span className="dx-act__t">
@@ -730,6 +880,30 @@ export function TripRow({
             <Clock size={13} aria-hidden />
             <span>
               <strong>{formatDateTime(infoChange.at)}</strong> — {infoChange.items.join(" · ")}
+            </span>
+          </div>
+        )}
+
+        {/* S83 rule 4 — every raise and car change, who, from, to, when. Newest first. */}
+        {priceChanges && priceChanges.length > 0 && (
+          <div className="dx-trail">
+            <TrendingUp size={13} aria-hidden />
+            <span>
+              {priceChanges.map((c, i) => (
+                <Fragment key={`${c.at}-${i}`}>
+                  {i > 0 && <br />}
+                  <strong>{formatDateTime(c.at)}</strong> —{" "}
+                  {c.kind === "car"
+                    ? `Car changed ${c.carFrom ?? ""} → ${c.carTo ?? ""}`
+                    : c.kind === "raise"
+                      ? "Ceiling raised"
+                      : "Price terms changed"}
+                  {c.from != null && c.to != null && c.from !== c.to
+                    ? `${c.kind === "car" ? " — Ceiling " : " "}${formatMoney(c.from)} → ${formatMoney(c.to)}`
+                    : ""}
+                  {` — by ${c.by}`}
+                </Fragment>
+              ))}
             </span>
           </div>
         )}
@@ -931,7 +1105,8 @@ export function TripRow({
         {/* The reclaim card at the top of this panel says the same thing and carries
             the actions, so the tone's own hint would be the second copy of one
             message on one screen. The card supersedes it; every other tone keeps it. */}
-        {t.hint && !reclaimVisible && (
+        {/* S83 — the at-Ceiling and no-match cards supersede it the same way. */}
+        {t.hint && !reclaimVisible && !atCeiling && !noMatch && (
           <div className="notice warn" style={{ marginTop: 12 }}>{t.hint}</div>
         )}
 

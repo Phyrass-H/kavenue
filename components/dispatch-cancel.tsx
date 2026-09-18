@@ -14,7 +14,7 @@ import {
 import { commissionSplit, type Rates } from "@/lib/commission";
 import type { VehicleCategory } from "@/lib/database.types";
 import { formatDateTime, formatMoney, formatTime } from "@/lib/format";
-import { parisDayKey } from "@/lib/dispatch-status";
+import { deadlineWords } from "@/lib/dispatch-status";
 
 // How long until `iso`, in the plainest words that are still precise enough to act on.
 // Under a minute we count seconds, because that is exactly when someone is deciding.
@@ -35,11 +35,8 @@ function untilWords(iso: string, now: number): string {
 
 // A deadline shown as a bare "04:00" reads as today. The ramp only bites inside the last
 // five hours, but the FREE state's deadline is 5 h before pickup and a trip can be booked
-// days out — so "Free until 04:00" could mean a time eleven hours in the past. Show the date
-// too whenever the deadline is not today.
-function deadlineWords(iso: string, now: number): string {
-  return parisDayKey(iso) === parisDayKey(new Date(now)) ? formatTime(iso) : formatDateTime(iso);
-}
+// days out — so "Free until 04:00" could mean a time eleven hours in the past. The helper
+// (deadlineWords, lib/dispatch-status) shows the date too whenever it is not today.
 
 // The fee ramp, for the reference row in the cancel modal. Free >5h, then 50% at −5h
 // climbing +10%/h to 100% at pickup (mirrors businessCancelPct / the SQL).

@@ -31,10 +31,16 @@ export function ServiceClassFields({
   defaults,
   onBodyChange,
   onTierChange,
+  onCarChange,
+  compact = false,
 }: {
   defaults?: { category?: string | null; body?: string | null; make?: string | null; model?: string | null };
   onBodyChange?: (body: BodyChoice) => void;
   onTierChange?: (tier: ServiceTier) => void;
+  /** S83 — the specific car ("" / "" = any), for a panel that is not a form. */
+  onCarChange?: (make: string, model: string) => void;
+  /** S83 — the schedule row's "Change the car" panel: a shorter first label. */
+  compact?: boolean;
 }) {
   const initTier: ServiceTier = (SERVICE_TIERS as string[]).includes(defaults?.category ?? "")
     ? (defaults!.category as ServiceTier)
@@ -53,11 +59,18 @@ export function ServiceClassFields({
     setTier(t);
     setSpecific("");
     onTierChange?.(t);
+    onCarChange?.("", "");
   }
   function changeBody(b: BodyChoice) {
     setBody(b);
     setSpecific("");
     onBodyChange?.(b);
+    onCarChange?.("", "");
+  }
+  function changeSpecific(v: string) {
+    setSpecific(v);
+    const [mk, md] = v ? v.split("|") : ["", ""];
+    onCarChange?.(mk, md);
   }
 
   const cars = body ? carsFor(tier, body) : [];
@@ -77,7 +90,7 @@ export function ServiceClassFields({
 
   return (
     <div className="field">
-      <span className="scf-label">Service class (routes to the matching Pool)</span>
+      <span className="scf-label">{compact ? "Class" : "Service class (routes to the matching Pool)"}</span>
       <div className="tier-tiles" role="group" aria-label="Service class">
         {SERVICE_TIERS.map((t) => (
           <button
@@ -116,7 +129,7 @@ export function ServiceClassFields({
           <select
             className="car-select"
             value={specific}
-            onChange={(e) => setSpecific(e.target.value)}
+            onChange={(e) => changeSpecific(e.target.value)}
             aria-label="Specific car"
           >
             <option value="">

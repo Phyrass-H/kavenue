@@ -15,7 +15,7 @@ import type { CloseAnswer, MissionStep } from "@/lib/database.types";
 // ⚑ `id` and `pickup_at` are curve INPUTS (the jitter seed and the anchor), not
 // bookkeeping — drop either and settledFare stops compiling, which is the point.
 const FARE_COLS =
-  "id, driver_id, ceiling, pdp_start, speed_win, pickup_at, created_at, pooled_at, accepted_at, accepted_fare";
+  "id, driver_id, ceiling, pdp_start, pdp_step_count, speed_win, pickup_at, created_at, pooled_at, accepted_at, accepted_fare";
 
 export type StatusResult = { ok: true } | { ok: false; message: string };
 

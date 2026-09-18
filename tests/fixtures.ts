@@ -51,6 +51,7 @@ export function mission(over: Partial<MissionRow> = {}): MissionRow {
     base_fare: 50,
     ceiling: 100,
     pdp_start: null,
+    pdp_step_count: null,
     pdp_step: null,
     pdp_interval: null,
     speed_win: false,

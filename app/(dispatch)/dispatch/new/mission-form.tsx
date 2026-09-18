@@ -810,7 +810,9 @@ export function MissionForm({
               </div>
               <label className="field" style={{ marginBottom: 0 }}>
                 <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  Ceiling € — everything in
+                  {/* Founder, S83: "no need they know" — a Business's Ceiling is all-in by
+                      definition. The field IS the all-in; the column is the Course (below). */}
+                  Ceiling €
                   {atMarket && (
                     <span className="mx-vehiclechip" style={{ marginLeft: "auto" }}>
                       Market rate
@@ -1087,7 +1089,7 @@ export function MissionForm({
                     gap: 12,
                   }}
                 >
-                  <span className="muted small">Your Ceiling, all in</span>
+                  <span className="muted small">Your Ceiling</span>
                   {/* The BILLABLE all-in, not the typed one. On the ~1 value in 8 that
                       snaps, ceilingNum contradicted both the Pricing card's own "Your
                       Ceiling" and the "climbs up to" line directly below this one — and

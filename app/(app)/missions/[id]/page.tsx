@@ -19,7 +19,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getDriverContext } from "@/lib/driver";
 import { recordMissionEvent } from "@/lib/mission-events-server";
-import { poolFareNet } from "@/lib/pool-fares";
+import { carKey, poolFareNet } from "@/lib/pool-fares";
 import { tripDistanceKm } from "@/lib/geo";
 import { parseWaypoints } from "@/lib/waypoints";
 import {
@@ -471,6 +471,7 @@ export default async function MissionDetailPage({
           othersHoldExpiresAt={othersHoldExpiresAt}
           holdSpent={holdSpent}
           netFare={fare}
+          seenCar={carKey(mission)}
         />
       ) : isPooled ? (
         <div className="notice warn">

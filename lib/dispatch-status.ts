@@ -1,7 +1,7 @@
 // Status "tone" for the Dispatch schedule — the at-a-glance colour a hotel
 // scans. Derived from mission.status + time-to-pickup + the D61 check-in.
 import type { CloseAnswer, MissionRow } from "@/lib/database.types";
-import { missionStatusLabel } from "@/lib/format";
+import { formatDateTime, formatTime, missionStatusLabel } from "@/lib/format";
 
 export type Tone = "neutral" | "info" | "success" | "warn" | "danger";
 
@@ -349,7 +349,7 @@ const notDrivenTone: MissionTone = {
 export function missionTone(
   m: ToneInputs,
   now: Date = new Date(),
-  opts: { archived?: boolean } = {},
+  opts: { archived?: boolean; atCeiling?: boolean; nobodyCanTake?: boolean } = {},
 ): MissionTone {
   const pickup = new Date(m.pickup_at).getTime();
   // In the history archive every pickup is in the past, so the "pickup is soon —
@@ -450,6 +450,19 @@ export function missionTone(
           hint: "A Driver has this trip on hold while they decide.",
           needsAttention: false,
         };
+      // S83 — no Driver in the fleet can take the trip as asked (class, area, car).
+      // Ranked above "No Driver yet": both are true near pickup, and this one says
+      // what a raise cannot fix. The caller decides it (a fleet check, server-side).
+      // ⚑ It names the CAUSE, not a wait: "No match yet" sat one word from "No Driver
+      // yet" for opposite remedies — the D63 trap. Short: the status column's floor
+      // fits "Not confirmed".
+      if (opts.nobodyCanTake)
+        return {
+          tone: "warn",
+          label: "No car match",
+          hint: "No Driver available for this car yet.",
+          needsAttention: true,
+        };
       // "No Driver yet" (still fixable) vs "Unfilled" (over) — founder's wording.
       // These used to BOTH read "Unfilled", one as a warning and one as an
       // outcome, which is the one pair of labels a Dispatcher must never confuse.
@@ -458,6 +471,18 @@ export function missionTone(
           tone: "warn",
           label: "No Driver yet",
           hint: "Pickup is soon and no Driver has accepted yet.",
+          needsAttention: true,
+        };
+      // S83 — the price has topped out and nobody has taken it: from here it never
+      // moves on its own, so this is the moment a raise can still change something.
+      // The caller decides it (it needs the pricing columns ToneInputs does not carry).
+      if (opts.atCeiling)
+        return {
+          tone: "warn",
+          // Short on purpose: "At your Ceiling" measured 128px against the status
+          // column's 116px floor and touched the Fare cell at 1440px.
+          label: "At Ceiling",
+          hint: "The price has reached your Ceiling and no Driver has taken it yet.",
           needsAttention: true,
         };
       return { tone: "neutral", label: "In the Pool", needsAttention: false };
@@ -499,4 +524,12 @@ const parisDayFmt = new Intl.DateTimeFormat("en-CA", {
 
 export function parisDayKey(iso: string | Date): string {
   return parisDayFmt.format(typeof iso === "string" ? new Date(iso) : iso);
+}
+
+// A deadline shown as a bare "04:00" reads as today. A trip can be booked days out, so a
+// time alone could mean a moment eleven hours in the past or three days ahead. Show the
+// date too whenever the moment is not today (Paris). Moved here from dispatch-cancel.tsx
+// in S83 so the raise panel can say when a climb tops out without the same trap.
+export function deadlineWords(iso: string, now: number = Date.now()): string {
+  return parisDayKey(iso) === parisDayKey(new Date(now)) ? formatTime(iso) : formatDateTime(iso);
 }

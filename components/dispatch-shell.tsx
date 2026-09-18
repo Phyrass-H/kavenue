@@ -110,7 +110,9 @@ export function DispatchShell({
     pathname === "/dispatch" ||
     pathname === "/dispatch/calendar" ||
     pathname === "/dispatch/history" ||
-    pathname === "/dispatch/spend";
+    pathname === "/dispatch/spend" ||
+    // Dev-only previews of the schedule render at the schedule's own width.
+    pathname.startsWith("/dev-preview/");
 
   // Up-to-two-letter monogram for the workspace tile when there's no logo.
   const initials =

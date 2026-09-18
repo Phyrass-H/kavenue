@@ -85,6 +85,7 @@ const { error: insErr } = await db.from("mission").insert({
   pooled_at: new Date(Date.now() - 3_600_000).toISOString(),
   accepted_at: null, confirmed_at: null, checked_in_at: null,
   ceiling: 100, base_fare: null, pdp_start: 30, pdp_step: 0, pdp_interval: 0, speed_win: false,
+  pdp_step_count: 20, // S83 — non-null, so the Driver-side mask line below proves something
   accepted_fare: null,
   // the four snapshots — the whole point of the probe
   commission_business_rate: 0.125, commission_driver_rate: 0.10,
@@ -324,6 +325,8 @@ console.log(`\n── 4 · the view itself ──`);
   else {
     leak("driver → mission_read.ceiling on a POOLED trip", dRow?.ceiling, null);
     leak("driver → mission_read.pdp_start on a POOLED trip", dRow?.pdp_start, null);
+    // S83 (18d) — the frozen step count is ~ the Ceiling ÷ 2: masked like it.
+    leak("driver → mission_read.pdp_step_count on a POOLED trip", dRow?.pdp_step_count, null);
     leak("driver → mission_read.commission_business_rate", dRow?.commission_business_rate, null);
     legit("driver → mission_read keeps its OWN rate",
           dRow?.commission_driver_rate != null, `rate=${dRow?.commission_driver_rate}`);

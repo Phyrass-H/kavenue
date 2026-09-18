@@ -30,6 +30,33 @@
 - **We also fixed the root cause.** New tables and actions used to be open to everyone by default; now they start
   **locked**, and each future change has to explicitly open exactly what it needs. That turns a forgotten permission
   into a loud error we'll catch, instead of a silent hole.
+## 18 September 2026 — When nobody takes a trip: raise the Ceiling, or change the car
+
+- **Decided: when nobody takes a trip, it simply expires.** Kavenue does not find a Driver itself and does not phone
+  the Business. Instead the Business gets the tools to act on its own offer.
+- **New: "Raise the Ceiling".** While no Driver has taken a trip, the Business can raise its maximum price — as often as
+  it likes, never lower. The price keeps its place on the climb and reaches the new top at the usual time. Not possible
+  during the 15 seconds a Driver is reviewing the trip.
+- **New: a message when the price hits the Ceiling and nobody has taken the trip:** "At Ceiling" on the row, and
+  *"The price has stopped climbing and may not be attractive enough. Raise your Ceiling to attract more Drivers."* with
+  the raise box right there.
+- **New: "Change the car".** While no Driver has taken it, the Business can change the class, body or model; the price
+  follows the rate card for the new car (the Business can adjust it, never below the lowest price).
+- **New: "No car match".** When no Driver on Kavenue within reach has the car the trip asks for, the row says so instead
+  of suggesting a higher price — *"No Driver available for this car yet. Try changing the car."* — with the "Change the
+  car" button under it (made shorter and more general after the founder's test).
+- **Every raise and car change is recorded** — who, from what, to what, when — and shown on the trip.
+- **Fairer for Drivers:** a Driver now always confirms the exact price and car on their screen; if the Business changed
+  the trip a moment before, the app shows the new details instead of accepting.
+- **Fixed on the way:** raising a price could, in about 1 case in 8, make the price shown to Drivers drop by up to €0.95
+  for a moment. The price now never goes down.
+- **The booking form now says "Ceiling €"** (without "— everything in").
+- **Status: live.** Built and tested on a full practice copy of the database; the founder pasted the database files
+  (the security session's two first, then these two — every check passed) and tested on the Mac: posted a trip,
+  changed the car, raised the Ceiling, and saw the new price on the Driver side. Then put on the live site.
+- **Found on the way, not ours:** the security check flagged one Supabase function, `rls_auto_enable`. It is Supabase's
+  own helper that switches the lock (RLS) on for every new table, and nobody can call it from a browser. Safe; it will
+  be marked as reviewed in the security check.
 
 ## 17 September 2026 — Reopening a saved draft works again
 

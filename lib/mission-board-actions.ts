@@ -32,5 +32,14 @@ export async function getMissionBoardUrl(missionId: string): Promise<string | nu
   }
   if (!allowed) return null;
 
+  // ⚑ S83 — the path must be THIS Business's own board file, never any other object in the
+  // private "documents" bucket (where Driver papers also live). `board_file_path` is a column
+  // the Business writes, so a hand-built request could once have pointed it at a Driver's
+  // licence and had the server sign it. The database trigger trg_mission_guard_board_file
+  // (docs/migrations/2026-09-18a) refuses any such write now; this is the same rule on the
+  // read side, so a row written before that trigger cannot be used as an oracle either.
+  const prefix = `mission/${mission.business_id}/board-`;
+  if (!mission.board_file_path.startsWith(prefix)) return null;
+
   return signedDocUrl(mission.board_file_path);
 }

@@ -1,8 +1,8 @@
 // A list of trips, the way all four console screens show one: banded by day or
-// by month, honest about what it isn't showing, and — on a hotel's own page —
+// by month, honest about what it isn't showing, and — on a Business's own page —
 // carrying only the far end of each journey.
 //
-// ⚑ ONE COMPONENT BECAUSE THERE IS ONE LIST. Trips, a hotel's trips and a
+// ⚑ ONE COMPONENT BECAUSE THERE IS ONE LIST. Trips, a Business's trips and a
 // Driver's trips were three near-identical blocks of JSX; the bands and the
 // page footer would have been written three times and drifted twice.
 //
@@ -37,7 +37,7 @@ export interface AdminTripRow {
   dropoff_lng: number | null;
 }
 
-/** The place a page is written from — a hotel's own address. */
+/** The place a page is written from — a Business's own address. */
 export interface Anchor {
   lat: number | null;
   lng: number | null;

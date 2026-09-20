@@ -1,4 +1,4 @@
-// Does the cancel fee a hotel is SHOWN equal the cent it is CHARGED?
+// Does the cancel fee a Business is SHOWN equal the cent it is CHARGED?
 //
 // Two independent ways it could differ:
 //   (1) ROUNDING — the modal rounds in float64, Postgres in exact decimal.
@@ -148,7 +148,7 @@ try {
     const pct = businessCancelPct(hours, true);
     quotes.push({ c, snapshot, pct, fee: Math.round((snapshot * pct) / 100 * 100) / 100 });
   }
-  // 2. the hotel reads it, hesitates, clicks
+  // 2. the Business reads it, hesitates, clicks
   await new Promise((r) => setTimeout(r, DWELL_MS));
   // 3. the RPC charges from the SERVER clock
   for (const q of quotes) {

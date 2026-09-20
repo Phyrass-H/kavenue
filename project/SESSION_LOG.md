@@ -70,6 +70,71 @@ rest is a cheap separate job if the founder wants it. ⚑ One to note: `dispatch
 
 **Not opened as a PR** (branch `claude/peaceful-turing-7035de`, off `main` at `9c1a902`) — awaiting the go-ahead.
 
+### ⚑ Follow-on the same day — the COMMENT sweep (founder: *"do the comment sweep too"*)
+
+The entry above left ~40 comments alone and called a sweep "a cheap separate job". **Both numbers were
+wrong: it was 129 comment hits across 65 files**, and it was not cheap. Run as a 23-group workflow —
+one sweeper per group, an adversarial verifier per group, a repair stage that only fired where a
+verifier confirmed something. 49 agents, 0 failures.
+
+| | |
+|---|---|
+| **rewritten** | **82 comments** across 43 files |
+| **left, with a stated reason each** | **47** |
+| **verifier-confirmed problems** | **3 — all repaired** |
+| **dev-facing strings fixed by hand after** | **8** (6 vitest titles, 1 console label, 1 seed label) + the `HOTEL` fixture const renamed `BIZ` |
+| **tests** | 1580 → **1644** |
+
+⚑ **THE ADVERSARIAL PASS EARNED ITS KEEP, AND NOT IN THE DIRECTION EXPECTED.** Two of the three
+confirmed problems were the sweeper **OVER-correcting**:
+- `app/admin/drivers/page.tsx:593` — *"all four are hotels"* → *"all four are the same type"*.
+- `tests/admin-businesses.test.ts:52` — *"all four Businesses are hotels"* → *"…are the same type"*.
+
+Both originals were **true statements about today's data** — those four Businesses *are* hotel-type —
+and the rewrite destroyed the fact while pretending to enforce the rule. Verifiers reverted both. The
+third was a `riviera.mts` line where "a hotel is somewhere a trip starts" became a claim the file's own
+data contradicts; repaired to "a place". **The rule is about not calling a Business a hotel — it is not
+a ban on the word.**
+
+⚑ **The same trap caught two more later.** `.local/seed/seed-3months.mts` prints `"── hotels ──"` and
+`"N hotels · M desks"`, and the script seeds `business_type: "hotel"` on line 110 — so both labels are
+*accurate*. Left, deliberately, on exactly the ground the verifier used.
+
+### What was LEFT, and why — the six honest categories
+`proper-noun` (Hôtel Negresco, HOTEL CARLTON CANNES, Le Grand Hôtel, Hôtel Belles-Rives — quoted search
+strings, register trade names, worked examples) · `the-type` (*"Businesses today are hotels"*, `LABELS.hotel`
+= "Hotel & accommodation", *"one hotel, one restaurant"*) · `the-vertical` (*"hotels are the first
+vertical"* — the rule's own justification) · `states-the-rule` (comments quoting the banned phrase in
+order to forbid it) · `place-category` (*"(hotel / airport / venue)"* — kinds of Google POI, not kinds of
+Business) · `not-a-business` (**hotel wifi behind a captive portal** — a kind of network).
+
+### Proof, not assertion
+A mechanical comment/code splitter compared every changed file against `5e12f87` and proved that **in 43
+of the 47 files ONLY comment text differs** — no code, string, JSX, test name, fixture or CSS rule moved.
+The 4 exceptions are the ones changed on purpose afterwards. `tsc --noEmit` clean · **1644 tests pass**.
+
+### The lock — `tests/glossary-copy.test.ts` grew a second half (§ 2)
+The scanner now returns **both** halves of a file, so the same parser that finds rendered copy also finds
+comment text. A new block scans comments in `app/`, `components/`, `lib/` with **31 allowances, each
+carrying a `kind` and a `why`** — and a test asserting every allowance *has* a reason, because an
+exemption nobody can audit is how a rule quietly stops meaning anything.
+
+⚑ **`tests/` and `.local/` comments are swept but deliberately NOT locked.** They talk about fixtures and
+real Riviera place names constantly; an allowlist there would fire on honest comments until someone
+deleted the test. Named in the file so the gap is a decision, not an oversight.
+
+⚑ **Two scanner bugs found by its own tests while extending it:** the comment half dropped newlines
+inside code (collapsing nine consecutive doc comments onto one line, reporting the wrong line number),
+and it blanked the `/** */` markers. Both fixed; the failure message now prints `file:line` + the real line.
+
+**Remaining: 59 hits, 10 of them inside the test that quotes the word on purpose. The real 49 are
+31 allowlisted + 6 in `lib/business-type.ts` (the exempt module) + 12 in tests/.local.**
+
+**Still open:** a diverse-lens completeness critic (over-correction · lost meaning · what-it-missed ·
+are-the-exemptions-honest, then an adjudicator that re-verifies each claim) was running when this was
+committed. ⚑ Its "what-it-missed" lens was also asked to sweep for **"client" and "principal"** — the
+other half of hard rule 1, which **nobody has ever swept**. Findings to be actioned next.
+
 ## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
 
 **⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted

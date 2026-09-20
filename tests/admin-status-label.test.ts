@@ -62,7 +62,7 @@ describe("the console's own vocabulary", () => {
 
   it("does not borrow the Dispatcher's words", () => {
     // ⚑ `missionTone` would say "No Driver yet" / "A Driver is reviewing this" —
-    // instructions to a hotel, on the founder's audit screen. The console keeps
+    // instructions to a Business, on the founder's audit screen. The console keeps
     // its flat register; this pins that choice so a future refactor to
     // `missionTone` is a red test rather than a silent tone change.
     const soon = mission({ status: "pooled" });

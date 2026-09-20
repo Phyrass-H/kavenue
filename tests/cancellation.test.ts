@@ -73,10 +73,10 @@ describe("isAirportPickup — the S42 accent bug", () => {
   });
 
   // ⚑ THE 2026-08-20 FIX. A flight number on a DEPARTURE describes the flight the Guest is
-  // catching, not one they have landed from — the pickup is a hotel door and deserves the
+  // catching, not one they have landed from — the pickup is a Business's door and deserves the
   // 20-minute city wait. On the live data 52 of 89 flight-number trips were departures, each
   // one handing the Driver 40 extra unpaid minutes and doubling the meter's ceiling.
-  it("is FALSE for a hotel → airport departure, even with a flight number", () => {
+  it("is FALSE for a Business → airport departure, even with a flight number", () => {
     const departure = mission({
       flight_number: "U26541",
       pickup_address: "5 Prom. des Anglais, 06000 Nice, France",

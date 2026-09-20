@@ -10,7 +10,7 @@
 // Two rules from the founder, both load-bearing:
 //   • SILENT BY DEFAULT. A check that finds nothing emits nothing. There is no
 //     "0 problems" row, and no green tick to scan past.
-//   • THE NAMED THING, NOT A COUNT. Every finding carries the Driver, hotel or
+//   • THE NAMED THING, NOT A COUNT. Every finding carries the Driver, Business or
 //     trip it is about, so nothing is ever reported as a bare number. Where a
 //     check fires on many subjects the SCREEN may group them into one line —
 //     but it groups named findings; it never counts anonymous ones.

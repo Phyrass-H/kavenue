@@ -152,7 +152,7 @@ for (const a of AWKWARD) {
 
 // ── 2 · the trip nobody can serve ───────────────────────────────────────────
 // ⚑ Both ends far from every base AND a class/body only one Driver has. The
-// ordinary "nobody took it" trips all start at a hotel, which sits inside
+// ordinary "nobody took it" trips all start at a Business, which sits inside
 // somebody's radius by definition — so the Pool always showed them to someone
 // and they expired for want of appetite, not want of a match. This one is
 // genuinely unreachable, which is a different problem and should read as one.

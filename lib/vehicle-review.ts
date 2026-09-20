@@ -134,7 +134,7 @@ export async function approveVehicle(_prev: ReviewResult | null, form: FormData)
  * ⚑ A TRIP THAT HAS NOT HAPPENED YET FOLLOWS THE CURRENT CAR; ONE THAT HAS IS FROZEN FOR EVER.
  *
  * The freeze exists so a document issued in July cannot be rewritten in September. It is not a
- * reason to tell a hotel to look for a car that was sold last week: the desk reads the plate to
+ * reason to tell a Business to look for a car that was sold last week: the desk reads the plate to
  * the Guest standing in the lobby. So when a replacement car is approved, the Driver's
  * NOT-YET-STARTED trips are re-stamped, and everything else is left exactly as it was.
  *

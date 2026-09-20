@@ -34,10 +34,10 @@ export const PLACES: Record<string, Place> = {
  * founder spotted it on sight. The app has always asked the Driver for their own
  * address ("Your base — start typing a town or address", app/(app)/settings/area):
  * only the test data was wrong. Keeping the two maps apart is what stops it
- * happening again — a hotel is somewhere a trip starts, not somewhere a Driver
+ * happening again — a place is somewhere a trip starts, not somewhere a Driver
  * sleeps.
  *
- * ⚑ EACH TOWN IS WITHIN ~10 km OF THE HOTEL IT REPLACED, deliberately. The three
+ * ⚑ EACH TOWN IS WITHIN ~10 km OF THE PLACE IT REPLACED, deliberately. The three
  * months of history were generated from the old bases, so a bigger move would
  * have stranded trips outside the range of the Driver who actually drove them —
  * and the past-tense matcher would then say the holder could never have taken
@@ -136,7 +136,7 @@ export interface BusinessSpec {
   legalName: string; siret: string; vat: string;
   phone: string; email: string;
   defaultCategory: "eco" | "business" | "luxury";
-  /** Rough trips per week — what makes one hotel a big account and another small. */
+  /** Rough trips per week — what makes one Business a big account and another small. */
   weekly: number;
   joinDay: number;
   desks: { name: string; email: string; phone: string }[];
@@ -179,7 +179,7 @@ export const BUSINESSES: BusinessSpec[] = [
   },
 ];
 
-/** Hotel guests. Named, because a trip with a name on it reads like a real trip. */
+/** The Businesses' Guests. Named, because a trip with a name on it reads like a real trip. */
 export const GUESTS = [
   "M. Alexandre Kernel", "Mme Charlotte Weiss", "Mr James Holloway", "Mrs Priya Raman",
   "M. Étienne Brial", "Sig. Marco Pellegrini", "Mme Nour Haddad", "Mr David Okonkwo",

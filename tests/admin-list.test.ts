@@ -1,7 +1,7 @@
 // The console's list mechanics.
 //
 // ⚑ THE REAL COORDINATES ARE USED THROUGHOUT. `farLeg` decides what forty rows
-// of a hotel's page say, and it decides it on distance — so a test with made-up
+// of a Business's page say, and it decides it on distance — so a test with made-up
 // lat/lngs would prove nothing about the only dataset it has to work on. These
 // are the values in the live `business` and `mission` rows.
 import { describe, expect, it } from "vitest";
@@ -20,38 +20,38 @@ import {
 const BELLES_RIVES = { lat: 43.5642, lng: 7.1093 };
 const NCE_T2 = { label: "Nice Airport, T2", lat: 43.6656, lng: 7.2145 };
 const NCE_T1 = { label: "Nice Airport, T1", lat: 43.6607, lng: 7.2049 };
-const HOTEL = { label: "Belles-Rives, Juan-les-Pins", ...BELLES_RIVES };
+const BIZ = { label: "Belles-Rives, Juan-les-Pins", ...BELLES_RIVES };
 const MAJESTIC = { label: "Hôtel Majestic, Cannes", lat: 43.5507, lng: 7.0166 };
 
-describe("farLeg — which end of the journey a hotel's own page shows", () => {
-  it("shows only the destination when the trip leaves the hotel", () => {
-    const leg = farLeg(HOTEL, NCE_T2, BELLES_RIVES, "Belles-Rives, Juan-les-Pins → Nice Airport, T2");
+describe("farLeg — which end of the journey a Business's own page shows", () => {
+  it("shows only the destination when the trip leaves the Business", () => {
+    const leg = farLeg(BIZ, NCE_T2, BELLES_RIVES, "Belles-Rives, Juan-les-Pins → Nice Airport, T2");
     expect(leg).toEqual({ at: "start", label: "Nice Airport, T2" });
   });
 
-  it("shows only the origin when the trip comes back to the hotel", () => {
-    const leg = farLeg(NCE_T1, HOTEL, BELLES_RIVES, "Nice Airport, T1 → Belles-Rives, Juan-les-Pins");
+  it("shows only the origin when the trip comes back to the Business", () => {
+    const leg = farLeg(NCE_T1, BIZ, BELLES_RIVES, "Nice Airport, T1 → Belles-Rives, Juan-les-Pins");
     expect(leg).toEqual({ at: "end", label: "Nice Airport, T1" });
   });
 
-  it("shows the whole route when the hotel is at neither end", () => {
+  it("shows the whole route when the Business is at neither end", () => {
     const whole = "Hôtel Majestic, Cannes → Nice Airport, T2";
     expect(farLeg(MAJESTIC, NCE_T2, BELLES_RIVES, whole)).toEqual({ at: "neither", label: whole });
   });
 
   // ⚑ A bare "→ Belles-Rives" on a round trip would read as an ordinary
   // departure to a different place that happens to share the name.
-  it("shows the whole route when BOTH ends are the hotel", () => {
+  it("shows the whole route when BOTH ends are the Business", () => {
     const whole = "Belles-Rives, Juan-les-Pins → Belles-Rives, Juan-les-Pins";
-    expect(farLeg(HOTEL, HOTEL, BELLES_RIVES, whole)).toEqual({ at: "neither", label: whole });
+    expect(farLeg(BIZ, BIZ, BELLES_RIVES, whole)).toEqual({ at: "neither", label: whole });
   });
 
   // ⚑ The fallback that keeps this honest: with no anchor there is no claim to
   // make, so it must not guess from the label.
-  it("shows the whole route when the hotel has no address on file", () => {
+  it("shows the whole route when the Business has no address on file", () => {
     const whole = "Belles-Rives, Juan-les-Pins → Nice Airport, T2";
-    expect(farLeg(HOTEL, NCE_T2, null, whole)).toEqual({ at: "neither", label: whole });
-    expect(farLeg(HOTEL, NCE_T2, { lat: null, lng: null }, whole)).toEqual({
+    expect(farLeg(BIZ, NCE_T2, null, whole)).toEqual({ at: "neither", label: whole });
+    expect(farLeg(BIZ, NCE_T2, { lat: null, lng: null }, whole)).toEqual({
       at: "neither",
       label: whole,
     });
@@ -109,7 +109,7 @@ describe("byDay", () => {
     expect(byDay([], (r: { at: string }) => r.at)).toEqual([]);
   });
 
-  // ⚑ THE LIVE PAGE IS WHAT FORCED THIS. A hotel posts about one trip a day, so
+  // ⚑ THE LIVE PAGE IS WHAT FORCED THIS. A Business posts about one trip a day, so
   // day bands over its own 42 trips rendered forty-two one-row bands — worse
   // than the flat list they replaced. The whole marketplace on one page runs
   // ~3 trips a day, where a day band groups properly.

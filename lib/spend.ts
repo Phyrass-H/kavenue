@@ -11,7 +11,7 @@
 //  2. A past trip a Driver took and never closed is **agreed, not settled** —
 //     shown as its own line, excluded from every total (§ Q). historyFare
 //     already returns `counted: false` for exactly this; we honour it.
-//  3. **Waiting is part of the bill.** A hotel's real cost is fare + waiting,
+//  3. **Waiting is part of the bill.** A Business's real cost is fare + waiting,
 //     so rowCost() adds the settled waiting_fee. History's summary uses the same
 //     helper, so the two screens can never disagree about the same filter.
 import { isExpired } from "@/lib/dispatch-status";

@@ -134,7 +134,7 @@ function spanLabel(fromDay: string, toDay: string): string {
  * current month holds the days that have happened — but periodRange returns the
  * whole calendar month. Measuring 8 days of August against all 31 of July
  * produced a −77 % drop painted GREEN on the default landing view, every month,
- * for every hotel. The span now ends today, and comparisonSpan truncates the
+ * for every Business. The span now ends today, and comparisonSpan truncates the
  * previous period to the same number of days so the two are comparable.
  */
 export function currentSpan(q: SpendQuery, now: Date = new Date()): Span {

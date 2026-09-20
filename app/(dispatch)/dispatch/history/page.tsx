@@ -180,7 +180,7 @@ export default async function DispatchHistory({
   }
 
   // Classes that actually occur in this archive — a dropdown offering "First"
-  // to a hotel that has never booked one is a filter that can only disappoint.
+  // to a Business that has never booked one is a filter that can only disappoint.
   const categories = [...new Set(missions.map((m) => m.category))]
     .map((key) => ({ key: key as VehicleCategory, label: categoryLabel(key) }))
     .sort((a, b) => a.label.localeCompare(b.label));

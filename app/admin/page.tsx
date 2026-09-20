@@ -2,7 +2,7 @@
 //
 // ⚑ IT IS NOT AN EVENT LOG SCREEN, AND THAT IS THE FOUNDER'S POINT. Nobody ever
 // thinks "let me open the event log"; they think "why did that trip fail" or "is
-// Marc reliable". So the log is fuel — search finds a person, a hotel or a trip,
+// Marc reliable". So the log is fuel — search finds a person, a Business or a trip,
 // and the trip page tells its story. What is on THIS page is only the handful of
 // things worth interrupting someone about.
 //

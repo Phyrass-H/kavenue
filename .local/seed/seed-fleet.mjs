@@ -1,5 +1,5 @@
 // Seed a realistic three-month archive for the demo Business, so the Spend page
-// can be tested like a real hotel. READ THE HEADER BEFORE RUNNING.
+// can be tested like a real Business. READ THE HEADER BEFORE RUNNING.
 //
 //   node seed-fleet.mjs          → create everything, write seed-manifest.json
 //   node seed-fleet.mjs --undo   → delete exactly what the manifest lists

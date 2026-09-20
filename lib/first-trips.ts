@@ -19,7 +19,7 @@ import type { MissionStatus } from "@/lib/database.types";
  * How long a finished first trip stays worth calling about.
  *
  * ⚑ SEVEN, NOT THE TWO THE FOUNDER FIRST SAID — agreed with them 2026-09-06.
- * The call you want after a first trip is to the hotel, and at two days a Friday
+ * The call you want after a first trip is to the Business, and at two days a Friday
  * trip is gone before Monday. Nothing is hidden by the wider window: every row
  * says how long ago it ran, in words.
  */
@@ -45,7 +45,7 @@ export const DROVE: Record<MissionStatus, boolean> = {
   completed: true,
   // ⚑ A cancelled trip is not a first drive. Two live Drivers (Inès Lefranc,
   // Amine Belkacem) had a cancelled trip BEFORE the one they actually drove — so
-  // counting it would name the wrong trip, the wrong date and the wrong hotel.
+  // counting it would name the wrong trip, the wrong date and the wrong Business.
   cancelled: false,
   expired: false,
 };
@@ -123,7 +123,7 @@ export interface FirstTrips {
  *
  * ⚑ en-GB AND Europe/Paris, like everything else on this console. The weekday is
  * carried because an upcoming first trip is a thing the founder plans a call
- * around, and "Sat" changes who is on the hotel desk. The money and the trip
+ * around, and "Sat" changes who is on the Business's desk. The money and the trip
  * dates elsewhere in the app are fr-FR; the console's own headings are English
  * (lib/format.ts:31 says why the two differ).
  */
@@ -227,7 +227,7 @@ export function firstTrips(
   }
 
   // Upcoming soonest-first (the call you can still make in time), then the ones
-  // that just ran, newest-first (the hotel call, while it is fresh).
+  // that just ran, newest-first (the Business call, while it is fresh).
   trips.sort((a, b2) => {
     if (a.when !== b2.when) return a.when === "upcoming" ? -1 : 1;
     return a.when === "upcoming"

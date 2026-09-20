@@ -2,7 +2,7 @@
 //
 // This pair produced the worst defect of Session 54: the default landing view
 // measured 8 days of August against all 31 of July and painted the −77 % gap
-// GREEN. Every hotel, every month. The maths downstream was right; the two
+// GREEN. Every Business, every month. The maths downstream was right; the two
 // spans were not comparable.
 import { describe, expect, it } from "vitest";
 import {
@@ -128,7 +128,7 @@ describe("comparisonSpan — the same number of days on both sides", () => {
 
   it("compares whole calendar periods when the current one is over", () => {
     // A finished July against a whole June: the day counts differ (31 vs 30) and
-    // that is correct — two complete months ARE the comparison a hotel means.
+    // that is correct — two complete months ARE the comparison a Business means.
     const query = q({ p: "month", d: "2026-07-01" });
     const back = comparisonSpan(query, AUG_8)!;
     expect(back.fromDay).toBe("2026-06-01");

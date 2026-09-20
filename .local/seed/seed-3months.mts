@@ -37,7 +37,7 @@ const db = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_
 
 const UNDO = process.argv.includes("--undo");
 // ⚑ FROM .env.local, NOT A LITERAL. This one opens 15 of the 25 accounts on the
-// live project — every seeded Driver and hotel desk. It was never in git, and the
+// live project — every seeded Driver and Business desk. It was never in git, and the
 // only reason it is not public today is that .local was untracked; the moment that
 // folder is committed a literal here becomes a published login. Set SEED_PASSWORD.
 const PASSWORD = env.SEED_PASSWORD;

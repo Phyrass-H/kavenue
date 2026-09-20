@@ -121,7 +121,7 @@ describe("the three voices", () => {
   });
 
   it("gives the Business the fact and no clock", () => {
-    // docs/06:427 — "reassuring, not alarming". A ticking countdown on a hotel's screen
+    // docs/06:427 — "reassuring, not alarming". A ticking countdown on a Business's screen
     // invites "so will they take it?", and often the answer is no.
     expect(BUSINESS_REVIEWING_LABEL).toBe("A Driver is reviewing this");
     expect(BUSINESS_REVIEWING_LABEL).not.toMatch(/\d/);

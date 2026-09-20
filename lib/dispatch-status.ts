@@ -1,4 +1,4 @@
-// Status "tone" for the Dispatch schedule — the at-a-glance colour a hotel
+// Status "tone" for the Dispatch schedule — the at-a-glance colour a Business
 // scans. Derived from mission.status + time-to-pickup + the D61 check-in.
 import type { CloseAnswer, MissionRow } from "@/lib/database.types";
 import { formatDateTime, formatTime, missionStatusLabel } from "@/lib/format";
@@ -441,7 +441,7 @@ export function missionTone(
       // "someone is looking at it right now" is the one that changes what a Dispatcher
       // should do, which is nothing, for fifteen seconds.
       // ⚑ THE FACT, NOT A COUNTDOWN. docs/06:427 asks for "reassuring, not alarming", and
-      //   a clock ticking down on a hotel's screen invites "so will they take it?" — a
+      //   a clock ticking down on a Business's screen invites "so will they take it?" — a
       //   question whose answer is often no, delivered to the wrong audience.
       if (m.hold_expires_at && new Date(m.hold_expires_at).getTime() > now.getTime())
         return {

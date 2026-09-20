@@ -109,7 +109,7 @@ export function watcherLabel(seconds: number): string {
 
 /**
  * What the Business sees. §7:427 — "reassuring, not alarming", so the fact and not a clock.
- * A ticking countdown on a hotel's screen invites "so will they take it?", and often the
+ * A ticking countdown on a Business's screen invites "so will they take it?", and often the
  * answer is no.
  */
 export const BUSINESS_REVIEWING_LABEL = "A Driver is reviewing this";

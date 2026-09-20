@@ -376,7 +376,7 @@ export function matchRow(row: HistoryRow, q: string): MatchField[] | null {
  * - anything else (a past `confirmed`/`on_board` — § Q) → the agreed fare, but
  *   `counted: false`. It is shown so the row isn't silently blank, and excluded
  *   from the totals because an unclosed trip has settled nothing. Counting it
- *   would inflate a hotel's spend with trips that may never have happened.
+ *   would inflate a Business's spend with trips that may never have happened.
  */
 export function historyFare(m: MissionRow): { fare: number | null; counted: boolean } {
   if (isExpired(m)) return { fare: null, counted: true };

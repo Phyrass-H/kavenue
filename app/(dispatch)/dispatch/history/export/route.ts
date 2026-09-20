@@ -22,7 +22,7 @@ import type { MissionRow } from "@/lib/database.types";
 export const dynamic = "force-dynamic";
 
 /**
- * ⚑ Delimiter is `;`, not `,`. The reader here is a French hotel's accountant on
+ * ⚑ Delimiter is `;`, not `,`. The reader here is a French Business's accountant on
  * Excel FR, where a comma is the DECIMAL separator and a comma-delimited file
  * lands entirely in column A. Sheets and Numbers both sniff the delimiter, so
  * `;` is the choice that works for all three. Amounts are written French-style
@@ -215,7 +215,7 @@ export async function GET(req: NextRequest) {
         serviceClassLabel(m.category, m.required_body_type),
         bucket ? OUTCOME_TEXT[bucket] : "Not closed",
         // ⚑ rowCost, not r.fare. The summary bar on /dispatch/history now counts
-        // waiting (it is part of a hotel's bill), so a "Fare" column that
+        // waiting (it is part of a Business's bill), so a "Fare" column that
         // excluded it made the file disagree with the screen that produced it —
         // while the next column, "Of which waiting", told the reader the waiting
         // was already inside. Same definition on both surfaces now, and the same

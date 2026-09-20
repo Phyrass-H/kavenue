@@ -14,7 +14,7 @@
 // cookie: signing in as admin would have signed the founder out of their Business
 // account, and back again, all day. The founder pushed back on it as confusing
 // before that was even spotted, and they were right twice over — Dispatch is the
-// *hotel's* app, and Kavenue's back office does not belong behind a customer's
+// *Business's* app, and Kavenue's back office does not belong behind a customer's
 // front door.
 import { redirect } from "next/navigation";
 import Link from "next/link";

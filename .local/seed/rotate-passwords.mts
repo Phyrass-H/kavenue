@@ -18,7 +18,7 @@
 //   2. Put them in .env.local (git-ignored, never leaves this machine):
 //        ADMIN_PASSWORD=…    the real console account
 //        DEV_PASSWORD=…      the demo/probe fixtures
-//        SEED_PASSWORD=…     the seeded fleet and hotel desks
+//        SEED_PASSWORD=…     the seeded fleet and Business desks
 //   3. npx tsx .local/seed/rotate-passwords.mts
 //
 // Add --dry to list what WOULD change and touch nothing.
@@ -54,7 +54,7 @@ const GROUPS: { name: string; envKey: string; emails: (all: string[]) => string[
     emails: (all) => all.filter((e) => e.endsWith("@pickup.local") || e === "marc.fontaine@kavenue.test" || e === "marion.esteve@belles-rives.test"),
   },
   {
-    name: "the seeded fleet and hotel desks",
+    name: "the seeded fleet and Business desks",
     envKey: "SEED_PASSWORD",
     emails: (all) => all.filter((e) => e !== ADMIN && e !== "marc.fontaine@kavenue.test" && e !== "marion.esteve@belles-rives.test" && !e.endsWith("@pickup.local") && (e.endsWith(".test"))),
   },

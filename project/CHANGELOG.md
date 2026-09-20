@@ -5,6 +5,27 @@
 
 ---
 
+## 20 September 2026 — Swept the same word out of the code's own notes, so it stops teaching the mistake
+
+- **Why bother with notes nobody sees.** The five wrong words on screen (above) didn't come from nowhere:
+  the code's own explanatory notes said "the hotel" **129 times**, and that's what the next person — or the
+  next AI — reads to learn how Kavenue talks. Fixing the screens without fixing the notes just means the
+  screens drift back.
+- **What we did.** 23 workers went through 65 files in parallel; each one's work was then re-checked by a
+  separate reviewer whose only job was to find fault with it. **82 notes rewritten, 47 correctly left alone.**
+- **The interesting part: the reviewers mostly caught over-zealousness, not sloppiness.** Twice, a worker
+  changed a note that said "all four of these businesses are hotels" — which is simply *true*, they are —
+  into something vaguer, and lost a real fact in the name of the rule. Both were put back. The rule is
+  "don't call a business a hotel", not "never write the word hotel".
+- **What we deliberately kept:** real place names (Hôtel Negresco, Hôtel Carlton Cannes), the business
+  *type* "Hotel & accommodation", the true statement that hotels are your first market, and — a nice one —
+  a note about **hotel wifi**, which is a kind of wifi, not a kind of customer.
+- **Also fixed:** eight developer-facing labels (test names and a couple of script printouts).
+- **The guard now covers notes too**, with 31 listed exceptions that each have to say *why* they're
+  allowed — so nobody can quietly widen the rule by adding an unexplained exception.
+- **Nothing you see changes.** Not one screen, price or button moved — we proved it mechanically: in 43 of
+  the 47 files touched, only the notes differ, and every one of the 1,644 automated checks still passes.
+
 ## 20 September 2026 — The Driver's app now names your business instead of calling everyone "the hotel"
 
 - **The problem.** Five places in the Driver's app still said "the hotel" — including a whole section heading on the

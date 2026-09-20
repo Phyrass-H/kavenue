@@ -21,7 +21,7 @@ export const PROD_BASE = "kavenue.fr";
 // shipped with no subdomain ([[d90]]), which would have meant sharing dispatch's
 // host-only cookie — so signing in as admin would have signed the founder OUT of
 // their Business account, and back again, all day. Exactly the clash the split
-// above exists to prevent. Dispatch is also the *hotel's* app; Kavenue's back
+// above exists to prevent. Dispatch is also the *Business's* app; Kavenue's back
 // office does not belong behind a customer's front door. See [[d91]].
 export type RoleSub = "driver" | "dispatch" | "admin";
 

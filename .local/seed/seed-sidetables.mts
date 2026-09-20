@@ -94,7 +94,7 @@ for (const m of noShows ?? []) {
 }
 
 // ── release requests ────────────────────────────────────────────────────────
-// A Driver asking the hotel to let them out of a trip they already hold. Rare in
+// A Driver asking the Business to let them out of a trip they already hold. Rare in
 // real life — a handful across three months — but it must not be ZERO, or the
 // console's "nobody has ever used this" check has nothing to distinguish a dead
 // feature from a lightly used one.

@@ -135,6 +135,85 @@ are-the-exemptions-honest, then an adjudicator that re-verifies each claim) was 
 committed. ⚑ Its "what-it-missed" lens was also asked to sweep for **"client" and "principal"** — the
 other half of hard rule 1, which **nobody has ever swept**. Findings to be actioned next.
 
+### ⚑ The completeness critic — and it found the guard itself was broken
+
+Four independent lenses over the whole diff (over-correction · lost meaning · what-it-missed ·
+are-the-exemptions-honest), then an adjudicator that re-verified every claim against the files.
+**32 raw findings → 15 confirmed, 13 rejected as taste or re-litigation.** 13 fixed, 1 partly
+rejected on the data, 2 deferred.
+
+#### ⚑ THE ONE THAT MATTERED: the lock did not hold, and it failed SILENTLY
+`regexCanFollow` read the last **character**, not the last **token**. So `return /["\n\r;]/` in
+`dispatch/history/export/route.ts:40` saw `n` — an identifier char — called it a division, and let
+the `"` inside the character class open a phantom string.
+
+**23 comment lines in that file were invisible to the comment scan. `endsBalanced` reported CLEAN**,
+because the stray quotes happened to re-balance before EOF. And the regression test written to catch
+exactly this used `const q = /…/` — where the preceding token is `=` and the heuristic *happens to
+work* — so it passed green while the line it stood in for was still mis-scanned.
+
+This is the failure direction the § 1 doc block already named as the dangerous one, and it shipped
+anyway. Fixes:
+- `regexCanFollow(prev, prevWord)` — token-aware, with `REGEX_OK_AFTER` (return, typeof, case, in,
+  of, delete, void, yield, await, do, else, new, throw, instanceof); `<` never opens regex (JSX).
+- The regression test now uses the **real shape** (`return /["\n\r;]/.test(body)`).
+- ⚑ **`lostCommentLines()` — the assertion that actually catches it.** Per file: a source line
+  starting `//` whose comment half is blank means the scanner was lost. Run over every scanned file.
+  Reverting the fix turns exactly the two export routes red. `endsBalanced` is **not** a substitute:
+  balanced at EOF says nothing about what was skipped in the middle.
+
+#### An allowance exempted the whole LINE, not its words
+`text.includes(needle)` let a *second*, real violation ride free on an already-allowed line.
+Replaced with `residue()`, which cuts every matching needle out and re-tests the remainder — and it
+immediately found **4 lines** with an uncovered second occurrence (`app/admin/page.tsx:228`,
+`address-autocomplete.tsx:15/16`, `history-filter.ts:220`). ⚑ Needles on one line must be
+**disjoint**, or subtracting one destroys the other's match — cost one red run to learn.
+
+#### Content the sweep got wrong
+| | |
+|---|---|
+| `tests/business-type.test.ts:84` | "three **hotel groups**" → "three Businesses" — **the only word the whole diff destroyed**, and it carried the argument (a head office's NAF describes the head office). Accor, Groupe Barrière and GL Events are SIRENE register entries, **not Kavenue Businesses**. Restored. |
+| `.local/seed/riviera.mts:37` | My own earlier repair made it worse: "a **place** is somewhere a trip starts" is a tautology (PLACES *is* the places map) and orphans "a Driver apparently living in a hotel" four lines above. Restored "a hotel" — the Negresco punchline. |
+| `lib/document-review.ts:166` | ⚑ **A founder quote edited inside its own quotation marks.** `DECISIONS.md:3788` has *"I'd put this person in front of a Guest"* — no possessive. The sweep had made it "a Business's Guest". Restored to the record, and marked as quoted so nobody rewords it again. |
+
+⚑ **One half of a finding rejected on the data.** The critic also wanted `riviera.mts:40` reverted
+from "the PLACE it replaced" to "the HOTEL it replaced", arguing PLACES is mostly airports and
+stations. That argument is inverted: `PLACES` holds 4 hotels against airports, stations, a port and
+villages — so "place" is the *more* accurate word, and the author's original was the loose one. Kept.
+
+#### Missed, now fixed
+- **7 dev console labels across 5 probe/seed scripts** printing `businessTotal` under "hotel"/"HOTEL"
+  (`HOTEL pays`, `round on the HOTEL's side`, …). The by-hand pass fixed console labels and stopped
+  one directory short.
+- A **seventh** vitest title (`tests/dev-login-fixtures.test.ts:22`).
+- ⚑ **`lib/business-type.ts` was dropped from BOTH scans**, so the file most likely to accumulate
+  hotel-flavoured prose was unpoliced. Its **comments** are now scanned like everyone else's, with
+  its six real uses named; only the rendered-string half still exempts it (the enum and the labels
+  genuinely have to be the word).
+- `ALLOWED` gained the same `kind` + `why` audit the comment list already had — the rule was being
+  enforced on the lower-stakes list only.
+- Scanner: a backslash-newline pair collapsed a line (off-by-one for every later hit in that file);
+  needles now read NFC-normalised, so a decomposed `o`+U+0302 can't hide.
+- My own § 2 header contradicted itself ("129 … said hotel for a Business", then "82 rewritten").
+
+**1644 → 1898 tests.** `tsc --noEmit` clean.
+
+### ⚑ DEFERRED, and why — the "client" half of hard rule 1
+The rule also bans **"client"** and **"principal"**. The critic found `client` for the Business in
+`lib/waybill.ts` (6×) and `lib/vat.ts` (4×), and a rendered one at `app/legal/terms/page.tsx:35`
+(*"pour leurs clients (les « Guests »)"*, whose English twin says "end customers").
+
+**I did not sweep these, deliberately.** They are not the same kind of find:
+- `lib/waybill.ts:18-21` transcribes the **arrêté's own 4°–7°**; `lib/vat.ts:109/111/206/209`
+  paraphrases **BOFiP and CE 9 oct. 2024 n° 472257**. Rewriting the noun in a transcription of law
+  risks misstating it, and the honest fix (guillemets around the law's own word, the way `"sans
+  délai"` already is) needs the **actual arrêté text fetched** — not reasoned about.
+- `terms/page.tsx:35` is **legal copy the founder owns**, and there "leurs clients" means the
+  *Guests*, not the Business — it is glossed as « Guests » in the same breath.
+
+⚑ The repo already knows the right term: `lib/database.types.ts:76` — **"the donneur d'ordre"**.
+A proper "client" sweep is its own job, and it starts by fetching the arrêté.
+
 ## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
 
 **⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted

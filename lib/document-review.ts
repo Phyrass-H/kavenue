@@ -162,9 +162,10 @@ export async function rejectDocument(_prev: ReviewResult | null, form: FormData)
  * Say this Driver may work — or take it back.
  *
  * ⚑ A SEPARATE ACT, BY THE FOUNDER'S DECISION (2026-09-04). It is not computed
- * from the documents. "Every paper is valid" and "I would put this person in
- * front of a Business's Guest" are different questions, and the second one is the
- * video interview's only artefact (docs/02:40).
+ * from the documents. "Every paper is valid" and "I'd put this person in front of
+ * a Guest" are different questions, and the second one is the video interview's
+ * only artefact (docs/02:40). (The founder's own words, DECISIONS.md:3788 —
+ * quoted, so not reworded.)
  *
  * ⚑ AND SINCE 2026-09-07 IT IS A DOOR ([[d132]]): accept_mission and place_hold
  * refuse an unverified Driver, so taking it back takes someone's work away today.

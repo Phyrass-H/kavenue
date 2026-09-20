@@ -12,14 +12,14 @@ const { data: row } = await db.from("commission_rate").select("*")
 const rates = ratesFromRow(row);
 const show = (label: string, rate: number) => {
   console.log(`\n${label} — stored rate ${rate.toFixed(2)} €/min (the column is numeric(10,2))`);
-  console.log(`  hotel sees per minute: ${commissionSplit(rate, rates).businessTotal.toFixed(2)}`);
+  console.log(`  business sees per minute: ${commissionSplit(rate, rates).businessTotal.toFixed(2)}`);
   for (const m of [5, 10, 20, 40]) {
     const s = commissionSplit(rate * m, rates);
-    console.log(`  ${String(m).padStart(2)} min → meter ${s.course.toFixed(2)} · hotel ${s.businessTotal.toFixed(2)} · driver ${s.driverNet.toFixed(2)}`);
+    console.log(`  ${String(m).padStart(2)} min → meter ${s.course.toFixed(2)} · business ${s.businessTotal.toFixed(2)} · driver ${s.driverNet.toFixed(2)}`);
   }
 };
 console.log("=== A. round on the DRIVER's side ===");
 show("Eco", 0.5);
-console.log("\n=== B. round on the HOTEL's side (0,50 all-in → stored 0,43) ===");
+console.log("\n=== B. round on the BUSINESS's side (0,50 all-in → stored 0,43) ===");
 show("Eco", 0.43);
 console.log(`\n  ⚑ 20 min at a headline of 0,50 €/min should bill 10,00 — it bills ${commissionSplit(0.43 * 20, rates).businessTotal.toFixed(2)}`);

@@ -81,7 +81,7 @@ describe("typeFromNaf", () => {
   it("refuses to guess, and null is the answer", () => {
     // ⚑ THE ONE THAT MATTERS. A head office's code describes the head office:
     // Accor, Groupe Barrière and GL Events all file 70.10Z. Mapping that to
-    // `corporate` would quietly file three Businesses under the wrong trade
+    // `corporate` would quietly file three hotel groups under the wrong trade
     // and nobody would ever see it. The person is asked instead.
     expect(typeFromNaf("70.10Z")).toBeNull();
     expect(typeFromNaf("64.20Z")).toBeNull(); // holding companies

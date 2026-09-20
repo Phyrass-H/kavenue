@@ -31,40 +31,47 @@ const TYPE_MODULE = "lib/business-type.ts";
  * match at least one surviving line — a stale allowance fails the last test here,
  * which is how a fixed string gets its exemption taken away again.
  */
-const ALLOWED: { file: string; needle: string; why: string }[] = [
+const ALLOWED: { file: string; needle: string; kind: string; why: string }[] = [
   {
     file: "app/welcome/page.tsx",
     needle: "(hotel, agency, concierge)",
+    kind: "the-type",
     why: "Under the heading 'I'm a Business' — these are example TYPES of business, which is the rule stated correctly, not broken.",
   },
   {
     file: "app/legal/terms/page.tsx",
     needle: "hôtels en premier lieu",
+    kind: "the-vertical",
     why: "'les « Businesses », hôtels en premier lieu' — hotels named as the first vertical, exactly the distinction the rule draws.",
   },
   {
     file: "app/legal/terms/page.tsx",
     needle: "hotels first",
+    kind: "the-vertical",
     why: "The English half of the same sentence.",
   },
   {
     file: "app/(dispatch)/dispatch/settings/page.tsx",
     needle: "Oetker Hôtel Management Company",
+    kind: "proper-noun",
     why: "A real company's registered name, the placeholder for 'raison sociale' — a proper noun illustrating that the legal name differs from the name on the door. Part of one coherent worked example (the address and phone on this screen are the same company's).",
   },
   {
     file: "app/api/seed/route.ts",
     needle: 'business_type: "hotel"',
+    kind: "the-type",
     why: "Dev seed data: the seeded Business's actual type.",
   },
   {
     file: "app/api/seed/route.ts",
     needle: "Hôtel Negresco, 37 Prom. des Anglais, Nice",
+    kind: "proper-noun",
     why: "A real Nice address — a place name, not a word for a Business.",
   },
   {
     file: "app/api/seed/route.ts",
     needle: "Hôtel du Cap-Eden-Roc, Bd J.F. Kennedy, Antibes",
+    kind: "proper-noun",
     why: "A real Antibes address — a place name.",
   },
 ];
@@ -88,9 +95,28 @@ const ALLOWED: { file: string; needle: string; why: string }[] = [
  */
 type Mode = "code" | "line" | "block" | "regex" | "'" | '"' | "`";
 
-/** A `/` here opens a regex, not a division: nothing that can END an expression precedes it. */
-function regexCanFollow(prev: string): boolean {
-  return prev === "" || !/[\w$)\]]/.test(prev);
+/**
+ * Does a `/` here open a regex, or is it a division?
+ *
+ * ⚑ THIS MUST LOOK AT THE LAST TOKEN, NOT THE LAST CHARACTER. The first version read one
+ * character back, so `return /["\n\r;]/` in the two export routes saw `n` — an identifier
+ * character — called it a division, and let the `"` inside the character class open a phantom
+ * string. 23 comment lines in dispatch/history/export/route.ts became invisible to the comment
+ * scan, and because the stray quotes happened to balance by the end of the file, `endsBalanced`
+ * still said CLEAN. A scanner going silent is the dangerous direction: silence reads as "no
+ * violations". `noCommentLinesLost` below is the assertion that actually catches it.
+ */
+const REGEX_OK_AFTER = new Set([
+  "return", "typeof", "case", "in", "of", "delete", "void", "yield", "await",
+  "do", "else", "new", "throw", "instanceof",
+]);
+
+function regexCanFollow(prev: string, prevWord: string): boolean {
+  if (prev === "") return true;
+  if (REGEX_OK_AFTER.has(prevWord)) return true;
+  // `<` is JSX here, never a comparison that a regex could follow.
+  if (prev === "<") return false;
+  return !/[\w$)\]]/.test(prev);
 }
 
 function scan(src: string): { out: string; comments: string; mode: Mode } {
@@ -99,15 +125,19 @@ function scan(src: string): { out: string; comments: string; mode: Mode } {
   let i = 0;
   let mode: Mode = "code";
   let prev = "";
+  let prevWord = "";
   while (i < src.length) {
     const c = src[i]!;
     const next = src[i + 1];
     if (mode === "code") {
       if (c === "/" && next === "/") { mode = "line"; out += "  "; comments += "//"; i += 2; continue; }
       if (c === "/" && next === "*") { mode = "block"; out += "  "; comments += "/*"; i += 2; continue; }
-      if (c === "/" && regexCanFollow(prev)) mode = "regex";
+      if (c === "/" && regexCanFollow(prev, prevWord)) mode = "regex";
       else if (c === "'" || c === '"' || c === "`") mode = c;
+      if (/[\w$]/.test(c)) prevWord += c;
+      else if (!/\s/.test(c)) prevWord = "";
       if (!/\s/.test(c)) prev = c;
+      if (/\s/.test(c)) prevWord = prevWord && /[\w$]/.test(prev) ? prevWord : "";
       out += c;
       // ⚑ The comment half must keep the line structure, or consecutive one-line doc
       // comments collapse onto one line and a hit reports the wrong line number.
@@ -115,25 +145,50 @@ function scan(src: string): { out: string; comments: string; mode: Mode } {
       i++; continue;
     }
     if (mode === "line") {
-      if (c === "\n") { mode = "code"; out += c; comments += c; i++; continue; }
+      if (c === "\n") { mode = "code"; prevWord = ""; out += c; comments += c; i++; continue; }
       out += " "; comments += c; i++; continue;
     }
     if (mode === "block") {
-      if (c === "*" && next === "/") { mode = "code"; out += "  "; comments += "*/"; i += 2; continue; }
+      if (c === "*" && next === "/") { mode = "code"; prevWord = ""; out += "  "; comments += "*/"; i += 2; continue; }
       out += c === "\n" ? c : " "; comments += c; i++; continue;
     }
     // inside a regex or a string: a backslash escapes the next character, including
     // the closing delimiter. A newline ends an unterminated regex rather than
     // letting one runaway `/` eat the rest of the file.
-    if (c === "\\") { out += "  "; comments += "  "; i += 2; continue; }
+    // ⚑ Keep a newline that is the second half of an escape pair, or the file shifts by a
+    // line and every hit after it in that file reports the wrong number.
+    if (c === "\\") {
+      const pair = src.slice(i, i + 2).replace(/[^\n]/g, " ");
+      out += pair; comments += pair; i += 2; continue;
+    }
     if (mode === "regex" && c === "\n") { mode = "code"; out += c; comments += c; i++; continue; }
-    if (c === mode || (mode === "regex" && c === "/")) { mode = "code"; prev = c; }
+    if (c === mode || (mode === "regex" && c === "/")) { mode = "code"; prev = c; prevWord = ""; }
     out += c; comments += c === "\n" ? "\n" : " "; i++;
   }
   return { out, comments, mode };
 }
 
 const stripComments = (src: string) => scan(src).out;
+
+/**
+ * Line numbers where the SOURCE plainly has a `//` comment but the scanner's comment half is
+ * blank — i.e. the scanner was lost and skipped it.
+ *
+ * ⚑ THIS IS THE ASSERTION THAT MATTERS, and `endsBalanced` is not a substitute for it. On
+ * 2026-09-20 a mis-read regex silently hid 23 comment lines in one file while `endsBalanced`
+ * reported CLEAN, because the stray quotes happened to balance again before EOF. A scan that
+ * goes quiet reads exactly like a scan that found nothing.
+ */
+function lostCommentLines(src: string): number[] {
+  const source = src.split("\n");
+  const seen = scan(src).comments.split("\n");
+  const lost: number[] = [];
+  source.forEach((raw, i) => {
+    const t = raw.trim();
+    if (t.startsWith("//") && t.length > 2 && !(seen[i] || "").trim()) lost.push(i + 1);
+  });
+  return lost;
+}
 /** The inverse: only the comment text, with code blanked and line positions preserved. */
 const commentsOnly = (src: string) => scan(src).comments;
 /**
@@ -170,8 +225,21 @@ for (const file of FILES) {
   });
 }
 
-const allowed = (h: Hit) =>
-  ALLOWED.some((a) => a.file === h.file && h.text.includes(a.needle));
+/**
+ * What is LEFT of a line once every allowance that matches it is cut out.
+ *
+ * ⚑ AN ALLOWANCE EXEMPTS ITS WORDS, NOT THE WHOLE LINE. The first version asked
+ * `text.includes(needle)` and exempted the entire line, so appending a second, real
+ * violation to an already-allowed line was invisible — the opposite of what this file's
+ * own header promises. Cut each needle out and re-test the remainder.
+ */
+function residue(text: string, allowances: { file: string; needle: string }[], file: string): string {
+  return allowances
+    .filter((a) => a.file === file)
+    .reduce((t, a) => t.split(a.needle).join(" "), text);
+}
+
+const allowed = (h: Hit) => !/h[oô]tel/i.test(residue(h.text, ALLOWED, h.file));
 
 describe("the scanner itself", () => {
   it("finds the word in JSX copy", () => {
@@ -197,11 +265,33 @@ describe("the scanner itself", () => {
     expect(stripComments('const u = "https://hotel.example";')).toContain("hotel");
   });
 
-  // The bug that made the first version of this file report a comment as copy.
-  it("reads a regex literal as a regex, not as the start of a string", () => {
-    const src = ['const q = /["\\n;]/.test(s);', '// a hotel comment after it'].join("\n");
-    expect(stripComments(src)).not.toMatch(/hotel/i);
+  // ⚑ THE REAL SHAPE, from app/(dispatch)/dispatch/history/export/route.ts:40. The first
+  // version of this test used `const q = /…/`, where the preceding token is `=` and the
+  // heuristic happens to work — so it passed green while the line it stood in for was still
+  // mis-scanned. `return` is the case that actually broke.
+  it("reads a regex after `return` as a regex, not as a division", () => {
+    const src = [
+      "function f(body) {",
+      '  return /["\\n\\r;]/.test(body) ? body : "";',
+      "}",
+      "// a hotel comment after it",
+    ].join("\n");
+    expect(scan(src).comments).toMatch(/hotel/i);
+    expect(lostCommentLines(src)).toEqual([]);
     expect(endsBalanced(src)).toBe(true);
+  });
+
+  it("reads a regex after the other keywords that permit one", () => {
+    for (const kw of ["typeof", "case", "in", "of", "delete", "void", "throw", "new"]) {
+      const src = kw + ' /["x]/;\n// a hotel comment';
+      expect(lostCommentLines(src)).toEqual([]);
+    }
+  });
+
+  it("does not read JSX `<` as opening a regex", () => {
+    const src = "const a = <h2>x</h2>;\n// the hotel rings";
+    expect(scan(src).comments).toMatch(/hotel/i);
+    expect(lostCommentLines(src)).toEqual([]);
   });
 
   it("still reads a division as a division", () => {
@@ -219,6 +309,12 @@ describe("the scanner itself", () => {
   // silence this test reads as "clean".
   it.each(FILES)("%s parses cleanly, so its result means something", (file) => {
     expect(endsBalanced(readFileSync(join(root, file), "utf8"))).toBe(true);
+  });
+
+  // ⚑ The stronger half of the same idea: balanced at EOF does NOT mean nothing was skipped
+  // in the middle. This one caught the mis-read `return /…/`.
+  it.each(FILES)("%s loses no comment line to the scanner", (file) => {
+    expect(lostCommentLines(readFileSync(join(root, file), "utf8"))).toEqual([]);
   });
 
   it("scans a real set of files, so an empty result means clean and not broken", () => {
@@ -251,9 +347,35 @@ describe("no rendered string says 'hotel' when it means a Business", () => {
   });
 });
 
+const KINDS = ["states-the-rule", "the-vertical", "the-type", "proper-noun", "place-category", "not-a-business"];
+
 describe("the allowances", () => {
-  it.each(ALLOWED)("$file still contains $needle", ({ file, needle }) => {
+  it.each(ALLOWED)("$file — $kind — still contains $needle", ({ file, needle }) => {
     expect(hits.some((h) => h.file === file && h.text.includes(needle))).toBe(true);
+  });
+
+  // The same audit the comment half gets. Both lists, same terms — an exemption
+  // nobody can read the reason for is how a rule quietly stops meaning anything.
+  it.each(ALLOWED)("$file — $needle — states why", ({ why, kind }) => {
+    expect(why.length).toBeGreaterThan(20);
+    expect(KINDS).toContain(kind);
+  });
+
+  // ⚑ Proves `residue` subtracts the words and does not exempt the line. A second,
+  // real violation appended to an allowed line must still fail.
+  it("exempts the needle, not the line it sits on", () => {
+    const line = 'placeholder="accounts@hotel.com"';
+    const a = [{ file: "f.tsx", needle: "accounts@hotel.com" }];
+    expect(/h[oô]tel/i.test(residue(line, a, "f.tsx"))).toBe(false);
+    expect(/h[oô]tel/i.test(residue(line + " // and the hotel is told", a, "f.tsx"))).toBe(true);
+    // An allowance for another file must not apply here.
+    expect(/h[oô]tel/i.test(residue(line, a, "other.tsx"))).toBe(true);
+  });
+
+  it("catches a decomposed ô, which spells the same word", () => {
+    const decomposed = "Ho\u0302tel";
+    expect(decomposed).not.toBe("Hôtel");
+    expect(/h[oô]tel/i.test(decomposed.normalize("NFC"))).toBe(true);
   });
 });
 
@@ -262,10 +384,10 @@ describe("the allowances", () => {
 //
 // ⚑ WHY THIS HALF EXISTS. On 2026-09-20 the rendered strings above were fixed and
 // the COMMENTS were left, on the grounds that nobody sees a comment. 129 of them
-// said "hotel" for a Business. That is what the next engineer — and the next
-// Claude — reads to learn the vocabulary, which is exactly how five rendered
-// strings drifted back in the first place. 82 were rewritten; the ones below are
-// the ones that are genuinely right, each with the reason it survived.
+// used the word, and 82 of those meant a Business. That is what the next engineer
+// — and the next Claude — reads to learn the vocabulary, which is exactly how five
+// rendered strings drifted back in the first place. Those 82 were rewritten; the
+// ones below are the ones that are genuinely right, each with the reason it survived.
 //
 // SCOPE: app/, components/, lib/ — the code someone reads to understand the
 // product. tests/ and .local/ comments were swept too but are NOT locked: they
@@ -284,6 +406,12 @@ const COMMENT_ALLOWED: { file: string; needle: string; kind: string; why: string
   // ── Hotels as the first VERTICAL. True, and the rule's own justification.
   { file: "app/admin/businesses/page.tsx", needle: "Hotels are the first vertical", kind: "the-vertical", why: "Closes the founder's quote above it." },
   { file: "app/admin/page.tsx", needle: "hotels are the first vertical", kind: "the-vertical", why: "Cites CLAUDE.md hard rule 1." },
+  // ⚑ These four sit on a line that ALREADY has an allowance. Needle-subtraction (see
+  //   `residue`) made them visible: they were riding free on their neighbour's exemption.
+  { file: "app/admin/page.tsx", needle: "them is a hotel today", kind: "the-type", why: "True of the live data: every Business on the books today is hotel-type. Flattening this is the over-correction that had to be reverted twice on 2026-09-20." },
+  { file: "components/address-autocomplete.tsx", needle: "Google: the hotel.", kind: "proper-noun", why: "'the hotel' is Hôtel Negresco, named at the start of the same measured line — Google returned the property, Mapbox returned three Airbnb flats." },
+  { file: "components/address-autocomplete.tsx", needle: "Google: the hotel (2nd)", kind: "proper-noun", why: "'the hotel' is Hôtel du Cap-Eden-Roc, named in full on the next line." },
+  { file: "lib/history-filter.ts", needle: '"Hôtel Negresco"', kind: "proper-noun", why: "The accented place name on the same line — needles must not OVERLAP, or subtracting one destroys the other's match." },
   { file: "app/admin/drivers/page.tsx", needle: 'hotels" is a fact about the market', kind: "the-vertical", why: "⚑ A sweeper rewrote this to \"the same type\" on 2026-09-20 and a verifier reverted it: \"all four are hotels\" is a true statement about today's data, and flattening it loses the fact." },
 
   // ── The `hotel` TYPE, applied to Businesses that really are that type.
@@ -305,8 +433,17 @@ const COMMENT_ALLOWED: { file: string; needle: string; kind: string; why: string
   { file: "lib/company-register.ts", needle: '"HOTEL CARLTON CANNES"', kind: "proper-noun", why: "The real trade name SIRENE returns for that establishment." },
   { file: "lib/first-trips.ts", needle: '/** "Hôtel Negresco → Nice Airport, T2" */', kind: "proper-noun", why: "The worked example of the `route` field." },
   { file: "lib/first-trips.ts", needle: '"Hôtel Negresco → Nice Airport, T2", falling back', kind: "proper-noun", why: "routeOf()'s example return value." },
-  { file: "lib/history-filter.ts", needle: 'a Dispatcher typing "aeroport" or "hotel"', kind: "proper-noun", why: "Both are literal search strings: the accented place name, and the unaccented text a French keyboard types in a hurry." },
+  { file: "lib/history-filter.ts", needle: 'or "hotel" on a French', kind: "proper-noun", why: "The literal unaccented text a French keyboard types in a hurry — fold() must still match it." },
   { file: "app/api/seed/route.ts", needle: "the real hotel's", kind: "proper-noun", why: "The real establishment the fixture borrows its name and address from — not 'a Business'." },
+
+  // ── lib/business-type.ts — the module that DEFINES the nine types. Scanned like the
+  //   rest; these six are the uses the file exists to make.
+  { file: "lib/business-type.ts", needle: "NOT JUST HOTELS (founder, S71)", kind: "states-the-rule", why: "The founder's S71 ruling ([[d99]]) stated in the file that defines the types — the word appears in order to be rejected." },
+  { file: "lib/business-type.ts", needle: "Hotels are the first vertical", kind: "the-vertical", why: "Verbatim the phrasing the rule itself uses as the allowed case." },
+  { file: "lib/business-type.ts", needle: "a different customer from a hotel", kind: "the-type", why: "A type-to-type comparison: `vtc_company` against `hotel`, and the contrast is the whole point of that enum value existing." },
+  { file: "lib/business-type.ts", needle: '"Hotel & accommodation" WRAPPED TO TWO LINES', kind: "the-type", why: "A verbatim quote of LABELS.hotel — the string that overflowed a 118px column." },
+  { file: "lib/business-type.ts", needle: "one hotel, one restaurant", kind: "the-type", why: "Two of the nine types as concrete examples of an establishment, contrasted with a siège social." },
+  { file: "lib/business-type.ts", needle: '"Boutique hotel', kind: "the-type", why: "Sample free-typed field_of_activity data — a string that is NOT one of the nine values, which is why the Business is asked." },
 
   // ── Not a Business at all: a kind of PLACE, or a kind of WIFI.
   { file: "components/address-autocomplete.tsx", needle: "(hotel / airport / venue) or street", kind: "place-category", why: "The real-world kinds of point of interest a Google place name can be, as opposed to a street." },
@@ -315,15 +452,16 @@ const COMMENT_ALLOWED: { file: string; needle: string; kind: string; why: string
   { file: "lib/offline-waybill.ts", needle: "says true on hotel wifi behind a captive portal", kind: "not-a-business", why: "⚑ A kind of network, not a kind of Business. navigator.onLine reports a network while a captive portal holds every request." },
 ]
 
+// ⚑ lib/business-type.ts IS scanned here, unlike in the rendered half. Its `hotel` enum
+// value and its "Hotel"/"Hotel & accommodation" LABELS are rendered strings that have to be
+// the word — but its PROSE has no such licence, and it is the file most likely to accumulate
+// hotel-flavoured commentary. Its six comment uses are named below like everybody else's.
 const COMMENT_DIRS = ["app", "components", "lib"]
-const COMMENT_FILES = COMMENT_DIRS.flatMap(sourceFiles)
-  .map((p) => relative(".", p))
-  .filter((p) => p !== TYPE_MODULE)
-  .sort();
+const COMMENT_FILES = COMMENT_DIRS.flatMap(sourceFiles).map((p) => relative(".", p)).sort();
 
 const commentHits: Hit[] = [];
 for (const file of COMMENT_FILES) {
-  const lines = commentsOnly(readFileSync(join(root, file), "utf8")).split("\n");
+  const lines = commentsOnly(readFileSync(join(root, file), "utf8").normalize("NFC")).split("\n");
   lines.forEach((text, i) => {
     if (/h[oô]tel/i.test(text)) commentHits.push({ file, line: i + 1, text: text.trim() });
   });
@@ -331,9 +469,7 @@ for (const file of COMMENT_FILES) {
 
 describe("no COMMENT says 'hotel' when it means a Business", () => {
   it("app/, components/ and lib/ are clean outside the business-type module", () => {
-    const bad = commentHits.filter(
-      (h) => !COMMENT_ALLOWED.some((a) => a.file === h.file && h.text.includes(a.needle)),
-    );
+    const bad = commentHits.filter((h) => /h[oô]tel/i.test(residue(h.text, COMMENT_ALLOWED, h.file)));
     // If this fails: rewrite the comment to say Business — or, if it genuinely means a
     // hotel-TYPE Business, a proper noun, a place category or the vertical, add it to
     // COMMENT_ALLOWED with the reason. Never widen the rule; add the one line.

@@ -130,7 +130,7 @@ try {
   const live = currentFare(beforeAccept);
   t("it has really climbed off its floor before anyone takes it",
     live > floorCourse, `now ${eur(live)} vs floor ${eur(floorCourse)}`);
-  console.log(`   at T−30h the hotel sees ${eur(commissionSplit(live, rates).businessTotal)}\n`);
+  console.log(`   at T−30h the Business sees ${eur(commissionSplit(live, rates).businessTotal)}\n`);
 
   // ── accept, exactly as the server action does: fare computed here, passed in ──
   const { error: accErr } = await asDriver.rpc("accept_mission_call", { p_mission_id: made.id, p_fare: live });

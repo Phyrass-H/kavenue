@@ -34,7 +34,7 @@ export const PLACES: Record<string, Place> = {
  * founder spotted it on sight. The app has always asked the Driver for their own
  * address ("Your base — start typing a town or address", app/(app)/settings/area):
  * only the test data was wrong. Keeping the two maps apart is what stops it
- * happening again — a place is somewhere a trip starts, not somewhere a Driver
+ * happening again — a hotel is somewhere a trip starts, not somewhere a Driver
  * sleeps.
  *
  * ⚑ EACH TOWN IS WITHIN ~10 km OF THE PLACE IT REPLACED, deliberately. The three

@@ -94,7 +94,7 @@ try {
     if (f < prev) monotone = false;
     prev = f;
     const s = commissionSplit(f, rates);
-    console.log(`   T−${String(h).padStart(4)}h   course ${eur(f).padStart(6)}   hotel ${eur(s.businessTotal).padStart(6)}   driver ${eur(s.driverNet).padStart(6)}`);
+    console.log(`   T−${String(h).padStart(4)}h   course ${eur(f).padStart(6)}   business ${eur(s.businessTotal).padStart(6)}   driver ${eur(s.driverNet).padStart(6)}`);
   }
   console.log("");
   t("the price never goes down", monotone);

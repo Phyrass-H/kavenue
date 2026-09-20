@@ -5,6 +5,35 @@
 
 ---
 
+## 20 September 2026 — Had the work checked by four fresh reviewers, and they found the checker itself was broken
+
+- **Why do this at all.** The guard we'd just built was supposed to make the "Businesses, not hotels"
+  rule permanent. Before trusting it, four independent reviewers went at the whole change from
+  different angles, and a fifth re-checked every complaint before it was allowed to count. **32
+  complaints in, 15 real, 13 thrown out.**
+- **The one that mattered: the guard had a blind spot, and it was a silent one.** In two files it was
+  quietly skipping 23 lines of notes — and still reporting "all clean". A guard that goes quiet looks
+  exactly like a guard that found nothing wrong. Worse, the test written to catch this exact problem
+  used an example that happened to work, so it stayed green. Both are fixed, and there's now a check
+  that the guard can't skip a line without saying so.
+- **Exceptions were too generous.** Marking part of a line as "allowed" was letting the *rest* of that
+  line off too — so a genuine mistake could hide next to an approved one. Tightened, and it immediately
+  caught four places where that was happening.
+- **Three things the sweep had got wrong, now put back:**
+  - A note explaining that three big hotel groups file their head-office trade code had been made
+    vaguer, losing the fact the explanation depended on.
+  - A note about the bug where test Drivers appeared to *live in hotels* had been flattened into a
+    sentence that said nothing.
+  - **A quote of your own words had been edited inside its quotation marks.** The record says "I'd put
+    this person in front of a Guest"; it now says that again, marked as a quote so nobody rewords it.
+- **Also caught:** seven printouts in developer scripts, one more test name, and the fact that the file
+  which *defines* the nine business types was itself exempt from the check. All fixed.
+- **One thing deliberately NOT done.** The same rule also bans the word "client". It does still appear —
+  but almost entirely inside passages that transcribe French law (the waybill decree, the VAT rulings).
+  Changing a legal word to suit our vocabulary risks misstating the law, so that's a separate job and it
+  starts by pulling the actual decree text. Flagged, not touched.
+- 1,898 automated checks now pass, up from 1,644.
+
 ## 20 September 2026 — Swept the same word out of the code's own notes, so it stops teaching the mistake
 
 - **Why bother with notes nobody sees.** The five wrong words on screen (above) didn't come from nowhere:

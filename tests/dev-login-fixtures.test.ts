@@ -19,7 +19,7 @@ describe("real accounts are refused on the live site", () => {
     expect(isFixtureEmail("admin@kavenue.fr")).toBe(false);
   });
 
-  it("any ordinary address a Driver or hotel could actually own", () => {
+  it("any ordinary address a Driver or Business could actually own", () => {
     for (const e of [
       "phyrass.h@gmail.com",
       "reception@carlton-cannes.com",

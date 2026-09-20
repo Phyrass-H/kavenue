@@ -14,12 +14,17 @@
 // silently shrinking what it checks.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 
 const root = join(__dirname, "..");
 const read = (p: string) => readFileSync(join(root, p), "utf8");
 
 const SCHEDULE = "app/(dispatch)/dispatch/page.tsx";
+const HISTORY = "app/(dispatch)/dispatch/history/page.tsx";
+const SPEND = "app/(dispatch)/dispatch/spend/page.tsx";
+const HISTORY_CSV = "app/(dispatch)/dispatch/history/export/route.ts";
+const SPEND_CSV = "app/(dispatch)/dispatch/spend/export/route.ts";
 const SIDE_TABLES = "lib/side-tables.ts";
 
 /**
@@ -36,23 +41,73 @@ const PAGED_READS: Array<{ file: string; table: string; tieBreak: string }> = [
   { file: SCHEDULE, table: "mission_release", tieBreak: '.order("id"' },
   { file: SCHEDULE, table: "mission_info_change", tieBreak: '.order("id"' },
   { file: SIDE_TABLES, table: "mission_cancellation", tieBreak: '.order("id"' },
+  // The two money screens and the two files they download. Every figure on them
+  // is summed or counted from these reads, so a silent cut is a wrong number.
+  { file: HISTORY, table: "mission_read", tieBreak: '.order("id"' },
+  { file: SPEND, table: "mission_read", tieBreak: '.order("id"' },
+  { file: HISTORY_CSV, table: "mission_read", tieBreak: '.order("id"' },
+  { file: SPEND_CSV, table: "mission_read", tieBreak: '.order("id"' },
 ];
 
-/** The text of one `.from("<table>")` call chain, up to the end of its statement. */
+/**
+ * Every OTHER place the Business side reads `mission_read`, and why it is allowed
+ * to ask for one request.
+ *
+ * ⚑ This list is the point of the test below: a NEW unbounded read of the archive
+ * is exactly the fault this session fixed, and it is invisible until a Business
+ * passes 1 000 trips. Adding a read here is a decision someone has to write down.
+ */
+const NOT_PAGED: Array<{ file: string; why: string }> = [
+  { file: "app/(dispatch)/dispatch/[id]/amend/actions.ts", why: "one trip, by id" },
+  { file: "app/(dispatch)/dispatch/[id]/amend/page.tsx", why: "one trip, by id" },
+  { file: "app/(dispatch)/dispatch/[id]/edit/page.tsx", why: "one trip, by id" },
+  { file: "app/(dispatch)/dispatch/actions.ts", why: "one trip, by id (five actions)" },
+  { file: "app/(dispatch)/dispatch/new/page.tsx", why: "one trip, by id — the duplicate source" },
+  {
+    file: "app/(dispatch)/dispatch/calendar/page.tsx",
+    why: "bounded to one month ±1 day; needs 1 000 trips in a single month to bite",
+  },
+  {
+    file: "app/(dispatch)/dispatch/drafts/page.tsx",
+    why: "TO DO — drafts only, and the sidebar badge is an exact count, so the two would disagree out loud past 1 000 drafts",
+  },
+];
+
+/**
+ * The text of ONE `.from("<table>")` call chain.
+ *
+ * ⚑ It cuts at the chain's own `.range(from, to)`, not at a closing bracket: the
+ * bracket that ends a chain is indented differently in a page, a route and inside
+ * a Promise.all, and a window that overshoots reaches into the NEXT read — where
+ * it would happily find someone else's `.range()` and pass.
+ */
 function chain(source: string, table: string): string {
   const at = source.indexOf(`.from("${table}")`);
   expect(at, `${table} is no longer read here`).toBeGreaterThan(-1);
-  const end = source.indexOf("\n    );", at);
-  return source.slice(at, end === -1 ? at + 900 : end);
+  const range = source.indexOf(".range(from, to)", at);
+  const bracket = source.indexOf("\n    );", at);
+  const hardStop = bracket === -1 ? at + 900 : bracket;
+  const end = range === -1 ? hardStop : Math.min(range + ".range(from, to)".length, hardStop);
+  return source.slice(at, end);
 }
 
-describe("the Schedule's reads are paged", () => {
+describe("the Business side's reads are paged", () => {
   for (const { file, table, tieBreak } of PAGED_READS) {
     const source = read(file);
     const c = chain(source, table);
 
     it(`${table} asks for a page, not everything`, () => {
       expect(c, `${table} must end in .range(from, to)`).toContain(".range(from, to)");
+    });
+
+    it(`⚑ ${table} fixes its boundary before the first page`, () => {
+      // A `new Date()` INSIDE the paged callback is re-evaluated per request, so
+      // the "past" boundary walks forward between pages: a trip that becomes past
+      // in the gap sorts to the top of a DESC result, pushes every offset down,
+      // and the rows at the boundary are written twice. Found in review, S84.
+      expect(c, `${table} must not build a timestamp inside the paged callback`).not.toContain(
+        "new Date()",
+      );
     });
 
     it(`${table} ends its ORDER BY on a unique column`, () => {
@@ -79,6 +134,36 @@ describe("the Schedule's reads are paged", () => {
     expect(source, "the whole id list must never travel in one request again").not.toContain(
       '.in("id", driverIds)',
     );
+  });
+
+  it("⚑ every other archive read on the Business side is accounted for", () => {
+    // A `.from("mission_read")` that is neither paged nor listed above is a new
+    // unbounded read of the archive — the fault this file exists to prevent.
+    const seen = new Set<string>();
+    for (const dir of ["app/(dispatch)"]) {
+      const out = execFileSync("grep", ["-rl", '.from("mission_read")', dir], {
+        cwd: root,
+        encoding: "utf8",
+      });
+      for (const f of out.trim().split("\n")) seen.add(f);
+    }
+    const paged = new Set(PAGED_READS.map((r) => r.file));
+    const excused = new Set(NOT_PAGED.map((r) => r.file));
+    const unaccounted = [...seen].filter((f) => !paged.has(f) && !excused.has(f));
+    expect(unaccounted, "page it, or add it to NOT_PAGED with a reason").toEqual([]);
+  });
+
+  it("⚑ a CSV has no half state — both downloads refuse rather than write a short file", () => {
+    for (const f of [HISTORY_CSV, SPEND_CSV]) {
+      const source = read(f);
+      expect(source, `${f} must page the archive`).toContain("readAllPages<MissionRow>");
+      expect(source, `${f} must refuse a partial read`).toContain("status: 503");
+      expect(
+        [...source.matchAll(/status: 503/g)].length,
+        `${f} must refuse BOTH a short archive and a failed Driver lookup`,
+      ).toBe(2);
+      expect(source).toContain("Nothing was downloaded");
+    }
   });
 
   it("⚑ a failed Driver read is told on the row, in both places the row states it", () => {

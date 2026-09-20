@@ -5,6 +5,63 @@
 
 ---
 
+## 2026-09-20 — SESSION 84 (cont.) · step 2: Spend, History and both CSVs are paged · tests 1387
+
+**Same fault, on the screens where it is WORST.** Both money screens and both downloads read the Business's entire
+past archive in one request and then compute in memory: the spend total and its waiting part, the fill rate, "of N",
+the outcome chips, the month bands, the comparison period, the chart, the breakdown, the class dropdown and the date
+picker's floor. Truncated at 1 000 rows, they do not show a short list — they show **wrong numbers**, and the
+comparison prints *"Nothing to compare — {period} has no trips"* about a month that had plenty.
+
+**Shipped** (`readAllPages` / `readByIds` from step 1):
+- `history/page.tsx`, `spend/page.tsx`, `history/export/route.ts`, `spend/export/route.ts` — archive paged,
+  `pickup_at desc` + `id desc`, Driver lookup batched, failure told on the row ("not loaded").
+- ⚑ **A CSV has no half state.** Both routes now return **503 with no file** when the archive cannot be read in full
+  or the Driver lookup fails — a short or Driver-less spreadsheet on an accountant's desk looks exactly like a
+  complete one. The database's own wording goes to the log; the Business gets *"Your archive couldn't be read in
+  full. Nothing was downloaded — try again."*
+- ⚑ **Spend's whole body is now gated on `!error`** (History already was). With the archive unread every figure
+  computed happily from nothing: `0,00 €`, "0 trips", **−100 % against last month** and an empty chart — a screen
+  stating in detail that this Business spent nothing. Verified by forcing the read to fail: header + notice only.
+- `docs/migrations/2026-09-20_paged_read_indexes.sql` (**optional, nothing depends on it**) + a pasteable
+  `.local/probe/paged-reads/check.sql`: `mission (business_id, pickup_at, id)` — ASC serves both directions — and
+  `(business_id, created_at desc, id desc)` on the four side tables. No index on `pickup_at` existed anywhere.
+
+**⚑⚑ THE REVIEW CAUGHT A REAL DEFECT I HAD INTRODUCED — the moving clock.** Both CSV routes built
+`new Date().toISOString()` **inside** the paged callback, so the "past" boundary advanced between pages. A trip that
+becomes past in that gap sorts to the TOP of a `pickup_at desc` result, pushes every offset down, and the rows at the
+page boundary are written **twice** — into a file with a Total row. One request had made this impossible; paging is
+what created it. Fixed by hoisting one `nowIso` per request (both pages already did this), and
+`tests/paged-call-sites.test.ts` now fails if any paged chain contains `new Date()` — mutation-checked.
+
+**Proof.** tsc clean · **1387 tests** (1367 → +10 call-site assertions) · live, at `PAGE_ROWS` forced to 25: History
+still read *"169 trips · 13 436,37 € incl. 502,32 € waiting · 36 unfilled"*, Spend still *"−3 691,95 € · −100,0 %"*
+and *"1 of 14"*, and the History CSV still had 170 lines — identical to page size 1 000, i.e. seven pages assembled
+into the same numbers · a forced failure returned **503 with no file**; the Spend page drew header + notice only.
+
+**Review.** 4 read-only agents × adversarial verify (32; 7 verifiers died on the account's session limit, their
+findings are unjudged). 9 stood: the moving clock (twice), the Spend body gate, the missing indexes, the stale
+docblock, the database's wording in the CSV body, and the `chain()` test helper overshooting into the next read —
+all fixed here.
+
+### ⚑ LESSONS
+1. ⚑⚑ **Paging turns a snapshot into a window.** One request sees one instant; N requests see N instants, so any
+   predicate built from `now` — or any filter on a column that changes — must be computed ONCE, above the loop. The
+   tie-break `.order("id")` fixes ties between pages; it cannot fix a boundary that moves.
+2. ⚑⚑ **A screen that computes from an empty array states a confident falsehood.** `spendTotals([])` is a complete,
+   plausible, entirely wrong page. Gate the body on the read, not just the notice.
+3. ⚑ **The live 25-row proof cannot catch a race.** It compares row counts, and the clock defect only duplicates rows
+   when a pickup time crosses `now` between two requests. Reading the diff caught what running it could not.
+
+### ⚑ LEFT OPEN after step 2
+- `/dispatch/drafts` is still unbounded (listed in `NOT_PAGED` with its reason; the sidebar badge is an exact count,
+  so past 1 000 drafts the two disagree out loud). The Calendar is bounded to a month.
+- The five side reads on the Schedule still run one after another; one `Promise.all` would cut the wait.
+- The money screens' period filter still runs in memory over the whole archive. At real volume, push it into the
+  QUERY as `app/(app)/earnings/page.tsx` already does — then the pages stop growing with the archive at all.
+- The pages still print the database's own wording in their red notice (pre-existing, unchanged); the CSVs no longer do.
+- Admin side untouched: `readAll` fails open at 18 call sites and `countOrphanedEvents` pages 2 503 rows unordered.
+
 ## 2026-09-20 — SESSION 84 · the 1 000-row cap, step 1: the Business's Schedule is paged · tests 1367
 
 **The fault.** PostgREST stops an unbounded `.select()` at **1 000 rows and reports no error** (measured on this

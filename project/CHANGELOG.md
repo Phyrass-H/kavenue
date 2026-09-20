@@ -5,6 +5,23 @@
 
 ---
 
+## 20 September 2026 — Spend, History and the two CSV downloads can no longer quietly under-report your money
+
+- **The problem.** Same 1 000-row wall as the Schedule, but worse here: these screens add your money up from the
+  trips they read. Past 1 000 trips the total would simply have come out too low, the "requests covered" percentage
+  wrong, and the comparison would have announced that a month with plenty of trips "has no trips".
+- **The fix.** All four now read your archive in batches until it is complete.
+- **A downloaded file is all or nothing now.** If the archive can't be read in full, or the Driver names can't be
+  loaded, you get no file and a plain message instead of a spreadsheet that looks complete and isn't.
+- **Spend no longer invents a zero.** If the read fails, you see the message alone — not a 0,00 € total with a
+  −100 % fall against last month, which is what it used to draw.
+- **Nothing else changes** — same figures, same screens. I checked by shrinking the batch size to 25 and reloading:
+  identical totals, down to the cent.
+- **One optional database file** (`2026-09-20_paged_read_indexes.sql`) adds indexes so these reads stay quick as you
+  grow. Nothing depends on it and nothing is broken without it — paste it whenever you like, then the check file.
+- **Found and fixed during review:** my own first version rebuilt the "up to now" moment on every batch, so a trip
+  whose pickup time passed mid-download could have been written into the file twice. Caught before it shipped.
+
 ## 20 September 2026 — Your Schedule can no longer lose tomorrow's trips as your archive grows
 
 - **The problem.** The database hands back at most 1 000 trips per request and says nothing when it cuts. Your

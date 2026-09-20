@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { loadDriverWalks } from "@/lib/side-tables";
 import { createClient } from "@/lib/supabase/server";
+import { readAllPages, readByIds, readErrorMessage } from "@/lib/paged-read";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAppContext } from "@/lib/app-context";
 import { isExpired, parisDayKey } from "@/lib/dispatch-status";
@@ -112,18 +113,45 @@ export async function GET(req: NextRequest) {
   const span = currentSpan(query);
 
   const supabase = await createClient();
-  const [{ data }, { data: desks }] = await Promise.all([
-    supabase
-      .from("mission_read")
-      .select("*")
-      .eq("business_id", ctx.business.id)
-      .neq("status", "draft")
-      .lt("pickup_at", new Date().toISOString())
-      .order("pickup_at", { ascending: false }),
-    supabase.from("dispatcher").select("id, name").eq("business_id", ctx.business.id),
-  ]);
 
-  const missions: MissionRow[] = data ?? [];
+  // ⚑⚑ ONE CLOCK FOR EVERY PAGE. `readAllPages` calls this back once per request,
+  // so a `new Date()` INSIDE the callback moves the "past" boundary forward
+  // between pages. A trip that becomes past in that gap sorts to the TOP of a
+  // pickup_at-DESC result, shifting every offset down — and the rows at the page
+  // boundary are then written TWICE, into a file that has a Total row.
+  const nowIso = new Date().toISOString();
+
+  // ⚑⚑ A CSV HAS NO HALF STATE. Every other screen can show a red notice beside
+  // what it did read; a spreadsheet cannot — a short file looks exactly like a
+  // complete one on an accountant's desk, and nothing in it says which trips are
+  // missing. So an archive that could not be read in full, or a Driver lookup
+  // that failed, returns NO FILE at all.
+  let missions: MissionRow[];
+  let desks: { id: string; name: string | null }[] | null;
+  try {
+    [missions, { data: desks }] = await Promise.all([
+      readAllPages<MissionRow>("Your spend", (from, to) =>
+        supabase
+          .from("mission_read")
+          .select("*")
+          .eq("business_id", ctx.business!.id)
+          .neq("status", "draft")
+          .lt("pickup_at", nowIso)
+          .order("pickup_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(from, to),
+      ),
+      supabase.from("dispatcher").select("id, name").eq("business_id", ctx.business.id),
+    ]);
+  } catch (e) {
+    // ⚑ The database's own wording goes to the log, not into a file the Business
+    //   opens: "column mission_read.x does not exist" is not an answer to anyone.
+    console.error(`[export] ${readErrorMessage(e)}`);
+    return new NextResponse(
+      "Your archive couldn’t be read in full. Nothing was downloaded — try again.",
+      { status: 503 },
+    );
+  }
   const deskName = new Map((desks ?? []).map((d) => [d.id, d.name]));
 
   // ⚑⚑ S78 — THE CAR COMES OFF THE TRIP, NOT OFF THE DRIVER. No column here prints a car, but
@@ -137,12 +165,18 @@ export async function GET(req: NextRequest) {
   const assigned = missions.filter((m) => m.driver_id);
   if (assigned.length > 0) {
     const admin = createAdminClient();
-    const ids = [...new Set(assigned.map((m) => m.driver_id!))];
-    const { data: drivers } = await admin
-      .from("driver")
-      .select("id, first_name, last_name")
-      .in("id", ids);
-    const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
+    const ids = assigned.map((m) => m.driver_id!);
+    const { rows: drivers, failed } = await readByIds("The Driver names", ids, (batch) =>
+      admin.from("driver").select("id, first_name, last_name").in("id", batch),
+    );
+    // A blank Driver column in a finished file reads as "nobody drove it".
+    if (failed) {
+      return new NextResponse(
+        "The Driver names couldn’t be read, so the file would have named nobody. Nothing was downloaded — try again.",
+        { status: 503 },
+      );
+    }
+    const byId = new Map(drivers.map((d) => [d.id, d]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (!d) continue;

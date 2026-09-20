@@ -25,6 +25,7 @@ const HISTORY = "app/(dispatch)/dispatch/history/page.tsx";
 const SPEND = "app/(dispatch)/dispatch/spend/page.tsx";
 const HISTORY_CSV = "app/(dispatch)/dispatch/history/export/route.ts";
 const SPEND_CSV = "app/(dispatch)/dispatch/spend/export/route.ts";
+const DRAFTS = "app/(dispatch)/dispatch/drafts/page.tsx";
 const SIDE_TABLES = "lib/side-tables.ts";
 
 /**
@@ -47,6 +48,9 @@ const PAGED_READS: Array<{ file: string; table: string; tieBreak: string }> = [
   { file: SPEND, table: "mission_read", tieBreak: '.order("id"' },
   { file: HISTORY_CSV, table: "mission_read", tieBreak: '.order("id"' },
   { file: SPEND_CSV, table: "mission_read", tieBreak: '.order("id"' },
+  // Drafts: small, but the sidebar badge next to it is an exact count, so a cut
+  // here would make the badge and the page disagree in front of the Dispatcher.
+  { file: DRAFTS, table: "mission_read", tieBreak: '.order("id"' },
 ];
 
 /**
@@ -66,10 +70,6 @@ const NOT_PAGED: Array<{ file: string; why: string }> = [
   {
     file: "app/(dispatch)/dispatch/calendar/page.tsx",
     why: "bounded to one month ±1 day; needs 1 000 trips in a single month to bite",
-  },
-  {
-    file: "app/(dispatch)/dispatch/drafts/page.tsx",
-    why: "TO DO — drafts only, and the sidebar badge is an exact count, so the two would disagree out loud past 1 000 drafts",
   },
 ];
 

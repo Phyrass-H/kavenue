@@ -5,6 +5,15 @@
 
 ---
 
+## 20 September 2026 — Drafts paged too: Part 1 is finished
+
+- The Drafts page was the last screen reading your archive in one go. It now reads in batches like the rest.
+- **Why it mattered even though it's small:** the number on the Drafts tab is counted by the database itself, so past
+  1 000 drafts the tab and the page would have shown different numbers to the same person.
+- If that read ever fails you now get a message instead of the words "No drafts." — which would have been a lie.
+- **That completes the job:** Schedule, Spend, History, both downloads and Drafts. Nothing on your side can silently
+  stop at 1 000 trips any more.
+
 ## 20 September 2026 — Spend, History and the two CSV downloads can no longer quietly under-report your money
 
 - **The problem.** Same 1 000-row wall as the Schedule, but worse here: these screens add your money up from the

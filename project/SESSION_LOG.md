@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-09-20 — SESSION 84 (cont.) · step 3: Drafts paged — Part 1 of the cap fix is DONE · tests 1390
+
+`app/(dispatch)/dispatch/drafts/page.tsx` was the last unbounded archive read on the Business side. Small, but it
+sits next to a badge that is an EXACT server-side count (`app/(dispatch)/layout.tsx`), so past 1 000 drafts the badge
+and the page would have disagreed **in front of the Dispatcher**, with the page the one lying. Paged
+(`created_at desc, id desc`), with a red notice and no list when the read fails rather than "No drafts." — that empty
+state is a fact, and a failed read is not entitled to state it.
+
+`tests/paged-call-sites.test.ts`: Drafts moves from `NOT_PAGED` to `PAGED_READS`, so the only excused reads left are
+the single-trip lookups and the Calendar's one-month window. **Every Business-side read that can outgrow one page is
+now paged.** tsc clean · 1390 tests · rendered live (empty state, badge 0).
+
 ## 2026-09-20 — SESSION 84 (cont.) · step 2: Spend, History and both CSVs are paged · tests 1387
 
 **Same fault, on the screens where it is WORST.** Both money screens and both downloads read the Business's entire

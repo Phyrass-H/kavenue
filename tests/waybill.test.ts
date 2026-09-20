@@ -160,10 +160,10 @@ describe("4° — who ordered it", () => {
   });
 
   it("falls back to the Dispatcher's phone when the Business has no reception number", () => {
-    // ⚑ The arrêté's final paragraph allows 4°'s phone to be omitted — but then the
-    // Driver must give the controller a way to reach the client "sans délai". Printing
-    // nothing puts that burden on a Driver standing at a window, so we print the human
-    // who actually booked it.
+    // ⚑ The arrêté's final paragraph allows 4° to be incomplete — but then the conducteur
+    // must give the controller a way to reach the « client » — the Business — "sans délai".
+    // Printing nothing puts that burden on a Driver standing at a window, so we print the
+    // human who actually booked it.
     const wb = buildWaybill(
       trip,
       driver(),

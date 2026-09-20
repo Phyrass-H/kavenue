@@ -5,6 +5,32 @@
 
 ---
 
+## 20 September 2026 — Fixed the second banned word, "client" — after reading the actual decree first
+
+- **The rule has two halves and only one had ever been done.** Kavenue's wording bans "client" as well as
+  "hotel". Two files had been saying *"No client / principal"* in a note since July while ten lines a few
+  folders away happily said "the client".
+- **We read the law before touching anything.** The decree of 6 August 2025 (the one behind the waybill a
+  Driver shows at a roadside check) and the tax rulings behind the no-show charge **both use the word
+  "client" themselves**. So deleting it would have meant misquoting French law on a document handed to a
+  police officer.
+- **So the fix splits by who is speaking.** Where Kavenue speaks in its own voice, it now says **Business**.
+  Where the code is quoting the law, the law's word stays — but it's now clearly marked as a quote, with a
+  note saying that the decree's "client" is, in our words, **the Business that ordered the trip**.
+- **One thing you actually see changed:** the French terms page said businesses need transport "pour leurs
+  clients". It now says **"pour leurs passagers"**, and the English half says **"passengers"** to match —
+  the two halves used to say different things. (A reviewer talked us out of "voyageurs", which is train-and-
+  bus language and quietly hotel language too.)
+- **A reviewer broke our own safety net, twice.** The check meant to keep the law's word marked could be
+  switched off completely without anything going red — it was letting a whole line off whenever *any* quote
+  appeared on it. That's the third time this exact mistake has been made in one day. It's now fixed
+  properly, and the check has a test that deliberately plants a mistake to prove it still notices.
+- **And one genuine legal error caught:** we had quoted the wrong French word onto a tax rule. The rule, the
+  reference and the reasoning were right — just the quoted word was wrong. Now it quotes the real sentence.
+- **One alarming report turned out to be wrong**, and we checked rather than assumed: a reviewer said the
+  waybill prints the wrong booking time for saved drafts. It doesn't — posting a draft resets that time.
+- 2,129 automated checks pass, up from 1,644 this morning.
+
 ## 20 September 2026 — Had the work checked by four fresh reviewers, and they found the checker itself was broken
 
 - **Why do this at all.** The guard we'd just built was supposed to make the "Businesses, not hotels"

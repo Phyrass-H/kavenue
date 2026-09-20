@@ -18,6 +18,7 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const root = join(__dirname, "..");
+const read = (p: string) => readFileSync(join(root, p), "utf8").normalize("NFC");
 const SCAN_DIRS = ["app", "components", "lib"];
 
 /**
@@ -494,5 +495,148 @@ describe("the comment allowances", () => {
   it.each(COMMENT_ALLOWED)("$file — $needle — states why", ({ why, kind }) => {
     expect(why.length).toBeGreaterThan(20);
     expect(["states-the-rule", "the-vertical", "the-type", "proper-noun", "place-category", "not-a-business"]).toContain(kind);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// § 3 — THE OTHER HALF OF HARD RULE 1: "client" and "principal".
+//
+// The glossary bans these too, and until 2026-09-20 NOBODY HAD EVER SWEPT THEM.
+// `lib/account.ts:4` and `lib/database.types.ts:8` had said "No 'client'/'principal'"
+// since S48 while `lib/waybill.ts` and `lib/vat.ts` used "the client" ten times.
+//
+// ⚑ WHY THIS IS NOT A SECOND COPY OF § 2. "hotel" has one meaning; "client" has three,
+// and two of them are correct:
+//   • a React/Next CLIENT COMPONENT, a Supabase CLIENT, the CLIENT's clock, clientX. 140
+//     occurrences of the word in app/, components/ and lib/ — 57 of them `"use client"`
+//     directives, 83 the other correct senses — and NONE of them the customer. (Measured,
+//     not guessed: `git ls-files app components lib | grep -E '\.tsx?$' | xargs grep -hoE
+//     '\bclients?\b' | wc -l`.) An allowlist over those would be pure noise and would get
+//     deleted the first time it blocked a legitimate comment.
+//   • PRINCIPAL in its legal sense — "Kavenue is an intermediary, never the principal"
+//     (CLAUDE.md hard rule 2). That use is REQUIRED, not banned.
+//   • and the customer sense, which is the banned one.
+//
+// So this half locks the two places where the distinction is decidable, and says plainly
+// that it does not police the rest:
+//   A. RENDERED COPY. A screen has no reason to say "client" — the technical senses never
+//      reach it. Verified 2026-09-20: every "client" in the rendered half of app/,
+//      components/ and lib/ is a `"use client"` directive or a `supabase/client` import.
+//   B. THE LEGAL-QUOTATION CONVENTION in lib/waybill.ts and lib/vat.ts. The arrêté du
+//      6 août 2025 really does say « client » (art. 1, 4°-7°, fetched from Légifrance
+//      JORFTEXT000052153206), and so do BOFiP BOI-TVA-BASE-10-10-50 § 260 and the BOFiP
+//      note on CE 9 oct. 2024 n° 472257 ("les sommes prélevées par un établissement
+//      hôtelier sur le compte bancaire de ses clients ne se présentant pas"). Rewording
+//      the law would misquote it; leaving it bare reads as if Kavenue said it. So in those
+//      two files the word may appear ONLY inside « » or inside a French quotation — and
+//      this test is what keeps that true.
+const LEGAL_QUOTE_FILES = ["lib/waybill.ts", "lib/vat.ts"];
+
+/**
+ * The word, in the inflections French and English actually write. One constant, shared by
+ * both checks below — two copies would drift, and the half that drifted would go quiet.
+ */
+const CLIENT_WORD = /\bclient(?:e|es|s|èle|ele|eles)?\b/i;
+
+/** Framework plumbing, and DOM geometry. Not copy, and not the customer. */
+const NOT_COPY_TOKENS = /["']use client["']|supabase\/client|createAdminClient|createClient|client(?:X|Y|Width|Height|Top|Left)\b|client_\w+|CLIENT_\w+/g;
+
+/** Somebody else's words: « … » or a "…" quotation, which may span lines. */
+const MARKED_SPANS = /«[^»]*»|"[^"]*"/g;
+
+/**
+ * Blank every match of `re` but keep the newlines, so a line number still means something.
+ *
+ * ⚑ BLANK THE WORDS, NEVER DROP THE LINE. § 1 and § 2 shipped with an allowance that
+ * exempted the whole LINE a needle sat on; it was caught the same day and fixed with
+ * `residue`. § 3 then shipped the identical defect twice over — a bare customer-sense
+ * "client" passed whenever ANY unrelated quotation shared its line, which in two files full
+ * of quoted French is the normal case, and `"use client"` on a line exempted the rest of it.
+ * Third time for this shape. The rule: exempt what is actually marked, never its neighbours.
+ */
+function blankKeepingLines(src: string, re: RegExp): string {
+  return src.replace(re, (m) => m.replace(/[^\n]/g, " "));
+}
+
+describe("no RENDERED string says 'client' for the customer", () => {
+  // ⚑ The anchors. Without these both checks below can go green on an empty file list.
+  it("is actually scanning the app", () => {
+    expect(COMMENT_FILES.length).toBeGreaterThan(100);
+    expect(COMMENT_FILES).toContain("app/legal/terms/page.tsx");
+    expect(COMMENT_FILES).toContain("lib/vat.ts");
+    expect(COMMENT_FILES).toContain("components/check-in-card.tsx");
+  });
+
+  // ⚑ The positive control. This is the assertion that would have caught the two escapes
+  // above, and § 3 shipped without one.
+  it("flags a planted customer-sense string, and only that", () => {
+    const flag = (line: string) => CLIENT_WORD.test(blankKeepingLines(line, NOT_COPY_TOKENS));
+    expect(flag('<p>Le client attend</p>')).toBe(true);
+    expect(flag('<p>Nos clientes</p>')).toBe(true);
+    expect(flag('const t = "our clientèle";')).toBe(true);
+    expect(flag('const t = "our clientele";')).toBe(true);
+    // ⚑ The escape that shipped: a real violation sharing a line with framework plumbing.
+    expect(flag('const c = createClient(); const t = "the client is told";')).toBe(true);
+    // And the genuine plumbing still passes.
+    expect(flag('"use client";')).toBe(false);
+    expect(flag('import { createClient } from "@/lib/supabase/client";')).toBe(false);
+    expect(flag("const x = e.clientX - r.left;")).toBe(false);
+  });
+
+  it.each(COMMENT_FILES)("%s", (file) => {
+    const src = readFileSync(join(root, file), "utf8").normalize("NFC");
+    const scanned = blankKeepingLines(stripComments(src), NOT_COPY_TOKENS);
+    const bad = scanned
+      .split("\n")
+      .map((text, i) => ({ line: i + 1, text: text.trim() }))
+      .filter((h) => CLIENT_WORD.test(h.text));
+    expect(bad.map((h) => `${file}:${h.line}  ${h.text}`)).toEqual([]);
+  });
+
+  // ⚑ "principal" is the opposite case: hard rule 2 REQUIRES it, in its legal sense.
+  // Pinned so a future sweep of rule 1 cannot delete the thing rule 2 depends on.
+  it("keeps 'principal' where the legal position needs it", () => {
+    expect(read("lib/database.types.ts")).toMatch(/intermediary, never the principal/);
+    expect(read("lib/waybill.ts")).toMatch(/nudge toward principal status/);
+  });
+});
+
+describe("the law's word stays marked as the law's word", () => {
+  // The positive control for THIS half — the one whose absence let the marking be
+  // deletable without anything going red.
+  it("flags the word when IT is not the thing quoted", () => {
+    const bare = (src: string) =>
+      CLIENT_WORD.test(blankKeepingLines(blankKeepingLines(src, NOT_COPY_TOKENS), MARKED_SPANS));
+    // Marked — fine.
+    expect(bare("// the arrêté's « client » ordered the trip")).toBe(false);
+    expect(bare('// "les moyens de prendre contact avec le client" — the Business')).toBe(false);
+    // ⚑ Both of these passed before this rewrite, because of a quote they do not sit in.
+    expect(bare('// The client is told the "why" before we charge them.')).toBe(true);
+    expect(bare('// "indépendamment" of whether the client renounces the capacity')).toBe(true);
+    // A quotation running over two lines is still one quotation.
+    expect(bare('// reads "Nom et coordonnées\n// du client sollicitant"')).toBe(false);
+  });
+
+  it.each(LEGAL_QUOTE_FILES)("%s uses 'client' only inside « » or a quotation", (file) => {
+    const src = readFileSync(join(root, file), "utf8").normalize("NFC");
+    const left = blankKeepingLines(blankKeepingLines(src, NOT_COPY_TOKENS), MARKED_SPANS);
+    const bare = left
+      .split("\n")
+      .map((text, i) => ({ line: i + 1, text: text.trim() }))
+      .filter((h) => CLIENT_WORD.test(h.text));
+    expect(bare.map((h) => `${file}:${h.line}  ${h.text}`)).toEqual([]);
+  });
+
+  // The citations these quotes rest on. If someone edits the quoted text, the reference
+  // it came from must still be next to it — that is what makes it checkable.
+  it("keeps the citation beside each quoted phrase", () => {
+    const wb = read("lib/waybill.ts");
+    expect(wb).toContain("arrêté du 6 août 2025");
+    expect(wb).toMatch(/art\. 1, 4°/);
+    expect(wb).toContain("donneur d'ordre");
+    const vat = read("lib/vat.ts");
+    expect(vat).toContain("BOI-TVA-BASE-10-10-50");
+    expect(vat).toContain("CE 9 oct. 2024 n° 472257");
+    expect(vat).toContain("sans incidence sur la taxation");
   });
 });

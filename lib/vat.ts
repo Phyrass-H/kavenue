@@ -106,9 +106,14 @@ export type BillLineKind =
    *
    * ⚑ NOT BECAUSE THE DRIVER TURNED UP (corrected 2026-09-04 — that was the
    * reason given here and it is not the French test). BOI-TVA-BASE-10-10-50
-   * § 260 taxes the retained price *indépendamment* of whether the client
-   * cancels ahead or simply fails to appear, and CE 9 oct. 2024 n° 472257 says
-   * the counter-value is the client's firm RIGHT to the supply, used or not.
+   * § 260 puts an early cancellation and a no-show on the SAME footing: both are
+   * "sans incidence sur la taxation" — "la circonstance que le client renonce
+   * formellement à l'utilisation des capacités avant le début de la période de
+   * réservation ou ne se présente pas le jour convenu". CE 9 oct. 2024 n° 472257
+   * locates the counter-value in the « client »'s firm RIGHT to the supply, used
+   * or not.
+   * (⚑ « client » is the sources' word — BOFiP and the CE both use it. Here that
+   * party is the **Business**: it booked, and it is what gets charged.)
    * The narrow escape is genuine *arrhes* (C. civ. art. 1590).
    */
   | "no_show"
@@ -202,12 +207,13 @@ export function taxOf(kind: BillLineKind, m: TaxFacts): TaxTreatment {
       // transfer's rate, a cancelled at-disposal block at the standard rate.
       //
       // ⚑ AND THE PRIMARY SOURCE AGREES, which is why this was accepted rather
-      // than argued: BOI-TVA-BASE-10-10-50 § 260 taxes the retained price
-      // "indépendamment" of whether the client renounces the reserved capacity
-      // BEFORE the date or simply fails to appear — i.e. it puts a cancellation
-      // and a no-show on the same footing, which is precisely this rule. CE
-      // 9 oct. 2024 n° 472257 locates the counter-value in the client's firm
-      // RIGHT to the supply, used or not.
+      // than argued: BOI-TVA-BASE-10-10-50 § 260 lists as "sans incidence sur la
+      // taxation" — verbatim — "la circonstance que le client renonce formellement
+      // à l'utilisation des capacités avant le début de la période de réservation
+      // ou ne se présente pas le jour convenu". It puts a cancellation and a no-show
+      // on the same footing, which is precisely this rule. CE 9 oct. 2024 n° 472257
+      // locates the counter-value in the « client »'s firm RIGHT to the supply, used
+      // or not. (The sources' word; here, the Business.)
       //
       // ⚑ THE NO-DRIVER CASE STAYS OUT OF SCOPE, and it is settled by the SQL
       // rather than by anyone's opinion: `business_cancel_mission` sets the fee

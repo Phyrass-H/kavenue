@@ -214,6 +214,72 @@ The rule also bans **"client"** and **"principal"**. The critic found `client` f
 ⚑ The repo already knows the right term: `lib/database.types.ts:76` — **"the donneur d'ordre"**.
 A proper "client" sweep is its own job, and it starts by fetching the arrêté.
 
+### ⚑ The "client" sweep — the other half of hard rule 1, never swept until now (founder: *"fetch the arrêté first and decide"*)
+
+`lib/account.ts:4` and `lib/database.types.ts:8` had said *"No 'client'/'principal'"* since **S48**, while
+`lib/waybill.ts` and `lib/vat.ts` used "the client" **ten times**. Nobody had ever looked.
+
+#### The primary sources, fetched BEFORE deciding — and they say "client"
+| source | its own word |
+|---|---|
+| **Arrêté du 6 août 2025**, art. 1, 4°–7° ([Légifrance JORFTEXT000052153206](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000052153206)) | *"Nom et coordonnées téléphoniques du **client** sollicitant une prestation…"* |
+| its final paragraph | *"les moyens de prendre contact avec le **client**"* |
+| **BOI-TVA-BASE-10-10-50 § 260** | *"la circonstance que le **client** renonce formellement… ou ne se présente pas le jour convenu"*, introduced by *"Sont sans incidence sur la taxation"* |
+| **BOFiP on CE 9 oct. 2024 n° 472257** | *"les sommes prélevées par un établissement hôtelier sur le compte bancaire de ses **clients**"* |
+
+#### The rule applied
+- **Kavenue's own voice → Business.** `waybill.ts:143` (*"when and where the Business asked for the
+  pickup"*), `waybill.ts:127` (the Guest, not "the Business's own customer").
+- **A transcription of law → keep the source's word, MARK it « client »**, matching the file's existing
+  convention for quoted legal phrases (`"sans délai"`), plus one ⚑ block saying the arrêté's « client »
+  **is the Business, the donneur d'ordre** — which is why the field is `ordering`, filled from
+  `business.legal_name` / `business.reception_phone`.
+- **Rendered (the only one): `app/legal/terms/page.tsx`** — *"pour leurs clients (les « Guests »)"*.
+
+⚑ **"voyageurs" was the wrong pick and a critic was right to kill it.** VTC is *transport public
+particulier de personnes*; "voyageurs" is the collective-transport register (rail, bus), it is also
+*hôtellerie* vocabulary landing in the one sentence [[d99]] most needs type-neutral, and it left the FR
+and EN halves disagreeing. Now **"passagers" / "passengers"** — the glossary's own second word for Guest
+(`docs/00:27`, `lib/passengers.ts`, `mission.passenger_names`) — **in both halves**.
+
+#### ⚑ THIRD TIME FOR THE SAME DEFECT SHAPE: exempt the WORDS, never the LINE
+§ 3 shipped with the identical bug that `2f7697a` had fixed in § 1/§ 2 **six hours earlier**, in *two*
+independent places. A critic proved it by hand:
+- the legal-quotation check exempted any line containing `«`, `»` **or a double quote** — so deleting
+  the guillemets this whole change introduced left **790/790 green**, and a fresh
+  `// The client is told the "why" before we charge them.` passed;
+- `NOT_COPY` exempted any line touching `createClient` / `"use client"` — live data-writing lines, not
+  just imports.
+
+Fixed with `blankKeepingLines()`: blank the marked spans (`« … »` and `"…"`, **across lines**) and the
+framework tokens, keep the newlines, then look for the word in what is left. Both probes now fail with
+the exact `file:line`. § 3 also gained what it shipped without — **a positive control and a file-list
+anchor**, so it cannot go green vacuously — and one shared `CLIENT_WORD` pattern covering `cliente(s)`,
+`clientèle` and the unaccented `clientele`.
+
+#### The one real legal defect the critics found
+`lib/vat.ts` quoted **`"indépendamment"`** onto the cancel-vs-no-show clause. § 260 introduces that
+clause with **"sans incidence sur la taxation"** — the paragraph, the citation and the rule were all
+right, only the quoted word was wrong. Now quotes § 260 verbatim. ⚑ That is precisely the failure the
+new convention exists to prevent, caught by the convention's own reviewers.
+
+#### Rejected on the evidence
+The loudest finding of the batch — *"5° prints `mission.created_at`, a draft's birth, so a Driver hands
+a police officer a false booking time"* — is **false**: posting a draft **resets** `created_at` on
+purpose (`dispatch/new/actions.ts:462`, `lib/draft-resume.ts:65`). The justificatif states the real
+booking moment. 10 of 19 raw findings confirmed; 9 rejected.
+
+#### What is deliberately NOT locked, and why
+"client" has three senses and **two are correct**: the React/Next client component and the Supabase
+client (**140 occurrences** in `app/`+`components/`+`lib/` — 57 `"use client"` directives, 83 other
+correct senses, **zero** the customer; measured, with the command in the file), and **`principal` in its
+legal sense, which hard rule 2 REQUIRES**. An allowlist over those would be noise that gets deleted the
+first time it blocks an honest comment. So § 3 locks only where the distinction is decidable — **no
+"client" in rendered copy**, and **in `waybill.ts`/`vat.ts` the word only inside `« »` or a quotation** —
+and a test pins that `principal` **survives** where rule 2 needs it.
+
+**`tsc --noEmit` clean · 2129 tests pass** (1644 → 1898 → 2129 across the three commits).
+
 ## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
 
 **⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted

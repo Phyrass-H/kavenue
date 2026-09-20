@@ -30,6 +30,7 @@ export function CloseTripCard({
   boarded,
   fare,
   line,
+  businessName,
 }: {
   missionId: string;
   /** The Guest was on board — the trip ran, so the only question is closing it. */
@@ -37,6 +38,12 @@ export function CloseTripCard({
   fare: number;
   /** "Should have finished 35 minutes ago." — computed on the server. */
   line: string;
+  /**
+   * The Business's own name. This is the one tap on the screen that can't be
+   * undone, so the confirm names who it goes to rather than saying "them" —
+   * and never "the hotel", which is one of nine types (glossary rule 1).
+   */
+  businessName: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -82,10 +89,10 @@ export function CloseTripCard({
       ) : confirming ? (
         <>
           {/* The second tap exists because this one can't be undone from the app:
-              it tells the hotel their trip never happened, and they act on it. */}
+              it tells the Business their trip never happened, and they act on it. */}
           <p className="dcheck__s">
-            This tells {`the hotel`} the trip never took place. Nothing is charged either way, and
-            they’ll call you to agree what happened.
+            This tells {businessName ?? "the Business"} the trip never took place. Nothing is
+            charged either way, and they’ll call you to agree what happened.
           </p>
           <button
             type="button"

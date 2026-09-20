@@ -5,6 +5,23 @@
 
 ---
 
+## 20 September 2026 — The Driver's app now names your business instead of calling everyone "the hotel"
+
+- **The problem.** Five places in the Driver's app still said "the hotel" — including a whole section heading on the
+  Driver's ride list ("Waiting on the hotel"). Hotels are your first customers, not the whole market: a restaurant, an
+  event venue or another VTC operator posting its overflow would all have been called a hotel to the Driver's face.
+- **The fix.** Four of the five now show **your actual business name** — "Check in so Belles-Rives knows you'll be
+  there", "Belles-Rives has been told and will be in touch". That's not just correct, it's more useful: a Driver with
+  four trips on the go can see at a glance which desk is going to ring them. The section heading, which can cover
+  several different businesses at once, now reads "Waiting on the Business", with each card naming its own.
+- **Also fixed:** the billing email box on your settings page suggested "accounts@hotel.com". It now says
+  "accounts@yourbusiness.com".
+- **So it can't come back.** There's now an automatic check that reads every screen in the app and refuses the change
+  if any of them says "hotel" where it means a business. The handful of places where "hotel" is genuinely right — the
+  sign-up page listing business types, the legal terms saying hotels are first — are listed as deliberate exceptions,
+  word for word, so a new mistake in those same files is still caught.
+- **Nothing else changes.** Same screens, same prices, no new data loaded.
+
 ## 18 September 2026 — Closed the last security hole: a Driver can no longer pay themselves the top price
 
 - **The problem.** A trip's price climbs from a low start up to your Ceiling, and the Driver is paid whatever it is when

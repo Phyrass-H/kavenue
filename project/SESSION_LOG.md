@@ -5,6 +5,71 @@
 
 ---
 
+## 2026-09-20 — SESSION 84 · "the hotel" had crept back into the Driver's app · 5 strings fixed, and a test that won't let it happen again · tests 1580
+
+**The rule is [[d99]] / CLAUDE.md hard rule 1** — *"the vocabulary is Businesses and then categories by type of
+business"* (founder, S71). Two read-only sweeps found the Driver's app had drifted back. Not a regression in one
+file: **five rendered strings across four files**, including a section **heading** on My Rides.
+
+### What was saying "hotel" and now names the Business
+| where | was | now |
+|---|---|---|
+| `app/(app)/rides/page.tsx:303` (section heading) | "Waiting on the hotel" | **"Waiting on the Business"** |
+| `app/(app)/rides/page.tsx:56` (card flag) | "…The hotel has been told and will be in touch." | "…**Belles-Rives** has been told and will be in touch." |
+| `components/check-in-card.tsx` | "Check in so the hotel knows you'll be there." | "Check in so **Belles-Rives** knows you'll be there." |
+| `components/close-trip-card.tsx` | "This tells ``{`the hotel`}`` the trip never took place." | "This tells **Belles-Rives** the trip never took place." |
+| `components/mission-run-view.tsx:256` | "…The hotel has been told and will be in touch." | "…**Belles-Rives** has been told and will be in touch." |
+| `app/(dispatch)/dispatch/settings/page.tsx:292` | billing placeholder `accounts@hotel.com` | `accounts@yourbusiness.com` |
+
+⚑ **Four of the five now carry the Business's real NAME, not the word.** `MissionRunView` already took
+`businessName`; the rides list already loaded `bizNames` for the card foot. So the fix was threading a prop, not
+fetching anything — **no new query**. Fallback when a name fails to load is the glossary term ("The Business"),
+never a dash: `"— has been told"` is worse than the bug.
+
+⚑ **The heading stays generic on purpose.** That section can hold trips from several Businesses, and per the
+founder's own rule (warn per item, not summaries) the *state* belongs in the heading and the *name* on each card.
+
+⚑ **`{`the hotel`}` in `close-trip-card.tsx:87` was a template literal wrapping a bare string** — a shape that
+does nothing at runtime and reads like someone dodging a grep. Written that way on 2026-09-06 (`0c70344`).
+
+### The three that are NOT bugs, and why
+- `app/welcome/page.tsx:38` — "I'm a Business · Post missions and manage bookings **(hotel, agency, concierge)**".
+  These are example *types* of business under the *Business* heading. That is the rule stated correctly.
+- `app/legal/terms/page.tsx:34,82` — *"les « Businesses », hôtels en premier lieu"* / "(Businesses, hotels first)".
+  Hotels named as the **first vertical** — exactly the distinction the rule draws.
+- `app/(dispatch)/dispatch/settings/page.tsx:112` — placeholder **"Oetker Hôtel Management Company"**, a real
+  registered company name illustrating *raison sociale* ≠ the name on the door. A proper noun, and part of one
+  coherent worked example (the address and phone on that screen are the same company's). ⚑ **Founder's call if you
+  want it changed** — it presumes a hotel the way the billing placeholder did, but unlike `accounts@hotel.com` it
+  is not the common noun standing in for "your Business", so I left it.
+- Dev seed addresses (`Hôtel Negresco`, `Hôtel du Cap-Eden-Roc`) and `business_type: "hotel"` — place names and the
+  actual type. Left.
+
+### The net — `tests/glossary-copy.test.ts` (NEW, 244 assertions)
+Walks every `.ts`/`.tsx` in `app/`, `components/`, `lib/`, strips comments, and fails on `hotel`/`hôtel` in what's
+left. `lib/business-type.ts` is the one exempt module. Legitimate uses are allowlisted **by file AND by the exact
+words**, so a *new* bad string in an already-listed file still fails — and an allowance that stops matching fails
+too, which is how an exemption gets taken away once its string is fixed. Failure prints `file:line  the actual line`.
+
+⚑ **The scanner has to know a regex from a division, and the first draft didn't.** `/["\n\r;]/` in
+`dispatch/history/export/route.ts:40` opened a double-quoted string that never closed; from there every comment in
+that file read as code, and a plain `//` comment **178 lines later** was reported as rendered copy. Fixed, and
+pinned: `endsBalanced()` asserts **every scanned file parses cleanly**, so a scanner that loses its place fails
+loudly instead of quietly reporting the wrong lines — *or quietly reporting none*. That second direction is the
+real risk: a silent scanner reads as "clean".
+
+**Verified:** `npx tsc --noEmit` clean · `npx vitest run` **61 files / 1580 tests, all pass** (1336 → 1580).
+Regression proven by hand: putting `"Waiting on the hotel"` back fails 2 tests and names `app/(app)/rides/page.tsx:303`.
+
+### Left alone, deliberately
+**~40 code COMMENTS still say "hotel"** for a Business (`lib/admin-list.ts`, `lib/spend.ts`, `app/globals.css`,
+several tests…). Out of scope here, and the test ignores comments by design. I updated only the four that directly
+describe the strings I changed — a comment contradicting the line under it is how S81 got misled. A sweep of the
+rest is a cheap separate job if the founder wants it. ⚑ One to note: `dispatch/history/export/route.ts:25` says
+*"a French hotel's accountant"*.
+
+**Not opened as a PR** (branch `claude/peaceful-turing-7035de`, off `main` at `9c1a902`) — awaiting the go-ahead.
+
 ## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
 
 **⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted

@@ -1,4 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
+import { readAllPagesSoft } from "@/lib/paged-read";
 
 // § R rule 1 — the shared reads for the per-mission SIDE TABLES (cancellation,
 // amendment, release, info-change, guest contact).
@@ -83,13 +84,21 @@ export async function loadDriverWalks(
   supabase: Awaited<ReturnType<typeof createClient>>,
   businessId: string,
 ): Promise<Map<string, DriverWalk[]>> {
-  const { data } = await supabase
-    .from("mission_cancellation")
-    .select("mission_id, created_at, reason, hours_before_pickup")
-    .eq("business_id", businessId)
-    .eq("kind", "driver_cancel")
-    .order("created_at", { ascending: false });
-  return groupDriverWalks(data ?? []);
+  // ⚑ Paged — an unbounded read stops at 1 000 rows with no error (lib/paged-read.ts),
+  //   and a walk-away that fell off the end turns a trip that WAS abandoned into one
+  //   that appears never to have been, which is the same fault in the other direction.
+  //   `id` breaks the created_at tie so two pages cannot overlap.
+  const { rows } = await readAllPagesSoft<WalkRow>("Driver walk-aways", (from, to) =>
+    supabase
+      .from("mission_cancellation")
+      .select("mission_id, created_at, reason, hours_before_pickup")
+      .eq("business_id", businessId)
+      .eq("kind", "driver_cancel")
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(from, to),
+  );
+  return groupDriverWalks(rows);
 }
 
 /**

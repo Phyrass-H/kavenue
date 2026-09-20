@@ -5,6 +5,23 @@
 
 ---
 
+## 20 September 2026 — Your Schedule can no longer lose tomorrow's trips as your archive grows
+
+- **The problem.** The database hands back at most 1 000 trips per request and says nothing when it cuts. Your
+  Schedule asked for every trip you have ever had, oldest first — so a Business past its 1 000th trip would have
+  watched today and everything ahead quietly disappear from the screen, along with the Raise the Ceiling and Change
+  the car buttons that live on those rows. No error, no warning.
+- **The fix.** The Schedule now asks for trips in batches until it has them all. If a batch fails it says so, instead
+  of showing a short list that looks complete.
+- **Nothing you see changes** — same screen, same trips, same order. No database file to paste.
+- **Two honest touches while we were in there.** When the Driver names can't be loaded, the Driver column now says
+  "not loaded" instead of a dash (a dash means "nobody took this trip"), and opening the row explains it instead of
+  claiming "No Driver assigned". And a failed load no longer draws an empty schedule underneath its own error.
+- **Nothing was ever wrong for you.** The busiest Business on the platform is at a few hundred trips. This is a wall
+  built before anyone reaches it.
+- **Still to do, same job elsewhere:** Spend, History and the two CSV downloads read your whole past archive and add
+  the money up from it — past 1 000 trips those totals would be too low without saying so. That's the next step.
+
 ## 18 September 2026 — Closed the last security hole: a Driver can no longer pay themselves the top price
 
 - **The problem.** A trip's price climbs from a low start up to your Ceiling, and the Driver is paid whatever it is when

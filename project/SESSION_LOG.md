@@ -5,6 +5,70 @@
 
 ---
 
+## 2026-09-20 — SESSION 84 · the 1 000-row cap, step 1: the Business's Schedule is paged · tests 1367
+
+**The fault.** PostgREST stops an unbounded `.select()` at **1 000 rows and reports no error** (measured on this
+database 2026-08-30: `mission_event` returned 1 000 of 2 503). The Schedule read every non-draft trip of a Business
+with no bound and no date floor, sorted `pickup_at` **ASCENDING** — so past the 1 000th trip the rows silently dropped
+are the **NEWEST**: today and everything ahead, the only trips still carrying the S83 tools (raise the Ceiling, change
+the car, "No car match"). Nothing on screen would have said so. Nobody is near it today (busiest Business measured at
+271 trips, 2026-08-23), and **no figure a Business or the founder has seen was ever wrong from this**.
+
+**Shipped** — `lib/paged-read.ts` (new) + `tests/paged-read.test.ts` (16) + `tests/paged-call-sites.test.ts` (15):
+- `readAllPages(what, run)` — pages until a short page, **throws on a failed page**. The Schedule's trip read uses it:
+  a failed read now says so instead of drawing a short schedule that looks complete.
+- `readAllPagesSoft(what, run)` — `{ rows, failed }`, all-or-nothing, and it **logs** (`[paged-read] …`). For the five
+  side reads whose callers already degrade to "nothing known": Guest phones, amendments, releases, the change log
+  (`app/(dispatch)/dispatch/page.tsx`) and walk-aways (`lib/side-tables.ts` `loadDriverWalks`).
+- `readByIds(what, ids, run)` — the Driver lookup in batches of 200, de-duplicated, **all-or-nothing + logged**. An
+  `.in(<ids>)` list does not truncate, it ERRORS: 397 work, 398 throw (measured 2026-08-23). It also used to swallow
+  that error and draw "—" in the Driver cell of a trip that HAS a Driver.
+- ⚑ **Every paged query now ends its ORDER BY on a unique column** (`id`, or `mission_id` for `mission_guest_contact`,
+  whose PK it is). OFFSET paging over a non-unique sort loses one row and repeats another between pages.
+- ⚑ **A failed Driver read is said on the row, in BOTH places the row states it**: "not loaded" in the Driver column
+  (was "—", which means "nobody took it") and, in the open row, *"A Driver has this trip — their name and phone
+  couldn't be loaded. Refresh to try again."* (was the flat falsehood "No Driver assigned").
+- Two more from the review: a failed read drew the empty schedule scaffold **under** its own error notice (`!error`
+  now gates it), and the error banner printed the word "schedule" twice.
+
+**Proof.** `npx tsc --noEmit` clean · **1367 tests** (was 1336; +16 pager, +15 call-site scan) · the call-site scan is
+mutation-checked (deleting the `.order("id")` tie-break turns it red) · **live, in the browser**: with `PAGE_ROWS`
+temporarily forced to 25, the Schedule still assembled all 169 trips of the demo Business from the live database —
+multi-page reading proven end to end, not just in a fake; restored to 1 000. The "not loaded" pair was rendered by
+forcing the Driver read to fail, and measured at 1440px (it fits the column; it ellipses below ~900px).
+
+**Review.** 5 read-only agents × adversarial verify (48 agents): 21 findings survived. Fixed the ones above; the rest
+are recorded below as deliberate.
+
+### ⚑ LESSONS
+1. ⚑⚑ **Proving a pager needs a SMALLER page, not more rows.** Forcing `PAGE_ROWS` to 25 turned a 169-trip demo
+   Business into a 7-page read against the real database. No seeding, no throw-away Postgres.
+2. ⚑⚑ **Fix a failed-read state in EVERY place the screen states it.** The first cut said "not loaded" in the column
+   and "No Driver assigned" one click below — two answers about the same trip on one screen. The test now counts both.
+3. ⚑ **The pager's exit condition depends on `db-max-rows` being 1 000.** It stops on a SHORT page, so if that
+   Supabase setting were ever lowered, the first page would arrive short and read as the end — the same silent
+   truncation with a pager vouching for it. Written at the top of `PAGE_ROWS`.
+4. ⚑ `readAll` in `lib/admin-list.ts` treats a failed page as the LAST page. That is why this is a second helper and
+   not a reuse — the reason is in the file header of both.
+
+### ⚑ LEFT OPEN — deliberate, none blocks
+- **The rest of Part 1** (the founder's word: the same cap, elsewhere on the Business side): `/dispatch/spend` and
+  `/dispatch/history` read the whole past archive and **sum money from it** · both CSV routes do the same with no
+  error branch at all (a short file looks complete) · `/dispatch/drafts` · the Calendar (bounded to a month, so it
+  needs 1 000 trips in one month). ⚑ The cheaper shape for the two money screens is to push their existing period
+  filter into the QUERY — `app/(app)/earnings/page.tsx` already works that way — not to page the archive.
+- **Five side reads still run one after another** (they did before this change too). One `Promise.all` would cut the
+  wait on a 4-second refresh; kept out of this branch to keep the diff to the cap.
+- **No index supports the new ORDER BYs.** `mission` has four indexes and none on `pickup_at`
+  (`docs/kavenue_schema.sql:133-136`); the four side tables have no `(business_id, created_at, id)` index. Irrelevant
+  at 271 rows; ship it with the History/Spend step, with a pasteable check.
+- **Admin side, and it may already be wrong** (not Business-facing): `readAll` fails open at 18 call sites, and
+  `countOrphanedEvents` pages `mission_event` (2 503 rows) with **no `.order()`**, so its number can already be off;
+  `cancelledWithoutRecord` would name innocent trips if its read hiccupped. Its own session.
+- **The Schedule's shape is NOT decided.** The founder wants the days ahead bounded by DESIGN, not amputated
+  (today + tomorrow was their instinct); a preview comes first. Everything above is the cap fix only — the screen
+  shows exactly what it showed before.
+
 ## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
 
 **⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted

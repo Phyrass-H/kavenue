@@ -22,7 +22,7 @@ import type { MissionRow } from "@/lib/database.types";
 export const dynamic = "force-dynamic";
 
 /**
- * ⚑ `;`, not `,` — the reader is a French hotel's accountant on Excel FR, where a
+ * ⚑ `;`, not `,` — the reader is a French Business's accountant on Excel FR, where a
  * comma is the DECIMAL separator and a comma-delimited file lands entirely in
  * column A. Amounts are written French-style (58,17) to match. Copied wholesale
  * from the History export so the two files open identically.

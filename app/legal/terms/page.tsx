@@ -32,7 +32,7 @@ export default function TermsPage() {
         Kavenue est une <strong>centrale de réservation VTC</strong> qui met en
         relation des chauffeurs VTC professionnels indépendants (les «&nbsp;Drivers&nbsp;»)
         avec des professionnels (les «&nbsp;Businesses&nbsp;», hôtels en premier lieu)
-        ayant besoin de transport pour leurs clients (les «&nbsp;Guests&nbsp;»).
+        ayant besoin de transport pour leurs passagers (les «&nbsp;Guests&nbsp;»).
       </p>
 
       <h2>2. Rôle de Kavenue — intermédiaire</h2>
@@ -79,8 +79,8 @@ export default function TermsPage() {
       <p>
         Kavenue is a <strong>VTC booking marketplace</strong> connecting independent
         professional VTC drivers (&quot;Drivers&quot;) with businesses
-        (&quot;Businesses&quot;, hotels first) that need transport for their end
-        customers (&quot;Guests&quot;).
+        (&quot;Businesses&quot;, hotels first) that need transport for their
+        passengers (&quot;Guests&quot;).
       </p>
 
       <h2>2. Kavenue&apos;s role — intermediary</h2>

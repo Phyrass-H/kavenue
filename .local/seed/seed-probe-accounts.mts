@@ -7,7 +7,7 @@
 // bleach deleted them, and every one of those probes died at the sign-in.
 //
 // The choice was to edit fifteen files or to put the accounts back. Putting them
-// back is better: they are a Driver with a car and a Dispatcher at a real hotel,
+// back is better: they are a Driver with a car and a Dispatcher at a real Business,
 // indistinguishable from the rest of the seeded fleet, so nothing about the
 // dataset has to know they are special. A second Driver, `s46.driver`, exists
 // because migrations-2026-08-10 needs TWO Drivers to hand a trip between.

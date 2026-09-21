@@ -228,6 +228,7 @@ export function MissionRunView({
             missionId={m.id}
             open={checkInOpen(m)}
             checkedInAt={m.status === "confirmed" ? m.checked_in_at : null}
+            businessName={businessName}
           />
 
           {/* § Q slice 2 — the trip is past its expected end and still open. This
@@ -244,16 +245,19 @@ export function MissionRunView({
               // they tap Yes. It was the last gross fare left in their app.
               fare={driverNet(m, settledFare(m))}
               line={closingLine(m)}
+              businessName={businessName}
             />
           )}
 
           {/* Answered "it didn't happen": the trip stops asking and says where it
-              stands. No further action here — the hotel calls, and in beta the
-              settlement is a human conversation. */}
+              stands. No further action here — the Business calls, and in beta the
+              settlement is a human conversation. Named, not "the hotel": a Business
+              is any of the nine types (glossary rule 1). */}
           {m.close_answer === "not_driven" && (
             <p className="dcheck__done">
               <ClockAlert size={16} strokeWidth={1.75} aria-hidden="true" />
-              You said this trip didn’t happen. The hotel has been told and will be in touch.
+              You said this trip didn’t happen. {businessName ?? "The Business"} has been told
+              and will be in touch.
             </p>
           )}
 

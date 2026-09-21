@@ -46,9 +46,9 @@ import type { MissionRow, VehicleCategory } from "@/lib/database.types";
 export const dynamic = "force-dynamic";
 
 /**
- * /dispatch/spend — what the hotel paid, what changed, and what was avoidable.
+ * /dispatch/spend — what the Business paid, what changed, and what was avoidable.
  *
- * Not the Driver's Earnings screen with a hotel's numbers in it. Same maths
+ * Not the Driver's Earnings screen with a Business's numbers in it. Same maths
  * (settledFare, historyFare), opposite question: the Driver asks *what did I
  * make*, the Business asks *where did the money go and what do I do about it*.
  *
@@ -224,7 +224,7 @@ export default async function DispatchSpend({
   const points = series(shown, span.fromDay, span.toDay, bucket);
   const prevSeries = back ? series(prevRows, back.fromDay, back.toDay, bucket) : null;
   // ⚑ Computed ONCE and used by the chart, its legend, its footnote and its
-  // aria-label. They each decided separately before, so a hotel's first month —
+  // aria-label. They each decided separately before, so a Business's first month —
   // comparison on, previous period empty — got a legend swatch and a screen
   // reader announcement for paler bars that were never drawn.
   const paired = Boolean(prevSeries && prevSeries.some((p) => p.amount > 0));
@@ -296,7 +296,7 @@ export default async function DispatchSpend({
             {back ? ` · compared with ${back.label}` : " · no comparison"} · Europe/Paris
           </p>
         </div>
-        {/* Not decoration: fares are computed on read, so the hotel must never
+        {/* Not decoration: fares are computed on read, so the Business must never
             wonder whether the number in front of them is stale. */}
         <span className="dxs-fresh">as of {stamp} (Paris)</span>
       </div>
@@ -332,7 +332,7 @@ export default async function DispatchSpend({
           {back && (
             /* Neutral whenever there is nothing to compare against — an empty
                previous period is not a 100 % rise, and painting it red would
-               alarm a hotel about its own first month. */
+               alarm a Business about its own first month. */
             <span
               className={`ecmp ${
                 p.total === 0 || runningDay
@@ -479,7 +479,7 @@ export default async function DispatchSpend({
             );
           })}
 
-          {/* Excluded, never hidden. Counting these would inflate a hotel's spend
+          {/* Excluded, never hidden. Counting these would inflate a Business's spend
               with trips that may never have happened. */}
           <div className="dxs-exc">
             <Link

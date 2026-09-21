@@ -31,10 +31,10 @@ const AIRPORT_RE = /roport|airport/i;
  *
  * ⚑ A FLIGHT NUMBER ALONE IS NOT AN AIRPORT PICKUP (fixed 2026-08-20). The old rule was
  * "has a flight number, OR the pickup says airport", which gave the 60-minute airport
- * courtesy wait to every hotel → airport DEPARTURE — the flight number there describes the
+ * courtesy wait to every Business → airport DEPARTURE — the flight number there describes the
  * flight the Guest is catching, not one they have landed from. Measured on the live data at
  * the time: 52 of the 89 trips carrying a flight number were departures, so a Driver waited
- * 40 extra minutes unpaid at a hotel door, and the meter's ceiling was doubled with it.
+ * 40 extra minutes unpaid at a Business's door, and the meter's ceiling was doubled with it.
  *
  * The flight number still has to count for something: an arrival's pickup address is often
  * "Terminal 2, 06200 Nice" with no airport word in it at all. So the order is:

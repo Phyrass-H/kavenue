@@ -289,7 +289,7 @@ export default async function BusinessSettingsPage({
                 type="email"
                 name="billing_email"
                 defaultValue={business.billing_email ?? ""}
-                placeholder="accounts@hotel.com"
+                placeholder="accounts@yourbusiness.com"
               />
               <small className="set-note">Where we’ll send Kavenue invoices.</small>
             </label>

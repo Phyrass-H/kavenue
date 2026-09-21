@@ -30,7 +30,7 @@ describe("rowCost — one trip's line on the bill", () => {
 
   it("is zero for a trip nobody settled — § Q, agreed but not owed", () => {
     // A past trip left `confirmed`: the fare is agreed, nothing has settled, and
-    // counting it would inflate a hotel's spend with trips that may not have run.
+    // counting it would inflate a Business's spend with trips that may not have run.
     const r = row(mission({ status: "confirmed", ...standardCurve(), accepted_at: "2026-07-15T10:00:00+02:00" }));
     expect(r.counted).toBe(false);
     expect(r.fare).toBe(60);

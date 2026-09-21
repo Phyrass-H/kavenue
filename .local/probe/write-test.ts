@@ -347,7 +347,7 @@ for (const o of observed) {
       `${c.label}: WAITING fee sql=${m?.waiting_fee} lib=${lib.fee}`);
   }
 
-  // 5. the quote the hotel SAW vs the cent it was CHARGED
+  // 5. the quote the Business SAW vs the cent it was CHARGED
   if (c.kind === "cancel" && Math.abs((o.quoteFee as number) - storedFee) > 0.0001) {
     fails.push(
       `${c.label}: QUOTE DRIFT modal would have shown ${o.quoteFee} € but the DB stored ${storedFee} € ` +

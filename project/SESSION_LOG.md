@@ -5,6 +5,287 @@
 
 ---
 
+## 2026-09-20/21 — SESSION 84 (glossary) · hard rule 1 swept END TO END: "hotel" AND "client" · 4 commits · tests 1336 → 2186
+
+> Read the three ⚑ follow-on sections below this one in order — they are the same session, and each
+> one exists because reviewers found the previous step wrong. Ran in parallel with the paged-read
+> session (PR #4); merged on top of it.
+
+### The Driver's app had crept back to "the hotel" — 5 rendered strings, and a test that won't let it happen again
+
+**The rule is [[d99]] / CLAUDE.md hard rule 1** — *"the vocabulary is Businesses and then categories by type of
+business"* (founder, S71). Two read-only sweeps found the Driver's app had drifted back. Not a regression in one
+file: **five rendered strings across four files**, including a section **heading** on My Rides.
+
+### What was saying "hotel" and now names the Business
+| where | was | now |
+|---|---|---|
+| `app/(app)/rides/page.tsx:303` (section heading) | "Waiting on the hotel" | **"Waiting on the Business"** |
+| `app/(app)/rides/page.tsx:56` (card flag) | "…The hotel has been told and will be in touch." | "…**Belles-Rives** has been told and will be in touch." |
+| `components/check-in-card.tsx` | "Check in so the hotel knows you'll be there." | "Check in so **Belles-Rives** knows you'll be there." |
+| `components/close-trip-card.tsx` | "This tells ``{`the hotel`}`` the trip never took place." | "This tells **Belles-Rives** the trip never took place." |
+| `components/mission-run-view.tsx:256` | "…The hotel has been told and will be in touch." | "…**Belles-Rives** has been told and will be in touch." |
+| `app/(dispatch)/dispatch/settings/page.tsx:292` | billing placeholder `accounts@hotel.com` | `accounts@yourbusiness.com` |
+
+⚑ **Four of the five now carry the Business's real NAME, not the word.** `MissionRunView` already took
+`businessName`; the rides list already loaded `bizNames` for the card foot. So the fix was threading a prop, not
+fetching anything — **no new query**. Fallback when a name fails to load is the glossary term ("The Business"),
+never a dash: `"— has been told"` is worse than the bug.
+
+⚑ **The heading stays generic on purpose.** That section can hold trips from several Businesses, and per the
+founder's own rule (warn per item, not summaries) the *state* belongs in the heading and the *name* on each card.
+
+⚑ **`{`the hotel`}` in `close-trip-card.tsx:87` was a template literal wrapping a bare string** — a shape that
+does nothing at runtime and reads like someone dodging a grep. Written that way on 2026-09-06 (`0c70344`).
+
+### The three that are NOT bugs, and why
+- `app/welcome/page.tsx:38` — "I'm a Business · Post missions and manage bookings **(hotel, agency, concierge)**".
+  These are example *types* of business under the *Business* heading. That is the rule stated correctly.
+- `app/legal/terms/page.tsx:34,82` — *"les « Businesses », hôtels en premier lieu"* / "(Businesses, hotels first)".
+  Hotels named as the **first vertical** — exactly the distinction the rule draws.
+- `app/(dispatch)/dispatch/settings/page.tsx:112` — placeholder **"Oetker Hôtel Management Company"**, a real
+  registered company name illustrating *raison sociale* ≠ the name on the door. A proper noun, and part of one
+  coherent worked example (the address and phone on that screen are the same company's). ⚑ **Founder's call if you
+  want it changed** — it presumes a hotel the way the billing placeholder did, but unlike `accounts@hotel.com` it
+  is not the common noun standing in for "your Business", so I left it.
+- Dev seed addresses (`Hôtel Negresco`, `Hôtel du Cap-Eden-Roc`) and `business_type: "hotel"` — place names and the
+  actual type. Left.
+
+### The net — `tests/glossary-copy.test.ts` (NEW, 244 assertions)
+Walks every `.ts`/`.tsx` in `app/`, `components/`, `lib/`, strips comments, and fails on `hotel`/`hôtel` in what's
+left. `lib/business-type.ts` is the one exempt module. Legitimate uses are allowlisted **by file AND by the exact
+words**, so a *new* bad string in an already-listed file still fails — and an allowance that stops matching fails
+too, which is how an exemption gets taken away once its string is fixed. Failure prints `file:line  the actual line`.
+
+⚑ **The scanner has to know a regex from a division, and the first draft didn't.** `/["\n\r;]/` in
+`dispatch/history/export/route.ts:40` opened a double-quoted string that never closed; from there every comment in
+that file read as code, and a plain `//` comment **178 lines later** was reported as rendered copy. Fixed, and
+pinned: `endsBalanced()` asserts **every scanned file parses cleanly**, so a scanner that loses its place fails
+loudly instead of quietly reporting the wrong lines — *or quietly reporting none*. That second direction is the
+real risk: a silent scanner reads as "clean".
+
+**Verified:** `npx tsc --noEmit` clean · `npx vitest run` **61 files / 1580 tests, all pass** (1336 → 1580).
+Regression proven by hand: putting `"Waiting on the hotel"` back fails 2 tests and names `app/(app)/rides/page.tsx:303`.
+
+### Left alone, deliberately
+**~40 code COMMENTS still say "hotel"** for a Business (`lib/admin-list.ts`, `lib/spend.ts`, `app/globals.css`,
+several tests…). Out of scope here, and the test ignores comments by design. I updated only the four that directly
+describe the strings I changed — a comment contradicting the line under it is how S81 got misled. A sweep of the
+rest is a cheap separate job if the founder wants it. ⚑ One to note: `dispatch/history/export/route.ts:25` says
+*"a French hotel's accountant"*.
+
+**Not opened as a PR** (branch `claude/peaceful-turing-7035de`, off `main` at `9c1a902`) — awaiting the go-ahead.
+
+### ⚑ Follow-on the same day — the COMMENT sweep (founder: *"do the comment sweep too"*)
+
+The entry above left ~40 comments alone and called a sweep "a cheap separate job". **Both numbers were
+wrong: it was 129 comment hits across 65 files**, and it was not cheap. Run as a 23-group workflow —
+one sweeper per group, an adversarial verifier per group, a repair stage that only fired where a
+verifier confirmed something. 49 agents, 0 failures.
+
+| | |
+|---|---|
+| **rewritten** | **82 comments** across 43 files |
+| **left, with a stated reason each** | **47** |
+| **verifier-confirmed problems** | **3 — all repaired** |
+| **dev-facing strings fixed by hand after** | **8** (6 vitest titles, 1 console label, 1 seed label) + the `HOTEL` fixture const renamed `BIZ` |
+| **tests** | 1580 → **1644** |
+
+⚑ **THE ADVERSARIAL PASS EARNED ITS KEEP, AND NOT IN THE DIRECTION EXPECTED.** Two of the three
+confirmed problems were the sweeper **OVER-correcting**:
+- `app/admin/drivers/page.tsx:593` — *"all four are hotels"* → *"all four are the same type"*.
+- `tests/admin-businesses.test.ts:52` — *"all four Businesses are hotels"* → *"…are the same type"*.
+
+Both originals were **true statements about today's data** — those four Businesses *are* hotel-type —
+and the rewrite destroyed the fact while pretending to enforce the rule. Verifiers reverted both. The
+third was a `riviera.mts` line where "a hotel is somewhere a trip starts" became a claim the file's own
+data contradicts; repaired to "a place". **The rule is about not calling a Business a hotel — it is not
+a ban on the word.**
+
+⚑ **The same trap caught two more later.** `.local/seed/seed-3months.mts` prints `"── hotels ──"` and
+`"N hotels · M desks"`, and the script seeds `business_type: "hotel"` on line 110 — so both labels are
+*accurate*. Left, deliberately, on exactly the ground the verifier used.
+
+### What was LEFT, and why — the six honest categories
+`proper-noun` (Hôtel Negresco, HOTEL CARLTON CANNES, Le Grand Hôtel, Hôtel Belles-Rives — quoted search
+strings, register trade names, worked examples) · `the-type` (*"Businesses today are hotels"*, `LABELS.hotel`
+= "Hotel & accommodation", *"one hotel, one restaurant"*) · `the-vertical` (*"hotels are the first
+vertical"* — the rule's own justification) · `states-the-rule` (comments quoting the banned phrase in
+order to forbid it) · `place-category` (*"(hotel / airport / venue)"* — kinds of Google POI, not kinds of
+Business) · `not-a-business` (**hotel wifi behind a captive portal** — a kind of network).
+
+### Proof, not assertion
+A mechanical comment/code splitter compared every changed file against `5e12f87` and proved that **in 43
+of the 47 files ONLY comment text differs** — no code, string, JSX, test name, fixture or CSS rule moved.
+The 4 exceptions are the ones changed on purpose afterwards. `tsc --noEmit` clean · **1644 tests pass**.
+
+### The lock — `tests/glossary-copy.test.ts` grew a second half (§ 2)
+The scanner now returns **both** halves of a file, so the same parser that finds rendered copy also finds
+comment text. A new block scans comments in `app/`, `components/`, `lib/` with **31 allowances, each
+carrying a `kind` and a `why`** — and a test asserting every allowance *has* a reason, because an
+exemption nobody can audit is how a rule quietly stops meaning anything.
+
+⚑ **`tests/` and `.local/` comments are swept but deliberately NOT locked.** They talk about fixtures and
+real Riviera place names constantly; an allowlist there would fire on honest comments until someone
+deleted the test. Named in the file so the gap is a decision, not an oversight.
+
+⚑ **Two scanner bugs found by its own tests while extending it:** the comment half dropped newlines
+inside code (collapsing nine consecutive doc comments onto one line, reporting the wrong line number),
+and it blanked the `/** */` markers. Both fixed; the failure message now prints `file:line` + the real line.
+
+**Remaining: 59 hits, 10 of them inside the test that quotes the word on purpose. The real 49 are
+31 allowlisted + 6 in `lib/business-type.ts` (the exempt module) + 12 in tests/.local.**
+
+**Still open:** a diverse-lens completeness critic (over-correction · lost meaning · what-it-missed ·
+are-the-exemptions-honest, then an adjudicator that re-verifies each claim) was running when this was
+committed. ⚑ Its "what-it-missed" lens was also asked to sweep for **"client" and "principal"** — the
+other half of hard rule 1, which **nobody has ever swept**. Findings to be actioned next.
+
+### ⚑ The completeness critic — and it found the guard itself was broken
+
+Four independent lenses over the whole diff (over-correction · lost meaning · what-it-missed ·
+are-the-exemptions-honest), then an adjudicator that re-verified every claim against the files.
+**32 raw findings → 15 confirmed, 13 rejected as taste or re-litigation.** 13 fixed, 1 partly
+rejected on the data, 2 deferred.
+
+#### ⚑ THE ONE THAT MATTERED: the lock did not hold, and it failed SILENTLY
+`regexCanFollow` read the last **character**, not the last **token**. So `return /["\n\r;]/` in
+`dispatch/history/export/route.ts:40` saw `n` — an identifier char — called it a division, and let
+the `"` inside the character class open a phantom string.
+
+**23 comment lines in that file were invisible to the comment scan. `endsBalanced` reported CLEAN**,
+because the stray quotes happened to re-balance before EOF. And the regression test written to catch
+exactly this used `const q = /…/` — where the preceding token is `=` and the heuristic *happens to
+work* — so it passed green while the line it stood in for was still mis-scanned.
+
+This is the failure direction the § 1 doc block already named as the dangerous one, and it shipped
+anyway. Fixes:
+- `regexCanFollow(prev, prevWord)` — token-aware, with `REGEX_OK_AFTER` (return, typeof, case, in,
+  of, delete, void, yield, await, do, else, new, throw, instanceof); `<` never opens regex (JSX).
+- The regression test now uses the **real shape** (`return /["\n\r;]/.test(body)`).
+- ⚑ **`lostCommentLines()` — the assertion that actually catches it.** Per file: a source line
+  starting `//` whose comment half is blank means the scanner was lost. Run over every scanned file.
+  Reverting the fix turns exactly the two export routes red. `endsBalanced` is **not** a substitute:
+  balanced at EOF says nothing about what was skipped in the middle.
+
+#### An allowance exempted the whole LINE, not its words
+`text.includes(needle)` let a *second*, real violation ride free on an already-allowed line.
+Replaced with `residue()`, which cuts every matching needle out and re-tests the remainder — and it
+immediately found **4 lines** with an uncovered second occurrence (`app/admin/page.tsx:228`,
+`address-autocomplete.tsx:15/16`, `history-filter.ts:220`). ⚑ Needles on one line must be
+**disjoint**, or subtracting one destroys the other's match — cost one red run to learn.
+
+#### Content the sweep got wrong
+| | |
+|---|---|
+| `tests/business-type.test.ts:84` | "three **hotel groups**" → "three Businesses" — **the only word the whole diff destroyed**, and it carried the argument (a head office's NAF describes the head office). Accor, Groupe Barrière and GL Events are SIRENE register entries, **not Kavenue Businesses**. Restored. |
+| `.local/seed/riviera.mts:37` | My own earlier repair made it worse: "a **place** is somewhere a trip starts" is a tautology (PLACES *is* the places map) and orphans "a Driver apparently living in a hotel" four lines above. Restored "a hotel" — the Negresco punchline. |
+| `lib/document-review.ts:166` | ⚑ **A founder quote edited inside its own quotation marks.** `DECISIONS.md:3788` has *"I'd put this person in front of a Guest"* — no possessive. The sweep had made it "a Business's Guest". Restored to the record, and marked as quoted so nobody rewords it again. |
+
+⚑ **One half of a finding rejected on the data.** The critic also wanted `riviera.mts:40` reverted
+from "the PLACE it replaced" to "the HOTEL it replaced", arguing PLACES is mostly airports and
+stations. That argument is inverted: `PLACES` holds 4 hotels against airports, stations, a port and
+villages — so "place" is the *more* accurate word, and the author's original was the loose one. Kept.
+
+#### Missed, now fixed
+- **7 dev console labels across 5 probe/seed scripts** printing `businessTotal` under "hotel"/"HOTEL"
+  (`HOTEL pays`, `round on the HOTEL's side`, …). The by-hand pass fixed console labels and stopped
+  one directory short.
+- A **seventh** vitest title (`tests/dev-login-fixtures.test.ts:22`).
+- ⚑ **`lib/business-type.ts` was dropped from BOTH scans**, so the file most likely to accumulate
+  hotel-flavoured prose was unpoliced. Its **comments** are now scanned like everyone else's, with
+  its six real uses named; only the rendered-string half still exempts it (the enum and the labels
+  genuinely have to be the word).
+- `ALLOWED` gained the same `kind` + `why` audit the comment list already had — the rule was being
+  enforced on the lower-stakes list only.
+- Scanner: a backslash-newline pair collapsed a line (off-by-one for every later hit in that file);
+  needles now read NFC-normalised, so a decomposed `o`+U+0302 can't hide.
+- My own § 2 header contradicted itself ("129 … said hotel for a Business", then "82 rewritten").
+
+**1644 → 1898 tests.** `tsc --noEmit` clean.
+
+### ⚑ DEFERRED, and why — the "client" half of hard rule 1
+The rule also bans **"client"** and **"principal"**. The critic found `client` for the Business in
+`lib/waybill.ts` (6×) and `lib/vat.ts` (4×), and a rendered one at `app/legal/terms/page.tsx:35`
+(*"pour leurs clients (les « Guests »)"*, whose English twin says "end customers").
+
+**I did not sweep these, deliberately.** They are not the same kind of find:
+- `lib/waybill.ts:18-21` transcribes the **arrêté's own 4°–7°**; `lib/vat.ts:109/111/206/209`
+  paraphrases **BOFiP and CE 9 oct. 2024 n° 472257**. Rewriting the noun in a transcription of law
+  risks misstating it, and the honest fix (guillemets around the law's own word, the way `"sans
+  délai"` already is) needs the **actual arrêté text fetched** — not reasoned about.
+- `terms/page.tsx:35` is **legal copy the founder owns**, and there "leurs clients" means the
+  *Guests*, not the Business — it is glossed as « Guests » in the same breath.
+
+⚑ The repo already knows the right term: `lib/database.types.ts:76` — **"the donneur d'ordre"**.
+A proper "client" sweep is its own job, and it starts by fetching the arrêté.
+
+### ⚑ The "client" sweep — the other half of hard rule 1, never swept until now (founder: *"fetch the arrêté first and decide"*)
+
+`lib/account.ts:4` and `lib/database.types.ts:8` had said *"No 'client'/'principal'"* since **S48**, while
+`lib/waybill.ts` and `lib/vat.ts` used "the client" **ten times**. Nobody had ever looked.
+
+#### The primary sources, fetched BEFORE deciding — and they say "client"
+| source | its own word |
+|---|---|
+| **Arrêté du 6 août 2025**, art. 1, 4°–7° ([Légifrance JORFTEXT000052153206](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000052153206)) | *"Nom et coordonnées téléphoniques du **client** sollicitant une prestation…"* |
+| its final paragraph | *"les moyens de prendre contact avec le **client**"* |
+| **BOI-TVA-BASE-10-10-50 § 260** | *"la circonstance que le **client** renonce formellement… ou ne se présente pas le jour convenu"*, introduced by *"Sont sans incidence sur la taxation"* |
+| **BOFiP on CE 9 oct. 2024 n° 472257** | *"les sommes prélevées par un établissement hôtelier sur le compte bancaire de ses **clients**"* |
+
+#### The rule applied
+- **Kavenue's own voice → Business.** `waybill.ts:143` (*"when and where the Business asked for the
+  pickup"*), `waybill.ts:127` (the Guest, not "the Business's own customer").
+- **A transcription of law → keep the source's word, MARK it « client »**, matching the file's existing
+  convention for quoted legal phrases (`"sans délai"`), plus one ⚑ block saying the arrêté's « client »
+  **is the Business, the donneur d'ordre** — which is why the field is `ordering`, filled from
+  `business.legal_name` / `business.reception_phone`.
+- **Rendered (the only one): `app/legal/terms/page.tsx`** — *"pour leurs clients (les « Guests »)"*.
+
+⚑ **"voyageurs" was the wrong pick and a critic was right to kill it.** VTC is *transport public
+particulier de personnes*; "voyageurs" is the collective-transport register (rail, bus), it is also
+*hôtellerie* vocabulary landing in the one sentence [[d99]] most needs type-neutral, and it left the FR
+and EN halves disagreeing. Now **"passagers" / "passengers"** — the glossary's own second word for Guest
+(`docs/00:27`, `lib/passengers.ts`, `mission.passenger_names`) — **in both halves**.
+
+#### ⚑ THIRD TIME FOR THE SAME DEFECT SHAPE: exempt the WORDS, never the LINE
+§ 3 shipped with the identical bug that `2f7697a` had fixed in § 1/§ 2 **six hours earlier**, in *two*
+independent places. A critic proved it by hand:
+- the legal-quotation check exempted any line containing `«`, `»` **or a double quote** — so deleting
+  the guillemets this whole change introduced left **790/790 green**, and a fresh
+  `// The client is told the "why" before we charge them.` passed;
+- `NOT_COPY` exempted any line touching `createClient` / `"use client"` — live data-writing lines, not
+  just imports.
+
+Fixed with `blankKeepingLines()`: blank the marked spans (`« … »` and `"…"`, **across lines**) and the
+framework tokens, keep the newlines, then look for the word in what is left. Both probes now fail with
+the exact `file:line`. § 3 also gained what it shipped without — **a positive control and a file-list
+anchor**, so it cannot go green vacuously — and one shared `CLIENT_WORD` pattern covering `cliente(s)`,
+`clientèle` and the unaccented `clientele`.
+
+#### The one real legal defect the critics found
+`lib/vat.ts` quoted **`"indépendamment"`** onto the cancel-vs-no-show clause. § 260 introduces that
+clause with **"sans incidence sur la taxation"** — the paragraph, the citation and the rule were all
+right, only the quoted word was wrong. Now quotes § 260 verbatim. ⚑ That is precisely the failure the
+new convention exists to prevent, caught by the convention's own reviewers.
+
+#### Rejected on the evidence
+The loudest finding of the batch — *"5° prints `mission.created_at`, a draft's birth, so a Driver hands
+a police officer a false booking time"* — is **false**: posting a draft **resets** `created_at` on
+purpose (`dispatch/new/actions.ts:462`, `lib/draft-resume.ts:65`). The justificatif states the real
+booking moment. 10 of 19 raw findings confirmed; 9 rejected.
+
+#### What is deliberately NOT locked, and why
+"client" has three senses and **two are correct**: the React/Next client component and the Supabase
+client (**140 occurrences** in `app/`+`components/`+`lib/` — 57 `"use client"` directives, 83 other
+correct senses, **zero** the customer; measured, with the command in the file), and **`principal` in its
+legal sense, which hard rule 2 REQUIRES**. An allowlist over those would be noise that gets deleted the
+first time it blocks an honest comment. So § 3 locks only where the distinction is decidable — **no
+"client" in rendered copy**, and **in `waybill.ts`/`vat.ts` the word only inside `« »` or a quotation** —
+and a test pins that `principal` **survives** where rule 2 needs it.
+
+**`tsc --noEmit` clean · 2129 tests pass** (1644 → 1898 → 2129 across the three commits).
+
 ## 2026-09-21 — SESSION 84 CLOSED · the 1 000-row cap is shut on the Business side · PR #4 merged · tests 1390
 
 **⚑ DONE and deployed.** `main` = `8f2a49d` (PR #4, CI green). Three commits of code plus the close:
@@ -186,7 +467,6 @@ are recorded below as deliberate.
 - **The Schedule's shape is NOT decided.** The founder wants the days ahead bounded by DESIGN, not amputated
   (today + tomorrow was their instinct); a preview comes first. Everything above is the cap fix only — the screen
   shows exactly what it showed before.
-
 ## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
 
 **⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted

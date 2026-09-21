@@ -41,7 +41,7 @@ const PERIOD_LABEL: Record<Period, string> = {
  *
  * ⚑ There is deliberately NO Driver dropdown. Founder: *"can you imagine there is
  * 300, how it would look like?"* — a native select over every Driver who ever
- * drove for a hotel is unusable at real scale, and typing a name in the search
+ * drove for a Business is unusable at real scale, and typing a name in the search
  * box already does the job (with the match highlighted).
  */
 export function HistoryFilters({

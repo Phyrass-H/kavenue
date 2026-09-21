@@ -90,7 +90,7 @@ const BIZ = BUSINESSES.map((b) => {
   };
 });
 
-// ── the pool of legs each hotel actually sends people on ────────────────────
+// ── the pool of legs each Business actually sends people on ─────────────────
 const legsFor = (placeKey: string) =>
   LEGS.filter(([a, b]) => a === placeKey || b === placeKey).map(([a, b, km, min]) =>
     a === placeKey ? { from: a, to: b, km, min } : { from: b, to: a, km, min });
@@ -174,13 +174,13 @@ async function makeTrip(b: (typeof BIZ)[number], day: number): Promise<boolean> 
   const pickupAt = new Date(dayOf(day).getTime());
   pickupAt.setHours(hour, pick([0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55]), 0, 0);
 
-  // Lead time — how far ahead hotels book. Mostly a day or two, sometimes weeks,
-  // sometimes a panic an hour out.
+  // Lead time — how far ahead Businesses book. Mostly a day or two, sometimes
+  // weeks, sometimes a panic an hour out.
   const leadH = chance(0.12) ? between(0.7, 4) : chance(0.55) ? between(5, 40) : between(48, 260);
   const postedAt = new Date(pickupAt.getTime() - leadH * HOUR);
   if (postedAt.getTime() < START.getTime()) { skipped.beforeWindow++; return false; }
 
-  // Class: mostly the hotel's default, sometimes up, rarely down.
+  // Class: mostly the Business's default, sometimes up, rarely down.
   const cat = chance(0.72) ? b.spec.defaultCategory : pick(["eco", "business", "luxury"] as const);
   const pax = airport ? intBetween(1, 4) : intBetween(1, 3);
   const bags = airport ? intBetween(1, 5) : intBetween(0, 2);
@@ -299,7 +299,7 @@ async function walk(id: string, b: (typeof BIZ)[number], t: any) {
     // The Driver asks out, or simply drops it. Either way the trip goes back.
     const dropAt = new Date(acceptAt.getTime() + between(0.1, 0.6) * (pickupMs - acceptAt.getTime()));
     if (chance(0.4)) {
-      // Through the proper door: a release request the hotel agreed to.
+      // Through the proper door: a release request the Business agreed to.
       const askAt = new Date(dropAt.getTime() - intBetween(20, 400) * MIN);
       const { data: rel } = await db.from("mission_release").insert({
         mission_id: id, driver_id: driver.row.id, status: "accepted",

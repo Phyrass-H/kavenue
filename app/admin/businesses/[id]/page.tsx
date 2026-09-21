@@ -1,6 +1,6 @@
-// One hotel: who they are, who books for them, and what they have posted.
+// One Business: who they are, who books for them, and what they have posted.
 //
-// ⚑ THE HOTEL'S OWN NAME USED TO BE ON EVERY ROW of its own page —
+// ⚑ THE BUSINESS'S OWN NAME USED TO BE ON EVERY ROW of its own page —
 // "Belles-Rives, Juan-les-Pins → Nice Airport", forty times down the screen.
 // The heading already says whose page this is, so the row's information is the
 // OTHER end of the journey. `farLeg` decides which end that is on COORDINATES,

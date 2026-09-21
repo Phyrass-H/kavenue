@@ -15,10 +15,19 @@
 //   1°  the exploitant VTC's name / dénomination sociale + coordonnées
 //   2°  its number in the register of art. L. 3122-3 (REVTC)
 //   3°  its unique identification number (SIREN, art. D. 123-235 c. com.)
-//   4°  the name + telephone of the client who ordered the trip
-//   5°  the date + time the client made the booking
-//   6°  the date + time of pickup the client asked for
-//   7°  the pickup location the client indicated
+//   4°  the name + telephone of the « client » who ordered the trip
+//   5°  the date + time the « client » made the booking
+//   6°  the date + time of pickup the « client » asked for
+//   7°  the pickup location the « client » indicated
+//
+// ⚑ « CLIENT » IS THE ARRÊTÉ'S WORD, NOT OURS, and that is why it is in guillemets.
+//   The text reads "Nom et coordonnées téléphoniques du client sollicitant une
+//   prestation…" (art. 1, 4°). Kavenue's glossary has no "client" (CLAUDE.md hard
+//   rule 1) — in our terms the arrêté's « client » is the **Business**, i.e. the
+//   donneur d'ordre that ordered the trip. That is why the field below is called
+//   `ordering`, filled from `business.legal_name` / `business.reception_phone`. Rewording
+//   the law to suit our vocabulary would misquote it; leaving it unmarked would read
+//   as if we said it.
 //
 // ⚑ THE EXPLOITANT IS THE DRIVER'S COMPANY, NEVER KAVENUE (CLAUDE.md hard rule 2,
 //   docs/01:11). Kavenue is an agent. Putting Kavenue in 1°–3° would assert on paper, to a
@@ -115,7 +124,7 @@ export const WAYBILL_TITLE = "Justificatif de réservation préalable";
  *    after they accepted tells them what they left on the table).
  *  · ⚑ AND IT SITS LAST. At a check the Guest is standing there, and the Business resold
  *    that ride to them at its own margin (docs/01:47). A price in the header is a price the
- *    Business's own customer reads over the Driver's shoulder.
+ *    Guest reads over the Driver's shoulder.
  */
 export const WAYBILL_PRICE = "course" as const;
 
@@ -131,7 +140,7 @@ export interface WaybillData {
   ordering: { name: string; phone: string | null };
   /** 5° — when the booking was made. The proof it was *préalable*. */
   bookedAt: string;
-  /** 6° 7° — when and where the client asked to be collected. */
+  /** 6° 7° — when and where the Business asked for the pickup. */
   pickupAt: string;
   pickupAddress: string;
   /** Extras (S72). Not on the legal list; see the header note. */
@@ -222,9 +231,11 @@ export function buildWaybill(
       // The legal name is what a controller can check against a register; the trading
       // name is what everyone says. Prefer the first, fall back to the second.
       name: business.legal_name?.trim() || business.name,
-      // ⚑ The arrêté's final paragraph lets 4°'s phone be omitted, but then the Driver must
-      // give the controller the means to reach the client "sans délai". So we fall back to
-      // the Dispatcher who actually booked it rather than printing nothing.
+      // ⚑ The arrêté's final paragraph lets 4° be incomplete — but it does not hand the
+      // document a permission, it hands the DRIVER an obligation: the conducteur must then
+      // give the controller "les moyens de prendre contact avec le client" — the Business —
+      // "sans délai", at the roadside. So we fall back to the Dispatcher who actually booked
+      // it rather than printing nothing.
       phone: business.reception_phone?.trim() || dispatcherPhone,
     },
     bookedAt: mission.created_at,

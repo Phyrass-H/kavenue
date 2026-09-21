@@ -227,7 +227,7 @@ export async function createMission(formData: FormData) {
     pickupAt!.getTime() > Date.now() ? pickupAt!.toISOString().replace(/\.\d{3}Z$/, "Z") : null;
   // ⚑ Retried ONCE on failure. Since the floor guard below now refuses to post
   // without a price, a single transient Mapbox blip would otherwise turn into a
-  // hotel unable to book — trading a silent money bug for a loud availability
+  // Business unable to book — trading a silent money bug for a loud availability
   // one. One retry kills the blips; a real outage still stops at the guard,
   // which is the correct place to stop.
   const routeOnce = () =>

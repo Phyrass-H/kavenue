@@ -114,7 +114,7 @@ export interface ReleaseBrief {
  *
  * ⚑ NO MONEY ON IT, DELIBERATELY (founder, 2026-08-20). The penalty is real and
  * recorded (`fee_amount`, 100% of the Course), but who ultimately receives it is
- * an open question: the hotel paid nothing and bills its Guest nothing, so 100%
+ * an open question: the Business paid nothing and bills its Guest nothing, so 100%
  * of the fare is not compensation for a 100% loss — it is sized to deter the
  * Driver, which is a different job with a different answer. Nothing is collected
  * during the beta either way. The block therefore states only what is certain.
@@ -183,7 +183,7 @@ function carOf(m: MissionRow): CarChoice {
 }
 
 // One dense schedule line. Click to expand full detail. The coloured left edge +
-// status pill are the at-a-glance signal a hotel scans (red = needs a call).
+// status pill are the at-a-glance signal a Business scans (red = needs a call).
 // A tone carrying `wash` tints the WHOLE row so it can't be scrolled past: amber
 // once check-in opens at T-180 and the Driver hasn't, red inside the last hour
 // (D61), plus the pre-existing red on a cancelled/expired trip.

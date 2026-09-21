@@ -21,11 +21,18 @@ export function CheckInCard({
   missionId,
   open,
   checkedInAt,
+  businessName,
 }: {
   missionId: string;
   /** Check-in is live: confirmed, not yet checked in, inside the T-180 window. */
   open: boolean;
   checkedInAt: string | null;
+  /**
+   * The Business's own name, so the prompt says WHO is waiting on the tap.
+   * Glossary rule 1: never "the hotel" for a Business — a Business is any of the
+   * nine types, and one of them is a VTC operator posting its overflow.
+   */
+  businessName: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -53,7 +60,9 @@ export function CheckInCard({
 
   return (
     <div className="dcheck">
-      <p className="dcheck__t">Check in so the hotel knows you’ll be there.</p>
+      <p className="dcheck__t">
+        Check in so {businessName ?? "the Business"} knows you’ll be there.
+      </p>
       {error && (
         <div className="notice error" style={{ marginBottom: 10 }}>
           {error}

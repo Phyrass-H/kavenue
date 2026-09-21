@@ -5,6 +5,99 @@
 
 ---
 
+## 20 September 2026 — Fixed the second banned word, "client" — after reading the actual decree first
+
+- **The rule has two halves and only one had ever been done.** Kavenue's wording bans "client" as well as
+  "hotel". Two files had been saying *"No client / principal"* in a note since July while ten lines a few
+  folders away happily said "the client".
+- **We read the law before touching anything.** The decree of 6 August 2025 (the one behind the waybill a
+  Driver shows at a roadside check) and the tax rulings behind the no-show charge **both use the word
+  "client" themselves**. So deleting it would have meant misquoting French law on a document handed to a
+  police officer.
+- **So the fix splits by who is speaking.** Where Kavenue speaks in its own voice, it now says **Business**.
+  Where the code is quoting the law, the law's word stays — but it's now clearly marked as a quote, with a
+  note saying that the decree's "client" is, in our words, **the Business that ordered the trip**.
+- **One thing you actually see changed:** the French terms page said businesses need transport "pour leurs
+  clients". It now says **"pour leurs passagers"**, and the English half says **"passengers"** to match —
+  the two halves used to say different things. (A reviewer talked us out of "voyageurs", which is train-and-
+  bus language and quietly hotel language too.)
+- **A reviewer broke our own safety net, twice.** The check meant to keep the law's word marked could be
+  switched off completely without anything going red — it was letting a whole line off whenever *any* quote
+  appeared on it. That's the third time this exact mistake has been made in one day. It's now fixed
+  properly, and the check has a test that deliberately plants a mistake to prove it still notices.
+- **And one genuine legal error caught:** we had quoted the wrong French word onto a tax rule. The rule, the
+  reference and the reasoning were right — just the quoted word was wrong. Now it quotes the real sentence.
+- **One alarming report turned out to be wrong**, and we checked rather than assumed: a reviewer said the
+  waybill prints the wrong booking time for saved drafts. It doesn't — posting a draft resets that time.
+- 2,129 automated checks pass, up from 1,644 this morning.
+
+## 20 September 2026 — Had the work checked by four fresh reviewers, and they found the checker itself was broken
+
+- **Why do this at all.** The guard we'd just built was supposed to make the "Businesses, not hotels"
+  rule permanent. Before trusting it, four independent reviewers went at the whole change from
+  different angles, and a fifth re-checked every complaint before it was allowed to count. **32
+  complaints in, 15 real, 13 thrown out.**
+- **The one that mattered: the guard had a blind spot, and it was a silent one.** In two files it was
+  quietly skipping 23 lines of notes — and still reporting "all clean". A guard that goes quiet looks
+  exactly like a guard that found nothing wrong. Worse, the test written to catch this exact problem
+  used an example that happened to work, so it stayed green. Both are fixed, and there's now a check
+  that the guard can't skip a line without saying so.
+- **Exceptions were too generous.** Marking part of a line as "allowed" was letting the *rest* of that
+  line off too — so a genuine mistake could hide next to an approved one. Tightened, and it immediately
+  caught four places where that was happening.
+- **Three things the sweep had got wrong, now put back:**
+  - A note explaining that three big hotel groups file their head-office trade code had been made
+    vaguer, losing the fact the explanation depended on.
+  - A note about the bug where test Drivers appeared to *live in hotels* had been flattened into a
+    sentence that said nothing.
+  - **A quote of your own words had been edited inside its quotation marks.** The record says "I'd put
+    this person in front of a Guest"; it now says that again, marked as a quote so nobody rewords it.
+- **Also caught:** seven printouts in developer scripts, one more test name, and the fact that the file
+  which *defines* the nine business types was itself exempt from the check. All fixed.
+- **One thing deliberately NOT done.** The same rule also bans the word "client". It does still appear —
+  but almost entirely inside passages that transcribe French law (the waybill decree, the VAT rulings).
+  Changing a legal word to suit our vocabulary risks misstating the law, so that's a separate job and it
+  starts by pulling the actual decree text. Flagged, not touched.
+- 1,898 automated checks now pass, up from 1,644.
+
+## 20 September 2026 — Swept the same word out of the code's own notes, so it stops teaching the mistake
+
+- **Why bother with notes nobody sees.** The five wrong words on screen (above) didn't come from nowhere:
+  the code's own explanatory notes said "the hotel" **129 times**, and that's what the next person — or the
+  next AI — reads to learn how Kavenue talks. Fixing the screens without fixing the notes just means the
+  screens drift back.
+- **What we did.** 23 workers went through 65 files in parallel; each one's work was then re-checked by a
+  separate reviewer whose only job was to find fault with it. **82 notes rewritten, 47 correctly left alone.**
+- **The interesting part: the reviewers mostly caught over-zealousness, not sloppiness.** Twice, a worker
+  changed a note that said "all four of these businesses are hotels" — which is simply *true*, they are —
+  into something vaguer, and lost a real fact in the name of the rule. Both were put back. The rule is
+  "don't call a business a hotel", not "never write the word hotel".
+- **What we deliberately kept:** real place names (Hôtel Negresco, Hôtel Carlton Cannes), the business
+  *type* "Hotel & accommodation", the true statement that hotels are your first market, and — a nice one —
+  a note about **hotel wifi**, which is a kind of wifi, not a kind of customer.
+- **Also fixed:** eight developer-facing labels (test names and a couple of script printouts).
+- **The guard now covers notes too**, with 31 listed exceptions that each have to say *why* they're
+  allowed — so nobody can quietly widen the rule by adding an unexplained exception.
+- **Nothing you see changes.** Not one screen, price or button moved — we proved it mechanically: in 43 of
+  the 47 files touched, only the notes differ, and every one of the 1,644 automated checks still passes.
+
+## 20 September 2026 — The Driver's app now names your business instead of calling everyone "the hotel"
+
+- **The problem.** Five places in the Driver's app still said "the hotel" — including a whole section heading on the
+  Driver's ride list ("Waiting on the hotel"). Hotels are your first customers, not the whole market: a restaurant, an
+  event venue or another VTC operator posting its overflow would all have been called a hotel to the Driver's face.
+- **The fix.** Four of the five now show **your actual business name** — "Check in so Belles-Rives knows you'll be
+  there", "Belles-Rives has been told and will be in touch". That's not just correct, it's more useful: a Driver with
+  four trips on the go can see at a glance which desk is going to ring them. The section heading, which can cover
+  several different businesses at once, now reads "Waiting on the Business", with each card naming its own.
+- **Also fixed:** the billing email box on your settings page suggested "accounts@hotel.com". It now says
+  "accounts@yourbusiness.com".
+- **So it can't come back.** There's now an automatic check that reads every screen in the app and refuses the change
+  if any of them says "hotel" where it means a business. The handful of places where "hotel" is genuinely right — the
+  sign-up page listing business types, the legal terms saying hotels are first — are listed as deliberate exceptions,
+  word for word, so a new mistake in those same files is still caught.
+- **Nothing else changes.** Same screens, same prices, no new data loaded.
+
 ## 21 September 2026 — The speed-up for those screens is live
 
 - You pasted the optional database file and the checker came back **all five green**. Schedule, Spend, History, the
@@ -53,7 +146,6 @@
   built before anyone reaches it.
 - **Still to do, same job elsewhere:** Spend, History and the two CSV downloads read your whole past archive and add
   the money up from it — past 1 000 trips those totals would be too low without saying so. That's the next step.
-
 ## 18 September 2026 — Closed the last security hole: a Driver can no longer pay themselves the top price
 
 - **The problem.** A trip's price climbs from a low start up to your Ceiling, and the Driver is paid whatever it is when

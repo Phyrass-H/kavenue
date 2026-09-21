@@ -3,8 +3,8 @@
 // ⚑ THE PROPERTY THAT MATTERS MOST IS WHICH TRIP GETS CALLED "FIRST". Two live
 // Drivers (Inès Lefranc, Amine Belkacem) have a CANCELLED trip earlier than the
 // one they actually drove. Counting it would name the wrong date, the wrong
-// route and the wrong hotel — and the founder would ring a hotel about a trip
-// that never happened.
+// route and the wrong Business — and the founder would ring a Business about a
+// trip that never happened.
 import { describe, expect, it } from "vitest";
 import {
   firstTrips,

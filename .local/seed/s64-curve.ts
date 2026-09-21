@@ -81,7 +81,7 @@ for (const c of CASES) {
   const now = currentFare(m);
   console.log(`\n${c.label}  ·  ${c.tier} ${c.km} km`);
   console.log(`  floor ${eur(Number(q.floor_price))} → ceiling ${eur(Number(q.ceiling_price))} all-in`);
-  console.log(`  right now: hotel ${eur(commissionSplit(now, rates).businessTotal)} · driver ${eur(commissionSplit(now, rates).driverNet)}`);
+  console.log(`  right now: business ${eur(commissionSplit(now, rates).businessTotal)} · driver ${eur(commissionSplit(now, rates).driverNet)}`);
   console.log(`  at its Ceiling from ${ceilingReachedAt(m).toISOString().replace("T", " ").slice(0, 16)}`);
 }
 console.log(`\ncreated ${made.length} ${TAG} missions — they are POOLED, so they show on the Driver's Pool.`);

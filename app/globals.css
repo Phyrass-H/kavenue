@@ -4017,7 +4017,7 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
    that says a Ceiling is too low for its route. */
 .adm-row__fare-s--warn { color: var(--tone-warn-fg); }
 
-/* ── the head of a trip / Driver / hotel ────────────────────────────────── */
+/* ── the head of a trip / Driver / Business ─────────────────────────────── */
 .adm-head {
   display: flex; gap: 18px; align-items: flex-start; flex-wrap: wrap;
   padding-bottom: 16px; border-bottom: 1px solid var(--border);
@@ -4121,7 +4121,7 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   .adm-row__when { min-width: 0; }
 }
 .adm-f__rest { color: var(--text-faint); }
-/* A list row with no time column — the fleet and the hotels. */
+/* A list row with no time column — the fleet and the Businesses. */
 .adm-row--3 { grid-template-columns: 1fr auto auto auto; }
 /* The fleet row, which also carries "is this Driver working".
    ⚑ FIXED WIDTHS, NOT `auto`. Every .adm-row is its OWN grid, so `auto` columns
@@ -4231,7 +4231,7 @@ a.adm-hit:hover, a.adm-row:hover { background: var(--surface-2); }
   margin: 0; font-size: 13px; font-weight: 500; color: var(--accent);
   text-transform: capitalize;
 }
-/* The direction of a journey seen from a hotel's own page: "→ Nice Airport"
+/* The direction of a journey seen from a Business's own page: "→ Nice Airport"
    leaves, "← Nice Airport" comes back. Faint on purpose — the direction is
    information, not a tone, and amber here would read as a warning. */
 .adm-leg { color: var(--text-faint); margin-right: 5px; }

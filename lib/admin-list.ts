@@ -13,7 +13,7 @@ import type { MissionStatus } from "@/lib/database.types";
 /* ── which end of the journey to show ───────────────────────────────────── */
 
 /**
- * How close two points must be to be "the same place". A hotel's own saved
+ * How close two points must be to be "the same place". A Business's own saved
  * address and a Dispatcher's typed pickup are two separate Google places for the
  * same building, so they land tens of metres apart — a service entrance and a
  * lobby easily differ by 100 m. 250 m is wide enough to catch that and far too
@@ -41,18 +41,18 @@ function samePlace(p: Endpoint, anchor: { lat: number; lng: number }): boolean {
 }
 
 /**
- * The far end of a journey, seen from a fixed point — the hotel whose page this
- * is.
+ * The far end of a journey, seen from a fixed point — the Business whose page
+ * this is.
  *
- * ⚑ THIS IS THE FIX FOR THE WORST THING ON THE CONSOLE: a hotel's own name
+ * ⚑ THIS IS THE FIX FOR THE WORST THING ON THE CONSOLE: a Business's own name
  * repeated on all 42 rows of its own page ("Belles-Rives, Juan-les-Pins → Nice
  * Airport", forty times). The heading already says whose page it is; the row's
  * information is the OTHER end.
  *
  * ⚑ MATCHED ON COORDINATES, NEVER ON THE NAME. "Hôtel Belles-Rives" (the
  * business) and "Belles-Rives, Juan-les-Pins" (the saved address label) are not
- * the same string and never will be, and a hotel is free to rename itself.
- * Against the live data this classifies all 350 trips: 348 leave the hotel, 1
+ * the same string and never will be, and a Business is free to rename itself.
+ * Against the live data this classifies all 350 trips: 348 leave the Business, 1
  * returns to it, 1 touches neither end.
  */
 export function farLeg(
@@ -66,9 +66,9 @@ export function farLeg(
   const a = { lat: anchor.lat, lng: anchor.lng };
   const leaves = samePlace(from, a);
   const returns = samePlace(to, a);
-  // ⚑ Both ends at the hotel is a round trip, and a bare "→ Belles-Rives" would
-  // read as an ordinary departure to somewhere that happens to share the name.
-  // Show it whole and let the reader see what it is.
+  // ⚑ Both ends at the Business is a round trip, and a bare "→ Belles-Rives"
+  // would read as an ordinary departure to somewhere that happens to share the
+  // name. Show it whole and let the reader see what it is.
   if (leaves && returns) return { at: "neither", label: whole };
   if (leaves) return { at: "start", label: to.label };
   if (returns) return { at: "end", label: from.label };
@@ -87,7 +87,7 @@ export interface DayGroup<T> {
  * How wide a band is.
  *
  * ⚑ BOTH, BECAUSE ONE BAND SIZE IS WRONG ON HALF THE SCREENS — and the live page
- * is what proved it. A hotel posts about one trip a day, so day bands over its
+ * is what proved it. A Business posts about one trip a day, so day bands over its
  * own 42 trips produced forty-two one-row bands: a striped wall, worse than the
  * flat list it replaced. Every trip in the marketplace on one page is ~3 a day,
  * where a day band groups properly.

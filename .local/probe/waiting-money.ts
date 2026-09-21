@@ -23,10 +23,10 @@ for (const [cls, rate] of [["Eco", 0.5], ["Business", 0.75], ["First", 1.0]] as 
   const tva = line.kind === "taxable" ? line.amount : 0;
   console.log(`\n${cls} — ${rate.toFixed(2)} €/min × ${MIN} min`);
   console.log(`  meter (course)        ${s.course.toFixed(2)}`);
-  console.log(`  HOTEL pays            ${s.businessTotal.toFixed(2)}   (fee ${s.businessFeeHt.toFixed(2)} + VAT ${s.businessFeeVat.toFixed(2)})`);
+  console.log(`  BUSINESS pays         ${s.businessTotal.toFixed(2)}   (fee ${s.businessFeeHt.toFixed(2)} + VAT ${s.businessFeeVat.toFixed(2)})`);
   console.log(`  DRIVER banks          ${s.driverNet.toFixed(2)}   (commission ${s.driverFeeHt.toFixed(2)} + VAT ${s.driverFeeVat.toFixed(2)})`);
   console.log(`  KAVENUE keeps (HT)    ${(s.businessFeeHt + s.driverFeeHt).toFixed(2)}   VAT remitted ${(s.businessFeeVat + s.driverFeeVat).toFixed(2)}`);
   console.log(`  driver w/ VAT keeps   ${driverKeeps(s, supply).toFixed(2)}   (${supply.kind === "taxable" ? `transport VAT inside ${tva.toFixed(2)}` : supply.kind})`);
   console.log(`  franchise driver keeps ${s.driverNet.toFixed(2)}`);
-  console.log(`  per minute: hotel ${(s.businessTotal / MIN).toFixed(2)} · driver ${(s.driverNet / MIN).toFixed(2)}`);
+  console.log(`  per minute: business ${(s.businessTotal / MIN).toFixed(2)} · driver ${(s.driverNet / MIN).toFixed(2)}`);
 }

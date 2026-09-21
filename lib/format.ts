@@ -68,7 +68,7 @@ export function formatRate(rate: number | string | null | undefined): string {
  * after the pickup, and a Driver who sits out a 60-minute airport courtesy wait
  * and then gives up stamps a negative number. BACKLOG records the same on
  * no-show rows. Clamping at zero claims they walked exactly at the pickup
- * moment; printing it raw puts "-18 min before pickup" in a hotel's
+ * moment; printing it raw puts "-18 min before pickup" in a Business's
  * spreadsheet. Both are false — so say which side of the pickup it fell on.
  *
  * ⚑ ONE helper for the screen AND both CSV exports, deliberately: the first

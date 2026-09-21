@@ -39,7 +39,7 @@ t("a request from an unlisted website is REFUSED", bad.status !== 200,
 // ⚑ AND THE RESTRICTION MUST NOT BE SO TIGHT IT KILLS PRODUCTION. The key is
 // restricted to *.kavenue.fr, and the app is served from FOUR origins. A key that
 // works on localhost and nowhere else looks perfect here and is dead for every
-// hotel — the exact "silence reads as success" shape this project keeps meeting.
+// Business — the exact "silence reads as success" shape this project keeps meeting.
 console.log("\n── ...without killing the real origins ──");
 for (const origin of ["https://kavenue.fr/", "https://www.kavenue.fr/",
                       "https://dispatch.kavenue.fr/", "https://driver.kavenue.fr/"]) {

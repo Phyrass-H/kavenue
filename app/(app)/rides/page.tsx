@@ -42,12 +42,21 @@ const PAST_STATUSES: MissionStatus[] = ["completed", "cancelled"];
 /**
  * § Q — the card's line. Three states, not two: still asking (amber, with what to
  * do), or already answered "it didn't happen" (quiet — the Driver has done their
- * part and the ball is with the hotel; nagging them again would be wrong).
+ * part and the ball is with the Business; nagging them again would be wrong).
+ *
+ * ⚑ The answered line NAMES the Business (glossary rule 1 — never "the hotel" for a
+ * Business). "Belles-Rives has been told" is also simply better than "they have
+ * been told": a Driver with four open trips knows which desk is going to ring.
  */
-function cardClosingState(m: MissionRow, now: Date): { text: string; answered: boolean } {
+function cardClosingState(
+  m: MissionRow,
+  now: Date,
+  /** The Business's own name. Missing (a name we failed to load) falls back to the term. */
+  bizName: string | undefined,
+): { text: string; answered: boolean } {
   if (m.close_answer === "not_driven") {
     return {
-      text: "You said this trip didn’t happen. The hotel has been told and will be in touch.",
+      text: `You said this trip didn’t happen. ${bizName ?? "The Business"} has been told and will be in touch.`,
       answered: true,
     };
   }
@@ -245,7 +254,7 @@ export default async function RidesPage() {
   // purpose, since nobody knows yet who is at fault — so the trip stays
   // `confirmed` and would otherwise fall straight back into the day groups as
   // upcoming work the Driver has already told us never happened. It is not
-  // upcoming and it is not finished; it is waiting on the hotel, and it says so.
+  // upcoming and it is not finished; it is waiting on the Business, and it says so.
   const now = new Date();
   const unsettled = (m: MissionRow) => needsClosing(m, now) || m.close_answer === "not_driven";
   const open = (missions ?? []).filter((m) => !unsettled(m));
@@ -291,7 +300,7 @@ export default async function RidesPage() {
         <section>
           <div className="dday dday--first dday--closing">
             <h2 className="dday__l">
-              {stale.every((m) => m.close_answer) ? "Waiting on the hotel" : "Needs closing"}
+              {stale.every((m) => m.close_answer) ? "Waiting on the Business" : "Needs closing"}
             </h2>
             <span className="dday__n">
               {stale.length} ride{stale.length === 1 ? "" : "s"}
@@ -303,7 +312,7 @@ export default async function RidesPage() {
               m={m}
               bizName={bizNames.get(m.business_id) ?? "—"}
               flag={pending.get(m.id)}
-              closing={cardClosingState(m, now)}
+              closing={cardClosingState(m, now, bizNames.get(m.business_id))}
             />
           ))}
         </section>

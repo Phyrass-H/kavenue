@@ -5,6 +5,18 @@
 
 ---
 
+## 2026-09-21 — the glossary sweep merged (PR #6) · main 066d55e · tests re-measured at 2186
+
+Recorded because the S84 close, written an hour earlier, says the branch was unpushed. `claude/peaceful-turing-7035de`
+merged into `main` as **`066d55e`** at 08:24 UTC, CI green; the founder handled it from the other session.
+
+Verified on `main`, in the code that RENDERS it: `app/(app)/rides/page.tsx:303` now reads *"Waiting on the Business"*.
+Every surviving "the hotel" in `app/` and `components/` is either a comment stating the rule or a genuine hotel (the
+Negresco, in the address-autocomplete notes). `tests/glossary-copy.test.ts` now guards it.
+
+⚑ **Tests on `main`: 2186 across 63 files**, measured — not 1390 (S84 alone) and not the 2129 the branch claimed on its
+own base. The two numbers were never addable; this is why the close said to re-measure.
+
 ## 2026-09-20/21 — SESSION 84 (glossary) · hard rule 1 swept END TO END: "hotel" AND "client" · 4 commits · tests 1336 → 2186
 
 > Read the three ⚑ follow-on sections below this one in order — they are the same session, and each

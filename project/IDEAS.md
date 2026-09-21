@@ -6,6 +6,66 @@
 
 ---
 
+## The Schedule's shape — today + tomorrow, not the whole future (founder, 2026-09-21) ⏸ PARKED
+
+**Founder parked this to work on the landing page.** Nothing was built. A preview comes first when it is picked up
+([[show-preview-before-coding]]). Everything below was verified in the code during S84 — file:line included so it does
+not have to be rediscovered.
+
+**What the founder wants.** *"I don't believe the schedule should have the entire trips ahead — maybe we can do today
+and tomorrow with a clean design to not confuse the Business."* Past trips → History. Further ahead → Calendar. And at
+the bottom, the trips that the Driver has not closed, so the desk can ring them.
+
+**Half of it already exists.** Today's band is already first-to-last, and unclosed older trips are already lifted out
+of the "Earlier trips" fold (`app/(dispatch)/dispatch/page.tsx`). The real change is dropping the FUTURE bands.
+
+**The four arguments against today-only** (why the recommendation is a rolling *today + tomorrow*, not *today*):
+1. **Every control lives on the Schedule row.** Raise the Ceiling, Change the car, Edit details, Propose a change,
+   Agreed release, Cancel, Reclaim, Share the Guest's phone — all in `components/trip-row.tsx`, and only the Schedule
+   renders them live (History and Spend pass `archived`, which switches them off). There is **no `/dispatch/[id]`
+   page**: the segment holds only `/edit` and `/amend`.
+2. **The early-morning airport run.** For a 06:00 pickup tomorrow, "At Ceiling" fires at 01:00 (`lib/pdp.ts`
+   `TOP_LEAD_MS`) and "No Driver yet" at 03:00 (`lib/dispatch-status.ts`), and the trip is "Unfilled" by 08:00. The
+   only working-hours moment a human can see it and act is **the day before**, on a future band.
+3. **The Paris-midnight cliff.** Bands are keyed on `parisDayKey(m.pickup_at)`, so at 23:00 a 00:30 pickup — the most
+   imminent trip on the board, check-in open since 21:30, Reclaim unlocked at 22:30 — sits on *tomorrow's* band. Make
+   the window **rolling (now → end of tomorrow)**, not a calendar day, and this whole class disappears.
+4. **Six links would go dead.** `?open=<id>` / `?day=<key>` only SCROLL (`components/scroll-to-trip.tsx` returns
+   silently when the element is absent). Posting a trip for next week drops you on `/dispatch` with no trace of it;
+   the Calendar's "Open in Schedule" is the same shape. Fix: always render the band a link asks for.
+
+**What the Calendar can and cannot carry.** It reads `mission_read` for one month (±1 day) plus a Driver-name lookup,
+and **nothing else** — so a future trip with a pending change, a pending release or a Driver who walked away looks
+identical to a healthy one. It calls `missionTone(m)` with no options, so **"At Ceiling" and "No car match" can never
+render there**. Month cells show a time and a name, capped at 5 chips; the week view has no cap but renders the
+adjacent month's days as empty columns, so "the next 7 days" is unshowable one week in four. Its status filter does
+work ("Pooled" in one click), and it is the only screen that can post a trip for a chosen day.
+
+**Also decided-adjacent, and unwritten:** D14 fixes the Schedule as a "dense, day-grouped schedule of rows (Today
+pinned)" and D63 rule 2 says an unfilled trip "stays on the Dispatch schedule until the day ends, then falls into the
+Earlier trips fold" — both need a fresh ruling if the bands change. And the § Q lift should widen to
+`needsClosing(m, now) || m.close_answer === "not_driven"` (the pair `components/trip-row.tsx` already uses), or
+"Driver says it didn't happen" — the loudest red — leaves the only screen that can act on it.
+
+**If it ships:** put the narrowing in the SQL, not the JS grouping (the JS runs after the read), keep the paged reader
+from S84, and mind the empty state — with a narrowed query a Business with nothing today and ten trips next week hits
+the first-run screen *"No missions yet. Post your first mission →"*.
+
+## A trip has no address — the case for `/dispatch/[id]` (S84 review, 2026-09-21) ⏸ V2
+
+`app/(dispatch)/dispatch/[id]/` already owns `/edit` and `/amend`; the **parent page is the one node missing**, which
+is why the app fakes a trip address with `?open=<id>` — an instruction to scroll a list that must already contain the
+row. Consequences: a Dispatcher cannot send a colleague "this one"; the deep link works only because the Schedule
+loads every trip; and the same trip means different things depending on which screen it was opened from (History and
+Spend pass no guest contacts, no amendment, no release, no change log). The Driver side **does** have a real per-trip
+page (`app/(app)/missions/[id]/page.tsx`).
+
+**Recommendation for V2:** extract the expanded row's detail region from `components/trip-row.tsx` into a shared
+component, render it at `/dispatch/[id]`, and point the Calendar drawer, History, Spend and the post-save redirects at
+it. **Not a third drawer** (there are two already). A day view is V3 at most — addressing is what is broken, not
+reading. ⚑ The navigation fix and the scaling fix are the same fix: the day the Schedule's query is bounded, every
+Calendar link to an older trip starts failing silently.
+
 ## The GUEST has no touchpoint — tracking link + post-trip feedback to the hotel (founder, 2026-07-30) ❓
 
 **Founder asked to park this while reviewing the surface map.** Today the Guest — the person actually in the car, and

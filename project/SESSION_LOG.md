@@ -5,7 +5,13 @@
 
 ---
 
-## 2026-09-20 — SESSION 84 · "the hotel" had crept back into the Driver's app · 5 strings fixed, and a test that won't let it happen again · tests 1580
+## 2026-09-20/21 — SESSION 84 (glossary) · hard rule 1 swept END TO END: "hotel" AND "client" · 4 commits · tests 1336 → 2186
+
+> Read the three ⚑ follow-on sections below this one in order — they are the same session, and each
+> one exists because reviewers found the previous step wrong. Ran in parallel with the paged-read
+> session (PR #4); merged on top of it.
+
+### The Driver's app had crept back to "the hotel" — 5 rendered strings, and a test that won't let it happen again
 
 **The rule is [[d99]] / CLAUDE.md hard rule 1** — *"the vocabulary is Businesses and then categories by type of
 business"* (founder, S71). Two read-only sweeps found the Driver's app had drifted back. Not a regression in one
@@ -280,6 +286,187 @@ and a test pins that `principal` **survives** where rule 2 needs it.
 
 **`tsc --noEmit` clean · 2129 tests pass** (1644 → 1898 → 2129 across the three commits).
 
+## 2026-09-21 — SESSION 84 CLOSED · the 1 000-row cap is shut on the Business side · PR #4 merged · tests 1390
+
+**⚑ DONE and deployed.** `main` = `8f2a49d` (PR #4, CI green). Three commits of code plus the close:
+the Schedule (`976cef1`), Spend + History + both CSVs (`deaa72d`), Drafts (`04f1a37`), indexes live (`b0db123`).
+`docs/migrations/2026-09-20_paged_read_indexes.sql` was pasted by the founder the same morning —
+`.local/probe/paged-reads/check.sql` **5/5 pass**, definitions verbatim.
+
+**What was actually at risk, and what was not.** Nobody was near 1 000 rows (271 at the busiest Business, measured
+2026-08-23), so **no figure a Business or the founder ever saw was wrong**. What the fix removes is a silent future:
+the Schedule would have dropped today and every trip ahead (ascending sort, no date floor), Spend and History would
+have **under-reported money** rather than shown a short list, both CSVs would have written a short file that looks
+complete, and Drafts would have disagreed with its own exact-count badge.
+
+**How it was proven.** `tsc` clean · `next build` clean · **1390 tests** (+47 over S83: 16 pager, 31 source-scan) ·
+`PAGE_ROWS` temporarily forced to 25 against the LIVE database: History still read *"169 trips · 13 436,37 € incl.
+502,32 € waiting · 36 unfilled"*, Spend still *"−3 691,95 € · −100,0 %"* and *"1 of 14"*, the History CSV still had
+170 lines — identical to page size 1 000 · forced failures: 503 with no file, and Spend drawing header + notice only ·
+85 review agents over three adversarial passes.
+
+**⚑⚑ The review caught a defect this session INTRODUCED** — `new Date()` inside the paged callback, so the "past"
+boundary walked forward between pages and the boundary rows were written twice into a file with a Total row. See
+S84 LESSONS in `NEXT_SESSION.md`; a test now refuses a `new Date()` inside any paged chain.
+
+**Process note, new:** a direct push to `main` is **refused** — branch protection requires the `types · tests · build`
+check on a pull request. "Merge it to main" therefore means: push the branch, `gh pr create`, watch CI, `gh pr merge`.
+
+### At the close, the founder's calls
+- **They are moving to the landing page** — its own repo; the brief is `project/LANDING_HANDOFF.md` (2026-08-04).
+- **The Schedule redesign is PARKED**, written up in full in `project/IDEAS.md` ("The Schedule's shape" + the
+  `/dispatch/[id]` case). Nothing built; a preview first when it is picked up.
+- **Two local sessions were ended on 2026-09-20.** Only one left work in git, and it is **unpushed**:
+  `claude/peaceful-turing-7035de`, the [[d99]] glossary sweep (4 commits, `tests/glossary-copy.test.ts`, 82 comments
+  rewritten / 47 deliberately kept). Its strings are **still live on `main`** — `app/(app)/rides/page.tsx:294` renders
+  *"Waiting on the hotel"*. It needs the founder's word to push and merge; a trial merge conflicts only in the two
+  append-at-top project files. ⚑ It claims 2129 tests on its own base — re-measure after merging, never add.
+
+### ⚑ Left for the next session
+The admin console's own pager (`readAll` fails open at 20 call sites; 14 page unordered; the `repooled` read can make
+a **false accusation**), the Schedule's six sequential reads, and pushing the period into the query on the two money
+screens. Exact file:line pointers are in `NEXT_SESSION.md` → LEFT OPEN.
+
+## 2026-09-21 — S84 · the indexes are LIVE · check 5/5 pass
+
+The founder pasted `docs/migrations/2026-09-20_paged_read_indexes.sql` and ran `.local/probe/paged-reads/check.sql`
+on the live database: **all five rows `pass`**, definitions exactly as written —
+`mission (business_id, pickup_at, id)` and `(business_id, created_at desc, id desc)` on `mission_cancellation`,
+`mission_amendment`, `mission_release`, `mission_info_change`. Every paged read on the Business side is now
+index-supported in its own sort order. Nothing else to paste for Part 1.
+
+## 2026-09-20 — SESSION 84 (cont.) · step 3: Drafts paged — Part 1 of the cap fix is DONE · tests 1390
+
+`app/(dispatch)/dispatch/drafts/page.tsx` was the last unbounded archive read on the Business side. Small, but it
+sits next to a badge that is an EXACT server-side count (`app/(dispatch)/layout.tsx`), so past 1 000 drafts the badge
+and the page would have disagreed **in front of the Dispatcher**, with the page the one lying. Paged
+(`created_at desc, id desc`), with a red notice and no list when the read fails rather than "No drafts." — that empty
+state is a fact, and a failed read is not entitled to state it.
+
+`tests/paged-call-sites.test.ts`: Drafts moves from `NOT_PAGED` to `PAGED_READS`, so the only excused reads left are
+the single-trip lookups and the Calendar's one-month window. **Every Business-side read that can outgrow one page is
+now paged.** tsc clean · 1390 tests · rendered live (empty state, badge 0).
+
+## 2026-09-20 — SESSION 84 (cont.) · step 2: Spend, History and both CSVs are paged · tests 1387
+
+**Same fault, on the screens where it is WORST.** Both money screens and both downloads read the Business's entire
+past archive in one request and then compute in memory: the spend total and its waiting part, the fill rate, "of N",
+the outcome chips, the month bands, the comparison period, the chart, the breakdown, the class dropdown and the date
+picker's floor. Truncated at 1 000 rows, they do not show a short list — they show **wrong numbers**, and the
+comparison prints *"Nothing to compare — {period} has no trips"* about a month that had plenty.
+
+**Shipped** (`readAllPages` / `readByIds` from step 1):
+- `history/page.tsx`, `spend/page.tsx`, `history/export/route.ts`, `spend/export/route.ts` — archive paged,
+  `pickup_at desc` + `id desc`, Driver lookup batched, failure told on the row ("not loaded").
+- ⚑ **A CSV has no half state.** Both routes now return **503 with no file** when the archive cannot be read in full
+  or the Driver lookup fails — a short or Driver-less spreadsheet on an accountant's desk looks exactly like a
+  complete one. The database's own wording goes to the log; the Business gets *"Your archive couldn't be read in
+  full. Nothing was downloaded — try again."*
+- ⚑ **Spend's whole body is now gated on `!error`** (History already was). With the archive unread every figure
+  computed happily from nothing: `0,00 €`, "0 trips", **−100 % against last month** and an empty chart — a screen
+  stating in detail that this Business spent nothing. Verified by forcing the read to fail: header + notice only.
+- `docs/migrations/2026-09-20_paged_read_indexes.sql` (**optional, nothing depends on it**) + a pasteable
+  `.local/probe/paged-reads/check.sql`: `mission (business_id, pickup_at, id)` — ASC serves both directions — and
+  `(business_id, created_at desc, id desc)` on the four side tables. No index on `pickup_at` existed anywhere.
+
+**⚑⚑ THE REVIEW CAUGHT A REAL DEFECT I HAD INTRODUCED — the moving clock.** Both CSV routes built
+`new Date().toISOString()` **inside** the paged callback, so the "past" boundary advanced between pages. A trip that
+becomes past in that gap sorts to the TOP of a `pickup_at desc` result, pushes every offset down, and the rows at the
+page boundary are written **twice** — into a file with a Total row. One request had made this impossible; paging is
+what created it. Fixed by hoisting one `nowIso` per request (both pages already did this), and
+`tests/paged-call-sites.test.ts` now fails if any paged chain contains `new Date()` — mutation-checked.
+
+**Proof.** tsc clean · **1387 tests** (1367 → +10 call-site assertions) · live, at `PAGE_ROWS` forced to 25: History
+still read *"169 trips · 13 436,37 € incl. 502,32 € waiting · 36 unfilled"*, Spend still *"−3 691,95 € · −100,0 %"*
+and *"1 of 14"*, and the History CSV still had 170 lines — identical to page size 1 000, i.e. seven pages assembled
+into the same numbers · a forced failure returned **503 with no file**; the Spend page drew header + notice only.
+
+**Review.** 4 read-only agents × adversarial verify (32; 7 verifiers died on the account's session limit, their
+findings are unjudged). 9 stood: the moving clock (twice), the Spend body gate, the missing indexes, the stale
+docblock, the database's wording in the CSV body, and the `chain()` test helper overshooting into the next read —
+all fixed here.
+
+### ⚑ LESSONS
+1. ⚑⚑ **Paging turns a snapshot into a window.** One request sees one instant; N requests see N instants, so any
+   predicate built from `now` — or any filter on a column that changes — must be computed ONCE, above the loop. The
+   tie-break `.order("id")` fixes ties between pages; it cannot fix a boundary that moves.
+2. ⚑⚑ **A screen that computes from an empty array states a confident falsehood.** `spendTotals([])` is a complete,
+   plausible, entirely wrong page. Gate the body on the read, not just the notice.
+3. ⚑ **The live 25-row proof cannot catch a race.** It compares row counts, and the clock defect only duplicates rows
+   when a pickup time crosses `now` between two requests. Reading the diff caught what running it could not.
+
+### ⚑ LEFT OPEN after step 2
+- `/dispatch/drafts` is still unbounded (listed in `NOT_PAGED` with its reason; the sidebar badge is an exact count,
+  so past 1 000 drafts the two disagree out loud). The Calendar is bounded to a month.
+- The five side reads on the Schedule still run one after another; one `Promise.all` would cut the wait.
+- The money screens' period filter still runs in memory over the whole archive. At real volume, push it into the
+  QUERY as `app/(app)/earnings/page.tsx` already does — then the pages stop growing with the archive at all.
+- The pages still print the database's own wording in their red notice (pre-existing, unchanged); the CSVs no longer do.
+- Admin side untouched: `readAll` fails open at 18 call sites and `countOrphanedEvents` pages 2 503 rows unordered.
+
+## 2026-09-20 — SESSION 84 · the 1 000-row cap, step 1: the Business's Schedule is paged · tests 1367
+
+**The fault.** PostgREST stops an unbounded `.select()` at **1 000 rows and reports no error** (measured on this
+database 2026-08-30: `mission_event` returned 1 000 of 2 503). The Schedule read every non-draft trip of a Business
+with no bound and no date floor, sorted `pickup_at` **ASCENDING** — so past the 1 000th trip the rows silently dropped
+are the **NEWEST**: today and everything ahead, the only trips still carrying the S83 tools (raise the Ceiling, change
+the car, "No car match"). Nothing on screen would have said so. Nobody is near it today (busiest Business measured at
+271 trips, 2026-08-23), and **no figure a Business or the founder has seen was ever wrong from this**.
+
+**Shipped** — `lib/paged-read.ts` (new) + `tests/paged-read.test.ts` (16) + `tests/paged-call-sites.test.ts` (15):
+- `readAllPages(what, run)` — pages until a short page, **throws on a failed page**. The Schedule's trip read uses it:
+  a failed read now says so instead of drawing a short schedule that looks complete.
+- `readAllPagesSoft(what, run)` — `{ rows, failed }`, all-or-nothing, and it **logs** (`[paged-read] …`). For the five
+  side reads whose callers already degrade to "nothing known": Guest phones, amendments, releases, the change log
+  (`app/(dispatch)/dispatch/page.tsx`) and walk-aways (`lib/side-tables.ts` `loadDriverWalks`).
+- `readByIds(what, ids, run)` — the Driver lookup in batches of 200, de-duplicated, **all-or-nothing + logged**. An
+  `.in(<ids>)` list does not truncate, it ERRORS: 397 work, 398 throw (measured 2026-08-23). It also used to swallow
+  that error and draw "—" in the Driver cell of a trip that HAS a Driver.
+- ⚑ **Every paged query now ends its ORDER BY on a unique column** (`id`, or `mission_id` for `mission_guest_contact`,
+  whose PK it is). OFFSET paging over a non-unique sort loses one row and repeats another between pages.
+- ⚑ **A failed Driver read is said on the row, in BOTH places the row states it**: "not loaded" in the Driver column
+  (was "—", which means "nobody took it") and, in the open row, *"A Driver has this trip — their name and phone
+  couldn't be loaded. Refresh to try again."* (was the flat falsehood "No Driver assigned").
+- Two more from the review: a failed read drew the empty schedule scaffold **under** its own error notice (`!error`
+  now gates it), and the error banner printed the word "schedule" twice.
+
+**Proof.** `npx tsc --noEmit` clean · **1367 tests** (was 1336; +16 pager, +15 call-site scan) · the call-site scan is
+mutation-checked (deleting the `.order("id")` tie-break turns it red) · **live, in the browser**: with `PAGE_ROWS`
+temporarily forced to 25, the Schedule still assembled all 169 trips of the demo Business from the live database —
+multi-page reading proven end to end, not just in a fake; restored to 1 000. The "not loaded" pair was rendered by
+forcing the Driver read to fail, and measured at 1440px (it fits the column; it ellipses below ~900px).
+
+**Review.** 5 read-only agents × adversarial verify (48 agents): 21 findings survived. Fixed the ones above; the rest
+are recorded below as deliberate.
+
+### ⚑ LESSONS
+1. ⚑⚑ **Proving a pager needs a SMALLER page, not more rows.** Forcing `PAGE_ROWS` to 25 turned a 169-trip demo
+   Business into a 7-page read against the real database. No seeding, no throw-away Postgres.
+2. ⚑⚑ **Fix a failed-read state in EVERY place the screen states it.** The first cut said "not loaded" in the column
+   and "No Driver assigned" one click below — two answers about the same trip on one screen. The test now counts both.
+3. ⚑ **The pager's exit condition depends on `db-max-rows` being 1 000.** It stops on a SHORT page, so if that
+   Supabase setting were ever lowered, the first page would arrive short and read as the end — the same silent
+   truncation with a pager vouching for it. Written at the top of `PAGE_ROWS`.
+4. ⚑ `readAll` in `lib/admin-list.ts` treats a failed page as the LAST page. That is why this is a second helper and
+   not a reuse — the reason is in the file header of both.
+
+### ⚑ LEFT OPEN — deliberate, none blocks
+- **The rest of Part 1** (the founder's word: the same cap, elsewhere on the Business side): `/dispatch/spend` and
+  `/dispatch/history` read the whole past archive and **sum money from it** · both CSV routes do the same with no
+  error branch at all (a short file looks complete) · `/dispatch/drafts` · the Calendar (bounded to a month, so it
+  needs 1 000 trips in one month). ⚑ The cheaper shape for the two money screens is to push their existing period
+  filter into the QUERY — `app/(app)/earnings/page.tsx` already works that way — not to page the archive.
+- **Five side reads still run one after another** (they did before this change too). One `Promise.all` would cut the
+  wait on a 4-second refresh; kept out of this branch to keep the diff to the cap.
+- **No index supports the new ORDER BYs.** `mission` has four indexes and none on `pickup_at`
+  (`docs/kavenue_schema.sql:133-136`); the four side tables have no `(business_id, created_at, id)` index. Irrelevant
+  at 271 rows; ship it with the History/Spend step, with a pasteable check.
+- **Admin side, and it may already be wrong** (not Business-facing): `readAll` fails open at 18 call sites, and
+  `countOrphanedEvents` pages `mission_event` (2 503 rows) with **no `.order()`**, so its number can already be off;
+  `cancelledWithoutRecord` would name innocent trips if its read hiccupped. Its own session.
+- **The Schedule's shape is NOT decided.** The founder wants the days ahead bounded by DESIGN, not amputated
+  (today + tomorrow was their instinct); a preview comes first. Everything above is the cap fix only — the screen
+  shows exactly what it showed before.
 ## 2026-09-19 — SESSION 83 CLOSED · finding #11 fixed, all 11 live · PR #2 merged · tests 1336
 
 **⚑ DONE. All 11 S83 findings closed AND live-verified.** 2026-09-19: the founder pasted

@@ -190,6 +190,7 @@ function carOf(m: MissionRow): CarChoice {
 export function TripRow({
   mission,
   driver,
+  driverUnread = false,
   guestContacts,
   amendment,
   release,
@@ -209,6 +210,18 @@ export function TripRow({
 }: {
   mission: MissionRow;
   driver?: DriverContact | null;
+  /**
+   * The Driver lookup itself failed, so this row does not know whether there is a
+   * name — as opposed to knowing there is none.
+   *
+   * ⚑ WHY IT IS NOT JUST "—". The dash means "no Driver has taken this trip", and
+   * a failed read drew exactly that on a trip a Driver HAD taken. A read that did
+   * not happen must look different from a fact that is known.
+   * ⚑ BOTH PLACES THAT STATE IT. The collapsed Driver column AND the Driver bar in
+   * the open row — fixing one and not the other says two different things about
+   * the same trip on the same screen.
+   */
+  driverUnread?: boolean;
   guestContacts?: GuestContact[] | null;
   amendment?: AmendmentBrief | null;
   release?: ReleaseBrief | null;
@@ -647,7 +660,15 @@ export function TripRow({
         </span>
 
         <span className="dx-trip__driver">
-          {driver ? <Hl text={driver.name} q={query} /> : <span className="muted">—</span>}
+          {driver ? (
+            <Hl text={driver.name} q={query} />
+          ) : driverUnread && mission.driver_id ? (
+            <span className="muted" title="A Driver has this trip — their name and phone couldn’t be loaded.">
+              not loaded
+            </span>
+          ) : (
+            <span className="muted">—</span>
+          )}
         </span>
 
         {/* Money, history only. An archive with no fare column can't answer the
@@ -1297,6 +1318,14 @@ export function TripRow({
                 {car?.plate && <span className="mono dx-plate">{car.plate}</span>}
               </span>
             )}
+          </div>
+        ) : driverUnread && mission.driver_id ? (
+          // ⚑ The same third state as the collapsed cell. Without this branch the
+          //   row says "not loaded" in the Driver column and, one click down,
+          //   "No Driver assigned" — the confident falsehood the flag exists to stop.
+          <div className="dx-driverbar dx-driverbar--empty">
+            <Car size={15} aria-hidden />
+            A Driver has this trip — their name and phone couldn’t be loaded. Refresh to try again.
           </div>
         ) : (
           <div className="dx-driverbar dx-driverbar--empty">

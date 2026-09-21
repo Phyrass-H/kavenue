@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { readAllPages, readByIds, readErrorMessage } from "@/lib/paged-read";
 import { getAppContext } from "@/lib/app-context";
 import { categoryLabel, formatMoney, formatMonth } from "@/lib/format";
 import { isExpired, parisDayKey } from "@/lib/dispatch-status";
@@ -100,13 +101,33 @@ export default async function DispatchHistory({
 
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
-  const { data: all, error } = await supabase
-    .from("mission_read")
-    .select("*")
-    .eq("business_id", ctx.business.id)
-    .neq("status", "draft")
-    .lt("pickup_at", nowIso)
-    .order("pickup_at", { ascending: false });
+
+  // ⚑⚑ PAGED, NOT ONE REQUEST. An unbounded `.select()` stops at 1 000 rows and
+  // reports no error (lib/paged-read.ts). EVERY number on this screen is summed or
+  // counted from this array — the spend total, "of N", the outcome chips, each
+  // month band — so a silent cut here does not shorten a list, it produces WRONG
+  // FIGURES. Sorted newest first, the rows a cut would drop are the oldest, and
+  // the date picker's floor is taken from the last row (`oldest`, below), so the
+  // archive would also refuse dates that exist.
+  // ⚑ `.order("id")` after `pickup_at` is load-bearing: two trips at the same
+  //   pickup time have no guaranteed order between two paged requests.
+  let all: MissionRow[] | null = null;
+  let error: { message: string } | null = null;
+  try {
+    all = await readAllPages<MissionRow>("Your history", (from, to) =>
+      supabase
+        .from("mission_read")
+        .select("*")
+        .eq("business_id", ctx.business!.id)
+        .neq("status", "draft")
+        .lt("pickup_at", nowIso)
+        .order("pickup_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    );
+  } catch (e) {
+    error = { message: readErrorMessage(e) };
+  }
 
   const missions: MissionRow[] = all ?? [];
 
@@ -131,17 +152,21 @@ export default async function DispatchHistory({
   // searched by. The founder, 2026-09-12: *"it's a false information probably illegal"*. The
   // trip's own frozen copy is the only source now (`carAsDriven`, mission.vehicle_*), with no
   // fallback: a trip with no frozen copy shows the same blank Driver cell it shows today.
+  // ⚑ Batched, and it now says when it failed: an `.in(<ids>)` list ERRORS rather
+  //   than truncating (397 work, 398 throw), and this list is one id per distinct
+  //   Driver in the whole archive, which only ever grows.
   const contacts = new Map<string, DriverContact>();
   const driverIdOf = new Map<string, string>();
   const assigned = missions.filter((m) => m.driver_id);
+  let contactsFailed = false;
   if (assigned.length > 0) {
     const admin = createAdminClient();
-    const driverIds = [...new Set(assigned.map((m) => m.driver_id!))];
-    const { data: drivers } = await admin
-      .from("driver")
-      .select("id, first_name, last_name, phone")
-      .in("id", driverIds);
-    const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
+    const driverIds = assigned.map((m) => m.driver_id!);
+    const { rows: drivers, failed } = await readByIds("The Driver names", driverIds, (batch) =>
+      admin.from("driver").select("id, first_name, last_name, phone").in("id", batch),
+    );
+    contactsFailed = failed;
+    const byId = new Map(drivers.map((d) => [d.id, d]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (!d) continue;
@@ -259,7 +284,8 @@ export default async function DispatchHistory({
         </div>
       )}
 
-      {error && <div className="notice error">Couldn’t load your history: {error.message}</div>}
+      {/* ⚑ The message already names the screen (lib/paged-read.ts). */}
+      {error && <div className="notice error">{error.message}</div>}
 
       {/* Three different emptinesses, and they must not read alike: a brand-new
           Business, a search that found nothing, and an outcome bucket that is
@@ -329,6 +355,7 @@ export default async function DispatchHistory({
                 key={r.mission.id}
                 mission={r.mission}
                 driver={contacts.get(r.mission.id) ?? null}
+                driverUnread={contactsFailed}
                 driverWalks={driverWalks.get(r.mission.id) ?? null}
                 archived
                 fare={

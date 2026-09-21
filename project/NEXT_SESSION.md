@@ -3,193 +3,167 @@
 > Copy-paste the block below (from "We're continuing Kavenue" to the end) into a fresh
 > Claude Code session. It orients a new Claude and sets the scope.
 > ⚑ History lives in `project/SESSION_LOG.md` and `project/DECISIONS.md`. This file carries
-> only what is TRUE TODAY and what happens NEXT. Rewritten 2026-09-18 at the S83 close.
+> only what is TRUE TODAY and what happens NEXT. Rewritten 2026-09-21 at the S84 close.
 
 ---
 
 We're continuing Kavenue (B2B VTC booking marketplace).
 
-## 🎯 START HERE — S83 CLOSED 2026-09-18
+## 🎯 START HERE — S84 CLOSED 2026-09-21
 
-S83 ruled the first V1 Runway item and built what the ruling gives the Business ([[d147]]):
-1. **`unfilled` is ruled — the expiry stands.** Kavenue does not cover an untaken trip from a network (*"I don't have my
-   own network, it's the network period"*) and does not phone the Business (*"That is not our job"*). The Business gets
-   tools instead.
-2. **LIVE and tested by the founder on the Mac:** **Raise the Ceiling** (raise only · only while in the Pool with no
-   Driver and no live 15 s hold · the price keeps its place on the climb, top-out time unchanged · every change
-   recorded · unlimited — *"it's an auction… remember the FOMO"*) · the **At Ceiling** advice when the price has topped
-   out untaken (*"Raise your Ceiling to attract more Drivers"*) · **No car match** when no Driver's car can take it
-   (*"No Driver available for this car yet. Try changing the car."*) · **Change the car** (class, body or model; the
-   price follows the rate card) · a Driver's accept is refused if the car or a lower net changed under them.
-3. **The security sweep ([[d146]]) ran as a parallel session — now DONE, all 11 findings closed ([[d146]], [[d148]]).**
-   18a / 18b are LIVE (pasted 2026-09-18). ⚑ **ONE MORE TO PASTE: `2026-09-18e_accept_fare_from_the_server.sql`** (finding
-   #11, [[d148]]) — paste it after 18d, then re-paste `.local/probe/rls-audit/check.sql` (all `pass`/`info`). Its branch
-   `claude/dazzling-mendeleev-f3a500` is merged with `main` and green (1336 tests, harness 104/104) but **NOT pushed to
-   `main`** — pushing deploys the live site (board-file read guard + the #11 stamp code + docs), so it waits on the
-   founder's explicit go-ahead.
+S84 closed the **1 000-row cap** on the Business side, end to end. PostgREST stops an unbounded `.select()` at 1 000
+rows and **reports no error** (measured here 2026-08-30: `mission_event` returned 1 000 of 2 503). Six reads relied on
+that never happening. **Nobody was near it** (busiest Business measured at 271 trips), so no figure anyone has seen was
+ever wrong — this was a wall built before someone walked into it.
+
+1. **`lib/paged-read.ts`** — `readAllPages` (throws on a failed page) · `readAllPagesSoft` ({rows, failed}, logs) ·
+   `readByIds` (batches of 200; an `.in(<ids>)` list ERRORS at 398, it does not truncate). Every paged query ends its
+   ORDER BY on a **unique column** — OFFSET paging over a non-unique sort loses one row and repeats another.
+2. **Paged:** the Schedule and its five side reads · History · Spend · both CSV routes · Drafts. Both CSVs now return
+   **503 with no file** rather than write a short or Driver-less one. Spend's body is gated on `!error` (it used to
+   draw `0,00 €` and **−100 % vs last month** off an unread archive). A failed Driver read says **"not loaded"** on the
+   row — in the column AND in the open row.
+3. **Merged: PR #4 → `main` `8f2a49d`** (2026-09-21 07:56 UTC), CI green, deployed. `docs/migrations/2026-09-20_paged_read_indexes.sql`
+   **pasted live**; `.local/probe/paged-reads/check.sql` reads **5/5 pass**.
 
 ### ⏭ FIRST THING
-1. Ask the founder what today is ([[wait-for-go-ahead]]). Expected: the security session finishes first (in ITS
-   worktree, not here), then **step 6 — Driver analytics by région / city**, which the founder asked to do "properly"
-   once the Ceiling work was done. Or the next Runway ruling. **They decide.**
-2. Update the V1 Runway with them: `unfilled` is ruled (D147) and `raiseceiling` is built in-app (the in-app advice
-   stands in for the notification in V1). S83 did not edit the artifact.
+1. **Ask the founder what today is** ([[wait-for-go-ahead]]). At the S84 close they said: **"I have to work on the
+   landing page"**, and the Schedule redesign is **parked** (see `project/IDEAS.md`, "The Schedule's shape").
+   ⚑ The landing site is its OWN repo, not this one — the brief is `project/LANDING_HANDOFF.md` (written 2026-08-04;
+   read it before touching anything, and check its claims against today's product, e.g. S83's raise-the-Ceiling).
+2. ⚑⚑ **DECIDE THE UNPUSHED GLOSSARY BRANCH — it exists only on this Mac** (below). One `git worktree remove` loses it.
+
+### ⚑⚑ `claude/peaceful-turing-7035de` — finished, NEVER PUSHED
+The [[d99]] glossary sweep, from one of the two sessions the founder ended on 2026-09-20. 4 commits
+(`5e12f87 · 82173ca · 2f7697a · cc73bc6`), last 2026-09-20 21:38, in the worktree
+`.claude/worktrees/peaceful-turing-7035de`. **No upstream, nothing on origin** (`git ls-remote --heads origin | grep peaceful` → nothing).
+- What it does: five Driver-facing rendered strings + one form placeholder stop calling every Business "the hotel";
+  **82 comments across 43 files** rewritten and **47 deliberately kept** with a stated reason each (proper noun, the
+  type, the vertical…); then "client" swept after reading the arrêté du 6 août 2025 + BOFiP; and
+  **`tests/glossary-copy.test.ts` (642 lines)**, a scanner that fails the build on a new bad string.
+- Finished by this project's rule: every commit touches `SESSION_LOG.md` and `CHANGELOG.md`.
+- ⚑ It branched off `9c1a902`, **before** S84's paging. A trial merge (`git merge-tree`) auto-merges **every code
+  file**, including the four dispatch files S84 touched, and conflicts **only** in `project/CHANGELOG.md` and
+  `project/SESSION_LOG.md` — both append-at-top, so keep both sides.
+- ⚑ Its commit body claims **2129 tests** on its own base. `main` is at **1390**. After merging, **re-measure** —
+  never add the two numbers.
+- **The strings are still live on `main` today:** `app/(app)/rides/page.tsx:294` renders *"Waiting on the hotel"* in an
+  `<h2 className="dday__l">` · `rides/page.tsx:50` · `components/check-in-card.tsx:56` · `components/close-trip-card.tsx:87`
+  (⚑ a template literal inside JSX — a naive string grep walks past it) · `components/mission-run-view.tsx:256` ·
+  `app/(dispatch)/dispatch/settings/page.tsx:292` `placeholder="accounts@hotel.com"`.
 
 ### State
 | | |
 |---|---|
-| `main` | **S83 merged 2026-09-18** (fast-forward of `s83-unfilled`; CI green, deployed by Vercel). S82 before it (`677838e`) |
-| NOT on `main` | the security sweep — branch `claude/dazzling-mendeleev-f3a500` (`e1b78ac`, D146): migrations live, code + probes + docs on the branch. Its session merges it |
-| applied live | every file in `docs/migrations/` up to and including **`2026-09-18d_mission_read_step_count.sql`**. The four of 2026-09-18 were pasted by the founder in order **18a → 18b → 18c → 18d**. ⚑ An early 18c paste (before 18a) was refused by its own guard — nothing ran |
-| live checks, 2026-09-18 | `.local/probe/pooled-trip-changes/check.sql` all pass · the sweep's `rls-audit/check.sql` (run after 18b, before 18c) all pass except `rls_auto_enable()` — **confirmed Supabase's event trigger** (`ensure_rls`, `ddl_command_end`, search_path pinned; cannot be called directly) · read-only probe: PostgREST serves `pdp_step_count`; anon `rpc/raise_ceiling` → 42501 |
-| tests | **1336** · tsc clean |
-| probes | `.local/probe/pooled-trip-changes/run.sh` (throw-away PG17, the whole live schema): 53/53 cases · check 20/20 · parity 0 mismatches (step counts, Course, floors) · `mutants.sh` 15/15 red |
-| in flight | chip `task_78e0da44` "Page the Dispatch schedule's trip read past 1,000" — a separate session. ⚑ It started from `main` BEFORE S83, and S83 rewrote much of `app/(dispatch)/dispatch/page.tsx`: it must rebase on `main` |
+| `main` | **8f2a49d** — S84 merged via **PR #4** 2026-09-21, CI green, deployed by Vercel. Before it: PR #2 (`1cb6c5c`, the security sweep) merged **2026-09-18 19:48 UTC**, PR #3 (`9c1a902`) |
+| ⚑ pushing `main` | **REFUSED** — branch protection requires the check `types · tests · build` on a PR. "Merge it to main" = push the branch, `gh pr create`, `gh pr checks <n> --watch`, `gh pr merge <n> --merge` |
+| NOT on `main` | `claude/peaceful-turing-7035de` (above, unpushed) · `origin/claude/new-session-xa2aop` — 1 commit, 2026-08-08, adds a `test/` directory the repo no longer has (tests live in `tests/`): **stale, delete it** |
+| local `main` | 5 behind origin; the main checkout is parked on `s83-unfilled` (`0532d9d`), clean. 7 worktrees, all clean but `charming-mayer-bae0a3` (one untracked `.local`, detached HEAD) |
+| applied live | **every file in `docs/migrations/`, up to and including `2026-09-20_paged_read_indexes.sql`** (pasted 2026-09-21; `.local/probe/paged-reads/check.sql` 5/5 `pass`). Before it: 18a → 18b → 18c → 18d, then 18e (2026-09-19) |
+| tests | **1390** across 62 files · `tsc --noEmit` clean · `next build` clean |
+| probes | `vehicle-find.mts` 33/33 · `car-gate.mts` 20/20 · `never-twice.mts` 5/5 · `driver-find.mts` 15/15 · `pooled-trip-changes/run.sh` 53/53 · `rls-audit/check.sql` all pass/info |
 | ⚑ `handoff-check.ts` | NOT run since S79. ⚑ It TRIES writes (a `mission_cancellation` insert, a vehicle update, three probe sign-ins). Ask before running it |
+| live, measured | 271 trips at the busiest Business (2026-08-23) · `mission_event` 2 569 rows (2026-09-03) · `mission` 377 rows |
 | expected red | the seeded live trips age out (`npx tsx .local/seed/seed-live.mts` — it only inserts pooled trips) |
 
-## 🔐 FOR THE SECURITY SESSION — what S83 added to the database (after your 18a / 18b)
-Both files start with `begin;` and a guard that refuses unless 18a and 18b are in. Both are in `docs/migrations/` on
-`main`. Proof: `.local/probe/pooled-trip-changes/` (its `apply-order.txt` = yours + 18c/18d).
-
-**`2026-09-18c_pooled_trip_changes.sql`**
-- column `mission.pdp_step_count smallint` + check `mission_pdp_step_count_range` (null or 8–60). **No grant** to any
-  browser role: not insertable, not updatable, and (after your 18a) not selectable on `mission` — browsers read it
-  through `mission_read`.
-- `pdp_ladder_steps(numeric, numeric, boolean)` and `course_from_business_total(numeric, numeric, numeric)` — invoker,
-  immutable helpers; EXECUTE revoked from public, anon, authenticated → `-/-`.
-- `raise_ceiling(uuid, numeric)` and `change_trip_car(uuid, vehicle_category, body_type, text, text, numeric)` —
-  SECURITY DEFINER, `search_path = public, pg_temp`; EXECUTE revoked from public, anon; granted to authenticated → `-/X`.
-  Both check: the caller's Business owns the trip · pooled, no Driver · pickup ahead · no live hold (`outcome = 'open'`
-  AND `expires_at > now()`). They write `ceiling` (and for a car change `category`, `required_body_type`,
-  `required_make`, `required_model`, `rate_card_id`, `pdp_start`) + `pdp_step_count`, tagging
-  `kavenue.write_via` for the log. D144's guard exempts them (they run as the owner).
-- `trg_mission_price_terms_log()` — SECURITY DEFINER trigger function, EXECUTE revoked from everyone; trigger
-  **`mission_price_terms_log`** AFTER UPDATE on `mission` (pooled → pooled only) writes `mission_event` rows
-  `ceiling_raised` / `trip_car_changed` / `price_terms_changed`, audience {business, admin}.
-- 3 rows in `mission_event_type` (db_trigger, guaranteed) · index `mission_event_price_terms_idx`.
-
-**`2026-09-18d_mission_read_step_count.sql`** — `mission_read` = **your 18a view exactly** (extracted from `e1b78ac`;
-`run.sh` diffs them) **plus one last column** `pdp_step_count`, NULL to a Driver unless the trip is theirs (a Pool
-price is computed on the server, `lib/pool-fares.ts`, service role). Same revokes
-and `grant select … to authenticated` as 18a; still reads as owner.
-
-**⚑ Your `rls-audit/check.sql` reads FAIL "(not reviewed)" on all of this until you add:**
-- `fn_expected`: `('raise_ceiling(uuid, numeric)','-/X')`, `('change_trip_car(uuid, vehicle_category, body_type, text, text, numeric)','-/X')`,
-  `('pdp_ladder_steps(numeric, numeric, boolean)','-/-')`, `('course_from_business_total(numeric, numeric, numeric)','-/-')`,
-  `('trg_mission_price_terms_log()','trigger')`, and **`('rls_auto_enable()','trigger')`** — plus make `is_trigger`
-  also match `'event_trigger'::regtype` (today it counts only `trigger`, so the event trigger reads as callable X/X).
-- `trg_expected`: `('mission','mission_price_terms_log')`.
-- `col_expected` mission `SELECT (walled)`: add `pdp_step_count` (it sorts after `pdp_start`).
-- If you replay: append 18c and 18d to your `apply-order.txt`.
-- ⚑ Finding #11 (a Driver can forge the accept fare) is still open. Any SQL port of the price curve must take
-  `pdp_step_count` (`lib/pdp.ts` `currentFare`: `m.pdp_step_count ?? stepCount(gap)`).
-
 ## 📎 THE V1 RUNWAY — the founder's working list
-**https://claude.ai/artifact/Qq32gFCKGJ4hUQQHQTxQbg** (same artifact as `c0f723f7-…`; version 7, 17 Sept) · a copy in
-the founder's folder `~/Documents/02_Cactus/Kavenue/Artifacts/KavenueV1Runway.html` (same content). Read it with the
-Artifact tool's `read` action before planning — never re-derive it from the docs. ⚑ Ticks: the page's saved state wins
-only when it holds MORE ticks than the browser's localStorage, so a browser can show an older set. ⚑ Not yet updated
-for S83 (see FIRST THING).
+**https://claude.ai/artifact/Qq32gFCKGJ4hUQQHQTxQbg** · a copy in `~/Documents/02_Cactus/Kavenue/Artifacts/KavenueV1Runway.html`.
+Read it with the Artifact tool's `read` action before planning — never re-derive it from the docs.
+⚑ **It is stale in three ways** (masthead still "updated 17 September"): `unfilled` is ruled ([[d147]]) and
+`raiseceiling` is built in-app, neither is ticked; and the `unfilled` body still says *"a Business cannot raise a
+posted trip's Ceiling"*, which S83 made false. Update it WITH the founder.
+⚑ Ticks: the page's saved state wins only when it holds MORE ticks than the browser's localStorage.
 
-**The open rulings, in the order agreed at the S81 close:**
-1. ~~`unfilled`~~ — **ruled S83 (D147)**
-2. **`penalty` + `checkin` + `reliability`, together** — a Driver who lets a trip down: who receives the cancellation
-   money and how much · whether a Driver who goes silent pays anything when the Business takes the trip back ·
-   whether a Driver sees their own reliability marks
-3. `funnel` — record "started" / "abandoned" on the Business's booking form (unrecoverable later, [[record-every-event]])
-4. `vetting` (a Business approves the Driver before confirm) · `waitstop` (waiting at a middle stop) · `airportbadge`
-   (by class) · `speedwin` (final name) · `exception` (a class above First)
-- Waiting on something else: `monacowindow` (the founder's visit to the Monaco authority) · `logo` · `owner` (not the
-  booking flow). `raiseceiling` is built in-app (S83); a push notification for it still waits on the integrations phase
-  ([[phase-features-before-apis]]).
+**The open rulings, in the order agreed at the S81 close:** ~~`unfilled`~~ **ruled S83** · **`penalty` + `checkin` +
+`reliability`, together** ← next up · `funnel` (record "started"/"abandoned" on the booking form — unrecoverable later,
+[[record-every-event]]) · `vetting` · `waitstop` · `airportbadge` · `speedwin` · `exception`. Waiting on something else:
+`monacowindow` · `logo` · `owner`.
 
-### ⚑ S83 LESSONS
-1. ⚑⚑ **A paste file must refuse the wrong order.** `begin;` then a `do $$ … raise exception … $$` guard naming the file
-   to paste first. The founder pasted 18c first; it said so and changed nothing.
-2. ⚑⚑ **An RPC whose errors differ per trip is an oracle.** The review found the Driver accept guard answering for ANY
-   trip id; it now reads the caller's own `mission_read` first. Check "what does a refusal reveal?" on every new door.
-3. ⚑ **Money that must equal SQL `round(…, 2)` is computed in integer cents in TypeScript** (`lib/rate-card.ts`
-   `exactFloorAllIn`). Floats disagreed by a cent on 928 of 36 000 floors (half cents).
-4. ⚑ **A new `mission` column is walled from browsers on every side after 18a** — no SELECT, INSERT or UPDATE grant.
-   Read it through `mission_read` (and mask it where it must not travel), write it through a DEFINER RPC, and add it to
-   the sweep's `check.sql` lists. Only if the booking form writes it: one of `lib/draft-resume.ts`'s two lists
-   (`pdp_step_count` is in neither — nothing posts it).
-5. ⚑ **The sweep's `rls-audit/check.sql` flags every new object "(not reviewed)" on purpose.** A migration that adds a
-   function, trigger, policy or column adds its line there in the same commit.
-6. ⚑ **The founder's copy asks, S83:** less text · no "everything in" (*"no need they know"*) · two short lines instead of
-   a formula (*"the math explanation is confusing"*) · warnings generic (*"simpler and more generic"*). And Drivers do
-   not wait for a higher price — it is an auction ([[auction-fomo-drivers-dont-wait]]).
-7. The desktop app's Run button on `npm run test-app` says *"Couldn't send the command's output to Claude"* — harmless:
-   the command never ends. Read the Terminal tab with `read_terminal`.
-
-### ⚑ S81 LESSONS
-1. ⚑⚑ **Before designing a fix, ask whether the case can still happen** ([[ask-if-case-still-happens]], D143). Three
-   options were built for a stale cookie the S80 fix had already made impossible; the founder's plain question found it.
-2. ⚑⚑ **When a page cannot run live, render the REAL page, not a redrawn mock-up.** S81 rendered
-   `app/admin/vehicles/page.tsx` itself with `react-dom/server` (in S81's session scratchpad — NOT kept, rebuild it): a `tsconfig.json`
-   (`jsx: react-jsx`, `baseUrl` = the repo, `paths` sending `@/lib/supabase/server` to a stub client that follows the SQL
-   over rows read read-only, and `@/lib/supabase/client` + `next/navigation` to stubs, before `@/*`), a `node_modules`
-   symlink to the repo's, `globalThis.React = React`, and `npx --offline tsx --tsconfig <it> render.tsx`. It showed the
-   truncated model names the mock-up had hidden.
-3. ⚑ **`mission_read` returns 0 rows to the service role** — its WHERE is on `app_role()` / `current_*_id()`. A
-   read-only script reads the `mission` TABLE with named safe columns (never a money column).
-4. ⚑ **A probe is not automatically read-only.** Grep for writes before running one (see `handoff-check.ts` above).
-5. ⚑ **Layout defects were found only by MEASURING with the real CSS and Geist**, in headless Chrome at several widths
-   (a Person cell 38px into Company; a pill under the wrong edge at 861–940px). Keep that step in every UI review.
-6. ⚑ `git` and `python3` are Apple shims that stop when the Xcode license lapses; `node` kept working.
-7. ⚑ **Resizable, Excel-style columns:** recommended not now (one narrow column; client JS and saved widths; it would
-   split the Drivers/Vehicles table look). The model name wraps instead. The founder may raise it again later.
-8. ⚑⚑ **Quote screen words from the code that RENDERS them, never from a comment.** S81 told the founder a trip nobody
-   took reads "Expired · Was not filled in time" — a stale comment; the screen says "Unfilled" (D63). A handoff check of
-   read-only agents caught it, with 13 other loose claims in these notes.
-
-**Still true from S79–S80:** an unbounded select stops at 1 000 rows without an error (`readAll`) · a failed read draws
-"unread", never confident facts · a throw-away Postgres needs TCP and `encoding 'UTF8' template template0` · review
-workflows of read-only agents keep paying (S81: 12 findings → 8 real, then 5 more on re-check) · never sign in as admin
-through `/api/dev-login` · a question is not a task — answer first ([[wait-for-go-ahead]]).
-
+### ⚑ S84 LESSONS
+1. ⚑⚑ **Paging turns a snapshot into a window.** One request sees one instant; N requests see N. Both CSV routes built
+   `new Date()` INSIDE the paged callback, so the "past" boundary walked forward between pages: a trip that became past
+   in the gap sorts to the TOP of a DESC result, shifts every offset, and the boundary rows are written **twice** —
+   into a file with a Total row. One request had made that impossible; paging created it. Compute the clock ONCE, above
+   the loop. The tie-break `.order("id")` fixes ties between pages; it cannot fix a boundary that moves.
+2. ⚑⚑ **A screen that computes from an empty array states a confident falsehood.** `spendTotals([])` renders a
+   complete, plausible, entirely wrong page. Gate the BODY on the read, not just the notice.
+3. ⚑⚑ **Prove a pager with a SMALLER page, not more rows.** `PAGE_ROWS` forced to 25 turned the 169-trip demo Business
+   into a 7-page read against the real database — identical totals to the cent. No seeding, no throw-away Postgres.
+   ⚑ But it cannot catch a race: the moving clock was found by READING the diff, not by running it.
+4. ⚑ **Fix a failed-read state in every place the screen states it.** The first cut said "not loaded" in the Driver
+   column and "No Driver assigned" one click below. `tests/paged-call-sites.test.ts` now counts both.
+5. ⚑ `readAll` (`lib/admin-list.ts`) fails OPEN — a failed page reads as the last page. That is why `lib/paged-read.ts`
+   is a second helper and not a reuse; the reason is in both file headers.
+6. ⚑ **A source-scan test is the only guard for this class of fault** (`tests/paged-call-sites.test.ts`, in the idiom
+   of `tests/event-wiring.test.ts`): it lists every paged call site, its tie-break column, and refuses a `new Date()`
+   inside a paged callback. Mutation-checked — deleting a tie-break turns it red.
 
 ### ⚑ LEFT OPEN — none blocks
-- **The founder's call from S83:** sweep finding #11 (a Driver can forge the accept fare), with the security session.
-  (The other one is decided: a car change MAY lower the Ceiling — D147 item 3, founder 2026-09-18.)
-- "At Ceiling" / "No car match" show only on the Dispatch schedule (where the fleet check runs); the calendar, edit and
-  amend pages still say "In the Pool" for such a trip.
+**From S84, with exact pointers:**
+- ⚑ **The admin console's pager fails open.** `readAll` (`lib/admin-list.ts:261`) does not even take `error` in its
+  signature: a failed page returns null data and reads as the end. **20 call sites** (16 in `lib/admin-activity.ts`,
+  2 in `app/admin/trips/page.tsx`, 1 each in `app/admin/drivers/page.tsx`, `app/admin/vehicles/page.tsx`); only the two
+  document reads hand-roll a guard. Start with the two `mission_cancellation` reads (`lib/admin-activity.ts:199`,
+  `app/admin/trips/page.tsx:85`): a failed page there does not under-count, it **names every cancelled trip as
+  unrecorded** under "Cancelled trips with no record of who cancelled them, or why."
+- ⚑ **14 of those 20 page with NO `.order()`** — unstable across pages. `countOrphanedEvents`
+  (`lib/admin-activity.ts:393-396`) pages `mission_event` (2 569 rows) three times unordered. ⚑ **Its number is right
+  today** (0 orphans, `mission` is one page) — it breaks when either changes, so fix it, but do not tell the founder a
+  number is wrong. The `repooled` read (`:207`) is the sharp one: it accuses at n≥2
+  (`lib/activity-findings.ts:414-421`), so one duplicated row is a **false accusation**.
+- **The Schedule runs six reads one after another** (`app/(dispatch)/dispatch/page.tsx:235, 266, 287, 311, 341, 348`)
+  before the existing `Promise.all` at `:373`. Only two need `missions` (the Driver batch, `noCarMatch`); the rest are
+  Business-scoped (and `rate_card` is global). Folding them in turns seven sequential steps into two on a screen that
+  re-reads every 4 s. ⚑ Keep `sweepExpiredMissions` (`:180`) ahead of the trip read, and keep the
+  `missionIds.length > 0` guards (`:265, 283, 310, 347`) by building the array conditionally. ⚑ `loadDriverWalks`
+  (`:341`) has **no** guard today — it runs on every refresh, empty schedule or not.
+- **At real volume, push the period into the QUERY** on Spend and History, as `app/(app)/earnings/page.tsx:52-62,
+  213-217` already does. ⚑ It costs three cheap extra queries to stay honest: a LIMIT-1 row for the date-picker floor
+  (both pages take it from the LAST row today), a `{ count: "exact", head: true }` for History's "of N"
+  (`history/page.tsx:270`) and its "No past missions yet." gate (`:227`), and four head counts for the class dropdown.
+  ⚑ Do **Spend first** — it always has a period; History defaults to "any date" (`lib/history-filter.ts:66-69`) and its
+  search spans the whole archive (Guest, Driver, reference, address, flight, plate, class), so a period would silently
+  narrow it.
+- The pages still print the database's own wording in their red notice (pre-existing). The CSVs no longer do.
+
+**Still open from before:**
+- "At Ceiling" / "No car match" show only on the Dispatch schedule; the calendar, edit and amend pages still say
+  "In the Pool" for such a trip.
 - A millisecond window remains on a direct accept (the Driver's price check reads, then the RPC runs); the RPC's own
   checks still hold.
-- `/dispatch` re-renders every 4 s (`components/live-refresh.tsx`) and runs ~10 database reads one after another
-  (~110–150 ms each from the Mac): about 3 s a render in dev. S83 added one parallel round. Watch it if the page
-  feels slow; batching the reads would help.
-- The admin header scrolls sideways below ~641px wide (567px before the Vehicles link). The console is used on the Mac.
+- The admin header scrolls sideways below ~641px wide. The console is used on the Mac.
 - `2026-09-13d_admin_driver_find.sql` was edited after it was applied (S79). Run `npx tsx .local/probe/driver-find.mts`
   (read-only): if "an email holding digits…" is red, re-paste 13d — it is safe to re-run.
 - Supabase's built-in mailer hit "email rate limit exceeded" (2026-09-14). The lasting fix is Resend — integration
   phase, the founder's call.
 - **Adding a second admin:** create the account in the Supabase dashboard, give it a `profile` row with
-  `role = 'admin'`; they sign in at admin.kavenue.fr. V2: a master admin (BACKLOG § AL — which now also names the one
-  case D143 left: an admin whose role is removed while signed in).
+  `role = 'admin'`; they sign in at admin.kavenue.fr. V2: a master admin (BACKLOG § AL).
 - **V2: a `document_event` log** — a second verdict on a paper overwrites the first (§ AK).
 - The 11 Drivers verified before 2026-09-12 have no `verified_at` — left alone on purpose.
-- `fold_text` folds only Latin-1 accents plus œ/æ (French, Spanish, Portuguese); Ş Ğ ı Ă Ș Ț Ł are not. A pasted
-  80-character term cut mid-emoji makes the search RPC fail: /admin/drivers then blames the 13d migration, /admin/vehicles
-  says "admin_vehicle_find couldn't be read".
+- `fold_text` folds only Latin-1 accents plus œ/æ; Ş Ğ ı Ă Ș Ț Ł are not. A pasted 80-character term cut mid-emoji
+  makes the search RPC fail.
 - "Vehicle" vs "Car": the tab is "Vehicles", a Driver's page tile says "Vehicle", the table columns and pills say "Car".
 - An "Everyone" row still prints the base label's first part ("Pl. du Casino") — the founder said not to touch it.
-- **Surfaced by the Runway check, worth knowing:** replace the Mapbox token WITHOUT a URL restriction (the servers call
-  Mapbox with no Referer); the Business side has no Kbis review screen and no `business.verified` (queued, deferred
-  twice); a Driver's REVTC, card and VAT numbers are not shown on /admin/drivers/[id] (table editor only).
+- **Worth knowing:** replace the Mapbox token WITHOUT a URL restriction (the servers call Mapbox with no Referer); the
+  Business side has no Kbis review screen and no `business.verified`; a Driver's REVTC, card and VAT numbers are not
+  shown on /admin/drivers/[id].
 
 ## 🔜 WHAT IS NEXT
-**The security session** (its own worktree, the founder's next move) → then **step 6 — Driver analytics by région / city**
-(the founder, S83: finish the Ceiling work, *"then go back to step 6 to finish properly"*) · or the next Runway ruling
-(`penalty` + `checkin` + `reliability`). Ask.
+**The founder is on the landing page** (its own repo — `project/LANDING_HANDOFF.md`). In this repo, in rough order:
+1. **Land the glossary branch** (above) — it is finished and unpushed, and its strings are live on `main` today.
+2. **The admin pager** — `readAll` fails open, 14 unordered reads, the false-accusation risk in `repooled`.
+3. Then either **step 6 — Driver analytics by région / city** (the founder, S83: *"go back to step 6 to finish
+   properly"*) or the next Runway ruling (**`penalty` + `checkin` + `reliability`**). Ask.
 
-⚑ **Step 6 can stand on S78–S81's pieces:** the brainstorm's core is "based here" vs "can reach here" (Monaco: 1 based,
-10 can reach it); counts always, a percentage only from 20 trips, the state on the row. Reuse `baseTownOf`,
-`admin_vehicle_overview`'s census shape (supply today, demand by pickup date), `readAll`, the `.adm-apv` table and
-`components/admin-approval-cell.tsx`. S83 adds `lib/fleet-fit.ts` `nobodyFits` (can ANY approved car reach and fit this
-trip — class, body, specific car, base + radius). Still NOT recorded: whether any car could have REACHED a trip nobody
-took. The history it needs starts 2026-09-12, and busy slots cannot be rebuilt (D142, parked).
+⚑ **PARKED, on the founder's word (2026-09-21): the Schedule's shape.** The whole brainstorm — what the Calendar and
+History can and cannot carry, the four arguments against a today-only Schedule, and the recommended rolling
+today + tomorrow window — is written up in `project/IDEAS.md` under **"The Schedule's shape"**. Nothing was built; a
+preview comes first when it is picked up ([[show-preview-before-coding]]).
+
+⚑ **Step 6 can stand on S78–S81's pieces:** "based here" vs "can reach here" (Monaco: 1 based, 10 can reach it); counts
+always, a percentage only from 20 trips, the state on the row. Reuse `baseTownOf`, `admin_vehicle_overview`'s census
+shape, `readAll`, the `.adm-apv` table and `components/admin-approval-cell.tsx`. S83 adds `lib/fleet-fit.ts`
+`nobodyFits`. Still NOT recorded: whether any car could have REACHED a trip nobody took (D142, parked).
 
 ## ⚑ TRAPS FROM S78 — each nearly shipped
 
@@ -284,7 +258,8 @@ role; a Safari Private Window (⌘⇧N) holds a second, independent session. Oth
 - **`DEV_LOGIN_KEY` / `DEV_PASSWORD` are deleted from Vercel** (founder, 2026-09-09) and
   `next.config.mjs` throws on a production build carrying `DEV_LOGIN_KEY` (not on `DEV_PASSWORD` alone). Read that file before advising
   anything about env vars.
-- **Pushing `main` deploys the live site** (Vercel) — admin.kavenue.fr included.
+- **Pushing `main` deploys the live site** (Vercel) — admin.kavenue.fr included. ⚑ And a direct push to `main` is
+  **refused**: branch protection requires the `types · tests · build` check on a pull request (first hit S84, PR #4).
 - **The Xcode license can lapse** (after a macOS / Xcode update) and take `git` and `python3` with it — the founder's
   `sudo xcodebuild -license accept` fixes it.
 

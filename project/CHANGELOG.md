@@ -5,6 +5,55 @@
 
 ---
 
+## 21 September 2026 — The speed-up for those screens is live
+
+- You pasted the optional database file and the checker came back **all five green**. Schedule, Spend, History, the
+  downloads and Drafts now have the database's own shortcuts behind them, so reading your archive stays quick however
+  big it gets. Nothing to do; nothing on screen changes.
+
+## 20 September 2026 — Drafts paged too: Part 1 is finished
+
+- The Drafts page was the last screen reading your archive in one go. It now reads in batches like the rest.
+- **Why it mattered even though it's small:** the number on the Drafts tab is counted by the database itself, so past
+  1 000 drafts the tab and the page would have shown different numbers to the same person.
+- If that read ever fails you now get a message instead of the words "No drafts." — which would have been a lie.
+- **That completes the job:** Schedule, Spend, History, both downloads and Drafts. Nothing on your side can silently
+  stop at 1 000 trips any more.
+
+## 20 September 2026 — Spend, History and the two CSV downloads can no longer quietly under-report your money
+
+- **The problem.** Same 1 000-row wall as the Schedule, but worse here: these screens add your money up from the
+  trips they read. Past 1 000 trips the total would simply have come out too low, the "requests covered" percentage
+  wrong, and the comparison would have announced that a month with plenty of trips "has no trips".
+- **The fix.** All four now read your archive in batches until it is complete.
+- **A downloaded file is all or nothing now.** If the archive can't be read in full, or the Driver names can't be
+  loaded, you get no file and a plain message instead of a spreadsheet that looks complete and isn't.
+- **Spend no longer invents a zero.** If the read fails, you see the message alone — not a 0,00 € total with a
+  −100 % fall against last month, which is what it used to draw.
+- **Nothing else changes** — same figures, same screens. I checked by shrinking the batch size to 25 and reloading:
+  identical totals, down to the cent.
+- **One optional database file** (`2026-09-20_paged_read_indexes.sql`) adds indexes so these reads stay quick as you
+  grow. Nothing depends on it and nothing is broken without it — paste it whenever you like, then the check file.
+- **Found and fixed during review:** my own first version rebuilt the "up to now" moment on every batch, so a trip
+  whose pickup time passed mid-download could have been written into the file twice. Caught before it shipped.
+
+## 20 September 2026 — Your Schedule can no longer lose tomorrow's trips as your archive grows
+
+- **The problem.** The database hands back at most 1 000 trips per request and says nothing when it cuts. Your
+  Schedule asked for every trip you have ever had, oldest first — so a Business past its 1 000th trip would have
+  watched today and everything ahead quietly disappear from the screen, along with the Raise the Ceiling and Change
+  the car buttons that live on those rows. No error, no warning.
+- **The fix.** The Schedule now asks for trips in batches until it has them all. If a batch fails it says so, instead
+  of showing a short list that looks complete.
+- **Nothing you see changes** — same screen, same trips, same order. No database file to paste.
+- **Two honest touches while we were in there.** When the Driver names can't be loaded, the Driver column now says
+  "not loaded" instead of a dash (a dash means "nobody took this trip"), and opening the row explains it instead of
+  claiming "No Driver assigned". And a failed load no longer draws an empty schedule underneath its own error.
+- **Nothing was ever wrong for you.** The busiest Business on the platform is at a few hundred trips. This is a wall
+  built before anyone reaches it.
+- **Still to do, same job elsewhere:** Spend, History and the two CSV downloads read your whole past archive and add
+  the money up from it — past 1 000 trips those totals would be too low without saying so. That's the next step.
+
 ## 18 September 2026 — Closed the last security hole: a Driver can no longer pay themselves the top price
 
 - **The problem.** A trip's price climbs from a low start up to your Ceiling, and the Driver is paid whatever it is when

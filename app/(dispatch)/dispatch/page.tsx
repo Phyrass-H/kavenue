@@ -17,6 +17,7 @@ import {
 } from "@/components/trip-row";
 import { parseGuestContacts, type GuestContact } from "@/lib/passengers";
 import { loadDriverWalks, latestPerMission } from "@/lib/side-tables";
+import { readAllPages, readAllPagesSoft, readByIds, readErrorMessage } from "@/lib/paged-read";
 import { parseChangeItems } from "@/lib/info-changes";
 import { parseWaypoints } from "@/lib/waypoints";
 import { releaseDeclineReasonLabel } from "@/lib/releases";
@@ -97,6 +98,7 @@ function DayGroup({
   dayKey,
   missions,
   contacts,
+  contactsFailed,
   guestContacts,
   amendments,
   releases,
@@ -109,6 +111,8 @@ function DayGroup({
   dayKey: string;
   missions: MissionRow[];
   contacts: Map<string, DriverContact>;
+  /** The Driver lookup failed — a nameless row means "not read", not "nobody". */
+  contactsFailed: boolean;
   guestContacts: Map<string, GuestContact[]>;
   amendments: Map<string, AmendmentBrief>;
   releases: Map<string, ReleaseBrief>;
@@ -139,6 +143,7 @@ function DayGroup({
           key={m.id}
           mission={m}
           driver={contacts.get(m.id) ?? null}
+          driverUnread={contactsFailed}
           guestContacts={guestContacts.get(m.id) ?? null}
           amendment={amendments.get(m.id) ?? null}
           release={releases.get(m.id) ?? null}
@@ -174,12 +179,34 @@ export default async function DispatchSchedule({
   // Idempotent; never throws.
   await sweepExpiredMissions(supabase);
 
-  const { data: missions, error } = await supabase
-    .from("mission_read")
-    .select("*")
-    .eq("business_id", ctx.business.id)
-    .neq("status", "draft") // drafts live on their own page, not the schedule
-    .order("pickup_at", { ascending: true });
+  // ⚑⚑ PAGED, NOT ONE REQUEST. An unbounded `.select()` stops at 1 000 rows and
+  // reports no error (lib/paged-read.ts). This read is sorted pickup_at ASCENDING
+  // with no date floor, so the rows a silent cut would drop are the NEWEST ones:
+  // today, and every trip ahead — exactly the trips that still carry the tools
+  // that can change the outcome (raise the Ceiling, change the car, § S83). A
+  // Business past its 1 000th trip would have watched tomorrow disappear from its
+  // own schedule with nothing on screen saying so.
+  // ⚑ `.order("id")` after `pickup_at` is load-bearing, not tidiness: two trips at
+  //   the same pickup time have no guaranteed order between two paged requests,
+  //   and an unstable sort loses one row and repeats another.
+  // ⚑ A FAILED PAGE IS AN ERROR, NEVER THE LAST PAGE — the screen says it could
+  //   not load rather than drawing a short schedule that looks complete.
+  let missions: MissionRow[] | null = null;
+  let error: { message: string } | null = null;
+  try {
+    missions = await readAllPages<MissionRow>("Your schedule", (from, to) =>
+      supabase
+        .from("mission_read")
+        .select("*")
+        .eq("business_id", ctx.business!.id)
+        .neq("status", "draft") // drafts live on their own page, not the schedule
+        .order("pickup_at", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to),
+    );
+  } catch (e) {
+    error = { message: readErrorMessage(e) };
+  }
 
   // Reveal the assigned Driver's name and phone (service role, gated to this business).
   //
@@ -194,16 +221,22 @@ export default async function DispatchSchedule({
   // ⚑ NO FALLBACK to the Driver's current car. A trip with no frozen copy shows no car, the
   //   same nothing this row already shows for a trip nobody has taken. Inventing one is the
   //   fault this change exists to remove.
+  // ⚑ BATCHED, and it now says when it failed. This list is one id per DISTINCT
+  //   Driver the Business has ever used, and an `.in(<ids>)` list ERRORS rather
+  //   than truncating — 397 work, 398 throw (measured, lib/side-tables.ts). It
+  //   also used to swallow the error, so a failed lookup drew "—" in the Driver
+  //   cell of a trip that HAS a Driver: the same nothing a trip nobody took shows.
   const contacts = new Map<string, DriverContact>();
+  let contactsFailed = false;
   const assigned = (missions ?? []).filter((m) => m.driver_id);
   if (assigned.length > 0) {
     const admin = createAdminClient();
-    const driverIds = [...new Set(assigned.map((m) => m.driver_id!))];
-    const { data: drivers } = await admin
-      .from("driver")
-      .select("id, first_name, last_name, phone")
-      .in("id", driverIds);
-    const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
+    const driverIds = assigned.map((m) => m.driver_id!);
+    const { rows: drivers, failed } = await readByIds("The Driver names", driverIds, (batch) =>
+      admin.from("driver").select("id, first_name, last_name, phone").in("id", batch),
+    );
+    contactsFailed = failed;
+    const byId = new Map(drivers.map((d) => [d.id, d]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (d)
@@ -224,14 +257,21 @@ export default async function DispatchSchedule({
   // a LEFT join, and the predicate would null the embed instead of dropping the row.
   // Never read `r.mission` — database.types.ts declares `Relationships: []` on
   // purpose, so it types as an error; it exists to JOIN, not to be read.
+  // ⚑ Paged, and ordered by its primary key so the pages cannot overlap. Unordered
+  //   paging would have made WHICH Guest lost a phone number vary between two
+  //   4-second refreshes of the same screen.
   const guestContacts = new Map<string, GuestContact[]>();
   const missionIds = (missions ?? []).map((m) => m.id);
   if (missionIds.length > 0) {
-    const { data: gc } = await supabase
-      .from("mission_guest_contact")
-      .select("mission_id, contacts, mission!inner(business_id)")
-      .eq("mission.business_id", ctx.business.id);
-    for (const r of gc ?? []) {
+    const { rows: gc } = await readAllPagesSoft<{ mission_id: string; contacts: unknown }>("Guest phone numbers", (from, to) =>
+      supabase
+        .from("mission_guest_contact")
+        .select("mission_id, contacts, mission!inner(business_id)")
+        .eq("mission.business_id", ctx.business!.id)
+        .order("mission_id", { ascending: true })
+        .range(from, to),
+    );
+    for (const r of gc) {
       guestContacts.set(r.mission_id, parseGuestContacts(r.contacts));
     }
   }
@@ -241,14 +281,24 @@ export default async function DispatchSchedule({
   // RLS scopes to this Business's own missions.
   const amendments = new Map<string, AmendmentBrief>();
   if (missionIds.length > 0) {
-    const { data: ams } = await supabase
-      .from("mission_amendment")
-      .select("*")
-      .eq("business_id", ctx.business.id) // § R rule 1 — was .in(<every mission id>)
-      .neq("status", "superseded")
-      .order("created_at", { ascending: false });
-    for (const a of latestPerMission(ams ?? [])) {
-      const am = (missions ?? []).find((x) => x.id === a.mission_id);
+    // ⚑ Paged, newest first, `id` breaking the tie — `latestPerMission` below keeps
+    //   the FIRST row per trip, so an unstable order would pick a different
+    //   amendment on each refresh, and a silent cut would hide a live proposal.
+    const { rows: ams } = await readAllPagesSoft<MissionAmendmentRow>("Proposed changes", (from, to) =>
+      supabase
+        .from("mission_amendment")
+        .select("*")
+        .eq("business_id", ctx.business!.id) // § R rule 1 — was .in(<every mission id>)
+        .neq("status", "superseded")
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    );
+    // Indexed once: the old `.find()` per amendment was a scan of every trip, and
+    // both sides of that product used to be capped at 1 000 by accident.
+    const missionById = new Map((missions ?? []).map((m) => [m.id, m]));
+    for (const a of latestPerMission(ams)) {
+      const am = missionById.get(a.mission_id);
       if (am) amendments.set(a.mission_id, buildBrief(a, am));
     }
   }
@@ -258,14 +308,18 @@ export default async function DispatchSchedule({
   // Business. Degrades to empty if the 2026-07-19 migration hasn't been applied.
   const releases = new Map<string, ReleaseBrief>();
   if (missionIds.length > 0) {
-    const { data: rels } = await supabase
-      .from("mission_release")
-      .select("*")
-      .eq("business_id", ctx.business.id) // § R rule 1 — was .in(<every mission id>)
-      .neq("status", "superseded")
-      .is("dismissed_at", null)
-      .order("created_at", { ascending: false });
-    for (const r of latestPerMission(rels ?? [])) {
+    const { rows: rels } = await readAllPagesSoft<MissionReleaseRow>("Agreed releases", (from, to) =>
+      supabase
+        .from("mission_release")
+        .select("*")
+        .eq("business_id", ctx.business!.id) // § R rule 1 — was .in(<every mission id>)
+        .neq("status", "superseded")
+        .is("dismissed_at", null)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    );
+    for (const r of latestPerMission(rels)) {
       releases.set(r.mission_id, buildReleaseBrief(r));
     }
   }
@@ -291,12 +345,20 @@ export default async function DispatchSchedule({
   // the 2026-07-10 migration hasn't been applied yet.
   const infoChanges = new Map<string, InfoChangeBrief>();
   if (missionIds.length > 0) {
-    const { data: ics } = await supabase
-      .from("mission_info_change")
-      .select("mission_id, items, created_at")
-      .eq("business_id", ctx.business.id) // § R rule 1 — was .in(<every mission id>)
-      .order("created_at", { ascending: false });
-    for (const r of latestPerMission(ics ?? [])) {
+    const { rows: ics } = await readAllPagesSoft<{
+      mission_id: string;
+      items: unknown;
+      created_at: string;
+    }>("The change log", (from, to) =>
+      supabase
+        .from("mission_info_change")
+        .select("mission_id, items, created_at")
+        .eq("business_id", ctx.business!.id) // § R rule 1 — was .in(<every mission id>)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    );
+    for (const r of latestPerMission(ics)) {
       const items = parseChangeItems(r.items);
       if (items.length > 0) infoChanges.set(r.mission_id, { at: r.created_at, items });
     }
@@ -369,9 +431,9 @@ export default async function DispatchSchedule({
       <LiveRefresh />
       {(open || day) && <ScrollToTrip missionId={open} dayKey={day} />}
 
-      {error && (
-        <div className="notice error">Couldn’t load your schedule: {error.message}</div>
-      )}
+      {/* ⚑ The message already names the schedule (lib/paged-read.ts) — a prefix
+          here printed it twice. */}
+      {error && <div className="notice error">{error.message}</div>}
 
       {isEmpty && (
         <div className="empty">
@@ -383,7 +445,10 @@ export default async function DispatchSchedule({
         </div>
       )}
 
-      {!isEmpty && (
+      {/* ⚑ `!error` as well as `!isEmpty`: with the read failed, `missions` is null
+          and `isEmpty` is false, so the scaffold drew an empty schedule under the
+          red notice — a Business would read that as "no trips". */}
+      {!error && !isEmpty && (
         <>
           <div className="dx-sched">
             <ColumnHead />
@@ -393,6 +458,7 @@ export default async function DispatchSchedule({
               dayKey={todayKey}
               missions={todayMissions}
               contacts={contacts}
+              contactsFailed={contactsFailed}
               guestContacts={guestContacts}
               amendments={amendments}
               releases={releases}
@@ -414,6 +480,7 @@ export default async function DispatchSchedule({
                 dayKey={k}
                 missions={groups.get(k)!}
                 contacts={contacts}
+                contactsFailed={contactsFailed}
                 guestContacts={guestContacts}
                 amendments={amendments}
                 releases={releases}
@@ -437,6 +504,7 @@ export default async function DispatchSchedule({
                     dayKey={k}
                     missions={pastOf(k)}
                     contacts={contacts}
+                    contactsFailed={contactsFailed}
                     guestContacts={guestContacts}
                     amendments={amendments}
                     releases={releases}

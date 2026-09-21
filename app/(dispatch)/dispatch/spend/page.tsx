@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TrendingDown, TrendingUp, Minus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { readAllPages, readByIds, readErrorMessage } from "@/lib/paged-read";
 import { getAppContext } from "@/lib/app-context";
 import { categoryLabel, formatMoney, formatMonth } from "@/lib/format";
 import { isExpired, parisDayKey } from "@/lib/dispatch-status";
@@ -59,10 +60,14 @@ export const dynamic = "force-dynamic";
  *     repainted the spend chart would make the headline total disagree with the
  *     bars underneath it.
  *
- * ⚑ Volume: this loads the whole past archive in one query and filters in
- * memory, exactly as /dispatch/history does — which is what lets the comparison
- * period, the chip counts and the class list all be honest without a second
- * round trip. Correct at 28 trips; the first thing to revisit at 5 000.
+ * ⚑ Volume: this loads the whole past archive and filters in memory, exactly as
+ * /dispatch/history does — which is what lets the comparison period, the chip
+ * counts and the class list all be honest without a second round trip. Since
+ * 2026-09-20 it is read in PAGES (lib/paged-read.ts): one unbounded request
+ * stopped at 1 000 rows and said nothing, and every figure on this screen is
+ * summed from that array, so a cut did not shorten a list, it under-reported
+ * money. Paging keeps it honest; the next step at real volume is to push the
+ * period into the QUERY, as app/(app)/earnings/page.tsx already does.
  */
 
 // One quiet strip of facts about SERVICE, kept apart from the money above it.
@@ -125,18 +130,33 @@ export default async function DispatchSpend({
 
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
-  const [{ data: all, error }, { data: desks }] = await Promise.all([
-    supabase
-      .from("mission_read")
-      .select("*")
-      .eq("business_id", ctx.business.id)
-      .neq("status", "draft")
-      .lt("pickup_at", nowIso)
-      .order("pickup_at", { ascending: false }),
+  // ⚑⚑ PAGED, NOT ONE REQUEST. An unbounded `.select()` stops at 1 000 rows and
+  // reports no error (lib/paged-read.ts), and this is the money screen: the
+  // headline total, the fill rate, the chart, the breakdown and the COMPARISON
+  // PERIOD are all computed in memory from this one array. A silent cut does not
+  // show a shorter list, it under-reports spend — and, worse, a previous month
+  // that fell off the end reads as zero, which the page states out loud as
+  // "Nothing to compare — {period} has no trips".
+  const [archive, { data: desks }] = await Promise.all([
+    readAllPages<MissionRow>("Your spend", (from, to) =>
+      supabase
+        .from("mission_read")
+        .select("*")
+        .eq("business_id", ctx.business!.id)
+        .neq("status", "draft")
+        .lt("pickup_at", nowIso)
+        .order("pickup_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to),
+    ).then(
+      (rows) => ({ rows: rows as MissionRow[] | null, error: null as { message: string } | null }),
+      (e: unknown) => ({ rows: null, error: { message: readErrorMessage(e) } }),
+    ),
     supabase.from("dispatcher").select("id, name").eq("business_id", ctx.business.id),
   ]);
+  const error = archive.error;
 
-  const missions: MissionRow[] = all ?? [];
+  const missions: MissionRow[] = archive.rows ?? [];
   const deskName = new Map((desks ?? []).map((d) => [d.id, d.name]));
 
   // The Driver of EVERY past trip, not just the ones on screen — the search matches a
@@ -147,17 +167,19 @@ export default async function DispatchSpend({
   // this Business had already reconciled. The founder, 2026-09-12: *"it's a false information
   // probably illegal"*. `carAsDriven` reads the trip's own frozen copy (mission.vehicle_*) and
   // never falls back to the car the Driver happens to have today.
+  // ⚑ Batched, and it now says when it failed — see the archive read above.
   const contacts = new Map<string, DriverContact>();
   const driverIdOf = new Map<string, string>();
   const assigned = missions.filter((m) => m.driver_id);
+  let contactsFailed = false;
   if (assigned.length > 0) {
     const admin = createAdminClient();
-    const driverIds = [...new Set(assigned.map((m) => m.driver_id!))];
-    const { data: drivers } = await admin
-      .from("driver")
-      .select("id, first_name, last_name, phone")
-      .in("id", driverIds);
-    const byId = new Map((drivers ?? []).map((d) => [d.id, d]));
+    const driverIds = assigned.map((m) => m.driver_id!);
+    const { rows: drivers, failed } = await readByIds("The Driver names", driverIds, (batch) =>
+      admin.from("driver").select("id, first_name, last_name, phone").in("id", batch),
+    );
+    contactsFailed = failed;
+    const byId = new Map(drivers.map((d) => [d.id, d]));
     for (const m of assigned) {
       const d = byId.get(m.driver_id!);
       if (!d) continue;
@@ -279,6 +301,16 @@ export default async function DispatchSpend({
         <span className="dxs-fresh">as of {stamp} (Paris)</span>
       </div>
 
+      {/* ⚑ The message already names the screen (lib/paged-read.ts). */}
+      {error && <div className="notice error">{error.message}</div>}
+
+      {/* ⚑ EVERYTHING BELOW IS GATED ON `!error`, as History already was. With the
+          archive unread, `missions` is [] and every figure below computes happily
+          from nothing: a 0,00 € total, "0 trips", a −100 % fall against last month
+          and an empty chart — a screen that states, in full detail, that this
+          Business spent nothing. A red notice above it does not undo that. */}
+      {!error && (
+        <>
       <SpendFilters
         query={query}
         view={{ label: span.label, isCurrent: isCurrentSpan(span), fromDay: span.fromDay, toDay: span.toDay }}
@@ -287,8 +319,6 @@ export default async function DispatchSpend({
         firstDay={firstDay}
         driverName={activeDriverName}
       />
-
-      {error && <div className="notice error">Couldn’t load your spend: {error.message}</div>}
 
       {/* ---- hero: one total in charge, two stats that qualify it ---------- */}
       <div className="dcard dxs-hero">
@@ -655,6 +685,7 @@ export default async function DispatchSpend({
                   key={r.mission.id}
                   mission={r.mission}
                   driver={contacts.get(r.mission.id) ?? null}
+                  driverUnread={contactsFailed}
                   archived
                   // Settled rows show what the trip actually cost — waiting
                   // included — so the row sums to the bar above it and the
@@ -682,6 +713,8 @@ export default async function DispatchSpend({
       </div>
 
       {openId && <ScrollToTrip missionId={openId} />}
+        </>
+      )}
     </>
   );
 }

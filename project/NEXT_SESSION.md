@@ -40,7 +40,7 @@ S83 ruled the first V1 Runway item and built what the ruling gives the Business 
 |---|---|
 | `main` | **S83 merged 2026-09-18** (fast-forward of `s83-unfilled`; CI green, deployed by Vercel). S82 before it (`677838e`) |
 | NOT on `main` | the security sweep — branch `claude/dazzling-mendeleev-f3a500` (`e1b78ac`, D146): migrations live, code + probes + docs on the branch. Its session merges it |
-| applied live | every file in `docs/migrations/` up to and including **`2026-09-18d_mission_read_step_count.sql`**. The four of 2026-09-18 were pasted by the founder in order **18a → 18b → 18c → 18d**. ⚑ An early 18c paste (before 18a) was refused by its own guard — nothing ran |
+| applied live | **every file in `docs/migrations/`, up to and including `2026-09-20_paged_read_indexes.sql`** (pasted 2026-09-21, S84 — `.local/probe/paged-reads/check.sql` reads 5/5 `pass` on the live database). Before it: 18a → 18b → 18c → 18d in that order, then `2026-09-18e_accept_fare_from_the_server.sql` (2026-09-19, S83 close). ⚑ An early 18c paste (before 18a) was refused by its own guard — nothing ran |
 | live checks, 2026-09-18 | `.local/probe/pooled-trip-changes/check.sql` all pass · the sweep's `rls-audit/check.sql` (run after 18b, before 18c) all pass except `rls_auto_enable()` — **confirmed Supabase's event trigger** (`ensure_rls`, `ddl_command_end`, search_path pinned; cannot be called directly) · read-only probe: PostgREST serves `pdp_step_count`; anon `rpc/raise_ceiling` → 42501 |
 | tests | **1336** · tsc clean |
 | probes | `.local/probe/pooled-trip-changes/run.sh` (throw-away PG17, the whole live schema): 53/53 cases · check 20/20 · parity 0 mismatches (step counts, Course, floors) · `mutants.sh` 15/15 red |

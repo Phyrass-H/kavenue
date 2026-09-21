@@ -5,6 +5,12 @@
 
 ---
 
+## 21 September 2026 — The speed-up for those screens is live
+
+- You pasted the optional database file and the checker came back **all five green**. Schedule, Spend, History, the
+  downloads and Drafts now have the database's own shortcuts behind them, so reading your archive stays quick however
+  big it gets. Nothing to do; nothing on screen changes.
+
 ## 20 September 2026 — Drafts paged too: Part 1 is finished
 
 - The Drafts page was the last screen reading your archive in one go. It now reads in batches like the rest.

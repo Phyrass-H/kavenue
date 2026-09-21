@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-09-21 — S84 · the indexes are LIVE · check 5/5 pass
+
+The founder pasted `docs/migrations/2026-09-20_paged_read_indexes.sql` and ran `.local/probe/paged-reads/check.sql`
+on the live database: **all five rows `pass`**, definitions exactly as written —
+`mission (business_id, pickup_at, id)` and `(business_id, created_at desc, id desc)` on `mission_cancellation`,
+`mission_amendment`, `mission_release`, `mission_info_change`. Every paged read on the Business side is now
+index-supported in its own sort order. Nothing else to paste for Part 1.
+
 ## 2026-09-20 — SESSION 84 (cont.) · step 3: Drafts paged — Part 1 of the cap fix is DONE · tests 1390
 
 `app/(dispatch)/dispatch/drafts/page.tsx` was the last unbounded archive read on the Business side. Small, but it

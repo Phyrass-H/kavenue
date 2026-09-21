@@ -31,36 +31,24 @@ ever wrong — this was a wall built before someone walked into it.
    landing page"**, and the Schedule redesign is **parked** (see `project/IDEAS.md`, "The Schedule's shape").
    ⚑ The landing site is its OWN repo, not this one — the brief is `project/LANDING_HANDOFF.md` (written 2026-08-04;
    read it before touching anything, and check its claims against today's product, e.g. S83's raise-the-Ceiling).
-2. ⚑⚑ **DECIDE THE UNPUSHED GLOSSARY BRANCH — it exists only on this Mac** (below). One `git worktree remove` loses it.
+2. ~~Decide the unpushed glossary branch~~ — **done, merged as PR #6** (below).
 
-### ⚑⚑ `claude/peaceful-turing-7035de` — finished, NEVER PUSHED
-The [[d99]] glossary sweep, from one of the two sessions the founder ended on 2026-09-20. 4 commits
-(`5e12f87 · 82173ca · 2f7697a · cc73bc6`), last 2026-09-20 21:38, in the worktree
-`.claude/worktrees/peaceful-turing-7035de`. **No upstream, nothing on origin** (`git ls-remote --heads origin | grep peaceful` → nothing).
-- What it does: five Driver-facing rendered strings + one form placeholder stop calling every Business "the hotel";
-  **82 comments across 43 files** rewritten and **47 deliberately kept** with a stated reason each (proper noun, the
-  type, the vertical…); then "client" swept after reading the arrêté du 6 août 2025 + BOFiP; and
-  **`tests/glossary-copy.test.ts` (642 lines)**, a scanner that fails the build on a new bad string.
-- Finished by this project's rule: every commit touches `SESSION_LOG.md` and `CHANGELOG.md`.
-- ⚑ It branched off `9c1a902`, **before** S84's paging. A trial merge (`git merge-tree`) auto-merges **every code
-  file**, including the four dispatch files S84 touched, and conflicts **only** in `project/CHANGELOG.md` and
-  `project/SESSION_LOG.md` — both append-at-top, so keep both sides.
-- ⚑ Its commit body claims **2129 tests** on its own base. `main` is at **1390**. After merging, **re-measure** —
-  never add the two numbers.
-- **The strings are still live on `main` today:** `app/(app)/rides/page.tsx:294` renders *"Waiting on the hotel"* in an
-  `<h2 className="dday__l">` · `rides/page.tsx:50` · `components/check-in-card.tsx:56` · `components/close-trip-card.tsx:87`
-  (⚑ a template literal inside JSX — a naive string grep walks past it) · `components/mission-run-view.tsx:256` ·
-  `app/(dispatch)/dispatch/settings/page.tsx:292` `placeholder="accounts@hotel.com"`.
+### ⚑ The glossary sweep landed — `PR #6`, 2026-09-21 08:24 UTC
+`claude/peaceful-turing-7035de` (the [[d99]] sweep, from one of the two sessions ended on 2026-09-20) was merged into
+`main` as `066d55e` after this file first recorded it as unpushed. Verified on `main`: `app/(app)/rides/page.tsx:303`
+now renders *"Waiting on the Business"*, and every remaining "the hotel" in the code is either a comment stating the
+rule or a real hotel (the Negresco, in the address-autocomplete notes). It also brought
+`tests/glossary-copy.test.ts`, which fails the build on a new bad string. **Nothing is left to do on it.**
 
 ### State
 | | |
 |---|---|
-| `main` | **8f2a49d** — S84 merged via **PR #4** 2026-09-21, CI green, deployed by Vercel. Before it: PR #2 (`1cb6c5c`, the security sweep) merged **2026-09-18 19:48 UTC**, PR #3 (`9c1a902`) |
+| `main` | **066d55e** — the glossary sweep (**PR #6**, 2026-09-21 08:24 UTC) on top of S84's paging (**PR #4**, `8f2a49d`) and this session's close (**PR #5**). Before them: PR #2 (`1cb6c5c`, the security sweep) 2026-09-18, PR #3 (`9c1a902`) |
 | ⚑ pushing `main` | **REFUSED** — branch protection requires the check `types · tests · build` on a PR. "Merge it to main" = push the branch, `gh pr create`, `gh pr checks <n> --watch`, `gh pr merge <n> --merge` |
-| NOT on `main` | `claude/peaceful-turing-7035de` (above, unpushed) · `origin/claude/new-session-xa2aop` — 1 commit, 2026-08-08, adds a `test/` directory the repo no longer has (tests live in `tests/`): **stale, delete it** |
+| NOT on `main` | only `origin/claude/new-session-xa2aop` — 1 commit, 2026-08-08, adds a `test/` directory the repo no longer has (tests live in `tests/`): **stale, delete it** |
 | local `main` | 5 behind origin; the main checkout is parked on `s83-unfilled` (`0532d9d`), clean. 7 worktrees, all clean but `charming-mayer-bae0a3` (one untracked `.local`, detached HEAD) |
 | applied live | **every file in `docs/migrations/`, up to and including `2026-09-20_paged_read_indexes.sql`** (pasted 2026-09-21; `.local/probe/paged-reads/check.sql` 5/5 `pass`). Before it: 18a → 18b → 18c → 18d, then 18e (2026-09-19) |
-| tests | **1390** across 62 files · `tsc --noEmit` clean · `next build` clean |
+| tests | **2186** across 63 files, measured on `main` after PR #6 (S84 alone was 1390; the glossary branch claimed 2129 on its own base — the merged figure is neither, which is why it is re-measured, never added) · `tsc --noEmit` clean · `next build` clean |
 | probes | `vehicle-find.mts` 33/33 · `car-gate.mts` 20/20 · `never-twice.mts` 5/5 · `driver-find.mts` 15/15 · `pooled-trip-changes/run.sh` 53/53 · `rls-audit/check.sql` all pass/info |
 | ⚑ `handoff-check.ts` | NOT run since S79. ⚑ It TRIES writes (a `mission_cancellation` insert, a vehicle update, three probe sign-ins). Ask before running it |
 | live, measured | 271 trips at the busiest Business (2026-08-23) · `mission_event` 2 569 rows (2026-09-03) · `mission` 377 rows |
@@ -150,9 +138,9 @@ posted trip's Ceiling"*, which S83 made false. Update it WITH the founder.
 
 ## 🔜 WHAT IS NEXT
 **The founder is on the landing page** (its own repo — `project/LANDING_HANDOFF.md`). In this repo, in rough order:
-1. **Land the glossary branch** (above) — it is finished and unpushed, and its strings are live on `main` today.
-2. **The admin pager** — `readAll` fails open, 14 unordered reads, the false-accusation risk in `repooled`.
-3. Then either **step 6 — Driver analytics by région / city** (the founder, S83: *"go back to step 6 to finish
+1. **The admin pager** — `readAll` fails open at 20 call sites, 14 of them unordered, with a false-accusation risk in
+   the `repooled` read.
+2. Then either **step 6 — Driver analytics by région / city** (the founder, S83: *"go back to step 6 to finish
    properly"*) or the next Runway ruling (**`penalty` + `checkin` + `reliability`**). Ask.
 
 ⚑ **PARKED, on the founder's word (2026-09-21): the Schedule's shape.** The whole brainstorm — what the Calendar and

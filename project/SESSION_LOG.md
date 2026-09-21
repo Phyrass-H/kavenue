@@ -5,6 +5,47 @@
 
 ---
 
+## 2026-09-21 — SESSION 84 CLOSED · the 1 000-row cap is shut on the Business side · PR #4 merged · tests 1390
+
+**⚑ DONE and deployed.** `main` = `8f2a49d` (PR #4, CI green). Three commits of code plus the close:
+the Schedule (`976cef1`), Spend + History + both CSVs (`deaa72d`), Drafts (`04f1a37`), indexes live (`b0db123`).
+`docs/migrations/2026-09-20_paged_read_indexes.sql` was pasted by the founder the same morning —
+`.local/probe/paged-reads/check.sql` **5/5 pass**, definitions verbatim.
+
+**What was actually at risk, and what was not.** Nobody was near 1 000 rows (271 at the busiest Business, measured
+2026-08-23), so **no figure a Business or the founder ever saw was wrong**. What the fix removes is a silent future:
+the Schedule would have dropped today and every trip ahead (ascending sort, no date floor), Spend and History would
+have **under-reported money** rather than shown a short list, both CSVs would have written a short file that looks
+complete, and Drafts would have disagreed with its own exact-count badge.
+
+**How it was proven.** `tsc` clean · `next build` clean · **1390 tests** (+47 over S83: 16 pager, 31 source-scan) ·
+`PAGE_ROWS` temporarily forced to 25 against the LIVE database: History still read *"169 trips · 13 436,37 € incl.
+502,32 € waiting · 36 unfilled"*, Spend still *"−3 691,95 € · −100,0 %"* and *"1 of 14"*, the History CSV still had
+170 lines — identical to page size 1 000 · forced failures: 503 with no file, and Spend drawing header + notice only ·
+85 review agents over three adversarial passes.
+
+**⚑⚑ The review caught a defect this session INTRODUCED** — `new Date()` inside the paged callback, so the "past"
+boundary walked forward between pages and the boundary rows were written twice into a file with a Total row. See
+S84 LESSONS in `NEXT_SESSION.md`; a test now refuses a `new Date()` inside any paged chain.
+
+**Process note, new:** a direct push to `main` is **refused** — branch protection requires the `types · tests · build`
+check on a pull request. "Merge it to main" therefore means: push the branch, `gh pr create`, watch CI, `gh pr merge`.
+
+### At the close, the founder's calls
+- **They are moving to the landing page** — its own repo; the brief is `project/LANDING_HANDOFF.md` (2026-08-04).
+- **The Schedule redesign is PARKED**, written up in full in `project/IDEAS.md` ("The Schedule's shape" + the
+  `/dispatch/[id]` case). Nothing built; a preview first when it is picked up.
+- **Two local sessions were ended on 2026-09-20.** Only one left work in git, and it is **unpushed**:
+  `claude/peaceful-turing-7035de`, the [[d99]] glossary sweep (4 commits, `tests/glossary-copy.test.ts`, 82 comments
+  rewritten / 47 deliberately kept). Its strings are **still live on `main`** — `app/(app)/rides/page.tsx:294` renders
+  *"Waiting on the hotel"*. It needs the founder's word to push and merge; a trial merge conflicts only in the two
+  append-at-top project files. ⚑ It claims 2129 tests on its own base — re-measure after merging, never add.
+
+### ⚑ Left for the next session
+The admin console's own pager (`readAll` fails open at 20 call sites; 14 page unordered; the `repooled` read can make
+a **false accusation**), the Schedule's six sequential reads, and pushing the period into the query on the two money
+screens. Exact file:line pointers are in `NEXT_SESSION.md` → LEFT OPEN.
+
 ## 2026-09-21 — S84 · the indexes are LIVE · check 5/5 pass
 
 The founder pasted `docs/migrations/2026-09-20_paged_read_indexes.sql` and ran `.local/probe/paged-reads/check.sql`

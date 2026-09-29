@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-09-29 — SESSION 85 · the KAVENUE trademark filed at INPI ([[d149]]) · no code change
+
+- **Filed + paid by the founder:** French word mark KAVENUE, **n° 5302921**, 29/09/2026, €310, classes 9/35/39/42,
+  18 TMclass terms, applicant = the founder personally. Receipt kept outside the repo.
+- **Free availability check** (data.inpi.fr + TMview): no KAVENUE mark; watch-list CAR AVENUE (EU 019339207) and
+  TRAVENUE (EU 019299517); 62 live "…avenue" marks in class 39.
+- **Caught before payment:** the INPI form's class toggle had selected each class's whole short list — « Transport »,
+  « Transport en taxi », « Portage salarial », diving suits… — against hard rule 2 and word for word CAR AVENUE's
+  services. Rewritten through *Saisie libre* with harmonised terms; the second recap checked line by line.
+- **Next:** BOPI ≈ 10 Nov 2026 → oppositions until ≈ mid-Jan 2027 → registration ≈ Mar 2027. **29 Mar 2027 = the
+  priority deadline for Monaco / EU.** Watch the INPI portal and email for any notification.
+- Branch `s85-trademark` (docs only).
+
 ## 2026-09-21 — the glossary sweep merged (PR #6) · main 066d55e · tests re-measured at 2186
 
 Recorded because the S84 close, written an hour earlier, says the branch was unpushed. `claude/peaceful-turing-7035de`

@@ -5,6 +5,16 @@
 
 ---
 
+## 29 September 2026 — Filed the Kavenue trademark
+
+- **"Kavenue" is now a trademark application at INPI** (n° 5302921, dated 29 September 2026, €310), in the founder's
+  name.
+- It covers the app, the marketplace, the booking and brokerage of transport, and the platform (classes 9, 35, 39 and
+  42) — worded so that Kavenue is the intermediary, never the transport company.
+- Before filing, a free search found no other "Kavenue" trademark.
+- Next: publication around 10 November; for two months after that anyone may object; registration around March 2027.
+  To protect the name in Monaco or across the EU with the same date, file before 29 March 2027.
+
 ## 20 September 2026 — Fixed the second banned word, "client" — after reading the actual decree first
 
 - **The rule has two halves and only one had ever been done.** Kavenue's wording bans "client" as well as

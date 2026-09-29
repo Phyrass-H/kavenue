@@ -4392,3 +4392,48 @@ accept never trips it). A raise only ever made a stale stamp UNDER-pay, but the 
 the table, the ceiling-bound guard, the honest stamp path pays the stamped fare, and the stale-stamp-after-a-price-drop →
 NULL) — `run.sh` 104/104, `check.sql` 0 FAIL, `npm test` 1336, plus a 3-agent adversarial re-attack on the throw-away.
 Migration NOT applied by Claude; the founder pastes `2026-09-18e` after `18d`.
+
+### D149 — The KAVENUE word mark: filed at INPI in the founder's name, 4 classes, worded as the agent (2026-09-29, S85)
+
+**Filed and paid by the founder, 2026-09-29, on the INPI portal:** French **word mark** (*marque verbale*) **KAVENUE**,
+**n° 5302921**, **€310** (190 + 3 × 40 — INPI schedule of 2 July 2026). The receipt lives outside the repo
+(`Kavenue/Marque/Verbale/`). The founder's address is on it; it is not copied here (the repo is public).
+
+1. **Applicant: the founder personally** — no Kavenue company yet. Moving it into a company later is an *inscription* on
+   the national register, €27 per title.
+2. **Classes 9 · 35 · 39 · 42 — 18 terms, all from the EU harmonised database (TMclass)**, so INPI accepts them without
+   an irregularity notice: **9** downloadable / mobile apps, web application software · **35** online marketplace
+   (*« Mise à disposition d'espaces de vente en ligne pour acheteurs et vendeurs de produits et services »*), commercial
+   intermediation, matching professionals, *« Services de facturation »* (billing on behalf of Drivers) · **39**
+   *« Services de réservation de transport »*, *« Courtage de transport »*, computerised booking of passenger transport,
+   *« Organisation de services de transport de passagers pour des tiers via une application en ligne »*, booking over
+   global networks, transport information/advice/booking · **42** SaaS, PaaS, non-downloadable software online.
+3. **⚑ Worded as the AGENT (hard rule 2).** Booking, brokerage, marketplace — **never** « Transport », « Transport en
+   taxi », « Transport de passagers en véhicules avec chauffeur », « Location de véhicules », « Portage salarial » or
+   « Bureaux de placement ». **The INPI form's class toggle (tab *Aperçu de la classification*) selects the WHOLE short
+   list of a class** — the first draft carried all of the above plus diving suits, fire extinguishers and water
+   distribution; it was rewritten through *Saisie libre* and the second recap checked line by line before payment.
+   Besides the agent position, that list claimed **CAR AVENUE's exact services** (EU 019339207: transport, vehicle rental,
+   towing, garages, parking; vehicle inspection) — an opposition compares the written lists, not the real businesses.
+   The founder's read (*« Car Avenue n'a rien à voir avec nous »*) is true of the businesses; the narrow list makes it
+   true on paper.
+4. **No other class.** 36 only if Kavenue ever launches its own payment product: Stripe provides the payment service,
+   Kavenue collects on behalf of the Driver (Doc 01), and the "voucher" is the *justificatif de réservation*, not a token
+   of value. Classes cannot be added after filing — a later class is a new filing (€190).
+5. **Search: the free one only** (data.inpi.fr + TMview, 2026-09-29): **no KAVENUE mark** anywhere; nothing live for
+   Cavenue / Kavenu / K Avenue. Closest: **CAR AVENUE** (EU, Luxembourg car-dealer group, cl. 12/35/36/37/38/39/42) and
+   **TRAVENUE** (EU 019299517, a travel app, cl. 9/35/38/39/41/42/43/45); 62 live "…avenue" marks coexist in class 39
+   (FR/EU/WIPO), so "avenue" is weak. One sole trader uses a near-identical trade name for office/secretarial services
+   since 09/2026 — unrelated trade, local. Claude's read: low risk, not zero. INPI's €80 similarity search was offered;
+   the founder chose to file now.
+6. **Dates.** BOPI publication ≈ 6 weeks (≈ 10 Nov 2026) → 2 months for oppositions (≈ mid-Jan 2027) → registration ≥ 5
+   months after filing (≈ Mar 2027) → 10 years, renewable (€290 + €40 per extra class). Unused for 5 years, a class can be
+   revoked on a third party's request. **⚑ 29 Mar 2027 — the 6-month priority deadline** (Paris Convention) to file in
+   **Monaco** (not covered by a French mark — own office, MCIPO — and 28 % of missions touch it) or at EU level with the
+   29/09/2026 date. Use ® only once registered.
+7. After publication, postal "invoices" about the mark are scams (INPI warns about lookalike letters); every INPI fee is
+   paid online.
+
+Sources: INPI fee schedule of 2 July 2026 (inpi.fr `download-document?id=20516`) and services prices (`id=20514`); INPI
+*Les étapes clés du dépôt de marque*; *Le choix des produits et services pour ma marque*; *Aide en ligne — déposer une
+marque* (pp. 59–65); MCIPO (Monaco).

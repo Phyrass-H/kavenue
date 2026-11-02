@@ -4434,6 +4434,12 @@ Migration NOT applied by Claude; the founder pastes `2026-09-18e` after `18d`.
 7. After publication, postal "invoices" about the mark are scams (INPI warns about lookalike letters); every INPI fee is
    paid online.
 
+**Update 2026-11-02 — published unchanged.** BOPI **n° 26/43 of 23 Oct 2026** (national n° 26 5302921; INPI notice
+dated 25 Oct); the published text is exactly the 18 filed terms. **Opposition window closes 23 Dec 2026.** Founder's call
+(2026-10-30): the **logo** (figurative mark, the icon alone) and the **Madrid extension** (Monaco; EU only if expanding)
+are filed in **January 2027**, before the 29 Mar 2027 priority deadline. The logo waits on the designer's signed
+copyright assignment (drafted S85, kept outside the repo).
+
 Sources: INPI fee schedule of 2 July 2026 (inpi.fr `download-document?id=20516`) and services prices (`id=20514`); INPI
 *Les étapes clés du dépôt de marque*; *Le choix des produits et services pour ma marque*; *Aide en ligne — déposer une
 marque* (pp. 59–65); MCIPO (Monaco).

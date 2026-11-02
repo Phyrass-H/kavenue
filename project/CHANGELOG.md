@@ -5,6 +5,13 @@
 
 ---
 
+## 23 October 2026 — The Kavenue trademark was published
+
+- INPI published the application in its official bulletin (BOPI n° 26/43), word for word as filed.
+- Anyone may object until 23 December 2026. If nobody does, the mark is registered.
+- Next, in January 2027: file the logo as a trademark and extend the name to Monaco (and the EU if needed) before
+  29 March 2027.
+
 ## 29 September 2026 — Filed the Kavenue trademark
 
 - **"Kavenue" is now a trademark application at INPI** (n° 5302921, dated 29 September 2026, €310), in the founder's

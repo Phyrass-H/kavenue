@@ -5,6 +5,14 @@
 
 ---
 
+## 2026-11-02 — the KAVENUE mark published at the BOPI ([[d149]] update) · no code change
+
+- **Published 23 Oct 2026, BOPI n° 26/43**, national n° 26 5302921 (INPI notice dated 25 Oct). Text checked against the
+  filing: the 18 terms, unchanged.
+- **Oppositions until 23 Dec 2026.** No objection → registration published + certificate.
+- **January 2027 (founder):** file the logo (icon alone, after the designer signs the copyright assignment) and the
+  Madrid extension (Monaco; EU only if expanding) — before **29 Mar 2027**. A scheduled reminder fires 4 Jan 2027.
+
 ## 2026-09-29 — SESSION 85 · the KAVENUE trademark filed at INPI ([[d149]]) · no code change
 
 - **Filed + paid by the founder:** French word mark KAVENUE, **n° 5302921**, 29/09/2026, €310, classes 9/35/39/42,
